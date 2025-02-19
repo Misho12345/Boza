@@ -1,7 +1,4 @@
 #include "pch.hpp"
-#include "Core/Components/Transform.hpp"
-#include "glm/vec3.hpp"
-
 
 int main()
 {
@@ -25,6 +22,4 @@ int main()
         const glm::vec3& pos = object->get_transform().position;
         boza::Logger::info("Position: {}, {}, {}", pos.x, pos.y, pos.z);
     }
-
-    obj.add_component<struct test : boza::Component {}>();
 }
