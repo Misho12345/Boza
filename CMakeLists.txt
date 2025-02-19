@@ -16,8 +16,11 @@ endif()
 add_library(BozaEngine SHARED
         src/pch.hpp src/pch.cpp
         src/API.hpp
-        src/Logger.hpp src/Logger.cpp
-        src/Core/GameObject.hpp src/Core/GameObject.cpp
+        src/Logger.hpp                      src/Logger.cpp
+        src/Core/GameObject.hpp             src/Core/GameObject.cpp
+        src/Core/Scene.hpp                  src/Core/Scene.cpp
+        src/Core/Game.hpp                   src/Core/Game.cpp
+        src/Core/Components/GameObjData.hpp src/Core/Components/GameObjData.cpp
 )
 
 target_precompile_headers(BozaEngine PRIVATE src/pch.hpp)
