@@ -8,12 +8,13 @@ if (DEFINED ENV{VCPKG_ROOT})
 endif ()
 
 add_library(BozaEngine SHARED
-        src/Core/GameObject.cpp
-        src/Core/GameObject.hpp
-        src/Core/API.hpp
-        src/Core/API.hpp
+        src/pch.hpp src/pch.cpp
+        src/API.hpp
+        src/Logger.hpp src/Logger.cpp
+        src/Core/GameObject.hpp src/Core/GameObject.cpp
 )
 
+target_precompile_headers(BozaEngine PRIVATE src/pch.hpp)
 target_compile_definitions(BozaEngine PRIVATE BOZAENGINE_EXPORTS)
 target_include_directories(BozaEngine PUBLIC src/)
 
@@ -44,5 +45,10 @@ target_link_libraries(BozaEngine PUBLIC
         ${LUA_LIBRARIES}
 )
 
-add_executable(BozaExample example/main.cpp)
+add_executable(BozaExample
+        example/main.cpp
+        example/pch.hpp example/pch.cpp
+)
+
+target_precompile_headers(BozaExample PRIVATE example/pch.hpp)
 target_link_libraries(BozaExample PRIVATE BozaEngine)
