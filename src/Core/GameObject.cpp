@@ -5,12 +5,12 @@ namespace boza
     GameObject::GameObject(const std::string& name) : entity{ Scene::registry.create() }
     {
         Scene::push_game_object(this);
-        data = &add_component<GameObjData>();
 
-        *data = {
-            .name = name,
-            .game_object = this
-        };
+        data      = &add_component<GameObjData>(name);
+        transform = &add_component<Transform>(
+            glm::vec3{ 0.0 },
+            glm::vec3{ 0.0 },
+            glm::vec3{ 1.0 });
     }
 
     GameObject::~GameObject()
@@ -20,5 +20,16 @@ namespace boza
     }
 
     entt::entity GameObject::get_id() const { return entity; }
-    GameObjData* GameObject::get_data() const { return data; }
+
+    const std::string& GameObject::get_name() const
+    {
+        assert(data != nullptr && "Game object data is nullptr");
+        return data->name;
+    }
+
+    Transform& GameObject::get_transform() const
+    {
+        assert(transform != nullptr && "Transform is nullptr");
+        return *transform;
+    }
 }

@@ -20,7 +20,10 @@ add_library(BozaEngine SHARED
         src/Core/GameObject.hpp             src/Core/GameObject.cpp
         src/Core/Scene.hpp                  src/Core/Scene.cpp
         src/Core/Game.hpp                   src/Core/Game.cpp
-        src/Core/Components/GameObjData.hpp src/Core/Components/GameObjData.cpp
+        src/Core/Components/GameObjData.hpp
+        src/Core/Components/Component.hpp
+        src/Core/Components/Component.hpp
+        src/Core/Components/Transform.hpp
 )
 
 target_precompile_headers(BozaEngine PRIVATE src/pch.hpp)

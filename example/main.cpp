@@ -1,12 +1,7 @@
 #include "pch.hpp"
+#include "Core/Components/Transform.hpp"
 #include "glm/vec3.hpp"
 
-struct transform
-{
-    glm::vec3 position;
-    glm::vec3 rotation;
-    glm::vec3 scale;
-};
 
 int main()
 {
@@ -15,19 +10,21 @@ int main()
     const boza::Scene scene{ "default" };
 
     boza::GameObject obj{ "obj" };
+    const boza::GameObject obj2{ "obj2" };
 
-    obj.add_component<transform>(
-        glm::vec3{ 0.0f, 0.0f, 0.0f },
-        glm::vec3{ 0.0f, 0.0f, 0.0f },
-        glm::vec3{ 1.0f, 1.0f, 1.0f });
-
-    auto& [pos, rot, scale] = obj.get_component<transform>();
-    boza::Logger::info("Position: {}, {}, {}", pos.x, pos.y, pos.z);
-    boza::Logger::info("Rotation: {}, {}, {}", rot.x, rot.y, rot.z);
-    boza::Logger::info("Scale: {}, {}, {}", scale.x, scale.y, scale.z);
+    auto& transform = obj.get_transform();
+    boza::Logger::info("Obj: {} ({})", obj.get_name(), (uint32_t)obj.get_id());
+    boza::Logger::info("Position: {}, {}, {}", transform.position.x, transform.position.y, transform.position.z);
+    boza::Logger::info("Rotation: {}, {}, {}", transform.rotation.x, transform.rotation.y, transform.rotation.z);
+    boza::Logger::info("Scale: {}, {}, {}", transform.scale.x, transform.scale.y, transform.scale.z);
 
     for (const auto* object : scene.get_game_objects())
     {
-        boza::Logger::info("Object: {}", object->get_data()->name);
+        boza::Logger::trace("---------");
+        boza::Logger::info("Object: {} ({})", object->get_name(), (uint32_t)object->get_id());
+        const glm::vec3& pos = object->get_transform().position;
+        boza::Logger::info("Position: {}, {}, {}", pos.x, pos.y, pos.z);
     }
+
+    obj.add_component<struct test : boza::Component {}>();
 }

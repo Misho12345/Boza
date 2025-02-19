@@ -1,13 +1,13 @@
 #pragma once
+#include "Component.hpp"
 #include "../../pch.hpp"
 
 namespace boza
 {
-    class GameObject;
-
-    struct BOZA_API GameObjData
+    struct BOZA_API GameObjData : Component
     {
         std::string name;
-        GameObject* game_object;
+
+        explicit GameObjData(const std::string& name) : name{ name } {}
     };
 }
