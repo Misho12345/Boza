@@ -4,7 +4,7 @@
 
 namespace boza
 {
-    struct BOZA_API GameObjData : Component
+    struct BOZA_API GameObjData final : Component
     {
         std::string name;
 

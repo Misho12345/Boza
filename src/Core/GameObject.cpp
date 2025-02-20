@@ -32,4 +32,57 @@ namespace boza
         assert(transform != nullptr && "Transform is nullptr");
         return *transform;
     }
+
+
+    void GameObject::start() const
+    {
+        std::vector<std::thread> threads;
+
+        for (auto* behaviour : behaviours)
+        {
+            if (behaviour->parallelize_start()) threads.emplace_back(&Behaviour::start, behaviour);
+            else behaviour->start();
+        }
+
+        for (auto& thread : threads) thread.join();
+    }
+
+    void GameObject::update() const
+    {
+        std::vector<std::thread> threads;
+
+        for (auto* behaviour : behaviours)
+        {
+            if (behaviour->parallelize_update()) threads.emplace_back(&Behaviour::update, behaviour);
+            else behaviour->update();
+        }
+
+        for (auto& thread : threads) thread.join();
+    }
+
+    void GameObject::fixed_update() const
+    {
+        std::vector<std::thread> threads;
+
+        for (auto* behaviour : behaviours)
+        {
+            if (behaviour->parallelize_fixed_update()) threads.emplace_back(&Behaviour::fixed_update, behaviour);
+            else behaviour->fixed_update();
+        }
+
+        for (auto& thread : threads) thread.join();
+    }
+
+    void GameObject::late_update() const
+    {
+        std::vector<std::thread> threads;
+
+        for (auto* behaviour : behaviours)
+        {
+            if (behaviour->parallelize_late_update()) threads.emplace_back(&Behaviour::late_update, behaviour);
+            else behaviour->late_update();
+        }
+
+        for (auto& thread : threads) thread.join();
+    }
 }

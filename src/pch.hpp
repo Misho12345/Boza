@@ -21,6 +21,14 @@
 #include <string>
 #include <utility>
 
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <future>
+
+#include <chrono>
+#include <ctime>
+
 #include "API.hpp"
 
 #include <spdlog/spdlog.h>
@@ -36,3 +44,5 @@
 #define GLM_FORCE_INLINE
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #include <glm/ext.hpp>
+
+#include <GLFW/glfw3.h>

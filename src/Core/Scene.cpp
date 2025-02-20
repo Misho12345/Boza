@@ -26,7 +26,7 @@ namespace boza
         for (const auto& entity : this->game_objects)
         {
             auto data = registry.get<GameObjData>(entity);
-            game_objects.emplace(data.game_object);
+            game_objects.emplace(&data.get_game_object());
         }
 
         return game_objects;
