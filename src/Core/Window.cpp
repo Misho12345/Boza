@@ -4,8 +4,6 @@
 
 namespace boza
 {
-    static std::mutex mutex{};
-
     Window::Window(const uint32_t width, const uint32_t height, const std::string& title)
         : width{ width },
           height{ height },

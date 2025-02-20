@@ -14,18 +14,48 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
 endif()
 
 add_library(BozaEngine SHARED
-        src/pch.hpp src/pch.cpp
+        src/pch.hpp
+        src/pch.cpp
         src/API.hpp
-        src/Logger.hpp                      src/Logger.cpp
-        src/Core/GameObject.hpp             src/Core/GameObject.cpp
-        src/Core/Scene.hpp                  src/Core/Scene.cpp
-        src/Core/Game.hpp                   src/Core/Game.cpp
+
+        src/Logger.hpp
+        src/Logger.inl
+        src/Logger.cpp
+
+        src/Core/JobSystem/Job.hpp
+        src/Core/JobSystem/Worker.hpp
+        src/Core/JobSystem/Worker.cpp
+        src/Core/JobSystem/JobSystem.hpp
+        src/Core/JobSystem/JobSystem.inl
+        src/Core/JobSystem/JobSystem.cpp
+
+        src/Core/EventSystem/EventSystem.hpp
+        src/Core/EventSystem/EventSystem.inl
+        src/Core/EventSystem/EventSystem.cpp
+
+        src/Core/PhysicsSystem/PhysicsSystem.hpp
+        src/Core/PhysicsSystem/PhysicsSystem.cpp
+
+        src/Core/RenderingSystem/RenderingSystem.hpp
+        src/Core/RenderingSystem/RenderingSystem.cpp
+
+        src/Core/GameObject.hpp
+        src/Core/GameObject.inl
+        src/Core/GameObject.cpp
+
+        src/Core/Scene.hpp
+        src/Core/Scene.cpp
+
+        src/Core/Game.hpp
+        src/Core/Game.cpp
+
         src/Core/Components/Component.hpp
         src/Core/Components/GameObjData.hpp
         src/Core/Components/Transform.hpp
         src/Core/Components/Behaviour.hpp
-        src/Core/Window.cpp
+
         src/Core/Window.hpp
+        src/Core/Window.cpp
 )
 
 target_precompile_headers(BozaEngine PRIVATE src/pch.hpp)

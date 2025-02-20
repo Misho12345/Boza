@@ -1,32 +1,27 @@
 #pragma once
+#include "../pch.hpp"
+
 #include "Scene.hpp"
 #include "Window.hpp"
-#include "../pch.hpp"
+
+#include "PhysicsSystem/PhysicsSystem.hpp"
+#include "RenderingSystem/RenderingSystem.hpp"
 
 namespace boza
 {
-    using namespace std::chrono_literals;
-
     class BOZA_API Game
     {
     public:
         Game();
         ~Game();
 
-        void run() const;
+        void run();
 
     private:
-        void render_loop() const;
-        void physics_loop() const;
-
-        static void start(const std::unordered_set<GameObject*>& game_objects);
-        static void update(const std::unordered_set<GameObject*>& game_objects);
-        static void fixed_update(const std::unordered_set<GameObject*>& game_objects);
-        static void late_update(const std::unordered_set<GameObject*>& game_objects);
-
-        Scene scene{ "default" };
+        Scene* scene = new Scene{ "default" };
         Window window{ 800, 600, "Boza" };
 
-        std::chrono::milliseconds fixed_delta_time{ 20ms }; // 50 FPS
+        RenderingSystem rendering_system{};
+        PhysicsSystem physics_system{};
     };
 }

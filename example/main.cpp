@@ -2,6 +2,6 @@
 
 int main()
 {
-    const boza::Game game;
+    boza::Game game;
     game.run();
 }

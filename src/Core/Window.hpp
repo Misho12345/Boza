@@ -9,8 +9,7 @@ namespace boza
         Window(uint32_t width, uint32_t height, const std::string& title);
         ~Window();
 
-        [[nodiscard]]
-        bool should_close() const;
+        [[nodiscard]] bool should_close() const;
 
         void update() const;
 
@@ -19,6 +18,7 @@ namespace boza
         uint32_t height;
         std::string title;
 
-        GLFWwindow* window{ nullptr };
+        mutable std::mutex mutex;
+        GLFWwindow*        window{ nullptr };
     };
 }

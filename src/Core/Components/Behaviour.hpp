@@ -17,12 +17,6 @@ namespace boza
         [[nodiscard]]
         inline Transform& get_transform() const;
 
-    protected:
-        virtual bool parallelize_start() const { return false; }
-        virtual bool parallelize_update() const { return false; }
-        virtual bool parallelize_fixed_update() const { return false; }
-        virtual bool parallelize_late_update() const { return false; }
-
     private:
         Transform* transform{ nullptr };
     };
