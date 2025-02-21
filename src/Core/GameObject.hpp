@@ -1,7 +1,6 @@
 #pragma once
-#include "../pch.hpp"
+#include "boza_pch.hpp"
 
-#include "Scene.hpp"
 #include "Components/Behaviour.hpp"
 
 #include "Components/GameObjData.hpp"

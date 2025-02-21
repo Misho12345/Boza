@@ -1,5 +1,5 @@
 #pragma once
-#include "../pch.hpp"
+#include "boza_pch.hpp"
 
 #include "Scene.hpp"
 #include "Window.hpp"

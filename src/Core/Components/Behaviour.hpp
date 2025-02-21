@@ -1,7 +1,6 @@
 #pragma once
 #include "Component.hpp"
 #include "Transform.hpp"
-#include "../../pch.hpp"
 
 namespace boza
 {

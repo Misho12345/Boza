@@ -1,6 +1,6 @@
 #pragma once
-#include "../../pch.hpp"
-#include "../JobSystem/JobSystem.hpp"
+#include "boza_pch.hpp"
+#include "Core/JobSystem/JobSystem.hpp"
 
 namespace boza
 {

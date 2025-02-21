@@ -1,5 +1,6 @@
 #pragma once
 #include "GameObject.hpp"
+#include "Scene.hpp"
 
 namespace boza
 {

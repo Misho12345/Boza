@@ -14,8 +14,8 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
 endif()
 
 add_library(BozaEngine SHARED
-        src/pch.hpp
-        src/pch.cpp
+        src/boza_pch.hpp
+        src/boza_pch.cpp
         src/API.hpp
 
         src/Logger.hpp
@@ -58,7 +58,7 @@ add_library(BozaEngine SHARED
         src/Core/Window.cpp
 )
 
-target_precompile_headers(BozaEngine PRIVATE src/pch.hpp)
+target_precompile_headers(BozaEngine PRIVATE src/boza_pch.hpp)
 target_compile_definitions(BozaEngine PRIVATE BOZAENGINE_EXPORTS)
 target_include_directories(BozaEngine PUBLIC src/)
 
@@ -91,8 +91,8 @@ target_link_libraries(BozaEngine PUBLIC
 
 add_executable(BozaExample
         example/main.cpp
-        example/pch.hpp example/pch.cpp
+        example/example_pch.hpp example/example_pch.cpp
 )
 
-target_precompile_headers(BozaExample PRIVATE example/pch.hpp)
+target_precompile_headers(BozaExample PRIVATE example/example_pch.hpp)
 target_link_libraries(BozaExample PRIVATE BozaEngine)

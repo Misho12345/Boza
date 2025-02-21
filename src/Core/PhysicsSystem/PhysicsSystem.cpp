@@ -1,7 +1,7 @@
 #include "PhysicsSystem.hpp"
 
 #include "Logger.hpp"
-#include "../GameObject.hpp"
+#include "Core/GameObject.hpp"
 
 namespace boza
 {

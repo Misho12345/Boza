@@ -1,6 +1,6 @@
 #pragma once
 #include "Component.hpp"
-#include "../../pch.hpp"
+#include "boza_pch.hpp"
 
 namespace boza
 {
