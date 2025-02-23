@@ -27,7 +27,7 @@ namespace boza
 
         while (!stop_flag)
         {
-            std::unordered_set<GameObject*> game_objects = Scene::get_active_scene().get_game_objects();
+            hash_set<GameObject*> game_objects = Scene::get_active_scene().get_game_objects();
 
             for (const auto* game_object : game_objects)
             {
@@ -46,6 +46,7 @@ namespace boza
 
             job_system.wait();
 
+            Logger::trace("Waiting {}", job_system.get_pending_job_count());
             Logger::trace("Rendering...");
         }
     }

@@ -19,9 +19,9 @@ namespace boza
     }
 
 
-    std::unordered_set<GameObject*> Scene::get_game_objects() const
+    hash_set<GameObject*> Scene::get_game_objects() const
     {
-        std::unordered_set<GameObject*> game_objects;
+        hash_set<GameObject*> game_objects;
 
         for (const auto& entity : this->game_objects)
         {

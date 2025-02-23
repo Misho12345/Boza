@@ -5,8 +5,6 @@
 #include <list>
 #include <queue>
 #include <deque>
-#include <unordered_map>
-#include <unordered_set>
 #include <set>
 #include <map>
 
@@ -30,6 +28,8 @@
 #include <condition_variable>
 #include <future>
 
+#include <typeindex>
+
 #include <chrono>
 using namespace std::chrono_literals;
 
@@ -45,6 +45,7 @@ using namespace std::chrono_literals;
 #include <fmt/format.h>
 
 #include <entt/entt.hpp>
+using namespace entt::literals;
 
 #define GLM_FORCE_RADIANS
 #define GLM_ENABLE_EXPERIMENTAL
@@ -54,3 +55,14 @@ using namespace std::chrono_literals;
 #include <glm/ext.hpp>
 
 #include <GLFW/glfw3.h>
+
+namespace boza
+{
+    template<typename T>
+    using hash_set = entt::dense_set<T>;
+
+    template<typename Key, typename Value>
+    using hash_map = entt::dense_map<Key, Value>;
+
+    using hashed_string = entt::hashed_string;
+}

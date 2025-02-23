@@ -41,7 +41,7 @@ namespace boza
         GameObjData* data{ nullptr };
         Transform*   transform{ nullptr };
 
-        std::unordered_set<Behaviour*> behaviours{};
+        hash_set<Behaviour*> behaviours{};
     };
 }
 

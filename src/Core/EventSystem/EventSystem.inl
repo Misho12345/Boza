@@ -3,17 +3,39 @@
 
 namespace boza
 {
-    void EventSystem::trigger(const auto& event)
+    template<typename Event, auto Callback>
+    void EventSystem::subscribe()
     {
         std::lock_guard lock{ mutex };
-        dispatcher.trigger(event);
+        auto conn = dispatcher.sink<Event>().template connect<Callback>();
+        connections[std::type_index(typeid(Event))].push_back(conn);
+    }
+
+    template<typename Event, typename T, auto Callback>
+    void EventSystem::subscribe(T* instance)
+    {
+        std::lock_guard lock{ mutex };
+        auto conn = dispatcher.sink<Event>().connect<Callback>(instance);
+        connections[std::type_index(typeid(Event))].push_back(conn);
     }
 
     template<typename Event>
-    entt::sink<Event> EventSystem::subscribe(auto&& callback)
+   void EventSystem::unsubscribe()
     {
-        auto sink = dispatcher.sink<Event>();
-        sink.connect(std::forward<decltype(callback)>(callback));
-        return sink;
+        std::lock_guard lock{ mutex };
+
+        if (const auto it = connections.find(std::type_index(typeid(Event)));
+            it != connections.end())
+        {
+            for (auto& conn : it->second) conn.release();
+            connections.erase(it);
+        }
+    }
+
+    template<typename Event>
+    void EventSystem::trigger(const Event& event)
+    {
+        std::lock_guard lock{ mutex };
+        dispatcher.trigger(event);
     }
 }

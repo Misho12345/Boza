@@ -31,7 +31,7 @@ add_library(BozaEngine SHARED
 
         src/Core/EventSystem/EventSystem.hpp
         src/Core/EventSystem/EventSystem.inl
-        src/Core/EventSystem/EventSystem.cpp
+
 
         src/Core/PhysicsSystem/PhysicsSystem.hpp
         src/Core/PhysicsSystem/PhysicsSystem.cpp
