@@ -2,10 +2,12 @@
 
 #include "Logger.hpp"
 #include "Core/GameObject.hpp"
+#include "Core/JobSystem/JobSystem.hpp"
 
 namespace boza
 {
     void PhysicsSystem::start() { physics_thread = std::thread(&PhysicsSystem::run, this); }
+
     void PhysicsSystem::stop()
     {
         stop_flag = true;
@@ -16,6 +18,7 @@ namespace boza
     void PhysicsSystem::run()
     {
         time_point last_time = clock::now();
+        std::vector<JobSystem::task_id> tasks(16);
 
         while (!stop_flag)
         {
@@ -35,10 +38,13 @@ namespace boza
                 for (const auto* object : Scene::get_active_scene().get_game_objects())
                 {
                     for (auto* behaviour : object->behaviours)
-                        job_system.submit([behaviour] { behaviour->fixed_update(); });
+                        tasks.push_back(JobSystem::push_task([behaviour] { behaviour->fixed_update(); }));
                 }
 
-                job_system.wait();
+                for (const auto& task : tasks)
+                    JobSystem::wait_for_task(task);
+                tasks.clear();
+
                 accumulated_time -= fixed_delta_time;
             }
 

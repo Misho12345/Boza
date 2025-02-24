@@ -54,6 +54,8 @@ using namespace entt::literals;
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #include <glm/ext.hpp>
 
+#include <taskflow/taskflow.hpp>
+
 #include <GLFW/glfw3.h>
 
 namespace boza

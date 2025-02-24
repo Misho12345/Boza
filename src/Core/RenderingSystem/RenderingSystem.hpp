@@ -1,6 +1,5 @@
 #pragma once
 #include "boza_pch.hpp"
-#include "Core/JobSystem/JobSystem.hpp"
 
 namespace boza
 {
@@ -11,9 +10,7 @@ namespace boza
         void stop();
 
     private:
-        void run();
-
-        JobSystem job_system{};
+        void run() const;
 
         std::thread rendering_thread;
         std::atomic_bool stop_flag{ false };

@@ -17,6 +17,7 @@ namespace boza
     {
         inline void start() override;
         inline void update() override;
+        inline void fixed_update() override;
     };
 
     inline void SimpleBehaviour::start()
@@ -34,7 +35,12 @@ namespace boza
         static int i = 0;
         if (++i % 3 == 0) EventSystem::trigger(InterestingEvent{ i / 3 });
         if (i == 10) EventSystem::unsubscribe<InterestingEvent>();
-        std::this_thread::sleep_for(1s);
+        std::this_thread::sleep_for(10ms);
+    }
+
+    inline void SimpleBehaviour::fixed_update()
+    {
+        Logger::info("Fixed update");
     }
 
     Game::Game()
@@ -63,7 +69,7 @@ namespace boza
         while (!window.should_close())
         {
             window.update();
-            std::this_thread::sleep_for(1ms);
+            std::this_thread::sleep_for(16ms);
         }
     }
 }

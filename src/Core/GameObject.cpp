@@ -2,7 +2,7 @@
 
 namespace boza
 {
-    GameObject::GameObject(const std::string& name) : entity{ Scene::registry.create() }
+    GameObject::GameObject(const std::string& name) : entity{ Scene::registry().create() }
     {
         Scene::push_game_object(this);
 
@@ -16,7 +16,7 @@ namespace boza
     GameObject::~GameObject()
     {
         Scene::pop_game_object(this);
-        Scene::registry.destroy(entity);
+        Scene::registry().destroy(entity);
     }
 
     entt::entity GameObject::get_id() const { return entity; }

@@ -2,58 +2,98 @@
 
 namespace boza
 {
-    JobSystem::JobSystem(const size_t num_threads) { resize(num_threads); }
-
-    JobSystem::~JobSystem()
+    static tf::Executor& executor()
     {
-        is_shutting_down = true;
-        for (const auto& worker : workers) worker->stop();
-        wait();
-        workers.clear();
+        static tf::Executor executor;
+        return executor;
     }
 
-    void JobSystem::enqueue_job(const std::shared_ptr<Job>& job)
+    static std::mutex& mutex()
     {
-        const size_t workerCount = get_worker_count();
-        if (workerCount == 0) return;
-
-        thread_local std::mt19937             rng(std::random_device{}());
-        std::uniform_int_distribution<size_t> dist(0, workerCount - 1);
-        const size_t                          idx = dist(rng);
-
-        workers[idx]->push_job(job);
-        cv.notify_all();
+        static std::mutex mutex;
+        return mutex;
     }
 
-    size_t JobSystem::get_worker_count() const { return workers.size(); }
-
-    Worker& JobSystem::get_worker(const size_t index) const
+    static std::atomic<JobSystem::task_id>& next_task_id()
     {
-        assert(index < workers.size());
-        std::lock_guard lock{ workers_mutex };
-        return *workers[index];
+        static std::atomic<JobSystem::task_id> next_task_id{ 1 };
+        return next_task_id;
     }
 
-    void JobSystem::resize(const size_t new_size)
+    decltype(JobSystem::tasks()) JobSystem::tasks()
     {
-        std::lock_guard lock{ workers_mutex };
+        static std::remove_reference_t<decltype(tasks())> tasks;
+        return tasks;
+    }
 
-        if (const size_t currentSize = workers.size();
-            new_size > currentSize)
+
+
+    JobSystem::task_id JobSystem::push_task(const std::function<void()>& task)
+    {
+        const task_id id = next_task_id().fetch_add(1);
+
+        auto task_info = std::make_shared<TaskInfo>();
+
         {
-            for (size_t i = currentSize; i < new_size; i++)
-                workers.push_back(std::make_unique<Worker>(this, i));
+            std::lock_guard lock{ mutex() };
+            tasks()[id] = task_info;
         }
-        else if (new_size < currentSize)
+
+        tf::Taskflow tf;
+        tf.emplace([task_info_ptr = task_info, task]() mutable
         {
-            for (size_t i = new_size; i < currentSize; i++) workers[i]->stop();
-            workers.resize(new_size);
+            if (!task_info_ptr->cancelled.load()) task();
+            task_info_ptr->promise.set_value();
+        });
+
+        task_info->taskflow_future = executor().run(tf);
+
+        return id;
+    }
+
+    void JobSystem::cancel_task(const task_id id)
+    {
+        std::lock_guard lock{ mutex() };
+
+        auto& tasks_ = tasks();
+        if (const auto it = tasks_.find(id);
+            it != tasks_.end())
+            it->second->cancelled.store(true);
+    }
+
+    void JobSystem::wait_for_task(const task_id id)
+    {
+        std::shared_ptr<TaskInfo> taskInfo;
+
+        {
+            std::lock_guard lock{ mutex() };
+
+            auto& tasks_ = tasks();
+            if (const auto it = tasks_.find(id);
+                it != tasks_.end())
+                taskInfo = it->second;
+        }
+
+        if (taskInfo)
+        {
+            taskInfo->promise_future.wait();
+            taskInfo->taskflow_future.get();
+
+            std::lock_guard lock{ mutex() };
+            tasks().erase(id);
         }
     }
 
-    void JobSystem::wait()
+    void JobSystem::execute_task(const std::function<void()>& task)
     {
-        std::unique_lock lock(workers_mutex);
-        cv.wait(lock, [this] { return pending_jobs.load() == 0; });
+        const task_id id = push_task(task);
+        wait_for_task(id);
+    }
+
+    void JobSystem::execute_batch(const std::vector<std::function<void()>>& tasks)
+    {
+        std::vector<task_id> ids;
+        for (const auto& task : tasks) ids.push_back(push_task(task));
+        for (const task_id id : ids) wait_for_task(id);
     }
 }

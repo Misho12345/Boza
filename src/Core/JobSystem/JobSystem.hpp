@@ -1,43 +1,37 @@
 #pragma once
-#include "boza_pch.hpp"
-#include "Worker.hpp"
 
 namespace boza
 {
-    class BOZA_API JobSystem
+    class BOZA_API JobSystem final
     {
     public:
-        explicit JobSystem(size_t num_threads = std::thread::hardware_concurrency());
-        ~JobSystem();
+        JobSystem()                              = delete;
+        ~JobSystem()                             = delete;
+        JobSystem(const JobSystem&)              = delete;
+        JobSystem(JobSystem&&)                   = delete;
+        JobSystem& operator=(const JobSystem&)   = delete;
+        JobSystem& operator=(JobSystem&&)        = delete;
 
-        template<typename F, typename... Args>
-        auto submit(F&& f, Args&&... args) -> std::future<decltype(f(args...))>;
+        using task_id = std::uint64_t;
 
-        template<typename F, typename... Args>
-        auto submit(
-            const std::vector<std::shared_future<void>>& dependencies,
-            F&& f, Args&&... args) -> std::future<decltype(f(args...))>;
+        static task_id push_task(const std::function<void()>& task);
+        static void cancel_task(task_id id);
+        static void wait_for_task(task_id id);
 
-        void enqueue_job(const std::shared_ptr<Job>& job);
-
-        size_t  get_worker_count() const;
-        Worker& get_worker(size_t index) const;
-
-        void resize(size_t new_size);
-        void wait();
-
-        int get_pending_job_count() const { return pending_jobs.load(); }
+        static void execute_task(const std::function<void()>& task);
+        static void execute_batch(const std::vector<std::function<void()>>& tasks);
 
     private:
-        friend Worker;
+        struct TaskInfo
+        {
+            std::atomic_bool cancelled{ false };
 
-        std::vector<std::unique_ptr<Worker>> workers;
-        std::atomic_bool is_shutting_down{ false };
+            std::promise<void> promise;
+            std::future<void>  promise_future{ promise.get_future() };
 
-        mutable std::mutex      workers_mutex;
-        std::condition_variable cv;
-        std::atomic<int>        pending_jobs{ 0 };
+            tf::Future<void> taskflow_future;
+        };
+
+        static hash_map<task_id, std::shared_ptr<TaskInfo>>& tasks();
     };
 }
-
-#include "JobSystem.inl"

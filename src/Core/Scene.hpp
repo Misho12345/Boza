@@ -18,14 +18,12 @@ namespace boza
         [[nodiscard]] static Scene& get(const std::string& name);
 
     private:
-        inline static entt::registry registry;
-        inline static Scene* active_scene{ nullptr };
-        inline static hash_map<std::string, Scene*> scenes;
-
         static void push_game_object(const GameObject* game_object);
         static void pop_game_object(const GameObject* game_object);
 
         std::string name;
         hash_set<entt::entity> game_objects;
+
+        static entt::registry& registry();
     };
 }

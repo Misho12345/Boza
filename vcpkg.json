@@ -39,5 +39,8 @@
   }, {
     "name" : "lua",
     "version>=" : "5.4.7"
+  }, {
+    "name" : "taskflow",
+    "version>=" : "3.9.0"
   } ]
 }

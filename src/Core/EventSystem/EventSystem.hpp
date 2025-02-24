@@ -26,9 +26,10 @@ namespace boza
         static void trigger(const Event& event);
 
     private:
-        inline static entt::dispatcher dispatcher;
-        inline static std::unordered_map<std::type_index, std::vector<entt::connection>> connections;
-        inline static std::mutex       mutex;
+        static std::unordered_map<std::type_index, std::vector<entt::connection>>& connections();
+
+        static entt::dispatcher& dispatcher();
+        static std::mutex&       mutex();
     };
 }
 

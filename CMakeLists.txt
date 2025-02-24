@@ -13,6 +13,12 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_compile_definitions(NDEBUG)
 endif()
 
+#if(MSVC)
+#    add_compile_options(/W4 /WX /Ox)
+#elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+#    add_compile_options(-Wall -Wextra -Werror -O3)
+#endif()
+
 add_library(BozaEngine SHARED
         src/boza_pch.hpp
         src/boza_pch.cpp
@@ -22,22 +28,20 @@ add_library(BozaEngine SHARED
         src/Logger.inl
         src/Logger.cpp
 
-        src/Core/JobSystem/Job.hpp
-        src/Core/JobSystem/Worker.hpp
-        src/Core/JobSystem/Worker.cpp
-        src/Core/JobSystem/JobSystem.hpp
-        src/Core/JobSystem/JobSystem.inl
+
         src/Core/JobSystem/JobSystem.cpp
+        src/Core/JobSystem/JobSystem.hpp
 
         src/Core/EventSystem/EventSystem.hpp
         src/Core/EventSystem/EventSystem.inl
-
+        src/Core/EventSystem/EventSystem.cpp
 
         src/Core/PhysicsSystem/PhysicsSystem.hpp
         src/Core/PhysicsSystem/PhysicsSystem.cpp
 
         src/Core/RenderingSystem/RenderingSystem.hpp
         src/Core/RenderingSystem/RenderingSystem.cpp
+
 
         src/Core/GameObject.hpp
         src/Core/GameObject.inl
@@ -74,6 +78,7 @@ find_package(SndFile REQUIRED)
 find_package(Stb REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(Lua REQUIRED)
+find_package(Taskflow CONFIG REQUIRED)
 
 target_link_libraries(BozaEngine PUBLIC
         Vulkan::Vulkan
@@ -87,6 +92,7 @@ target_link_libraries(BozaEngine PUBLIC
         OpenAL::OpenAL
         SndFile::sndfile
         ${LUA_LIBRARIES}
+        Taskflow::Taskflow
 )
 
 add_executable(BozaExample

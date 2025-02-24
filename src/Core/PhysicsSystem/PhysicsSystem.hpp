@@ -1,6 +1,5 @@
 #pragma once
 #include "boza_pch.hpp"
-#include "Core/JobSystem/JobSystem.hpp"
 
 namespace boza
 {
@@ -16,8 +15,6 @@ namespace boza
         using duration = std::chrono::microseconds;
 
         void run();
-
-        JobSystem job_system{};
 
         std::thread      physics_thread;
         std::atomic_bool stop_flag{ false };
