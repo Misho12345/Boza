@@ -6,12 +6,18 @@
 
 namespace boza
 {
-    void PhysicsSystem::start() { physics_thread = std::thread(&PhysicsSystem::run, this); }
+    STATIC_VARIABLE_FN(PhysicsSystem::thread, {})
+    STATIC_VARIABLE_FN(PhysicsSystem::stop_flag, { false })
+
+    void PhysicsSystem::start()
+    {
+        thread() = std::thread{ run };
+    }
 
     void PhysicsSystem::stop()
     {
-        stop_flag = true;
-        if (physics_thread.joinable()) physics_thread.join();
+        stop_flag() = true;
+        if (thread().joinable()) thread().join();
     }
 
 
@@ -20,7 +26,7 @@ namespace boza
         time_point last_time = clock::now();
         std::vector<JobSystem::task_id> tasks(16);
 
-        while (!stop_flag)
+        while (!stop_flag().load())
         {
             time_point current_time = clock::now();
             accumulated_time += std::chrono::duration_cast<duration>(current_time - last_time);

@@ -5,66 +5,74 @@
 #include "Scene.hpp"
 
 #include "EventSystem/EventSystem.hpp"
+#include "JobSystem/JobSystem.hpp"
+
+#include "PhysicsSystem/PhysicsSystem.hpp"
+#include "RenderingSystem/RenderingSystem.hpp"
+#include "InputSystem/InputSystem.hpp"
 
 namespace boza
 {
-    struct InterestingEvent
-    {
-        int iteration;
-    };
-
-    struct SimpleBehaviour final : Behaviour
-    {
-        inline void start() override;
-        inline void update() override;
-        inline void fixed_update() override;
-    };
-
-    inline void SimpleBehaviour::start()
-    {
-        EventSystem::subscribe<InterestingEvent, [](InterestingEvent& event)
-        {
-            Logger::info("Interesting event happened at iteration: {}", event.iteration);
-        }>();
-
-        Logger::info("Subscribed to InterestingEvent");
-    }
-
-    inline void SimpleBehaviour::update()
-    {
-        static int i = 0;
-        if (++i % 3 == 0) EventSystem::trigger(InterestingEvent{ i / 3 });
-        if (i == 10) EventSystem::unsubscribe<InterestingEvent>();
-        std::this_thread::sleep_for(10ms);
-    }
-
-    inline void SimpleBehaviour::fixed_update()
-    {
-        Logger::info("Fixed update");
-    }
-
     Game::Game()
     {
         Logger::setup();
+        JobSystem::init();
+        InputSystem::init(window);
 
-        auto* go = new GameObject("obj");
-        go->add_component<SimpleBehaviour>();
+        InputSystem::on(InputSystem::Key::A, InputSystem::KeyAction::Press, []
+        {
+            Logger::info("A pressed");
+        });
+
+        InputSystem::on(InputSystem::Key::A, InputSystem::KeyAction::Hold, []
+        {
+            Logger::warn("A held");
+        });
+
+        InputSystem::on(InputSystem::Key::A, InputSystem::KeyAction::Release, []
+        {
+            Logger::error("A released");
+        });
+
+        InputSystem::on(InputSystem::Key::A, InputSystem::KeyAction::DoubleClick, []
+        {
+            Logger::info("A double clicked");
+        });
+
+        InputSystem::on<InputSystem::MouseMoveAction>([](const double x, const double y)
+        {
+            Logger::info("Mouse: x={}, y={}", x, y);
+        });
+
+        InputSystem::on<InputSystem::MouseWheelAction>([](const double x, const double y)
+        {
+            Logger::info("Mouse wheel: x={}, y={}", x, y);
+        });
+
+        InputSystem::on({ InputSystem::Key::LShift, InputSystem::Key::B, InputSystem::Key::Comma }, []
+        {
+            Logger::info("Shift + B + ,");
+        });
     }
 
     Game::~Game()
     {
-        rendering_system.stop();
-        physics_system.stop();
+        RenderingSystem::stop();
+        PhysicsSystem::stop();
+        InputSystem::stop();
+
+        JobSystem::shutdown();
 
         for (const auto* object : scene->get_game_objects()) delete object;
         delete scene;
     }
 
 
-    void Game::run()
+    void Game::run() const
     {
-        rendering_system.start();
-        physics_system.start();
+        RenderingSystem::start();
+        PhysicsSystem::start();
+        InputSystem::start();
 
         while (!window.should_close())
         {

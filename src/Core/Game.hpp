@@ -4,24 +4,19 @@
 #include "Scene.hpp"
 #include "Window.hpp"
 
-#include "PhysicsSystem/PhysicsSystem.hpp"
-#include "RenderingSystem/RenderingSystem.hpp"
 
 namespace boza
 {
-    class BOZA_API Game
+    class BOZA_API Game final
     {
     public:
         Game();
         ~Game();
 
-        void run();
+        void run() const;
 
     private:
         Scene* scene = new Scene{ "default" };
         Window window{ 800, 600, "Boza" };
-
-        RenderingSystem rendering_system{};
-        PhysicsSystem physics_system{};
     };
 }

@@ -6,16 +6,22 @@
 
 namespace boza
 {
-    void RenderingSystem::start() { rendering_thread = std::thread(&RenderingSystem::run, this); }
+    STATIC_VARIABLE_FN(RenderingSystem::thread, {})
+    STATIC_VARIABLE_FN(RenderingSystem::stop_flag, { false })
+
+    void RenderingSystem::start()
+    {
+        thread() = std::thread{ run };
+    }
 
     void RenderingSystem::stop()
     {
-        stop_flag = true;
-        if (rendering_thread.joinable()) rendering_thread.join();
+        stop_flag() = true;
+        if (thread().joinable()) thread().join();
     }
 
 
-    void RenderingSystem::run() const
+    void RenderingSystem::run()
     {
         std::vector<JobSystem::task_id> tasks(16);
 
@@ -34,7 +40,7 @@ namespace boza
 
         wait_for_tasks();
 
-        while (!stop_flag)
+        while (!stop_flag().load())
         {
             hash_set<GameObject*> game_objects = Scene::get_active_scene().get_game_objects();
 
@@ -54,7 +60,7 @@ namespace boza
 
             wait_for_tasks();
 
-            Logger::trace("Rendering...");
+            // Logger::trace("Rendering...");
         }
     }
 }

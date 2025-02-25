@@ -43,4 +43,9 @@ namespace boza
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+
+    GLFWwindow* Window::get_glfw_window() const
+    {
+        return window;
+    }
 }

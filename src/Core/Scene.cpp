@@ -5,24 +5,9 @@
 
 namespace boza
 {
-    entt::registry& Scene::registry()
-    {
-        static entt::registry registry;
-        return registry;
-    }
-
-    static Scene*& active_scene()
-    {
-        static Scene* active_scene{ nullptr };
-        return active_scene;
-    }
-
-    static hash_map<std::string, Scene*>& scenes()
-    {
-        static hash_map<std::string, Scene*> scenes;
-        return scenes;
-    }
-
+    STATIC_VARIABLE_FN(Scene::registry, {})
+    STATIC_VARIABLE_FN(Scene::active_scene, { nullptr })
+    STATIC_VARIABLE_FN(Scene::scenes, {})
 
     Scene::Scene(const std::string& name) : name{ name }
     {

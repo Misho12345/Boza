@@ -2,98 +2,146 @@
 
 namespace boza
 {
-    static tf::Executor& executor()
+    STATIC_VARIABLE_FN_ARGS(tf::Executor, JobSystem::executor, (const size_t n), (n), {
+        static bool initialized = n != 0;
+        assert(initialized && "JobSystem::init() must be called before using the JobSystem");
+    })
+
+    STATIC_VARIABLE_FN(JobSystem::tasks_mutex, {})
+    STATIC_VARIABLE_FN(JobSystem::next_task_id, {})
+    STATIC_VARIABLE_FN(JobSystem::tasks, {})
+
+    void JobSystem::init(const size_t num_threads)
     {
-        static tf::Executor executor;
-        return executor;
+        executor(num_threads);
     }
 
-    static std::mutex& mutex()
+    void JobSystem::shutdown()
     {
-        static std::mutex mutex;
-        return mutex;
+        executor().wait_for_all();
+
+        std::lock_guard lock{ tasks_mutex() };
+        for (const auto& task_data : std::views::values(tasks()))
+            task_data->canceled.store(true);
+        tasks().clear();
     }
 
-    static std::atomic<JobSystem::task_id>& next_task_id()
+    JobSystem::task_id JobSystem::push_task(const std::function<void()>& func)
     {
-        static std::atomic<JobSystem::task_id> next_task_id{ 1 };
-        return next_task_id;
-    }
+        task_id id = next_task_id().fetch_add(1);
 
-    decltype(JobSystem::tasks()) JobSystem::tasks()
-    {
-        static std::remove_reference_t<decltype(tasks())> tasks;
-        return tasks;
-    }
+        auto task_data = std::make_shared<TaskData>();
 
+        task_data->func     = func;
+        task_data->taskflow = std::make_shared<tf::Taskflow>();
 
-
-    JobSystem::task_id JobSystem::push_task(const std::function<void()>& task)
-    {
-        const task_id id = next_task_id().fetch_add(1);
-
-        auto task_info = std::make_shared<TaskInfo>();
-
+        task_data->taskflow->emplace([task_data, id]
         {
-            std::lock_guard lock{ mutex() };
-            tasks()[id] = task_info;
-        }
+            if (task_data->canceled.load()) return;
 
-        tf::Taskflow tf;
-        tf.emplace([task_info_ptr = task_info, task]() mutable
-        {
-            if (!task_info_ptr->cancelled.load()) task();
-            task_info_ptr->promise.set_value();
+            try
+            {
+                task_data->func();
+                task_data->completed.store(true);
+            }
+            catch (...) { task_data->failed.store(true); }
+
+            std::lock_guard cleanup_lock{ tasks_mutex() };
+            tasks().erase(id);
         });
 
-        task_info->taskflow_future = executor().run(tf);
+        {
+            std::lock_guard lock{ tasks_mutex() };
+            tasks()[id] = task_data;
+        }
 
+        executor().run(*task_data->taskflow).get();
         return id;
     }
 
-    void JobSystem::cancel_task(const task_id id)
-    {
-        std::lock_guard lock{ mutex() };
-
-        auto& tasks_ = tasks();
-        if (const auto it = tasks_.find(id);
-            it != tasks_.end())
-            it->second->cancelled.store(true);
-    }
-
-    void JobSystem::wait_for_task(const task_id id)
-    {
-        std::shared_ptr<TaskInfo> taskInfo;
+    bool JobSystem::cancel_task(const task_id id) {
+        std::shared_ptr<TaskData> task_data;
 
         {
-            std::lock_guard lock{ mutex() };
+            std::lock_guard lock{ tasks_mutex() };
 
-            auto& tasks_ = tasks();
-            if (const auto it = tasks_.find(id);
-                it != tasks_.end())
-                taskInfo = it->second;
+            const auto it = tasks().find(id);
+
+            if (it == tasks().end()) return false;
+            task_data = it->second;
         }
 
-        if (taskInfo)
-        {
-            taskInfo->promise_future.wait();
-            taskInfo->taskflow_future.get();
-
-            std::lock_guard lock{ mutex() };
-            tasks().erase(id);
-        }
+        task_data->canceled.store(true);
+        return true;
     }
 
-    void JobSystem::execute_task(const std::function<void()>& task)
+    JobError JobSystem::wait_for_task(const task_id id)
     {
-        const task_id id = push_task(task);
-        wait_for_task(id);
+        std::shared_ptr<TaskData> task_data;
+
+        {
+            std::lock_guard lock{ tasks_mutex() };
+
+            const auto it = tasks().find(id);
+
+            if (it == tasks().end()) return JobError::TaskNotFound;
+            task_data = it->second;
+        }
+
+        while (
+            !task_data->completed.load() &&
+            !task_data->canceled.load() &&
+            !task_data->failed.load())
+            std::this_thread::yield();
+
+        if (task_data->canceled.load()) return JobError::TaskCanceled;
+        if (task_data->failed.load()) return JobError::TaskFailed;
+
+        return JobError::Success;
     }
 
-    void JobSystem::execute_batch(const std::vector<std::function<void()>>& tasks)
+
+    JobError JobSystem::execute_task(const std::function<void()>& func)
+    {
+        return wait_for_task(push_task(func));
+    }
+
+    JobError JobSystem::execute_batch(const std::vector<std::function<void()>>& funcs)
     {
         std::vector<task_id> ids;
-        for (const auto& task : tasks) ids.push_back(push_task(task));
-        for (const task_id id : ids) wait_for_task(id);
+        ids.reserve(funcs.size());
+        auto firstError = JobError::Success;
+
+        for (const auto& func : funcs)
+            ids.push_back(push_task(func));
+
+        for (const auto& id : ids)
+        {
+            if (const JobError result = wait_for_task(id);
+                result != JobError::Success && firstError == JobError::Success)
+                firstError = result;
+        }
+
+        return firstError;
+    }
+
+
+    std::optional<JobError> JobSystem::is_task_completed(const task_id id) {
+        std::shared_ptr<TaskData> task_data;
+
+        {
+            std::lock_guard lock{ tasks_mutex() };
+
+            const auto it = tasks().find(id);
+
+            if (it == tasks().end()) return std::nullopt;
+            task_data = it->second;
+        }
+
+        if (task_data->completed.load()) return JobError::Success;
+        if (task_data->canceled.load()) return JobError::TaskCanceled;
+        if (task_data->failed.load()) return JobError::TaskFailed;
+
+        return std::nullopt;
     }
 }

@@ -3,7 +3,7 @@
 
 namespace boza
 {
-    class BOZA_API Window
+    class BOZA_API Window final
     {
     public:
         Window(uint32_t width, uint32_t height, const std::string& title);
@@ -12,6 +12,8 @@ namespace boza
         [[nodiscard]] bool should_close() const;
 
         void update() const;
+
+        GLFWwindow* get_glfw_window() const;
 
     private:
         uint32_t width;

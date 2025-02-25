@@ -3,7 +3,7 @@
 
 namespace boza
 {
-    class BOZA_API EventSystem
+    class BOZA_API EventSystem final
     {
     public:
         EventSystem()                              = delete;

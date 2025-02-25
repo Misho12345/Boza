@@ -23,6 +23,7 @@ add_library(BozaEngine SHARED
         src/boza_pch.hpp
         src/boza_pch.cpp
         src/API.hpp
+        src/macros.hpp
 
         src/Logger.hpp
         src/Logger.inl
@@ -35,6 +36,9 @@ add_library(BozaEngine SHARED
         src/Core/EventSystem/EventSystem.hpp
         src/Core/EventSystem/EventSystem.inl
         src/Core/EventSystem/EventSystem.cpp
+
+        src/Core/InputSystem/InputSystem.hpp
+        src/Core/InputSystem/InputSystem.cpp
 
         src/Core/PhysicsSystem/PhysicsSystem.hpp
         src/Core/PhysicsSystem/PhysicsSystem.cpp

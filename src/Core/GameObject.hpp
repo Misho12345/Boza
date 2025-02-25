@@ -9,7 +9,7 @@
 
 namespace boza
 {
-    class BOZA_API GameObject
+    class BOZA_API GameObject final
     {
         friend class Game;
 

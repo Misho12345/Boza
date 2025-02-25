@@ -3,7 +3,7 @@
 
 namespace boza
 {
-    class BOZA_API Scene
+    class BOZA_API Scene final
     {
         friend class GameObject;
 
@@ -25,5 +25,7 @@ namespace boza
         hash_set<entt::entity> game_objects;
 
         static entt::registry& registry();
+        static Scene*& active_scene();
+        static hash_map<std::string, Scene*>& scenes();
     };
 }

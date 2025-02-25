@@ -3,7 +3,7 @@
 
 namespace boza
 {
-    class BOZA_API Logger
+    class BOZA_API Logger final
     {
     public:
         Logger() = delete;

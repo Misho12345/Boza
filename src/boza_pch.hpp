@@ -7,6 +7,7 @@
 #include <deque>
 #include <set>
 #include <map>
+#include <bitset>
 
 #include <optional>
 #include <expected>
@@ -57,6 +58,8 @@ using namespace entt::literals;
 #include <taskflow/taskflow.hpp>
 
 #include <GLFW/glfw3.h>
+
+#include "macros.hpp"
 
 namespace boza
 {

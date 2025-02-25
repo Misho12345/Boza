@@ -3,16 +3,23 @@
 
 namespace boza
 {
-    class BOZA_API RenderingSystem
+    class BOZA_API RenderingSystem final
     {
     public:
-        void start();
-        void stop();
+        RenderingSystem() = delete;
+        ~RenderingSystem() = delete;
+        RenderingSystem(const RenderingSystem&) = delete;
+        RenderingSystem(RenderingSystem&&) = delete;
+        RenderingSystem& operator=(const RenderingSystem&) = delete;
+        RenderingSystem& operator=(RenderingSystem&&) = delete;
+
+        static void start();
+        static void stop();
 
     private:
-        void run() const;
+        static void run();
 
-        std::thread rendering_thread;
-        std::atomic_bool stop_flag{ false };
+        static std::thread& thread();
+        static std::atomic_bool& stop_flag();
     };
 }
