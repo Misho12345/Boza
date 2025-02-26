@@ -13,53 +13,15 @@
 
 namespace boza
 {
-    Game::Game()
-    {
-        Logger::setup();
-        JobSystem::init();
-        InputSystem::init(window);
-
-        InputSystem::on(InputSystem::Key::A, InputSystem::KeyAction::Press, []
-        {
-            Logger::info("A pressed");
-        });
-
-        InputSystem::on(InputSystem::Key::A, InputSystem::KeyAction::Hold, []
-        {
-            Logger::warn("A held");
-        });
-
-        InputSystem::on(InputSystem::Key::A, InputSystem::KeyAction::Release, []
-        {
-            Logger::error("A released");
-        });
-
-        InputSystem::on(InputSystem::Key::A, InputSystem::KeyAction::DoubleClick, []
-        {
-            Logger::info("A double clicked");
-        });
-
-        InputSystem::on<InputSystem::MouseMoveAction>([](const double x, const double y)
-        {
-            Logger::info("Mouse: x={}, y={}", x, y);
-        });
-
-        InputSystem::on<InputSystem::MouseWheelAction>([](const double x, const double y)
-        {
-            Logger::info("Mouse wheel: x={}, y={}", x, y);
-        });
-
-        InputSystem::on({ InputSystem::Key::LShift, InputSystem::Key::B, InputSystem::Key::Comma }, []
-        {
-            Logger::info("Shift + B + ,");
-        });
-    }
+    Game::Game() = default;
 
     Game::~Game()
     {
-        RenderingSystem::stop();
-        PhysicsSystem::stop();
         InputSystem::stop();
+        PhysicsSystem::stop();
+        RenderingSystem::stop();
+
+        Window::destroy();
 
         JobSystem::shutdown();
 
@@ -67,16 +29,35 @@ namespace boza
         delete scene;
     }
 
-
     void Game::run() const
     {
+        Logger::setup();
+        JobSystem::init();
+        Window::create(800, 600, "Boza");
+
         RenderingSystem::start();
         PhysicsSystem::start();
         InputSystem::start();
 
-        while (!window.should_close())
+        InputSystem::on(Key::A, KeyAction::Press, [] { Logger::info("A pressed"); });
+        InputSystem::on(Key::A, KeyAction::Hold, [] { Logger::warn("A held"); });
+        InputSystem::on(Key::A, KeyAction::Release, [] { Logger::error("A released"); });
+        InputSystem::on(Key::A, KeyAction::DoubleClick, [] { Logger::info("A double clicked"); });
+
+        InputSystem::on<MouseMoveAction>([](const double x, const double y)
         {
-            window.update();
+            Logger::info("Mouse: x={}, y={}", x, y);
+        });
+
+        InputSystem::on<MouseWheelAction>([](const double x, const double y)
+        {
+            Logger::info("Mouse wheel: x={}, y={}", x, y);
+        });
+
+        InputSystem::on({ Key::LShift, Key::B, Key::Comma }, [] { Logger::info("Shift + B + ,"); });
+
+        while (!Window::should_close())
+        {
             std::this_thread::sleep_for(16ms);
         }
     }

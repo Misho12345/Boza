@@ -4,48 +4,59 @@
 
 namespace boza
 {
-    Window::Window(const uint32_t width, const uint32_t height, const std::string& title)
-        : width{ width },
-          height{ height },
-          title{ title }
+    void Window::create(const uint32_t width, const uint32_t height, const std::string& title)
     {
+        auto& inst = instance();
+
+        std::lock_guard lock{ inst.mutex };
+        assert(!inst.created && "Window already created");
+
+        inst.width = width;
+        inst.height = height;
+        inst.title = title;
+        inst.created = true;
+
         if (!glfwInit())
         {
             Logger::critical("Failed to initialize GLFW");
             return;
         }
 
-        window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
-        if (!window)
+        inst.window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
+        if (!inst.window)
         {
             Logger::critical("Failed to create window");
             return;
         }
 
-        glfwMakeContextCurrent(window);
+        glfwMakeContextCurrent(inst.window);
     }
 
-    Window::~Window()
+    void Window::destroy()
     {
-        glfwDestroyWindow(window);
+        auto& inst = instance();
+        std::lock_guard lock{ inst.mutex };
+        assert(inst.created && "Window not created");
+        inst.created = false;
+
+        glfwDestroyWindow(inst.window);
         glfwTerminate();
     }
 
 
-    bool Window::should_close() const
+    bool Window::should_close()
     {
-        std::lock_guard lock{ mutex };
-        return glfwWindowShouldClose(window);
+        auto& inst = instance();
+        std::lock_guard lock{ inst.mutex };
+        assert(inst.created && "Window not created");
+        return glfwWindowShouldClose(inst.window);
     }
 
-    void Window::update() const
+    GLFWwindow* Window::get_glfw_window()
     {
-        glfwSwapBuffers(window);
-        glfwPollEvents();
-    }
-
-    GLFWwindow* Window::get_glfw_window() const
-    {
-        return window;
+        auto& inst = instance();
+        std::lock_guard lock{ inst.mutex };
+        assert(inst.created && "Window not created");
+        return inst.window;
     }
 }

@@ -3,9 +3,11 @@
 
 namespace boza
 {
+    class GameObject;
+
     class BOZA_API Scene final
     {
-        friend class GameObject;
+        friend GameObject;
 
     public:
         explicit Scene(const std::string& name);

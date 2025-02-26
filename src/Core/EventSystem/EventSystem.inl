@@ -15,7 +15,7 @@ namespace boza
     void EventSystem::subscribe(T* instance)
     {
         std::lock_guard lock{ mutex() };
-        auto conn = dispatcher().sink<Event>().connect<Callback>(instance);
+        auto conn = dispatcher().sink<Event>().template connect<Callback>(instance);
         connections()[std::type_index(typeid(Event))].push_back(conn);
     }
 

@@ -17,6 +17,5 @@ namespace boza
 
     private:
         Scene* scene = new Scene{ "default" };
-        Window window{ 800, 600, "Boza" };
     };
 }

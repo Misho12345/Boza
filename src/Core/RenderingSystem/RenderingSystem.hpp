@@ -1,25 +1,15 @@
 #pragma once
-#include "boza_pch.hpp"
+#include "System.hpp"
+#include "Core/JobSystem/JobSystem.hpp"
 
 namespace boza
 {
-    class BOZA_API RenderingSystem final
+    class BOZA_API RenderingSystem final : public System<RenderingSystem, 240, false>
     {
-    public:
-        RenderingSystem() = delete;
-        ~RenderingSystem() = delete;
-        RenderingSystem(const RenderingSystem&) = delete;
-        RenderingSystem(RenderingSystem&&) = delete;
-        RenderingSystem& operator=(const RenderingSystem&) = delete;
-        RenderingSystem& operator=(RenderingSystem&&) = delete;
-
-        static void start();
-        static void stop();
-
     private:
-        static void run();
+        void on_begin() override;
+        void on_iteration() override;
 
-        static std::thread& thread();
-        static std::atomic_bool& stop_flag();
+        std::vector<JobSystem::task_id> tasks{ 16 };
     };
 }

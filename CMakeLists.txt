@@ -29,6 +29,8 @@ add_library(BozaEngine SHARED
         src/Logger.inl
         src/Logger.cpp
 
+        src/Singleton.hpp
+        src/System.hpp
 
         src/Core/JobSystem/JobSystem.cpp
         src/Core/JobSystem/JobSystem.hpp
