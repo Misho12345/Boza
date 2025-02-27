@@ -59,8 +59,6 @@ using namespace entt::literals;
 
 #include <GLFW/glfw3.h>
 
-#include "macros.hpp"
-
 namespace boza
 {
     template<typename T>

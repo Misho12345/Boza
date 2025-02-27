@@ -23,7 +23,6 @@ add_library(BozaEngine SHARED
         src/boza_pch.hpp
         src/boza_pch.cpp
         src/API.hpp
-        src/macros.hpp
 
         src/Logger.hpp
         src/Logger.inl
@@ -37,7 +36,6 @@ add_library(BozaEngine SHARED
 
         src/Core/EventSystem/EventSystem.hpp
         src/Core/EventSystem/EventSystem.inl
-        src/Core/EventSystem/EventSystem.cpp
 
         src/Core/InputSystem/InputSystem.hpp
         src/Core/InputSystem/InputSystem.cpp
@@ -56,16 +54,13 @@ add_library(BozaEngine SHARED
         src/Core/Scene.hpp
         src/Core/Scene.cpp
 
-        src/Core/Game.hpp
-        src/Core/Game.cpp
+        src/Core/Window.hpp
+        src/Core/Window.cpp
 
         src/Core/Components/Component.hpp
         src/Core/Components/GameObjData.hpp
         src/Core/Components/Transform.hpp
         src/Core/Components/Behaviour.hpp
-
-        src/Core/Window.hpp
-        src/Core/Window.cpp
 )
 
 target_precompile_headers(BozaEngine PRIVATE src/boza_pch.hpp)

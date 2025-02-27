@@ -15,7 +15,6 @@ namespace boza
 
     void InputSystem::on_key_callback(GLFWwindow*, const int key_, int, const int action, int)
     {
-        Logger::info("here");
         auto& inst =  instance();
 
         const auto   key   = static_cast<Key>(key_);
@@ -63,13 +62,13 @@ namespace boza
     void InputSystem::on_scroll_callback(GLFWwindow*, const double x, const double y)
     {
         for (const auto& callback : instance().mouse_wheel_events)
-            JobSystem::push_task(std::bind(callback, x, y));
+            JobSystem::push_task([=] { callback(x, y); });
     }
 
     void InputSystem::on_cursor_pos_callback(GLFWwindow*, const double x, const double y)
     {
         for (const auto& callback : instance().mouse_move_events)
-            JobSystem::push_task(std::bind(callback, x, y));
+            JobSystem::push_task([=] { callback(x, y); });
     }
 
 

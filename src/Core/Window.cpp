@@ -8,13 +8,15 @@ namespace boza
     {
         auto& inst = instance();
 
-        std::lock_guard lock{ inst.mutex };
-        assert(!inst.created && "Window already created");
+        {
+            std::lock_guard lock{ inst.mutex };
+            assert(!inst.created && "Window already created");
 
-        inst.width = width;
-        inst.height = height;
-        inst.title = title;
-        inst.created = true;
+            inst.created = true;
+            inst.width = width;
+            inst.height = height;
+            inst.title = title;
+        }
 
         if (!glfwInit())
         {
@@ -22,41 +24,55 @@ namespace boza
             return;
         }
 
-        inst.window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
-        if (!inst.window)
+        auto* win = glfwCreateWindow(static_cast<int>(width), static_cast<int>(height), title.c_str(), nullptr, nullptr);
+        if (!win)
         {
             Logger::critical("Failed to create window");
+            glfwTerminate();
             return;
         }
 
-        glfwMakeContextCurrent(inst.window);
+        glfwMakeContextCurrent(win);
+
+        std::lock_guard lock{ inst.mutex };
+        inst.window = win;
     }
 
     void Window::destroy()
     {
-        auto& inst = instance();
-        std::lock_guard lock{ inst.mutex };
-        assert(inst.created && "Window not created");
-        inst.created = false;
+        GLFWwindow* window_to_destroy = nullptr;
 
-        glfwDestroyWindow(inst.window);
+        {
+            auto& inst = instance();
+
+            std::lock_guard lock{ inst.mutex };
+            assert(inst.created && "Window not created");
+
+            window_to_destroy = inst.window;
+            inst.window = nullptr;
+            inst.created = false;
+        }
+
+        glfwDestroyWindow(window_to_destroy);
         glfwTerminate();
-    }
-
-
-    bool Window::should_close()
-    {
-        auto& inst = instance();
-        std::lock_guard lock{ inst.mutex };
-        assert(inst.created && "Window not created");
-        return glfwWindowShouldClose(inst.window);
     }
 
     GLFWwindow* Window::get_glfw_window()
     {
         auto& inst = instance();
+
         std::lock_guard lock{ inst.mutex };
         assert(inst.created && "Window not created");
+
         return inst.window;
+    }
+
+    void Window::wait_to_close()
+    {
+        while (!glfwWindowShouldClose(get_glfw_window()))
+        {
+            std::this_thread::sleep_for(std::chrono::duration<double>(1.0 / 240.0));
+            glfwPollEvents();
+        }
     }
 }

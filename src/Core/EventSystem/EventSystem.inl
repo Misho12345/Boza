@@ -6,36 +6,44 @@ namespace boza
     template<typename Event, auto Callback>
     void EventSystem::subscribe()
     {
-        std::lock_guard lock{ mutex() };
-        auto conn = dispatcher().sink<Event>().template connect<Callback>();
-        connections()[std::type_index(typeid(Event))].push_back(conn);
+        auto& inst = instance();
+
+        std::lock_guard lock{ inst.mutex };
+        auto conn = inst.dispatcher.sink<Event>().template connect<Callback>();
+        inst.connections[std::type_index(typeid(Event))].push_back(conn);
     }
 
     template<typename Event, typename T, auto Callback>
     void EventSystem::subscribe(T* instance)
     {
-        std::lock_guard lock{ mutex() };
-        auto conn = dispatcher().sink<Event>().template connect<Callback>(instance);
-        connections()[std::type_index(typeid(Event))].push_back(conn);
+        auto& inst = instance();
+
+        std::lock_guard lock{ inst.mutex };
+        auto conn = inst.dispatcher.template sink<Event>().connect<Callback>(instance);
+        inst.connections[std::type_index(typeid(Event))].push_back(conn);
     }
 
     template<typename Event>
    void EventSystem::unsubscribe()
     {
-        std::lock_guard lock{ mutex() };
+        auto& inst = instance();
 
-        if (const auto it = connections().find(std::type_index(typeid(Event)));
-            it != connections().end())
+        std::lock_guard lock{ inst.mutex };
+
+        if (const auto it = inst.connections.find(std::type_index(typeid(Event)));
+            it != inst.connections.end())
         {
             for (auto& conn : it->second) conn.release();
-            connections().erase(it);
+            inst.connections.erase(it);
         }
     }
 
     template<typename Event>
     void EventSystem::trigger(const Event& event)
     {
-        std::lock_guard lock{ mutex() };
-        dispatcher().trigger(event);
+        auto& inst = instance();
+
+        std::lock_guard lock{ inst.mutex };
+        inst.dispatcher.trigger(event);
     }
 }

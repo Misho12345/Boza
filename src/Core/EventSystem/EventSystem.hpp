@@ -1,18 +1,12 @@
 #pragma once
 #include "boza_pch.hpp"
+#include "Singleton.hpp"
 
 namespace boza
 {
-    class BOZA_API EventSystem final
+    class BOZA_API EventSystem final : public Singleton<EventSystem>
     {
     public:
-        EventSystem()                              = delete;
-        ~EventSystem()                             = delete;
-        EventSystem(const EventSystem&)            = delete;
-        EventSystem(EventSystem&&)                 = delete;
-        EventSystem& operator=(const EventSystem&) = delete;
-        EventSystem& operator=(EventSystem&&)      = delete;
-
         template<typename Event, auto Callback>
         static void subscribe();
 
@@ -26,10 +20,10 @@ namespace boza
         static void trigger(const Event& event);
 
     private:
-        static std::unordered_map<std::type_index, std::vector<entt::connection>>& connections();
+        std::unordered_map<std::type_index, std::vector<entt::connection>> connections;
 
-        static entt::dispatcher& dispatcher();
-        static std::mutex&       mutex();
+        entt::dispatcher dispatcher;
+        std::mutex       mutex;
     };
 }
 

@@ -4,7 +4,7 @@
 namespace boza
 {
     template<typename Derived>
-    class BOZA_API Singleton
+    class Singleton
     {
     public:
         Singleton(const Singleton&)            = delete;

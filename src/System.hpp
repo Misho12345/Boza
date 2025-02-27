@@ -10,7 +10,7 @@ namespace boza
     using duration   = std::chrono::microseconds;
 
     template<typename Derived, uint32_t max_fps, bool fixed_framerate = true>
-    class BOZA_API System : public Singleton<Derived>
+    class System : public Singleton<Derived>
     {
     public:
         System(const System&)            = delete;

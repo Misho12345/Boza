@@ -2,40 +2,33 @@
 
 namespace boza
 {
-    STATIC_VARIABLE_FN_ARGS(tf::Executor, JobSystem::executor, (const size_t n), (n), {
-        static bool initialized = n != 0;
-        assert(initialized && "JobSystem::init() must be called before using the JobSystem");
-    })
-
-    STATIC_VARIABLE_FN(JobSystem::tasks_mutex, {})
-    STATIC_VARIABLE_FN(JobSystem::next_task_id, {})
-    STATIC_VARIABLE_FN(JobSystem::tasks, {})
-
-    void JobSystem::init(const size_t num_threads)
+    void JobSystem::start()
     {
-        executor(num_threads);
+        instance();
     }
 
-    void JobSystem::shutdown()
+    void JobSystem::stop()
     {
-        executor().wait_for_all();
+        auto& inst = instance();
+        inst.executor.wait_for_all();
 
-        std::lock_guard lock{ tasks_mutex() };
-        for (const auto& task_data : std::views::values(tasks()))
+        std::lock_guard lock{ inst.mutex };
+        for (const auto& task_data : std::views::values(inst.tasks))
             task_data->canceled.store(true);
-        tasks().clear();
+        inst.tasks.clear();
     }
 
     JobSystem::task_id JobSystem::push_task(const std::function<void()>& func)
     {
-        task_id id = next_task_id().fetch_add(1);
+        auto& inst = instance();
+        task_id id = inst.next_task_id.fetch_add(1);
 
         auto task_data = std::make_shared<TaskData>();
 
         task_data->func     = func;
         task_data->taskflow = std::make_shared<tf::Taskflow>();
 
-        task_data->taskflow->emplace([task_data, id]
+        task_data->taskflow->emplace([task_data, id, &inst]
         {
             if (task_data->canceled.load()) return;
 
@@ -46,28 +39,30 @@ namespace boza
             }
             catch (...) { task_data->failed.store(true); }
 
-            std::lock_guard cleanup_lock{ tasks_mutex() };
-            tasks().erase(id);
+            std::lock_guard cleanup_lock{ inst.mutex };
+            inst.tasks.erase(id);
         });
 
         {
-            std::lock_guard lock{ tasks_mutex() };
-            tasks()[id] = task_data;
+            std::lock_guard lock{ inst.mutex };
+            inst.tasks[id] = task_data;
         }
 
-        executor().run(*task_data->taskflow).get();
+        inst.executor.run(*task_data->taskflow).get();
         return id;
     }
 
-    bool JobSystem::cancel_task(const task_id id) {
+    bool JobSystem::cancel_task(const task_id id)
+    {
+        auto& inst = instance();
         std::shared_ptr<TaskData> task_data;
 
         {
-            std::lock_guard lock{ tasks_mutex() };
+            std::lock_guard lock{ inst.mutex };
 
-            const auto it = tasks().find(id);
+            const auto it = inst.tasks.find(id);
 
-            if (it == tasks().end()) return false;
+            if (it == inst.tasks.end()) return false;
             task_data = it->second;
         }
 
@@ -77,14 +72,15 @@ namespace boza
 
     JobError JobSystem::wait_for_task(const task_id id)
     {
+        auto& inst = instance();
         std::shared_ptr<TaskData> task_data;
 
         {
-            std::lock_guard lock{ tasks_mutex() };
+            std::lock_guard lock{ inst.mutex };
 
-            const auto it = tasks().find(id);
+            const auto it = inst.tasks.find(id);
 
-            if (it == tasks().end()) return JobError::TaskNotFound;
+            if (it == inst.tasks.end()) return JobError::TaskNotFound;
             task_data = it->second;
         }
 
@@ -126,15 +122,18 @@ namespace boza
     }
 
 
-    std::optional<JobError> JobSystem::is_task_completed(const task_id id) {
+    std::optional<JobError> JobSystem::is_task_completed(const task_id id)
+    {
+        auto& inst = instance();
+
         std::shared_ptr<TaskData> task_data;
 
         {
-            std::lock_guard lock{ tasks_mutex() };
+            std::lock_guard lock{ inst.mutex };
 
-            const auto it = tasks().find(id);
+            const auto it = inst.tasks.find(id);
 
-            if (it == tasks().end()) return std::nullopt;
+            if (it == inst.tasks.end()) return std::nullopt;
             task_data = it->second;
         }
 

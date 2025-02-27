@@ -1,6 +1,7 @@
 #pragma once
 #include "boza_pch.hpp"
 #include "Singleton.hpp"
+#include "System.hpp"
 
 namespace boza
 {
@@ -10,8 +11,8 @@ namespace boza
         static void create(uint32_t width, uint32_t height, const std::string& title);
         static void destroy();
 
-        [[nodiscard]] static bool should_close();
         static GLFWwindow* get_glfw_window();
+        static void wait_to_close();
 
     private:
         uint32_t width{ 0 };

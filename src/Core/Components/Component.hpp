@@ -4,7 +4,7 @@ namespace boza
 {
     class GameObject;
 
-    struct BOZA_API Component
+    struct Component
     {
         friend class GameObject;
 
