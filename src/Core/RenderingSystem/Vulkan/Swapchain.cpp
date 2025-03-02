@@ -16,14 +16,17 @@ namespace boza
         if (!inst.query_swapchain_support()) return false;
         if (!inst.create_swapchain()) return false;
         if (!inst.create_image_views()) return false;
+        if (!inst.create_command_buffers(true)) return false;
+        if (!inst.create_sync_objects()) return false;
+
+        Window::set_window_resize_callback();
 
         return true;
     }
 
     void Swapchain::destroy()
     {
-        Logger::trace("Destroying swapchain, image views and sync objects");
-        const auto& inst   = instance();
+        auto& inst   = instance();
         const auto& device = Device::get_device();
 
         for (const auto& frame : inst.frames)
@@ -35,14 +38,51 @@ namespace boza
             vkDestroySemaphore(device, frame.render_finished_semaphore, nullptr);
         }
 
+        inst.frames.clear();
+
         if (inst.swapchain != VK_NULL_HANDLE)
             vkDestroySwapchainKHR(device, inst.swapchain, nullptr);
     }
 
 
-    bool Swapchain::create_command_buffers()
+    bool Swapchain::recreate()
     {
-        auto& inst = instance();
+        should_recreate = false;
+        Logger::trace("Recreating swapchain {} x {}", Window::get_width(), Window::get_height());
+
+        Device::wait_idle();
+
+        const auto& device = Device::get_device();
+        const auto old_swapchain = swapchain;
+
+        for (const auto& frame : frames)
+        {
+            vkDestroyImageView(device, frame.image_view, nullptr);
+
+            vkDestroyFence(device, frame.in_flight_fence, nullptr);
+            vkDestroySemaphore(device, frame.image_available_semaphore, nullptr);
+            vkDestroySemaphore(device, frame.render_finished_semaphore, nullptr);
+        }
+
+        frames.clear();
+
+        if (!query_swapchain_support()) return false;
+        if (!create_swapchain(old_swapchain)) return false;
+        if (!create_image_views()) return false;
+        if (!create_command_buffers(false)) return false;
+        if (!create_sync_objects()) return false;
+
+        if (old_swapchain != VK_NULL_HANDLE)
+            vkDestroySwapchainKHR(Device::get_device(), old_swapchain, nullptr);
+
+        Frame::current_frame = 0;
+        return true;
+    }
+
+
+    bool Swapchain::create_command_buffers(const bool create_main)
+    {
+        const uint32_t num = frames.size() + (create_main ? 1 : 0);
 
         const VkCommandBufferAllocateInfo alloc_info
         {
@@ -50,45 +90,44 @@ namespace boza
             .pNext = nullptr,
             .commandPool = Device::get_command_pool(),
             .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            .commandBufferCount = static_cast<uint32_t>(inst.frames.size() + 1),
+            .commandBufferCount = num,
         };
 
-        std::vector<VkCommandBuffer> command_buffers(inst.frames.size() + 1);
+        std::vector<VkCommandBuffer> command_buffers(num);
         VK_CHECK(vkAllocateCommandBuffers(Device::get_device(), &alloc_info, command_buffers.data()),
         {
-            LOG_VK_RESULT("Failed to allocate command buffers");
+            LOG_VK_ERROR("Failed to allocate command buffers");
             return false;
         });
 
-        inst.main_command_buffer = command_buffers[0];
-        for (uint32_t i = 0; i < inst.frames.size(); i++)
-            inst.frames[i].command_buffer = command_buffers[i + 1];
+        for (uint32_t i = 0; i < frames.size(); i++)
+            frames[i].command_buffer = command_buffers[i];
+
+        if (create_main) main_command_buffer = command_buffers[num - 1];
 
         return true;
     }
 
     bool Swapchain::create_sync_objects()
     {
-        auto& inst = instance();
-
-        for (uint32_t i = 0; i < inst.frames.size(); i++)
+        for (uint32_t i = 0; i < frames.size(); i++)
         {
-            inst.frames[i].in_flight_fence = create_fence();
-            if (inst.frames[i].in_flight_fence == VK_NULL_HANDLE)
+            frames[i].in_flight_fence = create_fence();
+            if (frames[i].in_flight_fence == VK_NULL_HANDLE)
             {
                 Logger::critical("Failed to create in-flight fence for frame {}", i);
                 return false;
             }
 
-            inst.frames[i].image_available_semaphore = create_semaphore();
-            if (inst.frames[i].image_available_semaphore == VK_NULL_HANDLE)
+            frames[i].image_available_semaphore = create_semaphore();
+            if (frames[i].image_available_semaphore == VK_NULL_HANDLE)
             {
                 Logger::critical("Failed to create image available semaphore for frame {}", i);
                 return false;
             }
 
-            inst.frames[i].render_finished_semaphore = create_semaphore();
-            if (inst.frames[i].render_finished_semaphore == VK_NULL_HANDLE)
+            frames[i].render_finished_semaphore = create_semaphore();
+            if (frames[i].render_finished_semaphore == VK_NULL_HANDLE)
             {
                 Logger::critical("Failed to create render finished semaphore for frame {}", i);
                 return false;
@@ -101,37 +140,69 @@ namespace boza
     bool Swapchain::render()
     {
         auto& inst = instance();
-        auto& frame = inst.frames[Frame::current_frame];
         const auto& device = Device::get_device();
 
-        VkSemaphoreWaitInfo wait_info
+        if (Window::has_window_resized())
         {
-            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
-            .pNext = nullptr,
-            .flags = 0,
-            .semaphoreCount = 0,
-            .pSemaphores = nullptr,
-            .pValues = nullptr
-        };
+            if (Window::is_minimized())
+            {
+                inst.should_recreate = true;
+                return true;
+            }
+
+            if (!inst.recreate())
+            {
+                Logger::error("Failed to recreate swapchain");
+                return false;
+            }
+
+            return true;
+        }
+
+        if (Window::is_minimized()) return true;
+        if (inst.should_recreate && !inst.recreate())
+        {
+            Logger::error("Failed to recreate swapchain");
+            return false;
+        }
+
+        auto& frame = inst.frames[Frame::current_frame];
 
         VK_CHECK(vkWaitForFences(device, 1, &frame.in_flight_fence, VK_TRUE, UINT64_MAX),
         {
-            LOG_VK_RESULT("Failed to wait for in-flight fence");
+            LOG_VK_ERROR("Failed to wait for in-flight fence");
             return false;
         });
 
         VK_CHECK(vkResetFences(device, 1, &frame.in_flight_fence),
         {
-            LOG_VK_RESULT("Failed to reset in-flight fence");
+            LOG_VK_ERROR("Failed to reset in-flight fence");
             return false;
         });
 
         uint32_t image_index;
-        VK_CHECK(vkAcquireNextImageKHR(device, inst.swapchain, UINT64_MAX, frame.image_available_semaphore, nullptr, &image_index),
+
+        if (const auto result = vkAcquireNextImageKHR(device, inst.swapchain, UINT64_MAX, frame.image_available_semaphore, nullptr, &image_index);
+            result == VK_ERROR_OUT_OF_DATE_KHR)
         {
-            LOG_VK_RESULT("Failed to acquire next image");
+            if (Window::is_minimized())
+            {
+                inst.should_recreate = true;
+                return true;
+            }
+
+            if (!inst.recreate())
+            {
+                Logger::error("Failed to recreate swapchain");
+                return false;
+            }
+            return true;
+        }
+        else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+        {
+            LOG_VK_ERROR("Failed to acquire next image");
             return false;
-        });
+        }
 
         if (!inst.record_draw_commands(image_index)) return false;
 
@@ -178,7 +249,7 @@ namespace boza
 
         VK_CHECK(vkQueueSubmit2(Device::get_graphics_queue(), 1, &submit_info, frame.in_flight_fence),
         {
-            LOG_VK_RESULT("Failed to submit queue");
+            LOG_VK_ERROR("Failed to submit queue");
             return false;
         });
 
@@ -194,11 +265,29 @@ namespace boza
             .pResults = nullptr
         };
 
-        VK_CHECK(vkQueuePresentKHR(Device::get_present_queue(), &present_info),
+        if (const auto result = vkQueuePresentKHR(Device::get_present_queue(), &present_info);
+            result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR ||
+            Window::has_window_resized())
         {
-            LOG_VK_RESULT("Failed to present queue");
+            if (Window::is_minimized())
+            {
+                inst.should_recreate = true;
+                return true;
+            }
+
+            if (!inst.recreate())
+            {
+                Logger::error("Failed to recreate swapchain");
+                return false;
+            }
+
+            return true;
+        }
+        else if (result != VK_SUCCESS)
+        {
+            LOG_VK_ERROR("Failed to present queue");
             return false;
-        });
+        }
 
         Frame::current_frame = (Frame::current_frame + 1) % inst.frames.size();
         return true;
@@ -216,7 +305,7 @@ namespace boza
 
         VK_CHECK(vkResetCommandBuffer(command_buffer, {}),
         {
-            LOG_VK_RESULT("Failed to reset command buffer");
+            LOG_VK_ERROR("Failed to reset command buffer");
             return false;
         });
 
@@ -230,7 +319,7 @@ namespace boza
 
         VK_CHECK(vkBeginCommandBuffer(command_buffer, &begin_info),
         {
-            LOG_VK_RESULT("Failed to begin command buffer");
+            LOG_VK_ERROR("Failed to begin command buffer");
             return false;
         });
 
@@ -303,6 +392,26 @@ namespace boza
         vkCmdBeginRendering(command_buffer, &rendering_info);
 
         vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, Pipeline::get_pipeline());
+
+        VkViewport viewport
+        {
+            .x = 0.0f,
+            .y = 0.0f,
+            .width = static_cast<float>(extent.width),
+            .height = static_cast<float>(extent.height),
+            .minDepth = 0.0f,
+            .maxDepth = 1.0f
+        };
+
+        VkRect2D scissor
+        {
+            .offset = { 0, 0 },
+            .extent = extent
+        };
+
+        vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+        vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+
         vkCmdDraw(command_buffer, 3, 1, 0, 0);
 
         vkCmdEndRendering(command_buffer);
@@ -346,20 +455,20 @@ namespace boza
 
         VK_CHECK(vkEndCommandBuffer(command_buffer),
         {
-            LOG_VK_RESULT("Failed to end command buffer");
+            LOG_VK_ERROR("Failed to end command buffer");
             return false;
         });
 
         return true;
     }
 
-    bool Swapchain::create_swapchain()
+
+
+    bool Swapchain::create_swapchain(const VkSwapchainKHR old_swapchain)
     {
         choose_surface_format();
         const VkPresentModeKHR present_mode = choose_present_mode();
         choose_extent();
-
-        Logger::trace("Chosen present mode: {}", static_cast<int>(present_mode));
 
         const uint32_t image_count = std::min(
             surface_capabilities.minImageCount + 1,
@@ -392,12 +501,12 @@ namespace boza
             .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
             .presentMode = present_mode,
             .clipped = VK_TRUE,
-            .oldSwapchain = nullptr,
+            .oldSwapchain = old_swapchain,
         };
 
         VK_CHECK(vkCreateSwapchainKHR(Device::get_device(), &swapchain_create_info, nullptr, &swapchain),
         {
-            LOG_VK_RESULT("Failed to create swapchain");
+            LOG_VK_ERROR("Failed to create swapchain");
             return false;
         });
 
@@ -411,38 +520,21 @@ namespace boza
 
         VK_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &surface_capabilities),
         {
-            LOG_VK_RESULT("Failed to get surface capabilities");
+            LOG_VK_ERROR("Failed to get surface capabilities");
             return false;
         });
-
-        #ifdef _DEBUG
-        Logger::trace(
-            "Surface capabilities:\n"
-            "\tMinimum image count: {}\n"
-            "\tMaximum image count: {}\n"
-            "\tCurrent extent: {}x{}\n"
-            "\tMinimum supported extent: {}x{}\n"
-            "\tMaximum supported extent: {}x{}\n"
-            "\tMaximum image array layers: {}\n",
-            surface_capabilities.minImageCount,
-            surface_capabilities.maxImageCount,
-            surface_capabilities.currentExtent.width, surface_capabilities.currentExtent.height,
-            surface_capabilities.minImageExtent.width, surface_capabilities.minImageExtent.height,
-            surface_capabilities.maxImageExtent.width, surface_capabilities.maxImageExtent.height,
-            surface_capabilities.maxImageArrayLayers);
-        #endif
 
         uint32_t surface_format_count;
         VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &surface_format_count, nullptr),
         {
-            LOG_VK_RESULT("Failed to get surface format count");
+            LOG_VK_ERROR("Failed to get surface format count");
             return false;
         });
 
         surface_formats.resize(surface_format_count);
         VK_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &surface_format_count, surface_formats.data()),
         {
-            LOG_VK_RESULT("Failed to get surface formats");
+            LOG_VK_ERROR("Failed to get surface formats");
             return false;
         });
 
@@ -450,14 +542,14 @@ namespace boza
         uint32_t present_mode_count;
         VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &present_mode_count, nullptr),
         {
-            LOG_VK_RESULT("Failed to get present mode count");
+            LOG_VK_ERROR("Failed to get present mode count");
             return false;
         });
 
         present_modes.resize(present_mode_count);
         VK_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &present_mode_count, present_modes.data()),
         {
-            LOG_VK_RESULT("Failed to get present modes");
+            LOG_VK_ERROR("Failed to get present modes");
             return false;
         });
 
@@ -471,14 +563,14 @@ namespace boza
         uint32_t image_count;
         VK_CHECK(vkGetSwapchainImagesKHR(device, swapchain, &image_count, nullptr),
         {
-            LOG_VK_RESULT("Failed to get swapchain image count");
+            LOG_VK_ERROR("Failed to get swapchain image count");
             return false;
         });
 
         std::vector<VkImage> images(image_count);
         VK_CHECK(vkGetSwapchainImagesKHR(device, swapchain, &image_count, images.data()),
         {
-            LOG_VK_RESULT("Failed to get swapchain images");
+            LOG_VK_ERROR("Failed to get swapchain images");
             return false;
         });
 
@@ -507,7 +599,7 @@ namespace boza
             VkImageView image_view;
             VK_CHECK(vkCreateImageView(device, &image_info, nullptr, &image_view),
             {
-                LOG_VK_RESULT("Failed to create image view");
+                LOG_VK_ERROR("Failed to create image view");
                 return false;
             });
 
@@ -531,7 +623,7 @@ namespace boza
 
         VK_CHECK(vkCreateSemaphore(Device::get_device(), &semaphore_info, nullptr, &semaphore),
         {
-            LOG_VK_RESULT("Failed to create semaphore");
+            LOG_VK_ERROR("Failed to create semaphore");
             return VK_NULL_HANDLE;
         });
 
@@ -550,7 +642,7 @@ namespace boza
         VkFence fence;
         VK_CHECK(vkCreateFence(Device::get_device(), &fence_info, nullptr, &fence),
         {
-            LOG_VK_RESULT("Failed to create fence");
+            LOG_VK_ERROR("Failed to create fence");
             return VK_NULL_HANDLE;
         });
 

@@ -14,13 +14,14 @@ namespace boza
 
         VK_CHECK(glfwCreateWindowSurface(Instance::get_instance(), Window::get_glfw_window(), nullptr, &inst.surface),
         {
-            LOG_VK_RESULT("Failed to create window surface");
+            LOG_VK_ERROR("Failed to create window surface");
             return false;
         });
 
         if (!inst.choose_physical_device()) return false;
         if (!inst.find_queue_families()) return false;
         if (!inst.create_logical_device()) return false;
+        if (!inst.create_command_pool()) return false;
 
         volkLoadDevice(inst.device);
 
@@ -58,14 +59,14 @@ namespace boza
         uint32_t device_count = 0;
         VK_CHECK(vkEnumeratePhysicalDevices(vk_instance, &device_count, nullptr),
         {
-            LOG_VK_RESULT("Failed to enumerate physical devices");
+            LOG_VK_ERROR("Failed to enumerate physical devices");
             return false;
         });
 
         std::vector<VkPhysicalDevice> physical_devices(device_count);
         VK_CHECK(vkEnumeratePhysicalDevices(vk_instance, &device_count, physical_devices.data()),
         {
-            LOG_VK_RESULT("Failed to enumerate physical devices");
+            LOG_VK_ERROR("Failed to enumerate physical devices");
             return false;
         });
 
@@ -99,7 +100,7 @@ namespace boza
             uint32_t supported_extensions_count = 0;
             VK_CHECK(vkEnumerateDeviceExtensionProperties(device, nullptr, &supported_extensions_count, nullptr),
             {
-                LOG_VK_RESULT("Failed to enumerate device extension properties for {}", device_properties.deviceName);
+                LOG_VK_ERROR("Failed to enumerate device extension properties for {}", device_properties.deviceName);
                 return false;
             });
 
@@ -107,7 +108,7 @@ namespace boza
 
             VK_CHECK(vkEnumerateDeviceExtensionProperties(device, nullptr, &supported_extensions_count, supported_extensions.data()),
             {
-                LOG_VK_RESULT("Failed to enumerate device extension properties for {}", device_properties.deviceName);
+                LOG_VK_ERROR("Failed to enumerate device extension properties for {}", device_properties.deviceName);
                 return false;
             });
 
@@ -179,7 +180,7 @@ namespace boza
             VkBool32 present_support = false;
             VK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, i, surface, &present_support),
             {
-                LOG_VK_RESULT("Failed to get physical device surface support");
+                LOG_VK_ERROR("Failed to get physical device surface support");
                 return false;
             });
 
@@ -247,7 +248,7 @@ namespace boza
 
         VK_CHECK(vkCreateDevice(physical_device, &device_create_info, nullptr, &device),
         {
-            LOG_VK_RESULT("Failed to create logical device");
+            LOG_VK_ERROR("Failed to create logical device");
             return false;
         });
 
@@ -257,19 +258,17 @@ namespace boza
 
     bool Device::create_command_pool()
     {
-        auto& inst = instance();
-
         const VkCommandPoolCreateInfo pool_info
         {
             .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
             .pNext = nullptr,
             .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-            .queueFamilyIndex = inst.queue_family_indices.graphics_family
+            .queueFamilyIndex = queue_family_indices.graphics_family
         };
 
-        VK_CHECK(vkCreateCommandPool(inst.device, &pool_info, nullptr, &inst.command_pool),
+        VK_CHECK(vkCreateCommandPool(device, &pool_info, nullptr, &command_pool),
         {
-            LOG_VK_RESULT("Failed to create command pool");
+            LOG_VK_ERROR("Failed to create command pool");
             return false;
         });
 
@@ -298,7 +297,7 @@ namespace boza
     {
         VK_CHECK(vkDeviceWaitIdle(instance().device),
         {
-            LOG_VK_RESULT("Failed to wait for device idle");
+            LOG_VK_ERROR("Failed to wait for device idle");
         });
     }
 }

@@ -69,12 +69,39 @@ namespace boza
         return inst.window;
     }
 
+
     void Window::wait_to_close()
     {
         while (!glfwWindowShouldClose(get_glfw_window()))
+            glfwWaitEvents();
+    }
+
+    void Window::set_window_resize_callback()
+    {
+        glfwSetFramebufferSizeCallback(get_glfw_window(), [](GLFWwindow*, const int width, const int height)
         {
-            std::this_thread::sleep_for(std::chrono::duration<double>(1.0 / 240.0));
-            glfwPollEvents();
+            auto& inst  = instance();
+            inst.width  = static_cast<uint32_t>(width);
+            inst.height = static_cast<uint32_t>(height);
+            inst.resized.store(true);
+        });
+    }
+
+
+    bool Window::has_window_resized()
+    {
+        if (auto& inst = instance();
+            inst.resized.load())
+        {
+           inst.resized.store(false);
+            return true;
         }
+
+        return false;
+    }
+
+    bool Window::is_minimized()
+    {
+        return get_width() == 0 || get_height() == 0;
     }
 }

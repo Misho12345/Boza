@@ -10,7 +10,7 @@ namespace boza
 
         VK_CHECK(volkInitialize(),
         {
-            LOG_VK_RESULT("Failed to initialize Volk");
+            LOG_VK_ERROR("Failed to initialize Volk");
             return false;
         });
 
@@ -90,7 +90,7 @@ namespace boza
 
         VK_CHECK(vkCreateInstance(&instance_create_info, nullptr, &vk_instance),
         {
-            LOG_VK_RESULT("Failed to create instance");
+            LOG_VK_ERROR("Failed to create instance");
             return false;
         });
 
@@ -104,14 +104,14 @@ namespace boza
         uint32_t extension_count = 0;
         VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr),
         {
-            LOG_VK_RESULT("Failed to enumerate extension properties");
+            LOG_VK_ERROR("Failed to enumerate extension properties");
             return false;
         });
 
         std::vector<VkExtensionProperties> available_extensions(extension_count);
         VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, available_extensions.data()),
         {
-            LOG_VK_RESULT("Failed to enumerate extension properties");
+            LOG_VK_ERROR("Failed to enumerate extension properties");
             return false;
         });
 
@@ -141,14 +141,14 @@ namespace boza
         uint32_t layer_count = 0;
         VK_CHECK(vkEnumerateInstanceLayerProperties(&layer_count, nullptr),
         {
-            LOG_VK_RESULT("Failed to enumerate layer properties");
+            LOG_VK_ERROR("Failed to enumerate layer properties");
             return false;
         });
 
         std::vector<VkLayerProperties> available_layers(layer_count);
         VK_CHECK(vkEnumerateInstanceLayerProperties(&layer_count, available_layers.data()),
         {
-            LOG_VK_RESULT("Failed to enumerate layer properties");
+            LOG_VK_ERROR("Failed to enumerate layer properties");
             return false;
         });
 
@@ -229,7 +229,7 @@ namespace boza
 
         VK_CHECK(vkCreateDebugUtilsMessengerEXT(vk_instance, &debug_messenger_create_info, nullptr, &debug_messenger),
         {
-            LOG_VK_RESULT("Failed to create debug messenger");
+            LOG_VK_ERROR("Failed to create debug messenger");
             return false;
         });
 

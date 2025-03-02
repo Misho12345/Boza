@@ -11,9 +11,6 @@ namespace boza
         static bool create();
         static void destroy();
 
-        [[nodiscard]] static bool create_command_buffers();
-        [[nodiscard]] static bool create_sync_objects();
-
         [[nodiscard]] static bool render();
 
         [[nodiscard]] static VkSwapchainKHR& get_swapchain();
@@ -34,11 +31,15 @@ namespace boza
             VkSemaphore render_finished_semaphore;
         };
 
+        [[nodiscard]] bool recreate();
+
         [[nodiscard]] bool record_draw_commands(uint32_t idx) const;
 
-        [[nodiscard]] bool create_swapchain();
+        [[nodiscard]] bool create_swapchain(VkSwapchainKHR old_swapchain = VK_NULL_HANDLE);
         [[nodiscard]] bool query_swapchain_support();
         [[nodiscard]] bool create_image_views();
+        [[nodiscard]] bool create_command_buffers(bool create_main = true);
+        [[nodiscard]] bool create_sync_objects();
 
         [[nodiscard]] static VkSemaphore create_semaphore();
         [[nodiscard]] static VkFence create_fence();
@@ -57,5 +58,7 @@ namespace boza
         VkSurfaceCapabilitiesKHR        surface_capabilities{};
         std::vector<VkSurfaceFormatKHR> surface_formats;
         std::vector<VkPresentModeKHR>   present_modes;
+
+        bool should_recreate{ false };
     };
 }

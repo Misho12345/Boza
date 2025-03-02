@@ -32,7 +32,7 @@ namespace boza
         VkShaderModule shader_module;
         VK_CHECK(vkCreateShaderModule(Device::get_device(), &create_info, nullptr, &shader_module),
         {
-            LOG_VK_RESULT("Failed to create shader module");
+            LOG_VK_ERROR("Failed to create shader module");
             return VK_NULL_HANDLE;
         });
 

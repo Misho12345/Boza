@@ -6,5 +6,5 @@
         if (result != VK_SUCCESS) __VA_ARGS__   \
     } while (0)
 
-#define LOG_VK_RESULT(FMT, ...)     \
+#define LOG_VK_ERROR(FMT, ...)     \
     Logger::critical(FMT " ({})", __VA_ARGS__, static_cast<int>(result))

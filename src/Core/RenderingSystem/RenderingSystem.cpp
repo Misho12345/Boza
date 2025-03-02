@@ -28,10 +28,6 @@ namespace boza
         if (!try_(Device::create(), "Failed to create logical device!")) return;
         if (!try_(Pipeline::create(), "Failed to create graphics pipeline!")) return;
 
-        if (!try_(Device::create_command_pool(), "Failed to create command pool!")) return;
-        if (!try_(Swapchain::create_command_buffers(), "Failed to create command buffers!")) return;
-        if (!try_(Swapchain::create_sync_objects(), "Failed to create sync objects!")) return;
-
         for (const auto* game_object : Scene::get_active_scene().get_game_objects())
         {
             for (auto* behaviour : game_object->behaviours)
@@ -39,7 +35,7 @@ namespace boza
         }
 
         for (const auto& task : tasks)
-                JobSystem::wait_for_task(task);
+            JobSystem::wait_for_task(task);
         tasks.clear();
     }
 

@@ -17,7 +17,6 @@ namespace boza
         static bool create();
         static void destroy();
 
-        [[nodiscard]] static bool create_command_pool();
 
         [[nodiscard]] static VkDevice&         get_device();
         [[nodiscard]] static VkPhysicalDevice& get_physical_device();
@@ -35,6 +34,8 @@ namespace boza
         [[nodiscard]] bool choose_physical_device();
         [[nodiscard]] bool find_queue_families();
         [[nodiscard]] bool create_logical_device();
+
+        [[nodiscard]] bool create_command_pool();
 
         void get_queues();
 

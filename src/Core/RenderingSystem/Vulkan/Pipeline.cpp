@@ -92,12 +92,12 @@ namespace boza
             .width = static_cast<float>(Swapchain::get_extent().width),
             .height = static_cast<float>(Swapchain::get_extent().height),
             .minDepth = 0.0f,
-            .maxDepth = 0.0f
+            .maxDepth = 1.0f
         };
 
         VkRect2D scissor
         {
-            .offset = {0, 0},
+            .offset = { 0, 0 },
             .extent = Swapchain::get_extent()
         };
 
@@ -183,6 +183,16 @@ namespace boza
             .stencilAttachmentFormat = VK_FORMAT_UNDEFINED
         };
 
+        VkDynamicState dynamic_states[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+
+        VkPipelineDynamicStateCreateInfo dynamic_state_info
+        {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+            .pNext = nullptr,
+            .dynamicStateCount = 2,
+            .pDynamicStates = dynamic_states
+        };
+
         VkGraphicsPipelineCreateInfo pipeline_info
         {
             .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
@@ -198,17 +208,17 @@ namespace boza
             .pMultisampleState = &multisample_info,
             .pDepthStencilState = nullptr,
             .pColorBlendState = &color_blend_info,
-            .pDynamicState = nullptr,
+            .pDynamicState = &dynamic_state_info,
             .layout = pipeline_layout,
             .renderPass = VK_NULL_HANDLE,
             .subpass = {},
             .basePipelineHandle = nullptr,
-            .basePipelineIndex = {}
+            .basePipelineIndex = 0
         };
 
         VK_CHECK(vkCreateGraphicsPipelines(Device::get_device(), nullptr, 1, &pipeline_info, nullptr, &pipeline),
         {
-            LOG_VK_RESULT("Failed to create graphics pipeline");
+            LOG_VK_ERROR("Failed to create graphics pipeline");
             return false;
         });
 
@@ -230,7 +240,7 @@ namespace boza
 
         VK_CHECK(vkCreatePipelineLayout(Device::get_device(), &layout_info, nullptr, &pipeline_layout),
         {
-            LOG_VK_RESULT("Failed to create pipeline layout");
+            LOG_VK_ERROR("Failed to create pipeline layout");
             return false;
         });
 
