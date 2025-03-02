@@ -8,6 +8,7 @@
 #include <set>
 #include <map>
 #include <bitset>
+#include <span>
 
 #include <optional>
 #include <expected>
@@ -29,6 +30,9 @@
 #include <condition_variable>
 #include <future>
 
+#include <filesystem>
+namespace fs = std::filesystem;
+
 #include <typeindex>
 
 #include <chrono>
@@ -42,11 +46,18 @@ using namespace std::chrono_literals;
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
-
 #include <fmt/format.h>
+
+#include <taskflow/taskflow.hpp>
 
 #include <entt/entt.hpp>
 using namespace entt::literals;
+
+#define VK_NO_PROTOTYPES
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+#include <volk.h>
+#include <vk_mem_alloc.h>
 
 #define GLM_FORCE_RADIANS
 #define GLM_ENABLE_EXPERIMENTAL
@@ -55,9 +66,7 @@ using namespace entt::literals;
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #include <glm/ext.hpp>
 
-#include <taskflow/taskflow.hpp>
-
-#include <GLFW/glfw3.h>
+#include "macros.hpp"
 
 namespace boza
 {

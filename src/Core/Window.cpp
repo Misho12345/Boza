@@ -24,6 +24,7 @@ namespace boza
             return;
         }
 
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         auto* win = glfwCreateWindow(static_cast<int>(width), static_cast<int>(height), title.c_str(), nullptr, nullptr);
         if (!win)
         {
@@ -31,8 +32,6 @@ namespace boza
             glfwTerminate();
             return;
         }
-
-        glfwMakeContextCurrent(win);
 
         std::lock_guard lock{ inst.mutex };
         inst.window = win;
@@ -56,6 +55,9 @@ namespace boza
         glfwDestroyWindow(window_to_destroy);
         glfwTerminate();
     }
+
+    uint32_t Window::get_width() { return instance().width; }
+    uint32_t Window::get_height() { return instance().height; }
 
     GLFWwindow* Window::get_glfw_window()
     {

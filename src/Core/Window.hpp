@@ -11,6 +11,9 @@ namespace boza
         static void create(uint32_t width, uint32_t height, const std::string& title);
         static void destroy();
 
+        static uint32_t get_width();
+        static uint32_t get_height();
+
         static GLFWwindow* get_glfw_window();
         static void wait_to_close();
 

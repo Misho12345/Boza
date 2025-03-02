@@ -1,5 +1,4 @@
 #pragma once
-#include "boza_pch.hpp"
 
 namespace boza
 {

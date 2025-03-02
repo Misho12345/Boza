@@ -33,6 +33,7 @@ namespace boza
     protected:
         virtual void on_begin() {}
         virtual void on_iteration() = 0;
+        virtual void on_end() {}
 
         void run()
         {
@@ -77,6 +78,8 @@ namespace boza
                         std::this_thread::sleep_for(fixed_delta_time - time_elapsed);
                 }
             }
+
+            on_end();
         }
 
         System() = default;

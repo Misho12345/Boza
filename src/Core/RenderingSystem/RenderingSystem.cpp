@@ -4,10 +4,34 @@
 #include "Core/GameObject.hpp"
 #include "Core/JobSystem/JobSystem.hpp"
 
+#include "Vulkan/Instance.hpp"
+#include "Vulkan/Device.hpp"
+#include "Vulkan/Swapchain.hpp"
+#include "Vulkan/Pipeline.hpp"
+
 namespace boza
 {
+    static bool try_(const bool res, const std::string_view& message)
+    {
+        if (!res)
+        {
+            Logger::error(message);
+            RenderingSystem::stop();
+        }
+
+        return res;
+    }
+
     void RenderingSystem::on_begin()
     {
+        if (!try_(Instance::create("Boza app"), "Failed to create vulkan instance!")) return;
+        if (!try_(Device::create(), "Failed to create logical device!")) return;
+        if (!try_(Pipeline::create(), "Failed to create graphics pipeline!")) return;
+
+        if (!try_(Device::create_command_pool(), "Failed to create command pool!")) return;
+        if (!try_(Swapchain::create_command_buffers(), "Failed to create command buffers!")) return;
+        if (!try_(Swapchain::create_sync_objects(), "Failed to create sync objects!")) return;
+
         for (const auto* game_object : Scene::get_active_scene().get_game_objects())
         {
             for (auto* behaviour : game_object->behaviours)
@@ -48,6 +72,19 @@ namespace boza
             JobSystem::wait_for_task(task);
         tasks.clear();
 
-        // Logger::trace("Rendering...");
+        if (!Swapchain::render())
+        {
+            Logger::error("Failed to render frame!");
+            stop();
+        }
+    }
+
+    void RenderingSystem::on_end()
+    {
+        Device::wait_idle();
+
+        Pipeline::destroy();
+        Device::destroy();
+        Instance::destroy();
     }
 }

@@ -45,7 +45,16 @@ add_library(BozaEngine SHARED
 
         src/Core/RenderingSystem/RenderingSystem.hpp
         src/Core/RenderingSystem/RenderingSystem.cpp
-
+        src/Core/RenderingSystem/Vulkan/Instance.hpp
+        src/Core/RenderingSystem/Vulkan/Instance.cpp
+        src/Core/RenderingSystem/Vulkan/Device.hpp
+        src/Core/RenderingSystem/Vulkan/Device.cpp
+        src/Core/RenderingSystem/Vulkan/Swapchain.hpp
+        src/Core/RenderingSystem/Vulkan/Swapchain.cpp
+        src/Core/RenderingSystem/Vulkan/Shader.hpp
+        src/Core/RenderingSystem/Vulkan/Shader.cpp
+        src/Core/RenderingSystem/Vulkan/Pipeline.hpp
+        src/Core/RenderingSystem/Vulkan/Pipeline.cpp
 
         src/Core/GameObject.hpp
         src/Core/GameObject.inl
@@ -67,8 +76,9 @@ target_precompile_headers(BozaEngine PRIVATE src/boza_pch.hpp)
 target_compile_definitions(BozaEngine PRIVATE BOZAENGINE_EXPORTS)
 target_include_directories(BozaEngine PUBLIC src/)
 
-find_package(Vulkan REQUIRED)
+find_package(VulkanHeaders REQUIRED)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
+find_package(volk CONFIG REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(imgui REQUIRED)
 find_package(glm CONFIG REQUIRED)
@@ -82,14 +92,16 @@ find_package(Lua REQUIRED)
 find_package(Taskflow CONFIG REQUIRED)
 
 target_link_libraries(BozaEngine PUBLIC
-        Vulkan::Vulkan
+        Vulkan::Headers
         GPUOpen::VulkanMemoryAllocator
+        volk::volk volk::volk_headers
         glfw
         imgui::imgui
-        glm::glm
+        glm::glm-header-only
         EnTT::EnTT
         box2d::box2d
-        spdlog::spdlog
+        fmt::fmt-header-only
+        spdlog::spdlog_header_only
         OpenAL::OpenAL
         SndFile::sndfile
         ${LUA_LIBRARIES}

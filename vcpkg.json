@@ -3,8 +3,11 @@
   "version-string" : "1.0.0",
   "builtin-baseline" : "7e21420f775f72ae938bdeb5e6068f722088f06a",
   "dependencies" : [ {
-    "name" : "vulkan",
-    "version>=" : "2023-12-17"
+    "name" : "volk",
+    "version>=" : "1.4.304.1"
+  }, {
+    "name" : "vulkan-headers",
+    "version>=" : "1.4.304.1"
   }, {
     "name" : "vulkan-memory-allocator",
     "version>=" : "3.1.0"
