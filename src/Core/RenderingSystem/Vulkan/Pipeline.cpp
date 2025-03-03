@@ -27,19 +27,20 @@ namespace boza
         vkDestroyPipelineLayout(device, inst.pipeline_layout, nullptr);
     }
 
-    VkPipeline& Pipeline::get_pipeline() { return instance().pipeline; }
+    VkPipeline&       Pipeline::get_pipeline() { return instance().pipeline; }
+    VkPipelineLayout& Pipeline::get_pipeline_layout() { return instance().pipeline_layout; }
 
     bool Pipeline::create_pipeline()
     {
         vertex_module = Shader::create_shader_module("default.vert");
-        if (vertex_module == VK_NULL_HANDLE)
+        if (vertex_module == nullptr)
         {
             Logger::critical("Failed to create vertex shader module");
             return false;
         }
 
         fragment_module = Shader::create_shader_module("default.frag");
-        if (fragment_module == VK_NULL_HANDLE)
+        if (fragment_module == nullptr)
         {
             Logger::critical("Failed to create fragment shader module");
             return false;
@@ -210,7 +211,7 @@ namespace boza
             .pColorBlendState = &color_blend_info,
             .pDynamicState = &dynamic_state_info,
             .layout = pipeline_layout,
-            .renderPass = VK_NULL_HANDLE,
+            .renderPass = nullptr,
             .subpass = {},
             .basePipelineHandle = nullptr,
             .basePipelineIndex = 0
@@ -227,15 +228,22 @@ namespace boza
 
     bool Pipeline::create_pipeline_layout()
     {
-        constexpr VkPipelineLayoutCreateInfo layout_info
+        VkPushConstantRange push_constant_range
+        {
+            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+            .offset = 0,
+            .size = sizeof(PushConstant)
+        };
+
+        const VkPipelineLayoutCreateInfo layout_info
         {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             .pNext = nullptr,
             .flags = {},
-            .setLayoutCount = 0,
-            .pSetLayouts = nullptr,
-            .pushConstantRangeCount = 0,
-            .pPushConstantRanges = nullptr
+            .setLayoutCount = 1,
+            .pSetLayouts = &Swapchain::get_descriptor_set_layout(),
+            .pushConstantRangeCount = 1,
+            .pPushConstantRanges = &push_constant_range
         };
 
         VK_CHECK(vkCreatePipelineLayout(Device::get_device(), &layout_info, nullptr, &pipeline_layout),

@@ -21,14 +21,10 @@ namespace boza
         if (!inst.choose_physical_device()) return false;
         if (!inst.find_queue_families()) return false;
         if (!inst.create_logical_device()) return false;
-        if (!inst.create_command_pool()) return false;
 
         volkLoadDevice(inst.device);
 
         inst.get_queues();
-
-        if (!Swapchain::create()) return false;
-
         return true;
     }
 
@@ -37,17 +33,10 @@ namespace boza
         Logger::trace("Destroying logical device");
         const auto& inst = instance();
 
-        if (inst.device != VK_NULL_HANDLE)
-        {
-            Swapchain::destroy();
-
-            if (inst.command_pool != VK_NULL_HANDLE)
-                vkDestroyCommandPool(inst.device, inst.command_pool, nullptr);
-
+        if (inst.device != nullptr)
             vkDestroyDevice(inst.device, nullptr);
-        }
 
-        if (inst.surface != VK_NULL_HANDLE) vkDestroySurfaceKHR(Instance::get_instance(), inst.surface, nullptr);
+        if (inst.surface != nullptr) vkDestroySurfaceKHR(Instance::get_instance(), inst.surface, nullptr);
     }
 
     bool Device::choose_physical_device()
@@ -166,7 +155,7 @@ namespace boza
         bool found_graphics_family = false;
         bool found_present_family = false;
 
-        for (uint32_t i = 0; i < queue_family_count; i++)
+        for (uint32_t i = 0; i < queue_family_count; ++i)
         {
             if (!found_graphics_family && queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
             {
@@ -254,25 +243,6 @@ namespace boza
     }
 
 
-    bool Device::create_command_pool()
-    {
-        const VkCommandPoolCreateInfo pool_info
-        {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-            .pNext = nullptr,
-            .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-            .queueFamilyIndex = queue_family_indices.graphics_family
-        };
-
-        VK_CHECK(vkCreateCommandPool(device, &pool_info, nullptr, &command_pool),
-        {
-            LOG_VK_ERROR("Failed to create command pool");
-            return false;
-        });
-
-        return true;
-    }
-
 
     void Device::get_queues()
     {
@@ -293,7 +263,6 @@ namespace boza
     VkPhysicalDevice& Device::get_physical_device() { return instance().physical_device; }
 
     VkSurfaceKHR&  Device::get_surface() { return instance().surface; }
-    VkCommandPool& Device::get_command_pool() { return instance().command_pool; }
 
     Device::QueueFamilyIndices& Device::get_queue_family_indices() { return instance().queue_family_indices; }
     VkQueue&                    Device::get_graphics_queue() { return instance().graphics_queue; }

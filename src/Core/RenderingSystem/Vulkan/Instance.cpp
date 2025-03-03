@@ -29,10 +29,10 @@ namespace boza
         Logger::trace("Destroying instance");
 
         const auto& inst = instance();
-        if (inst.vk_instance == VK_NULL_HANDLE) return;
+        if (inst.vk_instance == nullptr) return;
 
         #ifdef _DEBUG
-        if (inst.debug_messenger != VK_NULL_HANDLE)
+        if (inst.debug_messenger != nullptr)
             vkDestroyDebugUtilsMessengerEXT(inst.vk_instance, inst.debug_messenger, nullptr);
         #endif
 

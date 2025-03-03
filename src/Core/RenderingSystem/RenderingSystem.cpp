@@ -3,6 +3,7 @@
 #include "Logger.hpp"
 #include "Core/GameObject.hpp"
 #include "Core/JobSystem/JobSystem.hpp"
+#include "Vulkan/CommandPool.hpp"
 
 #include "Vulkan/Instance.hpp"
 #include "Vulkan/Device.hpp"
@@ -28,6 +29,8 @@ namespace boza
 
         if (!try_(Instance::create("Boza app"), "Failed to create vulkan instance!")) return;
         if (!try_(Device::create(), "Failed to create logical device!")) return;
+        if (!try_(CommandPool::create(), "Failed to create command pool!")) return;
+        if (!try_(Swapchain::create(), "Failed to create swapchain!")) return;
         if (!try_(Pipeline::create(), "Failed to create graphics pipeline!")) return;
 
         for (const auto* game_object : Scene::get_active_scene().get_game_objects())
@@ -82,6 +85,8 @@ namespace boza
         Device::wait_idle();
 
         Pipeline::destroy();
+        Swapchain::destroy();
+        CommandPool::destroy();
         Device::destroy();
         Instance::destroy();
     }

@@ -21,7 +21,6 @@ namespace boza
         [[nodiscard]] static VkPhysicalDevice& get_physical_device();
 
         [[nodiscard]] static VkSurfaceKHR&  get_surface();
-        [[nodiscard]] static VkCommandPool& get_command_pool();
 
         [[nodiscard]] static QueueFamilyIndices& get_queue_family_indices();
         [[nodiscard]] static VkQueue&            get_graphics_queue();
@@ -34,15 +33,12 @@ namespace boza
         [[nodiscard]] bool find_queue_families();
         [[nodiscard]] bool create_logical_device();
 
-        [[nodiscard]] bool create_command_pool();
-
         void get_queues();
 
         VkPhysicalDevice physical_device{ nullptr };
         VkDevice         device{ nullptr };
 
         VkSurfaceKHR  surface{ nullptr };
-        VkCommandPool command_pool{ nullptr };
 
         QueueFamilyIndices queue_family_indices{};
         VkQueue            graphics_queue{ nullptr };

@@ -12,14 +12,14 @@ namespace boza
         if (!exists(file_path))
         {
             Logger::critical("Shader file not found: {}", file_path.string());
-            return VK_NULL_HANDLE;
+            return nullptr;
         }
 
         std::vector<uint32_t> code = read_file(file_path.string());
         if (code.empty())
         {
             Logger::critical("Failed to read shader file: {}", file_path.string());
-            return VK_NULL_HANDLE;
+            return nullptr;
         }
 
         const VkShaderModuleCreateInfo create_info
@@ -33,7 +33,7 @@ namespace boza
         VK_CHECK(vkCreateShaderModule(Device::get_device(), &create_info, nullptr, &shader_module),
         {
             LOG_VK_ERROR("Failed to create shader module");
-            return VK_NULL_HANDLE;
+            return nullptr;
         });
 
         return shader_module;

@@ -1,6 +1,8 @@
 #pragma once
 #include "boza_pch.hpp"
 #include "Singleton.hpp"
+#include "Memory/Buffer.hpp"
+#include "Memory/DescriptorSetLayout.hpp"
 
 namespace boza
 {
@@ -17,7 +19,14 @@ namespace boza
         [[nodiscard]] static VkFormat& get_format();
         [[nodiscard]] static VkExtent2D& get_extent();
 
+        [[nodiscard]] static VkDescriptorSetLayout& get_descriptor_set_layout();
+
     private:
+        struct Ubo
+        {
+            glm::vec4 positions[3];
+        };
+
         struct Frame final
         {
             inline static uint32_t current_frame = 0;
@@ -29,17 +38,22 @@ namespace boza
             VkFence in_flight_fence;
             VkSemaphore image_available_semaphore;
             VkSemaphore render_finished_semaphore;
+
+            Buffer buffer;
+            VkDescriptorSet descriptor_set;
         };
 
         [[nodiscard]] bool recreate();
 
         [[nodiscard]] bool record_draw_commands(uint32_t idx) const;
 
-        [[nodiscard]] bool create_swapchain(VkSwapchainKHR old_swapchain = VK_NULL_HANDLE);
+        [[nodiscard]] bool create_swapchain(VkSwapchainKHR old_swapchain = nullptr);
         [[nodiscard]] bool query_swapchain_support();
         [[nodiscard]] bool create_image_views();
-        [[nodiscard]] bool create_command_buffers(bool create_main = true);
+
         [[nodiscard]] bool create_sync_objects();
+        [[nodiscard]] bool create_buffers();
+        [[nodiscard]] bool create_descriptor_sets();
 
         [[nodiscard]] static VkSemaphore create_semaphore();
         [[nodiscard]] static VkFence create_fence();
@@ -58,6 +72,8 @@ namespace boza
         VkSurfaceCapabilitiesKHR        surface_capabilities{};
         std::vector<VkSurfaceFormatKHR> surface_formats;
         std::vector<VkPresentModeKHR>   present_modes;
+
+        DescriptorSetLayout descriptor_set_layout;
 
         bool should_recreate{ false };
     };

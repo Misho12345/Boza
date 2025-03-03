@@ -7,11 +7,17 @@ namespace boza
     class Pipeline final : public Singleton<Pipeline>
     {
     public:
+        struct PushConstant final
+        {
+            glm::vec4 colors[3];
+        };
+
         [[nodiscard]]
         static bool create();
         static void destroy();
 
         [[nodiscard]] static VkPipeline& get_pipeline();
+        [[nodiscard]] static VkPipelineLayout& get_pipeline_layout();
 
     private:
         [[nodiscard]] bool create_pipeline();

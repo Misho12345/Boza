@@ -1,9 +1,13 @@
 #include "Swapchain.hpp"
 
+#include "CommandPool.hpp"
 #include "Device.hpp"
 #include "Logger.hpp"
 #include "Pipeline.hpp"
 #include "Core/Window.hpp"
+#include "Memory/Allocator.hpp"
+#include "Memory/DescriptorPool.hpp"
+#include "Memory/DescriptorSetLayout.hpp"
 
 namespace boza
 {
@@ -15,11 +19,48 @@ namespace boza
 
         if (!inst.query_swapchain_support()) return false;
         if (!inst.create_swapchain()) return false;
+
         if (!inst.create_image_views()) return false;
-        if (!inst.create_command_buffers(true)) return false;
         if (!inst.create_sync_objects()) return false;
+        const auto command_buffers = CommandPool::allocate_command_buffers(inst.frames.size());
+
+        if (command_buffers.empty())
+        {
+            Logger::critical("Failed to allocate command buffers for swapchain frames");
+            return false;
+        }
+
+        for (uint32_t i = 0; i < inst.frames.size(); ++i)
+           inst.frames[i].command_buffer = command_buffers[i];
+
 
         Window::set_window_resize_callback();
+
+        if (!Allocator::create())
+        {
+            Logger::error("Failed to create swapchain allocator");
+            return false;
+        }
+
+        if (!DescriptorPool::create())
+        {
+            Logger::error("Failed to create descriptor pool");
+            return false;
+        }
+
+        inst.descriptor_set_layout = DescriptorSetLayout::create_uniform_layout();
+
+        if (!inst.create_buffers())
+        {
+            Logger::error("Failed to create uniform buffers");
+            return false;
+        }
+
+        if (!inst.create_descriptor_sets())
+        {
+            Logger::error("Failed to create descriptor sets");
+            return false;
+        }
 
         Frame::current_frame = 0;
         return true;
@@ -30,21 +71,29 @@ namespace boza
         auto& inst   = instance();
         const auto& device = Device::get_device();
 
-        for (const auto& frame : inst.frames)
+        if (!device) return;
+
+        for (auto& frame : inst.frames)
         {
             vkDestroyImageView(device, frame.image_view, nullptr);
 
             vkDestroyFence(device, frame.in_flight_fence, nullptr);
             vkDestroySemaphore(device, frame.image_available_semaphore, nullptr);
             vkDestroySemaphore(device, frame.render_finished_semaphore, nullptr);
+
+            frame.buffer.destroy();
         }
 
         inst.frames.clear();
 
-        if (inst.swapchain != VK_NULL_HANDLE)
+        if (inst.swapchain != nullptr)
             vkDestroySwapchainKHR(device, inst.swapchain, nullptr);
 
-        inst.main_command_buffer = VK_NULL_HANDLE;
+        inst.descriptor_set_layout.destroy();
+        DescriptorPool::destroy();
+        Allocator::destroy();
+
+        inst.main_command_buffer = nullptr;
         inst.should_recreate = false;
     }
 
@@ -62,15 +111,7 @@ namespace boza
         const auto old_swapchain = swapchain;
 
         for (const auto& frame : frames)
-        {
             vkDestroyImageView(device, frame.image_view, nullptr);
-
-            vkDestroyFence(device, frame.in_flight_fence, nullptr);
-            vkDestroySemaphore(device, frame.image_available_semaphore, nullptr);
-            vkDestroySemaphore(device, frame.render_finished_semaphore, nullptr);
-        }
-
-        frames.clear();
 
         if (!query_swapchain_support()) return false;
 
@@ -81,10 +122,19 @@ namespace boza
         }
 
         if (!create_image_views()) return false;
-        if (!create_command_buffers(false)) return false;
-        if (!create_sync_objects()) return false;
 
-        if (old_swapchain != VK_NULL_HANDLE)
+        const auto command_buffers = CommandPool::allocate_command_buffers(frames.size());
+
+        if (command_buffers.empty())
+        {
+            Logger::critical("Failed to allocate command buffers for swapchain frames");
+            return false;
+        }
+
+        for (uint32_t i = 0; i < frames.size(); ++i)
+            frames[i].command_buffer = command_buffers[i];
+
+        if (old_swapchain != nullptr)
             vkDestroySwapchainKHR(Device::get_device(), old_swapchain, nullptr);
 
         Frame::current_frame = 0;
@@ -92,54 +142,26 @@ namespace boza
     }
 
 
-    bool Swapchain::create_command_buffers(const bool create_main)
-    {
-        const uint32_t num = frames.size() + (create_main ? 1 : 0);
-
-        const VkCommandBufferAllocateInfo alloc_info
-        {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-            .pNext = nullptr,
-            .commandPool = Device::get_command_pool(),
-            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            .commandBufferCount = num,
-        };
-
-        std::vector<VkCommandBuffer> command_buffers(num);
-        VK_CHECK(vkAllocateCommandBuffers(Device::get_device(), &alloc_info, command_buffers.data()),
-        {
-            LOG_VK_ERROR("Failed to allocate command buffers");
-            return false;
-        });
-
-        for (uint32_t i = 0; i < frames.size(); i++)
-            frames[i].command_buffer = command_buffers[i];
-
-        if (create_main) main_command_buffer = command_buffers[num - 1];
-
-        return true;
-    }
-
     bool Swapchain::create_sync_objects()
     {
-        for (uint32_t i = 0; i < frames.size(); i++)
+        for (uint32_t i = 0; i < frames.size(); ++i)
         {
             frames[i].in_flight_fence = create_fence();
-            if (frames[i].in_flight_fence == VK_NULL_HANDLE)
+            if (frames[i].in_flight_fence == nullptr)
             {
                 Logger::critical("Failed to create in-flight fence for frame {}", i);
                 return false;
             }
 
             frames[i].image_available_semaphore = create_semaphore();
-            if (frames[i].image_available_semaphore == VK_NULL_HANDLE)
+            if (frames[i].image_available_semaphore == nullptr)
             {
                 Logger::critical("Failed to create image available semaphore for frame {}", i);
                 return false;
             }
 
             frames[i].render_finished_semaphore = create_semaphore();
-            if (frames[i].render_finished_semaphore == VK_NULL_HANDLE)
+            if (frames[i].render_finished_semaphore == nullptr)
             {
                 Logger::critical("Failed to create render finished semaphore for frame {}", i);
                 return false;
@@ -148,6 +170,37 @@ namespace boza
 
         return true;
     }
+
+    bool Swapchain::create_buffers()
+    {
+        for (auto& frame : frames)
+        {
+            frame.buffer = Buffer::create_uniform_buffer(sizeof(Ubo));
+            if (!frame.buffer.get_buffer())
+            {
+                Logger::critical("Failed to create uniform buffer for frame");
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    bool Swapchain::create_descriptor_sets()
+    {
+        for (auto& frame : frames)
+        {
+            frame.descriptor_set = DescriptorPool::create_descriptor_set(descriptor_set_layout);
+            if (!frame.descriptor_set)
+            {
+                Logger::critical("Failed to allocate descriptor set for frame");
+                return false;
+            }
+        }
+
+        return true;
+    }
+
 
     bool Swapchain::render()
     {
@@ -310,6 +363,8 @@ namespace boza
     VkFormat&       Swapchain::get_format() { return instance().surface_format.format; }
     VkExtent2D&     Swapchain::get_extent() { return instance().extent; }
 
+    VkDescriptorSetLayout& Swapchain::get_descriptor_set_layout() { return instance().descriptor_set_layout.get_layout(); }
+
 
     bool Swapchain::record_draw_commands(const uint32_t idx) const
     {
@@ -344,7 +399,7 @@ namespace boza
             .imageView = frames[idx].image_view,
             .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             .resolveMode = VK_RESOLVE_MODE_NONE,
-            .resolveImageView = VK_NULL_HANDLE,
+            .resolveImageView = nullptr,
             .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
             .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -423,6 +478,66 @@ namespace boza
 
         vkCmdSetViewport(command_buffer, 0, 1, &viewport);
         vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+
+        static float angle = 0;
+        angle += 1;
+        if (angle >= 360) angle = 0;
+        glm::mat4 rotation_matrix = rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0.0f, 0.0f, 1.0f));
+
+        Pipeline::PushConstant push_constant
+        {
+            .colors = {
+                glm::vec4(1.0, 0.0, 0.0, 0.0),
+                glm::vec4(0.0, 1.0, 0.0, 0.0),
+                glm::vec4(0.0, 0.0, 1.0, 0.0)
+            }
+        };
+
+        Ubo ubo
+        {
+            rotation_matrix * glm::vec4(0.0, -0.5, 0, 0),
+            rotation_matrix * glm::vec4(0.5, 0.5, 0, 0),
+            rotation_matrix * glm::vec4(-0.5, 0.5, 0, 0)
+        };
+
+        frames[idx].buffer.write(&ubo, sizeof(Ubo), 0);
+
+        VkDescriptorBufferInfo buffer_info
+        {
+            .buffer = frames[idx].buffer.get_buffer(),
+            .offset = 0,
+            .range = sizeof(Ubo)
+        };
+
+        VkWriteDescriptorSet descriptor_write
+        {
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .pNext = nullptr,
+            .dstSet = frames[idx].descriptor_set,
+            .dstBinding = 0,
+            .dstArrayElement = 0,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .pImageInfo = nullptr,
+            .pBufferInfo = &buffer_info,
+            .pTexelBufferView = nullptr
+        };
+
+        vkUpdateDescriptorSets(Device::get_device(), 1, &descriptor_write, 0, nullptr);
+        vkCmdBindDescriptorSets(
+            command_buffer,
+            VK_PIPELINE_BIND_POINT_GRAPHICS,
+            Pipeline::get_pipeline_layout(),
+            0,
+            1, &frames[idx].descriptor_set,
+            0, nullptr);
+
+        vkCmdPushConstants(
+            command_buffer,
+            Pipeline::get_pipeline_layout(),
+            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+            0, sizeof(Pipeline::PushConstant), &push_constant);
+
 
         vkCmdDraw(command_buffer, 3, 1, 0, 0);
 
@@ -592,16 +707,16 @@ namespace boza
             return false;
         });
 
-        frames.reserve(image_count);
+        frames.resize(image_count);
 
-        for (const auto& image : images)
+        for (uint32_t i = 0; i < images.size(); ++i)
         {
             VkImageViewCreateInfo image_info
             {
                 .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
                 .pNext = nullptr,
                 .flags = {},
-                .image = image,
+                .image = images[i],
                 .viewType = VK_IMAGE_VIEW_TYPE_2D,
                 .format = surface_format.format,
                 .components = {},
@@ -621,7 +736,8 @@ namespace boza
                 return false;
             });
 
-            frames.emplace_back(image, image_view, nullptr, nullptr);
+            frames[i].image = images[i];
+            frames[i].image_view = image_view;
         }
 
         return true;
@@ -642,7 +758,7 @@ namespace boza
         VK_CHECK(vkCreateSemaphore(Device::get_device(), &semaphore_info, nullptr, &semaphore),
         {
             LOG_VK_ERROR("Failed to create semaphore");
-            return VK_NULL_HANDLE;
+            return nullptr;
         });
 
         return semaphore;
@@ -661,7 +777,7 @@ namespace boza
         VK_CHECK(vkCreateFence(Device::get_device(), &fence_info, nullptr, &fence),
         {
             LOG_VK_ERROR("Failed to create fence");
-            return VK_NULL_HANDLE;
+            return nullptr;
         });
 
         return fence;
