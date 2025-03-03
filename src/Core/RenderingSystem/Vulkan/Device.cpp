@@ -50,9 +50,10 @@ namespace boza
         if (inst.surface != VK_NULL_HANDLE) vkDestroySurfaceKHR(Instance::get_instance(), inst.surface, nullptr);
     }
 
+
     void Device::destroy_surface()
     {
-        auto& inst = instance();
+        const auto& inst = instance();
 
         wait_idle();
         Swapchain::destroy();
