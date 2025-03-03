@@ -47,8 +47,36 @@ namespace boza
             vkDestroyDevice(inst.device, nullptr);
         }
 
-        if (inst.surface != VK_NULL_HANDLE)
-            vkDestroySurfaceKHR(Instance::get_instance(), inst.surface, nullptr);
+        if (inst.surface != VK_NULL_HANDLE) vkDestroySurfaceKHR(Instance::get_instance(), inst.surface, nullptr);
+    }
+
+    void Device::destroy_surface()
+    {
+        auto& inst = instance();
+
+        wait_idle();
+        Swapchain::destroy();
+
+        if (inst.surface != VK_NULL_HANDLE) vkDestroySurfaceKHR(Instance::get_instance(), inst.surface, nullptr);
+    }
+
+    bool Device::create_new_surface()
+    {
+        auto& inst = instance();
+
+        VK_CHECK(glfwCreateWindowSurface(Instance::get_instance(), Window::get_glfw_window(), nullptr, &inst.surface),
+        {
+            LOG_VK_ERROR("Failed to create window surface");
+            return false;
+        });
+
+        if (!Swapchain::create())
+        {
+            Logger::critical("Failed to recreate swapchain");
+            return false;
+        }
+
+        return true;
     }
 
 
@@ -282,6 +310,14 @@ namespace boza
         vkGetDeviceQueue(device, queue_family_indices.present_family, 0, &present_queue);
     }
 
+    void Device::wait_idle()
+    {
+        VK_CHECK(vkDeviceWaitIdle(instance().device),
+        {
+            LOG_VK_ERROR("Failed to wait for device idle");
+        });
+    }
+
 
     VkDevice&         Device::get_device() { return instance().device; }
     VkPhysicalDevice& Device::get_physical_device() { return instance().physical_device; }
@@ -293,11 +329,5 @@ namespace boza
     VkQueue&                    Device::get_graphics_queue() { return instance().graphics_queue; }
     VkQueue&                    Device::get_present_queue() { return instance().present_queue; }
 
-    void Device::wait_idle()
-    {
-        VK_CHECK(vkDeviceWaitIdle(instance().device),
-        {
-            LOG_VK_ERROR("Failed to wait for device idle");
-        });
-    }
+    std::mutex& Device::get_surface_mutex() { return instance().surface_mutex; }
 }

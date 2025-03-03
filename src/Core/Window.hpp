@@ -7,13 +7,15 @@ namespace boza
     class BOZA_API Window final : public Singleton<Window>
     {
     public:
-        static void create(uint32_t width, uint32_t height, const std::string& title);
+        static void create(uint32_t width, uint32_t height, const std::string& title, bool fullscreen = false);
         static void destroy();
 
-        static uint32_t get_width();
-        static uint32_t get_height();
+        [[nodiscard]] static bool toggle_fullscreen();
 
-        static GLFWwindow* get_glfw_window();
+        [[nodiscard]] static uint32_t get_width();
+        [[nodiscard]] static uint32_t get_height();
+
+        [[nodiscard]] static GLFWwindow* get_glfw_window();
         static void wait_to_close();
 
         static void set_window_resize_callback();
@@ -22,14 +24,20 @@ namespace boza
         [[nodiscard]] static bool is_minimized();
 
     private:
+        [[nodiscard]] bool create_fullscreen_window();
+        [[nodiscard]] bool create_floating_window();
+
         uint32_t width{ 0 };
         uint32_t height{ 0 };
         std::string title;
 
-        bool created{ false };
+        uint32_t default_width{ 0 };
+        uint32_t default_height{ 0 };
+
         std::atomic_bool resized{ false };
 
-        std::mutex  mutex;
         GLFWwindow* window{ nullptr };
+
+        bool fullscreen{ false };
     };
 }

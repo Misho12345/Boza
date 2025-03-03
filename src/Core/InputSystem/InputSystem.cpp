@@ -7,11 +7,17 @@ namespace boza
 
     InputSystem::InputSystem()
     {
+        enable_input();
+    }
+
+    void InputSystem::enable_input()
+    {
         glfwSetKeyCallback(Window::get_glfw_window(), on_key_callback);
         glfwSetMouseButtonCallback(Window::get_glfw_window(), on_mouse_button_callback);
         glfwSetScrollCallback(Window::get_glfw_window(), on_scroll_callback);
         glfwSetCursorPosCallback(Window::get_glfw_window(), on_cursor_pos_callback);
     }
+
 
     void InputSystem::on_key_callback(GLFWwindow*, const int key_, int, const int action, int)
     {
@@ -23,6 +29,11 @@ namespace boza
 
         if (action == GLFW_PRESS)
         {
+            if (key == Key::F11 && !Window::toggle_fullscreen())
+            {
+                Logger::error("failed to toggle fullscreen");
+            }
+
             if (time - state.last_press_time < double_click_timeout && inst.key_double_click_events.contains(key))
                 JobSystem::push_task(inst.key_double_click_events.at(key));
 

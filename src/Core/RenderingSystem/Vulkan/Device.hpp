@@ -17,6 +17,8 @@ namespace boza
         static bool create();
         static void destroy();
 
+        static void destroy_surface();
+        [[nodiscard]] static bool create_new_surface();
 
         [[nodiscard]] static VkDevice&         get_device();
         [[nodiscard]] static VkPhysicalDevice& get_physical_device();
@@ -27,6 +29,8 @@ namespace boza
         [[nodiscard]] static QueueFamilyIndices& get_queue_family_indices();
         [[nodiscard]] static VkQueue&            get_graphics_queue();
         [[nodiscard]] static VkQueue&            get_present_queue();
+
+        [[nodiscard]] static std::mutex& get_surface_mutex();
 
         static void wait_idle();
 
@@ -48,6 +52,8 @@ namespace boza
         QueueFamilyIndices queue_family_indices{};
         VkQueue            graphics_queue{ nullptr };
         VkQueue            present_queue{ nullptr };
+
+        std::mutex surface_mutex;
 
         constexpr static const char* required_extensions[]{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
     };

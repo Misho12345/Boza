@@ -21,6 +21,7 @@ namespace boza
 
         Window::set_window_resize_callback();
 
+        Frame::current_frame = 0;
         return true;
     }
 
@@ -42,6 +43,9 @@ namespace boza
 
         if (inst.swapchain != VK_NULL_HANDLE)
             vkDestroySwapchainKHR(device, inst.swapchain, nullptr);
+
+        inst.main_command_buffer = VK_NULL_HANDLE;
+        inst.should_recreate = false;
     }
 
 
@@ -139,6 +143,10 @@ namespace boza
 
     bool Swapchain::render()
     {
+        std::unique_lock lock{ Device::get_surface_mutex(), std::defer_lock };
+
+        if (!lock.try_lock()) return true;
+
         auto& inst = instance();
         const auto& device = Device::get_device();
 
