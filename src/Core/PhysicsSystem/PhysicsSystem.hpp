@@ -7,7 +7,8 @@ namespace boza
 {
     class BOZA_API PhysicsSystem final : public System<PhysicsSystem, 50>
     {
+        void on_begin() override;
         void on_iteration() override;
-        std::vector<JobSystem::task_id> tasks{ 16 };
+        std::vector<JobSystem::task_id> tasks;
     };
 }

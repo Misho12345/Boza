@@ -10,6 +10,6 @@ namespace boza
         void on_iteration() override;
         void on_end() override;
 
-        std::vector<JobSystem::task_id> tasks{ 16 };
+        std::vector<JobSystem::task_id> tasks;
     };
 }

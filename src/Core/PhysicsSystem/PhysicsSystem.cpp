@@ -3,6 +3,11 @@
 
 namespace boza
 {
+    void PhysicsSystem::on_begin()
+    {
+        tasks.reserve(16);
+    }
+
     void PhysicsSystem::on_iteration()
     {
         for (const auto* object : Scene::get_active_scene().get_game_objects())

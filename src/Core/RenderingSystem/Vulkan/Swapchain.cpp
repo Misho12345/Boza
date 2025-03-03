@@ -51,6 +51,8 @@ namespace boza
 
     bool Swapchain::recreate()
     {
+        if (Window::is_minimized()) return true;
+
         should_recreate = false;
         Logger::trace("Recreating swapchain {} x {}", Window::get_width(), Window::get_height());
 
@@ -71,7 +73,13 @@ namespace boza
         frames.clear();
 
         if (!query_swapchain_support()) return false;
-        if (!create_swapchain(old_swapchain)) return false;
+
+        if (!create_swapchain(old_swapchain))
+        {
+            if (should_recreate) return true;
+            return false;
+        }
+
         if (!create_image_views()) return false;
         if (!create_command_buffers(false)) return false;
         if (!create_sync_objects()) return false;
@@ -507,6 +515,12 @@ namespace boza
             .clipped = VK_TRUE,
             .oldSwapchain = old_swapchain,
         };
+
+        if (extent.width == 0 || extent.height == 0)
+        {
+            should_recreate = true;
+            return false;
+        }
 
         VK_CHECK(vkCreateSwapchainKHR(Device::get_device(), &swapchain_create_info, nullptr, &swapchain),
         {

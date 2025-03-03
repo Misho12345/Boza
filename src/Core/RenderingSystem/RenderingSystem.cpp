@@ -24,6 +24,8 @@ namespace boza
 
     void RenderingSystem::on_begin()
     {
+        tasks.reserve(16);
+
         if (!try_(Instance::create("Boza app"), "Failed to create vulkan instance!")) return;
         if (!try_(Device::create(), "Failed to create logical device!")) return;
         if (!try_(Pipeline::create(), "Failed to create graphics pipeline!")) return;
