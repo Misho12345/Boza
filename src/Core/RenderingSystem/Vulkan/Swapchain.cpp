@@ -36,18 +36,6 @@ namespace boza
 
         Window::set_window_resize_callback();
 
-        if (!Allocator::create())
-        {
-            Logger::error("Failed to create swapchain allocator");
-            return false;
-        }
-
-        if (!DescriptorPool::create())
-        {
-            Logger::error("Failed to create descriptor pool");
-            return false;
-        }
-
         inst.descriptor_set_layout = DescriptorSetLayout::create_uniform_layout();
 
         if (!inst.create_buffers())
@@ -90,8 +78,6 @@ namespace boza
             vkDestroySwapchainKHR(device, inst.swapchain, nullptr);
 
         inst.descriptor_set_layout.destroy();
-        DescriptorPool::destroy();
-        Allocator::destroy();
 
         inst.main_command_buffer = nullptr;
         inst.should_recreate = false;

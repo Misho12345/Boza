@@ -9,6 +9,8 @@
 #include "Vulkan/Device.hpp"
 #include "Vulkan/Swapchain.hpp"
 #include "Vulkan/Pipeline.hpp"
+#include "Vulkan/Memory/Allocator.hpp"
+#include "Vulkan/Memory/DescriptorPool.hpp"
 
 namespace boza
 {
@@ -30,6 +32,8 @@ namespace boza
         if (!try_(Instance::create("Boza app"), "Failed to create vulkan instance!")) return;
         if (!try_(Device::create(), "Failed to create logical device!")) return;
         if (!try_(CommandPool::create(), "Failed to create command pool!")) return;
+        if (!try_(Allocator::create(), "Failed to create VMA allocator!")) return;
+        if (!try_(DescriptorPool::create(), "Failed to create descriptor pool!")) return;
         if (!try_(Swapchain::create(), "Failed to create swapchain!")) return;
         if (!try_(Pipeline::create(), "Failed to create graphics pipeline!")) return;
 
@@ -86,6 +90,8 @@ namespace boza
 
         Pipeline::destroy();
         Swapchain::destroy();
+        DescriptorPool::destroy();
+        Allocator::destroy();
         CommandPool::destroy();
         Device::destroy();
         Instance::destroy();
