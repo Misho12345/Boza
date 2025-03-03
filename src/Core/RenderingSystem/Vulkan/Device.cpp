@@ -50,37 +50,6 @@ namespace boza
         if (inst.surface != VK_NULL_HANDLE) vkDestroySurfaceKHR(Instance::get_instance(), inst.surface, nullptr);
     }
 
-
-    void Device::destroy_surface()
-    {
-        const auto& inst = instance();
-
-        wait_idle();
-        Swapchain::destroy();
-
-        if (inst.surface != VK_NULL_HANDLE) vkDestroySurfaceKHR(Instance::get_instance(), inst.surface, nullptr);
-    }
-
-    bool Device::create_new_surface()
-    {
-        auto& inst = instance();
-
-        VK_CHECK(glfwCreateWindowSurface(Instance::get_instance(), Window::get_glfw_window(), nullptr, &inst.surface),
-        {
-            LOG_VK_ERROR("Failed to create window surface");
-            return false;
-        });
-
-        if (!Swapchain::create())
-        {
-            Logger::critical("Failed to recreate swapchain");
-            return false;
-        }
-
-        return true;
-    }
-
-
     bool Device::choose_physical_device()
     {
         const auto& vk_instance = Instance::get_instance();
@@ -329,6 +298,4 @@ namespace boza
     Device::QueueFamilyIndices& Device::get_queue_family_indices() { return instance().queue_family_indices; }
     VkQueue&                    Device::get_graphics_queue() { return instance().graphics_queue; }
     VkQueue&                    Device::get_present_queue() { return instance().present_queue; }
-
-    std::mutex& Device::get_surface_mutex() { return instance().surface_mutex; }
 }

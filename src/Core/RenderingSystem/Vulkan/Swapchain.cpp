@@ -143,10 +143,6 @@ namespace boza
 
     bool Swapchain::render()
     {
-        std::unique_lock lock{ Device::get_surface_mutex(), std::defer_lock };
-
-        if (!lock.try_lock()) return true;
-
         auto& inst = instance();
         const auto& device = Device::get_device();
 

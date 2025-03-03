@@ -1,7 +1,6 @@
 #include "Window.hpp"
 
 #include "Logger.hpp"
-#include "InputSystem/InputSystem.hpp"
 #include "RenderingSystem/Vulkan/Device.hpp"
 
 namespace boza
@@ -11,9 +10,9 @@ namespace boza
         auto& inst = instance();
 
         inst.title  = title;
-        inst.default_width = width;
-        inst.default_height = height;
         inst.fullscreen = fullscreen;
+        inst.last_width = width;
+        inst.last_height = height;
 
         if (!glfwInit())
         {
@@ -21,13 +20,66 @@ namespace boza
             return;
         }
 
+        GLFWmonitor* primary_monitor = glfwGetPrimaryMonitor();
+
+        if (!primary_monitor)
+        {
+            Logger::critical("Failed to get primary monitor");
+            glfwTerminate();
+            return;
+        }
+
+        const GLFWvidmode* mode = glfwGetVideoMode(primary_monitor);
+        if (!mode)
+        {
+            Logger::critical("Failed to get video mode");
+            glfwTerminate();
+            return;
+        }
+
+        inst.last_pos_x = (mode->width - width) / 2;
+        inst.last_pos_y = (mode->height - height) / 2;
+
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
         if (fullscreen)
         {
-            if (!inst.create_fullscreen_window()) Logger::critical("Failed to create fullscreen window");
+            inst.width = mode->width;
+            inst.height = mode->height;
+
+            inst.window = glfwCreateWindow(
+                mode->width, mode->height,
+                title.c_str(), primary_monitor, nullptr);
+
+            if (!inst.window)
+            {
+                Logger::critical("Failed to create window");
+                glfwTerminate();
+                inst.window = nullptr;
+            }
         }
-        else if (!inst.create_floating_window()) Logger::critical("Failed to create floating window");
+        else
+        {
+            inst.width = width;
+            inst.height = height;
+
+            inst.window = glfwCreateWindow(
+                static_cast<int>(width),
+                static_cast<int>(height),
+                title.c_str(), nullptr, nullptr);
+
+            if (!inst.window)
+            {
+                Logger::critical("Failed to create window");
+                glfwTerminate();
+                inst.window = nullptr;
+                return;
+            }
+
+            glfwSetWindowPos(inst.window,
+                static_cast<int>(inst.last_pos_x),
+                static_cast<int>(inst.last_pos_y));
+        }
     }
 
     void Window::destroy()
@@ -36,99 +88,35 @@ namespace boza
         glfwTerminate();
     }
 
-
-    bool Window::create_fullscreen_window()
-    {
-        GLFWmonitor* primary_monitor = glfwGetPrimaryMonitor();
-
-        if (!primary_monitor)
-        {
-            Logger::critical("Failed to get primary monitor");
-            glfwTerminate();
-            return false;
-        }
-
-        const GLFWvidmode* mode = glfwGetVideoMode(primary_monitor);
-        if (!mode)
-        {
-            Logger::critical("Failed to get video mode");
-            glfwTerminate();
-            return false;
-        }
-
-        GLFWwindow* win = glfwCreateWindow(mode->width, mode->height, "Full-Screen Window", primary_monitor, nullptr);
-        if (!win)
-        {
-            Logger::critical("Failed to create window");
-            glfwTerminate();
-            return false;
-        }
-
-        width = mode->width;
-        height = mode->height;
-
-        window = win;
-        return true;
-    }
-
-    bool Window::create_floating_window()
-    {
-        auto* win = glfwCreateWindow(
-            static_cast<int>(default_width),
-            static_cast<int>(default_height),
-            title.c_str(), nullptr, nullptr);
-
-        width = default_width;
-        height = default_height;
-
-        if (!win)
-        {
-            Logger::critical("Failed to create window");
-            glfwTerminate();
-            return false;
-        }
-
-        window = win;
-        return true;
-    }
-
-
-    bool Window::toggle_fullscreen()
+    void Window::toggle_fullscreen()
     {
         auto& inst = instance();
-        std::lock_guard guard{ Device::get_surface_mutex() };
 
         inst.fullscreen = !inst.fullscreen;
 
-        Device::destroy_surface();
-
-        glfwDestroyWindow(inst.window);
-        inst.window = nullptr;
-
         if (inst.fullscreen)
         {
-            if (!inst.create_fullscreen_window())
-            {
-                Logger::critical("Failed to create fullscreen window");
-                return false;
-            }
+            GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+            const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+
+            inst.last_width = inst.width;
+            inst.last_height = inst.height;
+
+            int x, y;
+            glfwGetWindowPos(inst.window, &x, &y);
+            inst.last_pos_x = x;
+            inst.last_pos_y = y;
+
+            glfwSetWindowMonitor(inst.window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
         }
-        else if (!inst.create_floating_window())
+        else
         {
-            Logger::critical("Failed to create floating window");
-            return false;
+            glfwSetWindowMonitor(inst.window, nullptr,
+                static_cast<int>(inst.last_pos_x),
+                static_cast<int>(inst.last_pos_y),
+                static_cast<int>(inst.last_width),
+                static_cast<int>(inst.last_height), 0);
         }
-
-        InputSystem::enable_input();
-
-        if (!Device::create_new_surface())
-        {
-            Logger::critical("Failed to recreate surface");
-            glfwDestroyWindow(inst.window);
-            return false;
-        }
-
-        return true;
     }
 
 
@@ -152,12 +140,6 @@ namespace boza
             inst.width  = static_cast<uint32_t>(width);
             inst.height = static_cast<uint32_t>(height);
             inst.resized.store(true);
-
-            if (!inst.fullscreen)
-            {
-                inst.default_width = inst.width;
-                inst.default_height = inst.height;
-            }
         });
     }
 

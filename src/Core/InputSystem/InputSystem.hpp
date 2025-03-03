@@ -97,8 +97,6 @@ namespace boza
         static void on(Key key, KeyAction action, const std::function<void()>& callback);
         static void on(const std::initializer_list<Key>& combination, const std::function<void()>& callback);
 
-        static void enable_input();
-
     protected:
         InputSystem();
 

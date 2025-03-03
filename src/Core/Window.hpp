@@ -10,7 +10,7 @@ namespace boza
         static void create(uint32_t width, uint32_t height, const std::string& title, bool fullscreen = false);
         static void destroy();
 
-        [[nodiscard]] static bool toggle_fullscreen();
+        static void toggle_fullscreen();
 
         [[nodiscard]] static uint32_t get_width();
         [[nodiscard]] static uint32_t get_height();
@@ -24,15 +24,15 @@ namespace boza
         [[nodiscard]] static bool is_minimized();
 
     private:
-        [[nodiscard]] bool create_fullscreen_window();
-        [[nodiscard]] bool create_floating_window();
-
         uint32_t width{ 0 };
         uint32_t height{ 0 };
         std::string title;
 
-        uint32_t default_width{ 0 };
-        uint32_t default_height{ 0 };
+        uint32_t last_width{ 0 };
+        uint32_t last_height{ 0 };
+
+        uint32_t last_pos_x{ 0 };
+        uint32_t last_pos_y{ 0 };
 
         std::atomic_bool resized{ false };
 
