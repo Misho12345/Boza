@@ -7,4 +7,4 @@
     } while (0)
 
 #define LOG_VK_ERROR(FMT, ...)     \
-    Logger::critical(FMT " ({})", __VA_ARGS__, static_cast<int>(result))
+    Logger::critical(FMT " ({})" __VA_OPT__(,) __VA_ARGS__, static_cast<int>(result))

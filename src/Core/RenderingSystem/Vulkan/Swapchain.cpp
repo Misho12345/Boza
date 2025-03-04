@@ -5,7 +5,6 @@
 #include "Logger.hpp"
 #include "Pipeline.hpp"
 #include "Core/Window.hpp"
-#include "Memory/Allocator.hpp"
 #include "Memory/DescriptorPool.hpp"
 #include "Memory/DescriptorSetLayout.hpp"
 
@@ -124,66 +123,6 @@ namespace boza
             vkDestroySwapchainKHR(Device::get_device(), old_swapchain, nullptr);
 
         Frame::current_frame = 0;
-        return true;
-    }
-
-
-    bool Swapchain::create_sync_objects()
-    {
-        for (uint32_t i = 0; i < frames.size(); ++i)
-        {
-            frames[i].in_flight_fence = create_fence();
-            if (frames[i].in_flight_fence == nullptr)
-            {
-                Logger::critical("Failed to create in-flight fence for frame {}", i);
-                return false;
-            }
-
-            frames[i].image_available_semaphore = create_semaphore();
-            if (frames[i].image_available_semaphore == nullptr)
-            {
-                Logger::critical("Failed to create image available semaphore for frame {}", i);
-                return false;
-            }
-
-            frames[i].render_finished_semaphore = create_semaphore();
-            if (frames[i].render_finished_semaphore == nullptr)
-            {
-                Logger::critical("Failed to create render finished semaphore for frame {}", i);
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    bool Swapchain::create_buffers()
-    {
-        for (auto& frame : frames)
-        {
-            frame.buffer = Buffer::create_uniform_buffer(sizeof(Ubo));
-            if (!frame.buffer.get_buffer())
-            {
-                Logger::critical("Failed to create uniform buffer for frame");
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    bool Swapchain::create_descriptor_sets()
-    {
-        for (auto& frame : frames)
-        {
-            frame.descriptor_set = DescriptorPool::create_descriptor_set(descriptor_set_layout);
-            if (!frame.descriptor_set)
-            {
-                Logger::critical("Failed to allocate descriptor set for frame");
-                return false;
-            }
-        }
-
         return true;
     }
 
@@ -576,16 +515,14 @@ namespace boza
     }
 
 
-
-    bool Swapchain::create_swapchain(const VkSwapchainKHR old_swapchain)
+    bool Swapchain::create_swapchain(VkSwapchainKHR old_swapchain)
     {
         choose_surface_format();
         const VkPresentModeKHR present_mode = choose_present_mode();
         choose_extent();
 
-        const uint32_t image_count = std::min(
-            surface_capabilities.minImageCount + 1,
-            surface_capabilities.maxImageCount);
+        uint32_t image_count = surface_capabilities.minImageCount + 1;
+        if (surface_capabilities.maxImageCount > 0) image_count = std::min(image_count, surface_capabilities.maxImageCount);
 
         const std::array queue_family_indices =
         {
@@ -728,6 +665,67 @@ namespace boza
 
         return true;
     }
+
+
+    bool Swapchain::create_sync_objects()
+    {
+        for (uint32_t i = 0; i < frames.size(); ++i)
+        {
+            frames[i].in_flight_fence = create_fence();
+            if (frames[i].in_flight_fence == nullptr)
+            {
+                Logger::critical("Failed to create in-flight fence for frame {}", i);
+                return false;
+            }
+
+            frames[i].image_available_semaphore = create_semaphore();
+            if (frames[i].image_available_semaphore == nullptr)
+            {
+                Logger::critical("Failed to create image available semaphore for frame {}", i);
+                return false;
+            }
+
+            frames[i].render_finished_semaphore = create_semaphore();
+            if (frames[i].render_finished_semaphore == nullptr)
+            {
+                Logger::critical("Failed to create render finished semaphore for frame {}", i);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    bool Swapchain::create_buffers()
+    {
+        for (auto& frame : frames)
+        {
+            frame.buffer = Buffer::create_uniform_buffer(sizeof(Ubo));
+            if (!frame.buffer.get_buffer())
+            {
+                Logger::critical("Failed to create uniform buffer for frame");
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    bool Swapchain::create_descriptor_sets()
+    {
+        for (auto& frame : frames)
+        {
+            frame.descriptor_set = DescriptorPool::create_descriptor_set(descriptor_set_layout);
+            if (!frame.descriptor_set)
+            {
+                Logger::critical("Failed to allocate descriptor set for frame");
+                return false;
+            }
+        }
+
+        return true;
+    }
+
 
 
     VkSemaphore Swapchain::create_semaphore()
