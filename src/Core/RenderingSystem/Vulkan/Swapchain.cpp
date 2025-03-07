@@ -21,33 +21,14 @@ namespace boza
 
         if (!inst.create_image_views()) return false;
         if (!inst.create_sync_objects()) return false;
-        const auto command_buffers = CommandPool::allocate_command_buffers(inst.frames.size());
-
-        if (command_buffers.empty())
-        {
-            Logger::critical("Failed to allocate command buffers for swapchain frames");
-            return false;
-        }
-
-        for (uint32_t i = 0; i < inst.frames.size(); ++i)
-           inst.frames[i].command_buffer = command_buffers[i];
-
+        if (!inst.create_command_buffers()) return false;
 
         Window::set_window_resize_callback();
 
         inst.descriptor_set_layout = DescriptorSetLayout::create_uniform_layout();
 
-        if (!inst.create_buffers())
-        {
-            Logger::error("Failed to create uniform buffers");
-            return false;
-        }
-
-        if (!inst.create_descriptor_sets())
-        {
-            Logger::error("Failed to create descriptor sets");
-            return false;
-        }
+        if (!inst.create_buffers()) return false;
+        if (!inst.create_descriptor_sets()) return false;
 
         Frame::current_frame = 0;
         return true;
@@ -60,10 +41,13 @@ namespace boza
 
         if (!device) return;
 
+        for (const auto& image_view : inst.image_views)
+            vkDestroyImageView(device, image_view, nullptr);
+        inst.image_views.clear();
+        inst.images.clear();
+
         for (auto& frame : inst.frames)
         {
-            vkDestroyImageView(device, frame.image_view, nullptr);
-
             vkDestroyFence(device, frame.in_flight_fence, nullptr);
             vkDestroySemaphore(device, frame.image_available_semaphore, nullptr);
             vkDestroySemaphore(device, frame.render_finished_semaphore, nullptr);
@@ -71,14 +55,11 @@ namespace boza
             frame.buffer.destroy();
         }
 
-        inst.frames.clear();
-
         if (inst.swapchain != nullptr)
             vkDestroySwapchainKHR(device, inst.swapchain, nullptr);
 
         inst.descriptor_set_layout.destroy();
 
-        inst.main_command_buffer = nullptr;
         inst.should_recreate = false;
     }
 
@@ -95,8 +76,14 @@ namespace boza
         const auto& device = Device::get_device();
         const auto old_swapchain = swapchain;
 
-        for (const auto& frame : frames)
-            vkDestroyImageView(device, frame.image_view, nullptr);
+        for (const auto& image_view : image_views)
+            vkDestroyImageView(device, image_view, nullptr);
+        image_views.clear();
+        images.clear();
+
+        std::vector<VkCommandBuffer> command_buffers(max_frames_in_flight);
+        for (const auto& frame : frames) command_buffers.push_back(frame.command_buffer);
+        vkFreeCommandBuffers(Device::get_device(), CommandPool::get_command_pool(), max_frames_in_flight, command_buffers.data());
 
         if (!query_swapchain_support()) return false;
 
@@ -107,17 +94,7 @@ namespace boza
         }
 
         if (!create_image_views()) return false;
-
-        const auto command_buffers = CommandPool::allocate_command_buffers(frames.size());
-
-        if (command_buffers.empty())
-        {
-            Logger::critical("Failed to allocate command buffers for swapchain frames");
-            return false;
-        }
-
-        for (uint32_t i = 0; i < frames.size(); ++i)
-            frames[i].command_buffer = command_buffers[i];
+        if (!create_command_buffers()) return false;
 
         if (old_swapchain != nullptr)
             vkDestroySwapchainKHR(Device::get_device(), old_swapchain, nullptr);
@@ -156,24 +133,25 @@ namespace boza
             return false;
         }
 
-        auto& frame = inst.frames[Frame::current_frame];
+        auto& current_frame = inst.frames[Frame::current_frame];
 
-        VK_CHECK(vkWaitForFences(device, 1, &frame.in_flight_fence, VK_TRUE, UINT64_MAX),
+        VK_CHECK(vkWaitForFences(device, 1, &current_frame.in_flight_fence, VK_TRUE, UINT64_MAX),
         {
             LOG_VK_ERROR("Failed to wait for in-flight fence");
             return false;
         });
 
-        VK_CHECK(vkResetFences(device, 1, &frame.in_flight_fence),
+        VK_CHECK(vkResetFences(device, 1, &current_frame.in_flight_fence),
         {
             LOG_VK_ERROR("Failed to reset in-flight fence");
             return false;
         });
 
-        uint32_t image_index;
+        uint32_t image_idx;
 
-        if (const auto result = vkAcquireNextImageKHR(device, inst.swapchain, UINT64_MAX, frame.image_available_semaphore, nullptr, &image_index);
-            result == VK_ERROR_OUT_OF_DATE_KHR)
+        if (const auto result = vkAcquireNextImageKHR(device, inst.swapchain, UINT64_MAX,
+                                                      current_frame.image_available_semaphore, nullptr, &image_idx);
+            result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
         {
             if (Window::is_minimized())
             {
@@ -186,21 +164,22 @@ namespace boza
                 Logger::error("Failed to recreate swapchain");
                 return false;
             }
+
             return true;
         }
-        else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+        else if (result != VK_SUCCESS)
         {
             LOG_VK_ERROR("Failed to acquire next image");
             return false;
         }
 
-        if (!inst.record_draw_commands(image_index)) return false;
+        if (!inst.record_draw_commands(image_idx)) return false;
 
         VkSemaphoreSubmitInfo wait_semaphore_info
         {
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
             .pNext = nullptr,
-            .semaphore = frame.image_available_semaphore,
+            .semaphore = current_frame.image_available_semaphore,
             .value = 0,
             .stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
             .deviceIndex = 0
@@ -210,7 +189,7 @@ namespace boza
         {
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
             .pNext = nullptr,
-            .semaphore = frame.render_finished_semaphore,
+            .semaphore = current_frame.render_finished_semaphore,
             .value = 0,
             .stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
             .deviceIndex = 0
@@ -220,7 +199,7 @@ namespace boza
         {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
             .pNext = nullptr,
-            .commandBuffer = frame.command_buffer,
+            .commandBuffer = current_frame.command_buffer,
             .deviceMask = 0
         };
 
@@ -237,7 +216,7 @@ namespace boza
             .pSignalSemaphoreInfos = &signal_semaphore_info
         };
 
-        VK_CHECK(vkQueueSubmit2(Device::get_graphics_queue(), 1, &submit_info, frame.in_flight_fence),
+        VK_CHECK(vkQueueSubmit2(Device::get_graphics_queue(), 1, &submit_info, current_frame.in_flight_fence),
         {
             LOG_VK_ERROR("Failed to submit queue");
             return false;
@@ -248,10 +227,10 @@ namespace boza
             .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
             .pNext = nullptr,
             .waitSemaphoreCount = 1,
-            .pWaitSemaphores = &frame.render_finished_semaphore,
+            .pWaitSemaphores = &current_frame.render_finished_semaphore,
             .swapchainCount = 1,
             .pSwapchains = &inst.swapchain,
-            .pImageIndices = &image_index,
+            .pImageIndices = &image_idx,
             .pResults = nullptr
         };
 
@@ -279,7 +258,7 @@ namespace boza
             return false;
         }
 
-        Frame::current_frame = (Frame::current_frame + 1) % inst.frames.size();
+        Frame::next_frame();
         return true;
     }
 
@@ -291,11 +270,13 @@ namespace boza
     VkDescriptorSetLayout& Swapchain::get_descriptor_set_layout() { return instance().descriptor_set_layout.get_layout(); }
 
 
-    bool Swapchain::record_draw_commands(const uint32_t idx) const
+    bool Swapchain::record_draw_commands(const uint32_t image_idx) const
     {
-		const VkCommandBuffer& command_buffer = frames[idx].command_buffer;
+        const auto& frame = frames[Frame::current_frame];
+        const auto& image = images[image_idx];
+        const auto& image_view = image_views[image_idx];
 
-        VK_CHECK(vkResetCommandBuffer(command_buffer, {}),
+        VK_CHECK(vkResetCommandBuffer(frame.command_buffer, {}),
         {
             LOG_VK_ERROR("Failed to reset command buffer");
             return false;
@@ -309,7 +290,7 @@ namespace boza
             .pInheritanceInfo = nullptr
         };
 
-        VK_CHECK(vkBeginCommandBuffer(command_buffer, &begin_info),
+        VK_CHECK(vkBeginCommandBuffer(frame.command_buffer, &begin_info),
         {
             LOG_VK_ERROR("Failed to begin command buffer");
             return false;
@@ -321,7 +302,7 @@ namespace boza
         {
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
             .pNext = nullptr,
-            .imageView = frames[idx].image_view,
+            .imageView = image_view,
             .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             .resolveMode = VK_RESOLVE_MODE_NONE,
             .resolveImageView = nullptr,
@@ -357,7 +338,7 @@ namespace boza
             .newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
             .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-            .image = frames[idx].image,
+            .image = image,
             .subresourceRange = {
                 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                 .baseMipLevel = 0,
@@ -380,10 +361,10 @@ namespace boza
             .pImageMemoryBarriers = &layout_transition_pre
         };
 
-        vkCmdPipelineBarrier2(command_buffer, &dependency_info_pre);
-        vkCmdBeginRendering(command_buffer, &rendering_info);
+        vkCmdPipelineBarrier2(frame.command_buffer, &dependency_info_pre);
+        vkCmdBeginRendering(frame.command_buffer, &rendering_info);
 
-        vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, Pipeline::get_pipeline());
+        vkCmdBindPipeline(frame.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, Pipeline::get_pipeline());
 
         VkViewport viewport
         {
@@ -401,8 +382,8 @@ namespace boza
             .extent = extent
         };
 
-        vkCmdSetViewport(command_buffer, 0, 1, &viewport);
-        vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+        vkCmdSetViewport(frame.command_buffer, 0, 1, &viewport);
+        vkCmdSetScissor(frame.command_buffer, 0, 1, &scissor);
 
         static float angle = 0;
         angle += 1;
@@ -425,11 +406,11 @@ namespace boza
             rotation_matrix * glm::vec4(-0.5, 0.5, 0, 0)
         };
 
-        frames[idx].buffer.write(&ubo, sizeof(Ubo), 0);
+        frame.buffer.write(&ubo, sizeof(Ubo), 0);
 
         VkDescriptorBufferInfo buffer_info
         {
-            .buffer = frames[idx].buffer.get_buffer(),
+            .buffer = frame.buffer.get_buffer(),
             .offset = 0,
             .range = sizeof(Ubo)
         };
@@ -438,7 +419,7 @@ namespace boza
         {
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .pNext = nullptr,
-            .dstSet = frames[idx].descriptor_set,
+            .dstSet = frame.descriptor_set,
             .dstBinding = 0,
             .dstArrayElement = 0,
             .descriptorCount = 1,
@@ -450,23 +431,23 @@ namespace boza
 
         vkUpdateDescriptorSets(Device::get_device(), 1, &descriptor_write, 0, nullptr);
         vkCmdBindDescriptorSets(
-            command_buffer,
+            frame.command_buffer,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
             Pipeline::get_pipeline_layout(),
             0,
-            1, &frames[idx].descriptor_set,
+            1, &frame.descriptor_set,
             0, nullptr);
 
         vkCmdPushConstants(
-            command_buffer,
+            frame.command_buffer,
             Pipeline::get_pipeline_layout(),
             VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
             0, sizeof(Pipeline::PushConstant), &push_constant);
 
 
-        vkCmdDraw(command_buffer, 3, 1, 0, 0);
+        vkCmdDraw(frame.command_buffer, 3, 1, 0, 0);
 
-        vkCmdEndRendering(command_buffer);
+        vkCmdEndRendering(frame.command_buffer);
 
         VkImageMemoryBarrier2 layout_transition_post
         {
@@ -480,7 +461,7 @@ namespace boza
             .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
             .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
             .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-            .image = frames[idx].image,
+            .image = image,
             .subresourceRange = {
                 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                 .baseMipLevel = 0,
@@ -503,9 +484,9 @@ namespace boza
             .pImageMemoryBarriers = &layout_transition_post
         };
 
-        vkCmdPipelineBarrier2(command_buffer, &dependency_info_post);
+        vkCmdPipelineBarrier2(frame.command_buffer, &dependency_info_post);
 
-        VK_CHECK(vkEndCommandBuffer(command_buffer),
+        VK_CHECK(vkEndCommandBuffer(frame.command_buffer),
         {
             LOG_VK_ERROR("Failed to end command buffer");
             return false;
@@ -521,8 +502,14 @@ namespace boza
         const VkPresentModeKHR present_mode = choose_present_mode();
         choose_extent();
 
-        uint32_t image_count = surface_capabilities.minImageCount + 1;
-        if (surface_capabilities.maxImageCount > 0) image_count = std::min(image_count, surface_capabilities.maxImageCount);
+        uint32_t image_count = preferred_swapchain_image_count;
+
+        if (image_count < surface_capabilities.minImageCount)
+            image_count = surface_capabilities.minImageCount;
+
+        if (surface_capabilities.maxImageCount > 0 &&
+            image_count > surface_capabilities.maxImageCount)
+            image_count = surface_capabilities.maxImageCount;
 
         const std::array queue_family_indices =
         {
@@ -623,16 +610,16 @@ namespace boza
             return false;
         });
 
-        std::vector<VkImage> images(image_count);
+        images.resize(image_count);
         VK_CHECK(vkGetSwapchainImagesKHR(device, swapchain, &image_count, images.data()),
         {
             LOG_VK_ERROR("Failed to get swapchain images");
             return false;
         });
 
-        frames.resize(image_count);
+        image_views.resize(image_count);
 
-        for (uint32_t i = 0; i < images.size(); ++i)
+        for (uint32_t i = 0; i < image_count; ++i)
         {
             VkImageViewCreateInfo image_info
             {
@@ -652,15 +639,11 @@ namespace boza
                 }
             };
 
-            VkImageView image_view;
-            VK_CHECK(vkCreateImageView(device, &image_info, nullptr, &image_view),
+            VK_CHECK(vkCreateImageView(device, &image_info, nullptr, &image_views[i]),
             {
                 LOG_VK_ERROR("Failed to create image view");
                 return false;
             });
-
-            frames[i].image = images[i];
-            frames[i].image_view = image_view;
         }
 
         return true;
@@ -692,6 +675,22 @@ namespace boza
                 return false;
             }
         }
+
+        return true;
+    }
+
+    bool Swapchain::create_command_buffers()
+    {
+        const auto command_buffers = CommandPool::allocate_command_buffers(frames.size());
+
+        if (command_buffers.empty())
+        {
+            Logger::critical("Failed to allocate command buffers for swapchain frames");
+            return false;
+        }
+
+        for (uint32_t i = 0; i < frames.size(); ++i)
+            frames[i].command_buffer = command_buffers[i];
 
         return true;
     }

@@ -13,6 +13,10 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_compile_definitions(NDEBUG)
 endif()
 
+if(MSVC)
+    add_compile_options(/Zc:preprocessor)
+endif ()
+
 #if(MSVC)
 #    add_compile_options(/W4 /WX /Ox)
 #elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -56,12 +60,16 @@ add_library(BozaEngine SHARED
         src/Core/RenderingSystem/Vulkan/Shader.cpp
         src/Core/RenderingSystem/Vulkan/Pipeline.hpp
         src/Core/RenderingSystem/Vulkan/Pipeline.cpp
+        src/Core/RenderingSystem/Vulkan/CommandPool.hpp
+        src/Core/RenderingSystem/Vulkan/CommandPool.cpp
         src/Core/RenderingSystem/Vulkan/Memory/Buffer.hpp
         src/Core/RenderingSystem/Vulkan/Memory/Buffer.cpp
         src/Core/RenderingSystem/Vulkan/Memory/Allocator.hpp
         src/Core/RenderingSystem/Vulkan/Memory/Allocator.cpp
-        src/Core/RenderingSystem/Vulkan/CommandPool.hpp
-        src/Core/RenderingSystem/Vulkan/CommandPool.cpp
+        src/Core/RenderingSystem/Vulkan/Memory/DescriptorPool.cpp
+        src/Core/RenderingSystem/Vulkan/Memory/DescriptorPool.hpp
+        src/Core/RenderingSystem/Vulkan/Memory/DescriptorSetLayout.cpp
+        src/Core/RenderingSystem/Vulkan/Memory/DescriptorSetLayout.hpp
 
         src/Core/GameObject.hpp
         src/Core/GameObject.inl
@@ -77,10 +85,6 @@ add_library(BozaEngine SHARED
         src/Core/Components/GameObjData.hpp
         src/Core/Components/Transform.hpp
         src/Core/Components/Behaviour.hpp
-        src/Core/RenderingSystem/Vulkan/Memory/DescriptorPool.cpp
-        src/Core/RenderingSystem/Vulkan/Memory/DescriptorPool.hpp
-        src/Core/RenderingSystem/Vulkan/Memory/DescriptorSetLayout.cpp
-        src/Core/RenderingSystem/Vulkan/Memory/DescriptorSetLayout.hpp
 )
 
 target_precompile_headers(BozaEngine PRIVATE src/boza_pch.hpp)
