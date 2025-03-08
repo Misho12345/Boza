@@ -1,32 +1,42 @@
 #pragma once
 #include "boza_pch.hpp"
-#include "Singleton.hpp"
+#include "Memory/DescriptorSetLayout.hpp"
 
 namespace boza
 {
-    class Pipeline final : public Singleton<Pipeline>
+    struct PipelineCreateInfo
+    {
+        VkVertexInputBindingDescription binding_description;
+        std::vector<VkVertexInputAttributeDescription> attribute_descriptions;
+        std::vector<DescriptorSetLayout> descriptor_set_layouts;
+        std::vector<VkPushConstantRange> push_constant_ranges;
+
+        VkShaderModule vertex_shader{ nullptr };
+        VkShaderModule fragment_shader{ nullptr };
+
+        VkPolygonMode polygon_mode{ VK_POLYGON_MODE_FILL };
+    };
+
+    class Pipeline final
     {
     public:
-        struct PushConstant final
-        {
-            glm::vec4 colors[3];
-        };
+        explicit Pipeline(const PipelineCreateInfo& create_info);
+        ~Pipeline();
 
-        [[nodiscard]]
-        static bool create();
-        static void destroy();
+        Pipeline(const Pipeline&) = delete;
+        Pipeline& operator=(const Pipeline&) = delete;
 
-        [[nodiscard]] static VkPipeline& get_pipeline();
-        [[nodiscard]] static VkPipelineLayout& get_pipeline_layout();
+        Pipeline(Pipeline&& other) noexcept;
+        Pipeline& operator=(Pipeline&& other) noexcept;
+
+        VkPipeline& get_pipeline();
+        VkPipelineLayout& get_layout();
 
     private:
-        [[nodiscard]] bool create_pipeline();
-        [[nodiscard]] bool create_pipeline_layout();
+        bool create_pipeline(const PipelineCreateInfo& create_info);
+        bool create_pipeline_layout(const PipelineCreateInfo& create_info);
 
-        VkPipeline       pipeline{ nullptr };
-        VkPipelineLayout pipeline_layout{ nullptr };
-
-        VkShaderModule vertex_module{ nullptr };
-        VkShaderModule fragment_module{ nullptr };
+        VkPipeline pipeline{ nullptr };
+        VkPipelineLayout layout{ nullptr };
     };
 }

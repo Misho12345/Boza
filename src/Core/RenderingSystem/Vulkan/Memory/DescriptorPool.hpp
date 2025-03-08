@@ -12,7 +12,7 @@ namespace boza
         static bool create();
         static void destroy();
 
-        static VkDescriptorSet create_descriptor_set(DescriptorSetLayout& layout);
+        static VkDescriptorSet create_descriptor_set(const DescriptorSetLayout& layout);
 
         [[nodiscard]] static VkDescriptorPool& get_descriptor_pool();
 

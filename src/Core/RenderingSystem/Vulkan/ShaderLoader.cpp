@@ -1,11 +1,11 @@
-#include "Shader.hpp"
+#include "ShaderLoader.hpp"
 
 #include "Device.hpp"
 #include "Logger.hpp"
 
 namespace boza
 {
-    VkShaderModule Shader::create_shader_module(const std::string_view& filename)
+    VkShaderModule ShaderLoader::create_shader_module(const std::string_view& filename)
     {
         const fs::path file_path = fs::path("shaders") / "spv" / std::format("{}.spv", filename);
 
@@ -39,12 +39,12 @@ namespace boza
         return shader_module;
     }
 
-    void Shader::destroy_shader_module(const VkShaderModule& shader_module)
+    void ShaderLoader::destroy_shader_module(const VkShaderModule& shader_module)
     {
         vkDestroyShaderModule(Device::get_device(), shader_module, nullptr);
     }
 
-    std::vector<uint32_t> Shader::read_file(const std::string_view& path)
+    std::vector<uint32_t> ShaderLoader::read_file(const std::string_view& path)
     {
         std::ifstream file(path.data(), std::ios::binary | std::ios::ate);
         if (!file.is_open()) return {};

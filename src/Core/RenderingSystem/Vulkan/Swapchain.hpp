@@ -13,13 +13,15 @@ namespace boza
         static bool create();
         static void destroy();
 
-        [[nodiscard]] static bool render();
+        [[nodiscard]] static bool begin_render_pass(uint32_t image_idx);
+        [[nodiscard]] static bool end_render_pass(uint32_t image_idx);
+        [[nodiscard]] static uint32_t acquire_next_image();
+        [[nodiscard]] static bool submit_and_present(uint32_t image_idx);
 
         [[nodiscard]] static VkSwapchainKHR& get_swapchain();
         [[nodiscard]] static VkFormat& get_format();
         [[nodiscard]] static VkExtent2D& get_extent();
-
-        [[nodiscard]] static VkDescriptorSetLayout& get_descriptor_set_layout();
+        [[nodiscard]] static VkCommandBuffer& get_current_command_buffer();
 
     private:
         static constexpr uint32_t preferred_swapchain_image_count = 3;
@@ -32,21 +34,11 @@ namespace boza
             VkSemaphore image_available_semaphore;
             VkSemaphore render_finished_semaphore;
 
-            Buffer buffer;
-            VkDescriptorSet descriptor_set;
-
             inline static uint32_t current_frame;
             static void next_frame() { current_frame = (current_frame + 1) % max_frames_in_flight; }
         };
 
-        struct Ubo
-        {
-            glm::vec4 positions[3];
-        };
-
         [[nodiscard]] bool recreate();
-
-        [[nodiscard]] bool record_draw_commands(uint32_t image_idx) const;
 
         [[nodiscard]] bool create_swapchain(VkSwapchainKHR old_swapchain = nullptr);
         [[nodiscard]] bool query_swapchain_support();
@@ -54,8 +46,6 @@ namespace boza
 
         [[nodiscard]] bool create_sync_objects();
         [[nodiscard]] bool create_command_buffers();
-        [[nodiscard]] bool create_buffers();
-        [[nodiscard]] bool create_descriptor_sets();
 
         [[nodiscard]] static VkSemaphore create_semaphore();
         [[nodiscard]] static VkFence create_fence();
@@ -74,9 +64,8 @@ namespace boza
 
         std::vector<VkImage> images;
         std::vector<VkImageView> image_views;
+        std::vector<VkImageLayout> image_layouts;
         std::array<Frame, max_frames_in_flight> frames{};
-
-        DescriptorSetLayout descriptor_set_layout;
 
         bool should_recreate{ false };
     };

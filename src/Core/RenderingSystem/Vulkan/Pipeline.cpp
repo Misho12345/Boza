@@ -2,50 +2,49 @@
 
 #include "Device.hpp"
 #include "Logger.hpp"
-#include "Shader.hpp"
 #include "Swapchain.hpp"
 
 namespace boza
 {
-    bool Pipeline::create()
+    Pipeline::Pipeline(const PipelineCreateInfo& create_info)
     {
-        Logger::trace("Creating graphics pipeline");
-        return instance().create_pipeline();
+        if (!create_pipeline(create_info)) Logger::critical("failed to create pipeline");
     }
 
-    void Pipeline::destroy()
+    Pipeline::~Pipeline()
     {
-        const auto& inst = instance();
-
-        Shader::destroy_shader_module(inst.vertex_module);
-        Shader::destroy_shader_module(inst.fragment_module);
-
         const auto& device = Device::get_device();
+
         if (device == nullptr) return;
 
-        vkDestroyPipeline(device, inst.pipeline, nullptr);
-        vkDestroyPipelineLayout(device, inst.pipeline_layout, nullptr);
+        if (pipeline != nullptr) vkDestroyPipeline(device, pipeline, nullptr);
+        if (layout != nullptr) vkDestroyPipelineLayout(device, layout, nullptr);
     }
 
-    VkPipeline&       Pipeline::get_pipeline() { return instance().pipeline; }
-    VkPipelineLayout& Pipeline::get_pipeline_layout() { return instance().pipeline_layout; }
-
-    bool Pipeline::create_pipeline()
+    Pipeline::Pipeline(Pipeline&& other) noexcept
     {
-        vertex_module = Shader::create_shader_module("default.vert");
-        if (vertex_module == nullptr)
+        pipeline = std::exchange(other.pipeline, nullptr);
+        layout = std::exchange(other.layout, nullptr);
+    }
+
+    Pipeline& Pipeline::operator=(Pipeline&& other) noexcept
+    {
+        if (this != &other)
         {
-            Logger::critical("Failed to create vertex shader module");
-            return false;
+            pipeline = std::exchange(other.pipeline, nullptr);
+            layout = std::exchange(other.layout, nullptr);
         }
 
-        fragment_module = Shader::create_shader_module("default.frag");
-        if (fragment_module == nullptr)
-        {
-            Logger::critical("Failed to create fragment shader module");
-            return false;
-        }
+        return *this;
+    }
 
+
+    VkPipeline&       Pipeline::get_pipeline() { return pipeline; }
+    VkPipelineLayout& Pipeline::get_layout() { return layout; }
+
+
+    bool Pipeline::create_pipeline(const PipelineCreateInfo& create_info)
+    {
         const VkPipelineShaderStageCreateInfo shader_stages[]
         {
             {
@@ -53,7 +52,7 @@ namespace boza
                 .pNext = nullptr,
                 .flags = {},
                 .stage = VK_SHADER_STAGE_VERTEX_BIT,
-                .module = vertex_module,
+                .module = create_info.vertex_shader,
                 .pName = "main",
                 .pSpecializationInfo = nullptr
             },
@@ -62,7 +61,7 @@ namespace boza
                 .pNext = nullptr,
                 .flags = {},
                 .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
-                .module = fragment_module,
+                .module = create_info.fragment_shader,
                 .pName = "main",
                 .pSpecializationInfo = nullptr
             }
@@ -73,8 +72,10 @@ namespace boza
             VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
             nullptr,
             {},
-            0, nullptr,
-            0, nullptr
+            1,
+            &create_info.binding_description,
+            static_cast<uint32_t>(create_info.attribute_descriptions.size()),
+            create_info.attribute_descriptions.data(),
         };
 
         VkPipelineInputAssemblyStateCreateInfo input_assembly_info
@@ -120,7 +121,7 @@ namespace boza
             .flags = {},
             .depthClampEnable = VK_FALSE,
             .rasterizerDiscardEnable = VK_FALSE,
-            .polygonMode = VK_POLYGON_MODE_FILL,
+            .polygonMode = create_info.polygon_mode,
             .cullMode = VK_CULL_MODE_BACK_BIT,
             .frontFace = VK_FRONT_FACE_CLOCKWISE,
             .depthBiasEnable = VK_FALSE,
@@ -153,10 +154,10 @@ namespace boza
             .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
             .alphaBlendOp = VK_BLEND_OP_ADD,
             .colorWriteMask =
-            VK_COLOR_COMPONENT_R_BIT |
-            VK_COLOR_COMPONENT_G_BIT |
-            VK_COLOR_COMPONENT_B_BIT |
-            VK_COLOR_COMPONENT_A_BIT
+                VK_COLOR_COMPONENT_R_BIT |
+                VK_COLOR_COMPONENT_G_BIT |
+                VK_COLOR_COMPONENT_B_BIT |
+                VK_COLOR_COMPONENT_A_BIT
         };
 
         VkPipelineColorBlendStateCreateInfo color_blend_info
@@ -171,7 +172,7 @@ namespace boza
             .blendConstants = { 0.0f, 0.0f, 0.0f, 0.0f }
         };
 
-        if (!create_pipeline_layout()) return false;
+        if (!create_pipeline_layout(create_info)) return false;
 
         VkPipelineRenderingCreateInfoKHR pipeline_rendering_create_info
         {
@@ -210,7 +211,7 @@ namespace boza
             .pDepthStencilState = nullptr,
             .pColorBlendState = &color_blend_info,
             .pDynamicState = &dynamic_state_info,
-            .layout = pipeline_layout,
+            .layout = layout,
             .renderPass = nullptr,
             .subpass = {},
             .basePipelineHandle = nullptr,
@@ -226,27 +227,25 @@ namespace boza
         return true;
     }
 
-    bool Pipeline::create_pipeline_layout()
+    bool Pipeline::create_pipeline_layout(const PipelineCreateInfo& create_info)
     {
-        VkPushConstantRange push_constant_range
-        {
-            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-            .offset = 0,
-            .size = sizeof(PushConstant)
-        };
+        std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
+        descriptor_set_layouts.reserve(create_info.descriptor_set_layouts.size());
+        for (const auto& set_layout : create_info.descriptor_set_layouts)
+            descriptor_set_layouts.push_back(set_layout.get_layout());
 
         const VkPipelineLayoutCreateInfo layout_info
         {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             .pNext = nullptr,
             .flags = {},
-            .setLayoutCount = 1,
-            .pSetLayouts = &Swapchain::get_descriptor_set_layout(),
-            .pushConstantRangeCount = 1,
-            .pPushConstantRanges = &push_constant_range
+            .setLayoutCount = static_cast<uint32_t>(descriptor_set_layouts.size()),
+            .pSetLayouts = descriptor_set_layouts.data(),
+            .pushConstantRangeCount = static_cast<uint32_t>(create_info.push_constant_ranges.size()),
+            .pPushConstantRanges = create_info.push_constant_ranges.data(),
         };
 
-        VK_CHECK(vkCreatePipelineLayout(Device::get_device(), &layout_info, nullptr, &pipeline_layout),
+        VK_CHECK(vkCreatePipelineLayout(Device::get_device(), &layout_info, nullptr, &layout),
         {
             LOG_VK_ERROR("Failed to create pipeline layout");
             return false;

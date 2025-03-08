@@ -50,18 +50,26 @@ add_library(BozaEngine SHARED
         src/Core/RenderingSystem/RenderingSystem.hpp
         src/Core/RenderingSystem/RenderingSystem.cpp
 
+        src/Core/RenderingSystem/Vulkan/Renderer.cpp
+        src/Core/RenderingSystem/Vulkan/Renderer.hpp
         src/Core/RenderingSystem/Vulkan/Instance.hpp
         src/Core/RenderingSystem/Vulkan/Instance.cpp
         src/Core/RenderingSystem/Vulkan/Device.hpp
         src/Core/RenderingSystem/Vulkan/Device.cpp
         src/Core/RenderingSystem/Vulkan/Swapchain.hpp
         src/Core/RenderingSystem/Vulkan/Swapchain.cpp
-        src/Core/RenderingSystem/Vulkan/Shader.hpp
-        src/Core/RenderingSystem/Vulkan/Shader.cpp
+        src/Core/RenderingSystem/Vulkan/ShaderLoader.hpp
+        src/Core/RenderingSystem/Vulkan/ShaderLoader.cpp
         src/Core/RenderingSystem/Vulkan/Pipeline.hpp
         src/Core/RenderingSystem/Vulkan/Pipeline.cpp
+        src/Core/RenderingSystem/Vulkan/PipelineManager.cpp
+        src/Core/RenderingSystem/Vulkan/PipelineManager.hpp
+        src/Core/RenderingSystem/Vulkan/PipelineManager.inl
         src/Core/RenderingSystem/Vulkan/CommandPool.hpp
         src/Core/RenderingSystem/Vulkan/CommandPool.cpp
+        src/Core/RenderingSystem/Vulkan/Mesh.cpp
+        src/Core/RenderingSystem/Vulkan/Mesh.hpp
+        src/Core/RenderingSystem/Vulkan/Mesh.inl
         src/Core/RenderingSystem/Vulkan/Memory/Buffer.hpp
         src/Core/RenderingSystem/Vulkan/Memory/Buffer.cpp
         src/Core/RenderingSystem/Vulkan/Memory/Allocator.hpp

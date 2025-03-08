@@ -5,6 +5,25 @@
 
 namespace boza
 {
+    Buffer::Buffer(Buffer&& other) noexcept
+    {
+        buffer = std::exchange(other.buffer, nullptr);
+        allocation = std::exchange(other.allocation, nullptr);
+        allocation_info = std::exchange(other.allocation_info, {});
+    }
+
+    Buffer& Buffer::operator=(Buffer&& other) noexcept
+    {
+        if (this != &other)
+        {
+            buffer = std::exchange(other.buffer, nullptr);
+            allocation = std::exchange(other.allocation, nullptr);
+            allocation_info = std::exchange(other.allocation_info, {});
+        }
+
+        return *this;
+    }
+
     Buffer Buffer::create(
         const VkDeviceSize       size,
         const VkBufferUsageFlags usage,
@@ -46,8 +65,8 @@ namespace boza
 
 
     Buffer Buffer::create_uniform_buffer(const VkDeviceSize size) { return create(size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU); }
-    Buffer Buffer::create_vertex_buffer(const VkDeviceSize size) { return create(size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY); }
-    Buffer Buffer::create_index_buffer(const VkDeviceSize size) { return create(size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY); }
+    Buffer Buffer::create_vertex_buffer(const VkDeviceSize size) { return create(size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU); }
+    Buffer Buffer::create_index_buffer(const VkDeviceSize size) { return create(size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU); }
     Buffer Buffer::create_staging_buffer(const VkDeviceSize size) { return create(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY); }
     Buffer Buffer::create_storage_buffer(const VkDeviceSize size) { return create(size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY); }
 

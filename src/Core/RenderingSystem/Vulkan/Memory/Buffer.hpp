@@ -6,6 +6,12 @@ namespace boza
     class Buffer final
     {
     public:
+        ~Buffer() = default;
+        Buffer(const Buffer&) = delete;
+        Buffer& operator=(const Buffer&) = delete;
+        Buffer(Buffer&& other) noexcept;
+        Buffer& operator=(Buffer&& other) noexcept;
+
         [[nodiscard]]
         static Buffer create(
             VkDeviceSize size,
@@ -27,6 +33,8 @@ namespace boza
         [[nodiscard]] VmaAllocation get_allocation() const;
 
     private:
+        Buffer() = default;
+
         VkBuffer buffer{ nullptr };
         VmaAllocation allocation{ nullptr };
         VmaAllocationInfo allocation_info{};

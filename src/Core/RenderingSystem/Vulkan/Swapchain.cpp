@@ -3,10 +3,7 @@
 #include "CommandPool.hpp"
 #include "Device.hpp"
 #include "Logger.hpp"
-#include "Pipeline.hpp"
 #include "Core/Window.hpp"
-#include "Memory/DescriptorPool.hpp"
-#include "Memory/DescriptorSetLayout.hpp"
 
 namespace boza
 {
@@ -25,11 +22,6 @@ namespace boza
 
         Window::set_window_resize_callback();
 
-        inst.descriptor_set_layout = DescriptorSetLayout::create_uniform_layout();
-
-        if (!inst.create_buffers()) return false;
-        if (!inst.create_descriptor_sets()) return false;
-
         Frame::current_frame = 0;
         return true;
     }
@@ -46,23 +38,18 @@ namespace boza
         inst.image_views.clear();
         inst.images.clear();
 
-        for (auto& frame : inst.frames)
+        for (const auto& frame : inst.frames)
         {
             vkDestroyFence(device, frame.in_flight_fence, nullptr);
             vkDestroySemaphore(device, frame.image_available_semaphore, nullptr);
             vkDestroySemaphore(device, frame.render_finished_semaphore, nullptr);
-
-            frame.buffer.destroy();
         }
 
         if (inst.swapchain != nullptr)
             vkDestroySwapchainKHR(device, inst.swapchain, nullptr);
 
-        inst.descriptor_set_layout.destroy();
-
         inst.should_recreate = false;
     }
-
 
     bool Swapchain::recreate()
     {
@@ -80,9 +67,11 @@ namespace boza
             vkDestroyImageView(device, image_view, nullptr);
         image_views.clear();
         images.clear();
+        image_layouts.clear();
 
         std::vector<VkCommandBuffer> command_buffers(max_frames_in_flight);
-        for (const auto& frame : frames) command_buffers.push_back(frame.command_buffer);
+        for (const auto& frame : frames)
+            command_buffers.push_back(frame.command_buffer);
         vkFreeCommandBuffers(Device::get_device(), CommandPool::get_command_pool(), max_frames_in_flight, command_buffers.data());
 
         if (!query_swapchain_support()) return false;
@@ -104,177 +93,12 @@ namespace boza
     }
 
 
-    bool Swapchain::render()
+    bool Swapchain::begin_render_pass(uint32_t image_idx)
     {
-        auto& inst = instance();
-        const auto& device = Device::get_device();
-
-        if (Window::has_window_resized())
-        {
-            if (Window::is_minimized())
-            {
-                inst.should_recreate = true;
-                return true;
-            }
-
-            if (!inst.recreate())
-            {
-                Logger::error("Failed to recreate swapchain");
-                return false;
-            }
-
-            return true;
-        }
-
-        if (Window::is_minimized()) return true;
-        if (inst.should_recreate && !inst.recreate())
-        {
-            Logger::error("Failed to recreate swapchain");
-            return false;
-        }
-
-        auto& current_frame = inst.frames[Frame::current_frame];
-
-        VK_CHECK(vkWaitForFences(device, 1, &current_frame.in_flight_fence, VK_TRUE, UINT64_MAX),
-        {
-            LOG_VK_ERROR("Failed to wait for in-flight fence");
-            return false;
-        });
-
-        VK_CHECK(vkResetFences(device, 1, &current_frame.in_flight_fence),
-        {
-            LOG_VK_ERROR("Failed to reset in-flight fence");
-            return false;
-        });
-
-        uint32_t image_idx;
-
-        if (const auto result = vkAcquireNextImageKHR(device, inst.swapchain, UINT64_MAX,
-                                                      current_frame.image_available_semaphore, nullptr, &image_idx);
-            result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
-        {
-            if (Window::is_minimized())
-            {
-                inst.should_recreate = true;
-                return true;
-            }
-
-            if (!inst.recreate())
-            {
-                Logger::error("Failed to recreate swapchain");
-                return false;
-            }
-
-            return true;
-        }
-        else if (result != VK_SUCCESS)
-        {
-            LOG_VK_ERROR("Failed to acquire next image");
-            return false;
-        }
-
-        if (!inst.record_draw_commands(image_idx)) return false;
-
-        VkSemaphoreSubmitInfo wait_semaphore_info
-        {
-            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-            .pNext = nullptr,
-            .semaphore = current_frame.image_available_semaphore,
-            .value = 0,
-            .stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-            .deviceIndex = 0
-        };
-
-        VkSemaphoreSubmitInfo signal_semaphore_info
-        {
-            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-            .pNext = nullptr,
-            .semaphore = current_frame.render_finished_semaphore,
-            .value = 0,
-            .stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-            .deviceIndex = 0
-        };
-
-        VkCommandBufferSubmitInfo cmd_submit_info
-        {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
-            .pNext = nullptr,
-            .commandBuffer = current_frame.command_buffer,
-            .deviceMask = 0
-        };
-
-        const VkSubmitInfo2 submit_info
-        {
-            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
-            .pNext = nullptr,
-            .flags = 0,
-            .waitSemaphoreInfoCount = 1,
-            .pWaitSemaphoreInfos = &wait_semaphore_info,
-            .commandBufferInfoCount = 1,
-            .pCommandBufferInfos = &cmd_submit_info,
-            .signalSemaphoreInfoCount = 1,
-            .pSignalSemaphoreInfos = &signal_semaphore_info
-        };
-
-        VK_CHECK(vkQueueSubmit2(Device::get_graphics_queue(), 1, &submit_info, current_frame.in_flight_fence),
-        {
-            LOG_VK_ERROR("Failed to submit queue");
-            return false;
-        });
-
-        const VkPresentInfoKHR present_info
-        {
-            .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-            .pNext = nullptr,
-            .waitSemaphoreCount = 1,
-            .pWaitSemaphores = &current_frame.render_finished_semaphore,
-            .swapchainCount = 1,
-            .pSwapchains = &inst.swapchain,
-            .pImageIndices = &image_idx,
-            .pResults = nullptr
-        };
-
-        if (const auto result = vkQueuePresentKHR(Device::get_present_queue(), &present_info);
-            result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR ||
-            Window::has_window_resized())
-        {
-            if (Window::is_minimized())
-            {
-                inst.should_recreate = true;
-                return true;
-            }
-
-            if (!inst.recreate())
-            {
-                Logger::error("Failed to recreate swapchain");
-                return false;
-            }
-
-            return true;
-        }
-        else if (result != VK_SUCCESS)
-        {
-            LOG_VK_ERROR("Failed to present queue");
-            return false;
-        }
-
-        Frame::next_frame();
-        return true;
-    }
-
-
-    VkSwapchainKHR& Swapchain::get_swapchain() { return instance().swapchain; }
-    VkFormat&       Swapchain::get_format() { return instance().surface_format.format; }
-    VkExtent2D&     Swapchain::get_extent() { return instance().extent; }
-
-    VkDescriptorSetLayout& Swapchain::get_descriptor_set_layout() { return instance().descriptor_set_layout.get_layout(); }
-
-
-    bool Swapchain::record_draw_commands(const uint32_t image_idx) const
-    {
-        const auto& frame = frames[Frame::current_frame];
-        const auto& image = images[image_idx];
-        const auto& image_view = image_views[image_idx];
+        auto&       inst       = instance();
+        const auto& frame      = inst.frames[Frame::current_frame];
+        const auto& image      = inst.images[image_idx];
+        const auto& image_view = inst.image_views[image_idx];
 
         VK_CHECK(vkResetCommandBuffer(frame.command_buffer, {}),
         {
@@ -317,7 +141,7 @@ namespace boza
             .sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
             .pNext = nullptr,
             .flags = 0,
-            .renderArea = { .offset = { 0, 0 }, .extent = extent },
+            .renderArea = { .offset = { 0, 0 }, .extent = inst.extent },
             .layerCount = 1,
             .viewMask = 0,
             .colorAttachmentCount = 1,
@@ -334,7 +158,7 @@ namespace boza
             .srcAccessMask = 0,
             .dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
             .dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-            .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .oldLayout = inst.image_layouts[image_idx],
             .newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
             .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
@@ -364,14 +188,14 @@ namespace boza
         vkCmdPipelineBarrier2(frame.command_buffer, &dependency_info_pre);
         vkCmdBeginRendering(frame.command_buffer, &rendering_info);
 
-        vkCmdBindPipeline(frame.command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, Pipeline::get_pipeline());
+        inst.image_layouts[image_idx] = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
         VkViewport viewport
         {
             .x = 0.0f,
             .y = 0.0f,
-            .width = static_cast<float>(extent.width),
-            .height = static_cast<float>(extent.height),
+            .width = static_cast<float>(inst.extent.width),
+            .height = static_cast<float>(inst.extent.height),
             .minDepth = 0.0f,
             .maxDepth = 1.0f
         };
@@ -379,73 +203,19 @@ namespace boza
         VkRect2D scissor
         {
             .offset = { 0, 0 },
-            .extent = extent
+            .extent = inst.extent
         };
 
         vkCmdSetViewport(frame.command_buffer, 0, 1, &viewport);
         vkCmdSetScissor(frame.command_buffer, 0, 1, &scissor);
 
-        static float angle = 0;
-        angle += 1;
-        if (angle >= 360) angle = 0;
-        glm::mat4 rotation_matrix = rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0.0f, 0.0f, 1.0f));
+        return true;
+    }
 
-        Pipeline::PushConstant push_constant
-        {
-            .colors = {
-                glm::vec4(1.0, 0.0, 0.0, 0.0),
-                glm::vec4(0.0, 1.0, 0.0, 0.0),
-                glm::vec4(0.0, 0.0, 1.0, 0.0)
-            }
-        };
-
-        Ubo ubo
-        {
-            rotation_matrix * glm::vec4(0.0, -0.5, 0, 0),
-            rotation_matrix * glm::vec4(0.5, 0.5, 0, 0),
-            rotation_matrix * glm::vec4(-0.5, 0.5, 0, 0)
-        };
-
-        frame.buffer.write(&ubo, sizeof(Ubo), 0);
-
-        VkDescriptorBufferInfo buffer_info
-        {
-            .buffer = frame.buffer.get_buffer(),
-            .offset = 0,
-            .range = sizeof(Ubo)
-        };
-
-        VkWriteDescriptorSet descriptor_write
-        {
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .pNext = nullptr,
-            .dstSet = frame.descriptor_set,
-            .dstBinding = 0,
-            .dstArrayElement = 0,
-            .descriptorCount = 1,
-            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            .pImageInfo = nullptr,
-            .pBufferInfo = &buffer_info,
-            .pTexelBufferView = nullptr
-        };
-
-        vkUpdateDescriptorSets(Device::get_device(), 1, &descriptor_write, 0, nullptr);
-        vkCmdBindDescriptorSets(
-            frame.command_buffer,
-            VK_PIPELINE_BIND_POINT_GRAPHICS,
-            Pipeline::get_pipeline_layout(),
-            0,
-            1, &frame.descriptor_set,
-            0, nullptr);
-
-        vkCmdPushConstants(
-            frame.command_buffer,
-            Pipeline::get_pipeline_layout(),
-            VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-            0, sizeof(Pipeline::PushConstant), &push_constant);
-
-
-        vkCmdDraw(frame.command_buffer, 3, 1, 0, 0);
+    bool Swapchain::end_render_pass(const uint32_t image_idx)
+    {
+        auto&       inst  = instance();
+        const auto& frame = inst.frames[Frame::current_frame];
 
         vkCmdEndRendering(frame.command_buffer);
 
@@ -457,11 +227,11 @@ namespace boza
             .srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
             .dstStageMask = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
             .dstAccessMask = 0,
-            .oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            .oldLayout = inst.image_layouts[image_idx],
             .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
             .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
             .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-            .image = image,
+            .image = inst.images[image_idx],
             .subresourceRange = {
                 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                 .baseMipLevel = 0,
@@ -471,7 +241,7 @@ namespace boza
             }
         };
 
-        VkDependencyInfoKHR dependency_info_post
+        const VkDependencyInfoKHR dependency_info_post
         {
             .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
             .pNext = nullptr,
@@ -486,6 +256,8 @@ namespace boza
 
         vkCmdPipelineBarrier2(frame.command_buffer, &dependency_info_post);
 
+        inst.image_layouts[image_idx] = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
         VK_CHECK(vkEndCommandBuffer(frame.command_buffer),
         {
             LOG_VK_ERROR("Failed to end command buffer");
@@ -495,8 +267,185 @@ namespace boza
         return true;
     }
 
+    uint32_t Swapchain::acquire_next_image()
+    {
+        auto& inst = instance();
+        const auto& device = Device::get_device();
 
-    bool Swapchain::create_swapchain(VkSwapchainKHR old_swapchain)
+        if (Window::has_window_resized())
+        {
+            if (Window::is_minimized())
+            {
+                inst.should_recreate = true;
+                return UINT32_MAX;
+            }
+
+            if (!inst.recreate())
+            {
+                Logger::error("Failed to recreate swapchain");
+                return UINT32_MAX - 1;
+            }
+
+            return UINT32_MAX;
+        }
+
+        if (Window::is_minimized()) return UINT32_MAX;
+        if (inst.should_recreate && !inst.recreate())
+        {
+            Logger::error("Failed to recreate swapchain");
+            return UINT32_MAX - 1;
+        }
+
+        auto& [command_buffer,
+            in_flight_fence,
+            image_available_semaphore,
+            render_finished_semaphore] = inst.frames[Frame::current_frame];
+
+        VK_CHECK(vkWaitForFences(device, 1, &in_flight_fence, VK_TRUE, UINT64_MAX),
+        {
+            LOG_VK_ERROR("Failed to wait for in-flight fence");
+            return UINT32_MAX - 1;
+        });
+
+        VK_CHECK(vkResetFences(device, 1, &in_flight_fence),
+        {
+            LOG_VK_ERROR("Failed to reset in-flight fence");
+            return UINT32_MAX - 1;
+        });
+
+        uint32_t image_idx;
+
+        if (const auto result = vkAcquireNextImageKHR(device, inst.swapchain, UINT64_MAX,
+                                                      image_available_semaphore, nullptr, &image_idx);
+            result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+        {
+            if (Window::is_minimized())
+            {
+                inst.should_recreate = true;
+                return UINT32_MAX;
+            }
+
+            if (!inst.recreate())
+            {
+                Logger::error("Failed to recreate swapchain");
+                return UINT32_MAX - 1;
+            }
+
+            return UINT32_MAX;
+        }
+        else if (result != VK_SUCCESS)
+        {
+            LOG_VK_ERROR("Failed to acquire next image");
+            return UINT32_MAX - 1;
+        }
+
+        return image_idx;
+    }
+
+    bool Swapchain::submit_and_present(uint32_t image_idx)
+    {
+        auto& inst = instance();
+        auto& [command_buffer,
+            in_flight_fence,
+            image_available_semaphore,
+            render_finished_semaphore] = inst.frames[Frame::current_frame];
+
+        VkSemaphoreSubmitInfo wait_semaphore_info
+        {
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+            .pNext = nullptr,
+            .semaphore = image_available_semaphore,
+            .value = 0,
+            .stageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .deviceIndex = 0
+        };
+
+        VkSemaphoreSubmitInfo signal_semaphore_info
+        {
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+            .pNext = nullptr,
+            .semaphore = render_finished_semaphore,
+            .value = 0,
+            .stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+            .deviceIndex = 0
+        };
+
+        VkCommandBufferSubmitInfo cmd_submit_info
+        {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+            .pNext = nullptr,
+            .commandBuffer = command_buffer,
+            .deviceMask = 0
+        };
+
+        const VkSubmitInfo2 submit_info
+        {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+            .pNext = nullptr,
+            .flags = 0,
+            .waitSemaphoreInfoCount = 1,
+            .pWaitSemaphoreInfos = &wait_semaphore_info,
+            .commandBufferInfoCount = 1,
+            .pCommandBufferInfos = &cmd_submit_info,
+            .signalSemaphoreInfoCount = 1,
+            .pSignalSemaphoreInfos = &signal_semaphore_info
+        };
+
+        VK_CHECK(vkQueueSubmit2(Device::get_graphics_queue(), 1, &submit_info, in_flight_fence),
+        {
+            LOG_VK_ERROR("Failed to submit queue");
+            return false;
+        });
+
+        const VkPresentInfoKHR present_info
+        {
+            .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+            .pNext = nullptr,
+            .waitSemaphoreCount = 1,
+            .pWaitSemaphores = &render_finished_semaphore,
+            .swapchainCount = 1,
+            .pSwapchains = &inst.swapchain,
+            .pImageIndices = &image_idx,
+            .pResults = nullptr
+        };
+
+        if (const auto result = vkQueuePresentKHR(Device::get_present_queue(), &present_info);
+            result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR ||
+            Window::has_window_resized())
+        {
+            if (Window::is_minimized())
+            {
+                inst.should_recreate = true;
+                return true;
+            }
+
+            if (!inst.recreate())
+            {
+                Logger::error("Failed to recreate swapchain");
+                return false;
+            }
+
+            return true;
+        }
+        else if (result != VK_SUCCESS)
+        {
+            LOG_VK_ERROR("Failed to present queue");
+            return false;
+        }
+
+        Frame::next_frame();
+        return true;
+    }
+
+
+
+    VkSwapchainKHR&  Swapchain::get_swapchain() { return instance().swapchain; }
+    VkFormat&        Swapchain::get_format() { return instance().surface_format.format; }
+    VkExtent2D&      Swapchain::get_extent() { return instance().extent; }
+    VkCommandBuffer& Swapchain::get_current_command_buffer() { return instance().frames[Frame::current_frame].command_buffer; }
+
+
+    bool Swapchain::create_swapchain(const VkSwapchainKHR old_swapchain)
     {
         choose_surface_format();
         const VkPresentModeKHR present_mode = choose_present_mode();
@@ -618,6 +567,7 @@ namespace boza
         });
 
         image_views.resize(image_count);
+        image_layouts.resize(image_count, VK_IMAGE_LAYOUT_UNDEFINED);
 
         for (uint32_t i = 0; i < image_count; ++i)
         {
@@ -691,36 +641,6 @@ namespace boza
 
         for (uint32_t i = 0; i < frames.size(); ++i)
             frames[i].command_buffer = command_buffers[i];
-
-        return true;
-    }
-
-    bool Swapchain::create_buffers()
-    {
-        for (auto& frame : frames)
-        {
-            frame.buffer = Buffer::create_uniform_buffer(sizeof(Ubo));
-            if (!frame.buffer.get_buffer())
-            {
-                Logger::critical("Failed to create uniform buffer for frame");
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    bool Swapchain::create_descriptor_sets()
-    {
-        for (auto& frame : frames)
-        {
-            frame.descriptor_set = DescriptorPool::create_descriptor_set(descriptor_set_layout);
-            if (!frame.descriptor_set)
-            {
-                Logger::critical("Failed to allocate descriptor set for frame");
-                return false;
-            }
-        }
 
         return true;
     }

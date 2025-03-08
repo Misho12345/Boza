@@ -11,7 +11,7 @@ namespace boza
 
         void destroy() const;
 
-        [[nodiscard]] VkDescriptorSetLayout& get_layout();
+        [[nodiscard]] VkDescriptorSetLayout get_layout() const;
 
     private:
         VkDescriptorSetLayout layout{ nullptr };

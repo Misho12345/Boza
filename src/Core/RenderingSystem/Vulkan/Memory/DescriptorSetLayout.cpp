@@ -1,6 +1,5 @@
 #include "DescriptorSetLayout.hpp"
 
-#include "DescriptorPool.hpp"
 #include "../Device.hpp"
 #include "Logger.hpp"
 
@@ -49,5 +48,5 @@ namespace boza
         vkDestroyDescriptorSetLayout(Device::get_device(), layout, nullptr);
     }
 
-    VkDescriptorSetLayout& DescriptorSetLayout::get_layout() { return layout; }
+    VkDescriptorSetLayout DescriptorSetLayout::get_layout() const { return layout; }
 }

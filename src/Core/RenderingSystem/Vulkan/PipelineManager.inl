@@ -1,0 +1,77 @@
+#pragma once
+#include "PipelineManager.hpp"
+#include "ShaderLoader.hpp"
+#include "Logger.hpp"
+
+namespace boza
+{
+    template<typename Vertex>
+        requires requires
+        {
+            { Vertex::get_binding_description() } -> std::same_as<VkVertexInputBindingDescription>;
+            { Vertex::get_attribute_descriptions() } -> std::same_as<std::vector<VkVertexInputAttributeDescription>>;
+        }
+    pipeline_id PipelineManager::create_pipeline(
+        const std::string&               vertex_shader,
+        const std::string&               fragment_shader,
+        std::vector<DescriptorSetLayout> descriptor_set_layouts,
+        std::vector<VkPushConstantRange> push_constant_ranges,
+        const VkPolygonMode              polygon_mode)
+    {
+        if (vertex_shader.empty() || fragment_shader.empty())
+        {
+            Logger::error("Failed to create pipeline: shader path is empty");
+            return 0;
+        }
+
+        auto& inst = instance();
+
+        VkShaderModule vertex_shader_module;
+        VkShaderModule fragment_shader_module;
+
+        if (inst.shader_modules.contains(vertex_shader))
+        {
+            vertex_shader_module = inst.shader_modules.at(vertex_shader);
+        }
+        else if ((vertex_shader_module = ShaderLoader::create_shader_module(vertex_shader)) != nullptr)
+        {
+            inst.shader_modules.emplace(vertex_shader, vertex_shader_module);
+        }
+        else
+        {
+            Logger::error("Failed to create pipeline: vertex shader creation failed");
+            return 0;
+        }
+
+
+        if (inst.shader_modules.contains(fragment_shader))
+        {
+            fragment_shader_module = inst.shader_modules.at(fragment_shader);
+        }
+        else if ((fragment_shader_module = ShaderLoader::create_shader_module(fragment_shader)) != nullptr)
+        {
+            inst.shader_modules.emplace(fragment_shader, fragment_shader_module);
+        }
+        else
+        {
+            Logger::error("Failed to create pipeline: fragment shader creation failed");
+            return 0;
+        }
+
+
+        const PipelineCreateInfo create_info
+        {
+            .binding_description = Vertex::get_binding_description(),
+            .attribute_descriptions = Vertex::get_attribute_descriptions(),
+            .descriptor_set_layouts = std::move(descriptor_set_layouts),
+            .push_constant_ranges = std::move(push_constant_ranges),
+            .vertex_shader = vertex_shader_module,
+            .fragment_shader = fragment_shader_module,
+            .polygon_mode = polygon_mode
+        };
+
+        Pipeline pipeline{ create_info };
+        inst.pipelines.emplace(inst.next_id, std::move(pipeline));
+        return inst.next_id++;
+    }
+}
