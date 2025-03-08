@@ -11,7 +11,7 @@ namespace boza
             { Vertex::get_binding_description() } -> std::same_as<VkVertexInputBindingDescription>;
             { Vertex::get_attribute_descriptions() } -> std::same_as<std::vector<VkVertexInputAttributeDescription>>;
         }
-    pipeline_id PipelineManager::create_pipeline(
+    pipeline_id_t PipelineManager::create_pipeline(
         const std::string&               vertex_shader,
         const std::string&               fragment_shader,
         std::vector<DescriptorSetLayout> descriptor_set_layouts,
@@ -21,7 +21,7 @@ namespace boza
         if (vertex_shader.empty() || fragment_shader.empty())
         {
             Logger::error("Failed to create pipeline: shader path is empty");
-            return 0;
+            return INVALID_PIPELINE_ID;
         }
 
         auto& inst = instance();
@@ -40,7 +40,7 @@ namespace boza
         else
         {
             Logger::error("Failed to create pipeline: vertex shader creation failed");
-            return 0;
+            return INVALID_PIPELINE_ID;
         }
 
 
@@ -55,7 +55,7 @@ namespace boza
         else
         {
             Logger::error("Failed to create pipeline: fragment shader creation failed");
-            return 0;
+            return INVALID_PIPELINE_ID;
         }
 
 
@@ -71,6 +71,8 @@ namespace boza
         };
 
         Pipeline pipeline{ create_info };
+        if (pipeline.get_pipeline() == nullptr ||
+            pipeline.get_layout() == nullptr) return INVALID_PIPELINE_ID;
         inst.pipelines.emplace(inst.next_id, std::move(pipeline));
         return inst.next_id++;
     }

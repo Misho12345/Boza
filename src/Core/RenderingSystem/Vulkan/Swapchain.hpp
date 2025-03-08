@@ -1,21 +1,24 @@
 #pragma once
 #include "boza_pch.hpp"
 #include "Singleton.hpp"
-#include "Memory/Buffer.hpp"
-#include "Memory/DescriptorSetLayout.hpp"
 
 namespace boza
 {
+    using image_idx_t = uint32_t;
+    constexpr static image_idx_t INVALID_IMAGE_IDX = std::numeric_limits<image_idx_t>::max();
+    constexpr static image_idx_t SKIP_IMAGE_IDX = std::numeric_limits<image_idx_t>::max() - 1;
+
     class Swapchain final : public Singleton<Swapchain>
     {
     public:
+
         [[nodiscard]]
         static bool create();
         static void destroy();
 
         [[nodiscard]] static bool begin_render_pass(uint32_t image_idx);
         [[nodiscard]] static bool end_render_pass(uint32_t image_idx);
-        [[nodiscard]] static uint32_t acquire_next_image();
+        [[nodiscard]] static image_idx_t acquire_next_image();
         [[nodiscard]] static bool submit_and_present(uint32_t image_idx);
 
         [[nodiscard]] static VkSwapchainKHR& get_swapchain();

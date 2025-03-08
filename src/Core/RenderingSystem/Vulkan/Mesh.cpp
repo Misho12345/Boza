@@ -2,6 +2,12 @@
 
 namespace boza
 {
+    Mesh::~Mesh()
+    {
+        vertex_buffer.destroy();
+        index_buffer.destroy();
+    }
+
     Mesh::Mesh(Mesh&& other) noexcept :
         vertex_buffer(std::move(other.vertex_buffer)),
         index_buffer(std::move(other.index_buffer))
@@ -22,12 +28,6 @@ namespace boza
         }
 
         return *this;
-    }
-
-    void Mesh::destroy()
-    {
-        vertex_buffer.destroy();
-        index_buffer.destroy();
     }
 
     void Mesh::bind(const VkCommandBuffer command_buffer) const

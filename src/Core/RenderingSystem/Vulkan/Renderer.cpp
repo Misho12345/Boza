@@ -6,6 +6,7 @@
 #include "CommandPool.hpp"
 #include "Memory/Allocator.hpp"
 #include "Memory/DescriptorPool.hpp"
+#include "MeshManager.hpp"
 
 namespace boza
 {
@@ -24,27 +25,52 @@ namespace boza
         if (!try_(DescriptorPool::create(), "Failed to create descriptor pool!")) return false;
         if (!try_(Swapchain::create(), "Failed to create swapchain!")) return false;
 
-        const pipeline_id default_pipeline = PipelineManager::create_pipeline<Vertex>(
+        const pipeline_id_t default_pipeline = PipelineManager::create_pipeline<Vertex>(
             "default.vert", "default.frag",
             {}, {});
 
-        instance().mesh = Mesh::create<Vertex>(
+        const auto mesh1 = MeshManager::create_mesh<Vertex>(
             {
-                { glm::vec4{ -0.5f, -0.5f, 0.0f, 1.0f }, glm::vec4{ 1, 0, 0, 1 } },
-                { glm::vec4{ 0.5f, -0.5f, 0.0f, 1.0f }, glm::vec4{ 1, 1, 1, 1 } },
-                { glm::vec4{ 0.5f, 0.5f, 0.0f, 1.0f }, glm::vec4{ 0, 0, 1, 1 } },
-                { glm::vec4{ -0.5f, 0.5f, 0.0f, 1.0f }, glm::vec4{ 0, 1, 0, 1 } },
+                { glm::vec3{ -1.0f, -1.0f, 0.0f } * 0.8, glm::vec3{ 1.0, 0.0, 0.0 } },
+                { glm::vec3{  1.0f, -1.0f, 0.0f } * 0.8, glm::vec3{ 0.0, 1.0, 0.0 } },
+                { glm::vec3{  0.0f, -0.5f, 0.0f } * 0.8, glm::vec3{ 0.0, 0.0, 1.0 } },
+            },
+            { 0, 1, 2 });
+
+        const auto mesh2 = MeshManager::create_mesh<Vertex>(
+            {
+                { glm::vec3{  1.0f,  1.0f, 0.0f } * 0.5, glm::vec3{ 0.0, 1.0, 1.0 } },
+                { glm::vec3{ -1.0f,  1.0f, 0.0f } * 0.5, glm::vec3{ 1.0, 0.0, 1.0 } },
+                { glm::vec3{  0.0f,  0.5f, 0.0f } * 0.5, glm::vec3{ 1.0, 1.0, 0.0 } },
+            },
+            { 0, 1, 2 });
+
+        const auto mesh3 = MeshManager::create_mesh<Vertex>(
+            {
+                { glm::vec3{ 0.0f, 0.0f, 0.0f } * 0.5, glm::vec3{ 1.0, 0.0, 0.0 } },
+                { glm::vec3{ 1.0f, 0.0f, 0.0f } * 0.5, glm::vec3{ 1.0, 0.0, 0.0 } },
+                { glm::vec3{ 0.8f, 0.5f, 0.0f } * 0.5, glm::vec3{ 1.0, 0.0, 0.0 } },
+                { glm::vec3{ 0.0f, 0.5f, 0.0f } * 0.5, glm::vec3{ 1.0, 0.0, 0.0 } },
             },
             { 0, 1, 2, 0, 2, 3 });
 
-        submit({ &*instance().mesh, default_pipeline });
+        if (mesh1 == INVALID_MESH_ID || mesh2 == INVALID_MESH_ID || mesh3 == INVALID_MESH_ID)
+        {
+            Logger::error("Failed to create meshes");
+            shutdown();
+            return false;
+        }
+
+        submit({ mesh1, default_pipeline });
+        submit({ mesh2, default_pipeline });
+        submit({ mesh3, default_pipeline });
 
         return true;
     }
 
     void Renderer::shutdown()
     {
-        instance().mesh->destroy();
+        MeshManager::cleanup();
         PipelineManager::cleanup();
 
         Swapchain::destroy();
@@ -57,9 +83,9 @@ namespace boza
 
     bool Renderer::render()
     {
-        const uint32_t image_idx = Swapchain::acquire_next_image();
-        if (image_idx == UINT32_MAX) return true;
-        if (image_idx == UINT32_MAX - 1)
+        const auto image_idx = Swapchain::acquire_next_image();
+        if (image_idx == SKIP_IMAGE_IDX) return true;
+        if (image_idx == INVALID_IMAGE_IDX)
         {
             Logger::error("Failed to acquire next image!");
             return false;
@@ -77,8 +103,8 @@ namespace boza
         {
             PipelineManager::bind_pipeline(command_buffer, pipeline);
 
-            mesh->bind(command_buffer);
-            mesh->draw(command_buffer);
+            MeshManager::bind(command_buffer, mesh);
+            MeshManager::draw(command_buffer, mesh);
         }
 
         if (!Swapchain::end_render_pass(image_idx))
@@ -119,12 +145,12 @@ namespace boza
 
         attribute_descriptions[0].binding  = 0;
         attribute_descriptions[0].location = 0;
-        attribute_descriptions[0].format   = VK_FORMAT_R32G32B32A32_SFLOAT;
+        attribute_descriptions[0].format   = VK_FORMAT_R32G32B32_SFLOAT;
         attribute_descriptions[0].offset   = offsetof(Vertex, position);
 
         attribute_descriptions[1].binding  = 0;
         attribute_descriptions[1].location = 1;
-        attribute_descriptions[1].format   = VK_FORMAT_R32G32B32A32_SFLOAT;
+        attribute_descriptions[1].format   = VK_FORMAT_R32G32B32_SFLOAT;
         attribute_descriptions[1].offset   = offsetof(Vertex, color);
 
         return attribute_descriptions;

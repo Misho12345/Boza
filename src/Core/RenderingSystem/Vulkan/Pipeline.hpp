@@ -20,12 +20,9 @@ namespace boza
     class Pipeline final
     {
     public:
-        explicit Pipeline(const PipelineCreateInfo& create_info);
         ~Pipeline();
-
         Pipeline(const Pipeline&) = delete;
         Pipeline& operator=(const Pipeline&) = delete;
-
         Pipeline(Pipeline&& other) noexcept;
         Pipeline& operator=(Pipeline&& other) noexcept;
 
@@ -33,6 +30,9 @@ namespace boza
         VkPipelineLayout& get_layout();
 
     private:
+        friend class PipelineManager;
+
+        explicit Pipeline(const PipelineCreateInfo& create_info);
         bool create_pipeline(const PipelineCreateInfo& create_info);
         bool create_pipeline_layout(const PipelineCreateInfo& create_info);
 

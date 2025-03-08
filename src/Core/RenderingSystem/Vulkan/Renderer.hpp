@@ -1,6 +1,7 @@
 #pragma once
 #include "Singleton.hpp"
 #include "Mesh.hpp"
+#include "MeshManager.hpp"
 #include "PipelineManager.hpp"
 
 namespace boza
@@ -10,8 +11,8 @@ namespace boza
     public:
         struct RenderObject
         {
-            const Mesh* mesh;
-            pipeline_id pipeline;
+            mesh_id_t mesh;
+            pipeline_id_t pipeline;
         };
 
         static bool initialize();
@@ -27,11 +28,10 @@ namespace boza
             static VkVertexInputBindingDescription get_binding_description();
             static std::vector<VkVertexInputAttributeDescription> get_attribute_descriptions();
 
-            glm::vec4 position;
-            glm::vec4 color;
+            glm::vec3 position;
+            glm::vec3 color;
         };
 
         std::vector<RenderObject> render_queue;
-        std::optional<Mesh> mesh;
     };
 }

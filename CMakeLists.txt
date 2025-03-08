@@ -93,6 +93,9 @@ add_library(BozaEngine SHARED
         src/Core/Components/GameObjData.hpp
         src/Core/Components/Transform.hpp
         src/Core/Components/Behaviour.hpp
+        src/Core/RenderingSystem/Vulkan/MeshManager.cpp
+        src/Core/RenderingSystem/Vulkan/MeshManager.hpp
+        src/Core/RenderingSystem/Vulkan/MeshManager.inl
 )
 
 target_precompile_headers(BozaEngine PRIVATE src/boza_pch.hpp)

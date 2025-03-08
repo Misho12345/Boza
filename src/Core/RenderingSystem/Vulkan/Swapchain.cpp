@@ -58,9 +58,19 @@ namespace boza
         should_recreate = false;
         Logger::trace("Recreating swapchain {} x {}", Window::get_width(), Window::get_height());
 
-        Device::wait_idle();
-
         const auto& device = Device::get_device();
+
+        std::vector<VkFence> fences_to_wait;
+        for (const auto& frame : frames)
+            fences_to_wait.push_back(frame.in_flight_fence);
+
+        VK_CHECK(vkWaitForFences(device, static_cast<uint32_t>(fences_to_wait.size()),
+                                fences_to_wait.data(), VK_TRUE, UINT64_MAX),
+        {
+            LOG_VK_ERROR("Failed to wait for fences during swapchain recreation");
+            return false;
+        });
+
         const auto old_swapchain = swapchain;
 
         for (const auto& image_view : image_views)
@@ -72,7 +82,7 @@ namespace boza
         std::vector<VkCommandBuffer> command_buffers(max_frames_in_flight);
         for (const auto& frame : frames)
             command_buffers.push_back(frame.command_buffer);
-        vkFreeCommandBuffers(Device::get_device(), CommandPool::get_command_pool(), max_frames_in_flight, command_buffers.data());
+        vkFreeCommandBuffers(device, CommandPool::get_command_pool(), max_frames_in_flight, command_buffers.data());
 
         if (!query_swapchain_support()) return false;
 
@@ -86,7 +96,7 @@ namespace boza
         if (!create_command_buffers()) return false;
 
         if (old_swapchain != nullptr)
-            vkDestroySwapchainKHR(Device::get_device(), old_swapchain, nullptr);
+            vkDestroySwapchainKHR(device, old_swapchain, nullptr);
 
         Frame::current_frame = 0;
         return true;
@@ -267,7 +277,7 @@ namespace boza
         return true;
     }
 
-    uint32_t Swapchain::acquire_next_image()
+    image_idx_t Swapchain::acquire_next_image()
     {
         auto& inst = instance();
         const auto& device = Device::get_device();
@@ -277,23 +287,23 @@ namespace boza
             if (Window::is_minimized())
             {
                 inst.should_recreate = true;
-                return UINT32_MAX;
+                return SKIP_IMAGE_IDX;
             }
 
             if (!inst.recreate())
             {
                 Logger::error("Failed to recreate swapchain");
-                return UINT32_MAX - 1;
+                return INVALID_IMAGE_IDX;
             }
 
-            return UINT32_MAX;
+            return SKIP_IMAGE_IDX;
         }
 
-        if (Window::is_minimized()) return UINT32_MAX;
+        if (Window::is_minimized()) return SKIP_IMAGE_IDX;
         if (inst.should_recreate && !inst.recreate())
         {
             Logger::error("Failed to recreate swapchain");
-            return UINT32_MAX - 1;
+            return INVALID_IMAGE_IDX;
         }
 
         auto& [command_buffer,
@@ -304,16 +314,16 @@ namespace boza
         VK_CHECK(vkWaitForFences(device, 1, &in_flight_fence, VK_TRUE, UINT64_MAX),
         {
             LOG_VK_ERROR("Failed to wait for in-flight fence");
-            return UINT32_MAX - 1;
+            return INVALID_IMAGE_IDX;
         });
 
         VK_CHECK(vkResetFences(device, 1, &in_flight_fence),
         {
             LOG_VK_ERROR("Failed to reset in-flight fence");
-            return UINT32_MAX - 1;
+            return INVALID_IMAGE_IDX;
         });
 
-        uint32_t image_idx;
+        image_idx_t image_idx;
 
         if (const auto result = vkAcquireNextImageKHR(device, inst.swapchain, UINT64_MAX,
                                                       image_available_semaphore, nullptr, &image_idx);
@@ -322,21 +332,21 @@ namespace boza
             if (Window::is_minimized())
             {
                 inst.should_recreate = true;
-                return UINT32_MAX;
+                return SKIP_IMAGE_IDX;
             }
 
             if (!inst.recreate())
             {
                 Logger::error("Failed to recreate swapchain");
-                return UINT32_MAX - 1;
+                return INVALID_IMAGE_IDX;
             }
 
-            return UINT32_MAX;
+            return SKIP_IMAGE_IDX;
         }
         else if (result != VK_SUCCESS)
         {
             LOG_VK_ERROR("Failed to acquire next image");
-            return UINT32_MAX - 1;
+            return INVALID_IMAGE_IDX;
         }
 
         return image_idx;
