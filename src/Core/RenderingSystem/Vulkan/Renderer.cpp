@@ -30,29 +30,29 @@ namespace boza
             {}, {});
 
         const auto mesh1 = MeshManager::create_mesh<Vertex>(
-            {
-                { glm::vec3{ -1.0f, -1.0f, 0.0f } * 0.8, glm::vec3{ 1.0, 0.0, 0.0 } },
-                { glm::vec3{  1.0f, -1.0f, 0.0f } * 0.8, glm::vec3{ 0.0, 1.0, 0.0 } },
-                { glm::vec3{  0.0f, -0.5f, 0.0f } * 0.8, glm::vec3{ 0.0, 0.0, 1.0 } },
-            },
-            { 0, 1, 2 });
+        {
+            { glm::vec3{ -1.0f, -1.0f, 0.0f } * 0.8, glm::vec3{ 1.0, 0.0, 0.0 } },
+            { glm::vec3{  1.0f, -1.0f, 0.0f } * 0.8, glm::vec3{ 0.0, 1.0, 0.0 } },
+            { glm::vec3{  0.0f, -0.5f, 0.0f } * 0.8, glm::vec3{ 0.0, 0.0, 1.0 } },
+        },
+        { 0, 1, 2 });
 
         const auto mesh2 = MeshManager::create_mesh<Vertex>(
-            {
-                { glm::vec3{  1.0f,  1.0f, 0.0f } * 0.5, glm::vec3{ 0.0, 1.0, 1.0 } },
-                { glm::vec3{ -1.0f,  1.0f, 0.0f } * 0.5, glm::vec3{ 1.0, 0.0, 1.0 } },
-                { glm::vec3{  0.0f,  0.5f, 0.0f } * 0.5, glm::vec3{ 1.0, 1.0, 0.0 } },
-            },
-            { 0, 1, 2 });
+        {
+            { glm::vec3{  1.0f,  1.0f, 0.0f } * 0.5, glm::vec3{ 0.0, 1.0, 1.0 } },
+            { glm::vec3{ -1.0f,  1.0f, 0.0f } * 0.5, glm::vec3{ 1.0, 0.0, 1.0 } },
+            { glm::vec3{  0.0f,  0.5f, 0.0f } * 0.5, glm::vec3{ 1.0, 1.0, 0.0 } },
+        },
+        { 0, 1, 2 });
 
         const auto mesh3 = MeshManager::create_mesh<Vertex>(
-            {
-                { glm::vec3{ 0.0f, 0.0f, 0.0f } * 0.5, glm::vec3{ 1.0, 0.0, 0.0 } },
-                { glm::vec3{ 1.0f, 0.0f, 0.0f } * 0.5, glm::vec3{ 1.0, 0.0, 0.0 } },
-                { glm::vec3{ 0.8f, 0.5f, 0.0f } * 0.5, glm::vec3{ 1.0, 0.0, 0.0 } },
-                { glm::vec3{ 0.0f, 0.5f, 0.0f } * 0.5, glm::vec3{ 1.0, 0.0, 0.0 } },
-            },
-            { 0, 1, 2, 0, 2, 3 });
+        {
+            { glm::vec3{ 0.0f, 0.0f, 0.0f } * 0.5, glm::vec3{ 1.0, 0.0, 0.0 } },
+            { glm::vec3{ 1.0f, 0.0f, 0.0f } * 0.5, glm::vec3{ 1.0, 0.0, 0.0 } },
+            { glm::vec3{ 0.8f, 0.5f, 0.0f } * 0.5, glm::vec3{ 1.0, 0.0, 0.0 } },
+            { glm::vec3{ 0.0f, 0.5f, 0.0f } * 0.5, glm::vec3{ 1.0, 0.0, 0.0 } },
+        },
+        { 0, 1, 2, 0, 2, 3 });
 
         if (mesh1 == INVALID_MESH_ID || mesh2 == INVALID_MESH_ID || mesh3 == INVALID_MESH_ID)
         {

@@ -60,16 +60,8 @@ namespace boza
 
         const auto& device = Device::get_device();
 
-        std::vector<VkFence> fences_to_wait;
-        for (const auto& frame : frames)
-            fences_to_wait.push_back(frame.in_flight_fence);
-
-        VK_CHECK(vkWaitForFences(device, static_cast<uint32_t>(fences_to_wait.size()),
-                                fences_to_wait.data(), VK_TRUE, UINT64_MAX),
-        {
-            LOG_VK_ERROR("Failed to wait for fences during swapchain recreation");
-            return false;
-        });
+        vkQueueWaitIdle(Device::get_graphics_queue());
+        vkQueueWaitIdle(Device::get_present_queue());
 
         const auto old_swapchain = swapchain;
 
@@ -79,10 +71,20 @@ namespace boza
         images.clear();
         image_layouts.clear();
 
-        std::vector<VkCommandBuffer> command_buffers(max_frames_in_flight);
+        std::vector<VkCommandBuffer> command_buffers;
+        command_buffers.reserve(max_frames_in_flight);
         for (const auto& frame : frames)
-            command_buffers.push_back(frame.command_buffer);
-        vkFreeCommandBuffers(device, CommandPool::get_command_pool(), max_frames_in_flight, command_buffers.data());
+        {
+            if (frame.command_buffer != nullptr)
+                command_buffers.push_back(frame.command_buffer);
+
+            vkDestroySemaphore(device, frame.render_finished_semaphore, nullptr);
+            vkDestroySemaphore(device, frame.image_available_semaphore, nullptr);
+            vkDestroyFence(device, frame.in_flight_fence, nullptr);
+        }
+
+        if (!command_buffers.empty())
+            vkFreeCommandBuffers(device, CommandPool::get_command_pool(), static_cast<uint32_t>(command_buffers.size()), command_buffers.data());
 
         if (!query_swapchain_support()) return false;
 
@@ -94,6 +96,7 @@ namespace boza
 
         if (!create_image_views()) return false;
         if (!create_command_buffers()) return false;
+        if (!create_sync_objects()) return false;
 
         if (old_swapchain != nullptr)
             vkDestroySwapchainKHR(device, old_swapchain, nullptr);
@@ -282,7 +285,7 @@ namespace boza
         auto& inst = instance();
         const auto& device = Device::get_device();
 
-        if (Window::has_window_resized())
+        if (Window::has_window_resized() || inst.should_recreate)
         {
             if (Window::is_minimized())
             {
@@ -300,11 +303,6 @@ namespace boza
         }
 
         if (Window::is_minimized()) return SKIP_IMAGE_IDX;
-        if (inst.should_recreate && !inst.recreate())
-        {
-            Logger::error("Failed to recreate swapchain");
-            return INVALID_IMAGE_IDX;
-        }
 
         auto& [command_buffer,
             in_flight_fence,
@@ -325,22 +323,10 @@ namespace boza
 
         image_idx_t image_idx;
 
-        if (const auto result = vkAcquireNextImageKHR(device, inst.swapchain, UINT64_MAX,
-                                                      image_available_semaphore, nullptr, &image_idx);
+        if (const VkResult result = vkAcquireNextImageKHR(device, inst.swapchain, UINT64_MAX, image_available_semaphore, nullptr, &image_idx);
             result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
         {
-            if (Window::is_minimized())
-            {
-                inst.should_recreate = true;
-                return SKIP_IMAGE_IDX;
-            }
-
-            if (!inst.recreate())
-            {
-                Logger::error("Failed to recreate swapchain");
-                return INVALID_IMAGE_IDX;
-            }
-
+            inst.should_recreate = true;
             return SKIP_IMAGE_IDX;
         }
         else if (result != VK_SUCCESS)
@@ -455,7 +441,7 @@ namespace boza
     VkCommandBuffer& Swapchain::get_current_command_buffer() { return instance().frames[Frame::current_frame].command_buffer; }
 
 
-    bool Swapchain::create_swapchain(const VkSwapchainKHR old_swapchain)
+    bool Swapchain::create_swapchain(VkSwapchainKHR old_swapchain)
     {
         choose_surface_format();
         const VkPresentModeKHR present_mode = choose_present_mode();

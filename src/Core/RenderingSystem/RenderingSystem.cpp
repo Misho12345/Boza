@@ -5,7 +5,6 @@
 #include "Core/JobSystem/JobSystem.hpp"
 
 #include "Vulkan/Device.hpp"
-#include "Vulkan/Swapchain.hpp"
 #include "Vulkan/Renderer.hpp"
 
 namespace boza

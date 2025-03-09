@@ -2,7 +2,6 @@
 
 #include "Instance.hpp"
 #include "Logger.hpp"
-#include "Swapchain.hpp"
 #include "Core/Window.hpp"
 
 namespace boza
