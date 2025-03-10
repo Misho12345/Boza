@@ -232,7 +232,7 @@ namespace boza
         std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
         descriptor_set_layouts.reserve(create_info.descriptor_set_layouts.size());
         for (const auto& set_layout : create_info.descriptor_set_layouts)
-            descriptor_set_layouts.push_back(set_layout.get_layout());
+            descriptor_set_layouts.push_back(set_layout);
 
         const VkPipelineLayoutCreateInfo layout_info
         {

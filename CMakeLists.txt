@@ -76,8 +76,6 @@ add_library(BozaEngine SHARED
         src/Core/RenderingSystem/Vulkan/Memory/Allocator.cpp
         src/Core/RenderingSystem/Vulkan/Memory/DescriptorPool.cpp
         src/Core/RenderingSystem/Vulkan/Memory/DescriptorPool.hpp
-        src/Core/RenderingSystem/Vulkan/Memory/DescriptorSetLayout.cpp
-        src/Core/RenderingSystem/Vulkan/Memory/DescriptorSetLayout.hpp
 
         src/Core/GameObject.hpp
         src/Core/GameObject.inl
@@ -96,6 +94,11 @@ add_library(BozaEngine SHARED
         src/Core/RenderingSystem/Vulkan/MeshManager.cpp
         src/Core/RenderingSystem/Vulkan/MeshManager.hpp
         src/Core/RenderingSystem/Vulkan/MeshManager.inl
+        src/Core/RenderingSystem/Vulkan/Memory/DescriptorSet.cpp
+        src/Core/RenderingSystem/Vulkan/Memory/DescriptorSet.hpp
+        src/Core/RenderingSystem/Vulkan/Memory/DescriptorSet.inl
+        src/Core/RenderingSystem/Vulkan/Memory/Texture.cpp
+        src/Core/RenderingSystem/Vulkan/Memory/Texture.hpp
 )
 
 target_precompile_headers(BozaEngine PRIVATE src/boza_pch.hpp)

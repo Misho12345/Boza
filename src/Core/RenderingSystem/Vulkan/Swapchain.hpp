@@ -26,9 +26,12 @@ namespace boza
         [[nodiscard]] static VkExtent2D& get_extent();
         [[nodiscard]] static VkCommandBuffer& get_current_command_buffer();
 
+        [[nodiscard]] static uint32_t current_frame_idx();
+
+        static constexpr uint32_t max_frames_in_flight = 2;
+
     private:
         static constexpr uint32_t preferred_swapchain_image_count = 3;
-        static constexpr uint32_t max_frames_in_flight = 2;
 
         struct Frame
         {

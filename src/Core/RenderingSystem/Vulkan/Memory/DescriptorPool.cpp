@@ -37,27 +37,5 @@ namespace boza
         vkDestroyDescriptorPool(Device::get_device(), instance().descriptor_pool, nullptr);
     }
 
-    VkDescriptorSet DescriptorPool::create_descriptor_set(const DescriptorSetLayout& layout)
-    {
-        const VkDescriptorSetLayout layout_ = layout.get_layout();
-        const VkDescriptorSetAllocateInfo alloc_info
-        {
-            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-            .pNext = {},
-            .descriptorPool = get_descriptor_pool(),
-            .descriptorSetCount = 1,
-            .pSetLayouts = &layout_
-        };
-
-        VkDescriptorSet descriptor_set;
-        VK_CHECK(vkAllocateDescriptorSets(Device::get_device(), &alloc_info, &descriptor_set),
-        {
-            LOG_VK_ERROR("Failed to allocate descriptor set");
-            return {};
-        });
-
-        return descriptor_set;
-    }
-
     VkDescriptorPool& DescriptorPool::get_descriptor_pool() { return instance().descriptor_pool; }
 }

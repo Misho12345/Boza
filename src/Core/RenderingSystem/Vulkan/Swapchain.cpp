@@ -439,6 +439,7 @@ namespace boza
     VkFormat&        Swapchain::get_format() { return instance().surface_format.format; }
     VkExtent2D&      Swapchain::get_extent() { return instance().extent; }
     VkCommandBuffer& Swapchain::get_current_command_buffer() { return instance().frames[Frame::current_frame].command_buffer; }
+    uint32_t Swapchain::current_frame_idx() { return Frame::current_frame; }
 
 
     bool Swapchain::create_swapchain(VkSwapchainKHR old_swapchain)

@@ -3,6 +3,7 @@
 #include "Mesh.hpp"
 #include "MeshManager.hpp"
 #include "PipelineManager.hpp"
+#include "Memory/DescriptorSet.hpp"
 
 namespace boza
 {
@@ -30,8 +31,29 @@ namespace boza
 
             glm::vec3 position;
             glm::vec3 color;
+            glm::vec2 tex_coord;
         };
 
+        struct UBO1
+        {
+            glm::vec2 offset;
+        };
+
+        struct UBO2
+        {
+            glm::vec2 scale;
+        };
+
+        struct PushConstant
+        {
+            float rotation_angle;
+        };
+
+        DescriptorSet descriptor_set{};
+        Texture texture{};
+        descriptor_set_binding binding0{ 0 };
+        descriptor_set_binding binding1{ 0 };
+        descriptor_set_binding binding2{ 0 };
         std::vector<RenderObject> render_queue;
     };
 }

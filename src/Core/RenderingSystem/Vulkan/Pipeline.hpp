@@ -1,6 +1,5 @@
 #pragma once
 #include "boza_pch.hpp"
-#include "Memory/DescriptorSetLayout.hpp"
 
 namespace boza
 {
@@ -8,7 +7,7 @@ namespace boza
     {
         VkVertexInputBindingDescription binding_description;
         std::vector<VkVertexInputAttributeDescription> attribute_descriptions;
-        std::vector<DescriptorSetLayout> descriptor_set_layouts;
+        std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
         std::vector<VkPushConstantRange> push_constant_ranges;
 
         VkShaderModule vertex_shader{ nullptr };

@@ -12,11 +12,11 @@ namespace boza
             { Vertex::get_attribute_descriptions() } -> std::same_as<std::vector<VkVertexInputAttributeDescription>>;
         }
     pipeline_id_t PipelineManager::create_pipeline(
-        const std::string&               vertex_shader,
-        const std::string&               fragment_shader,
-        std::vector<DescriptorSetLayout> descriptor_set_layouts,
-        std::vector<VkPushConstantRange> push_constant_ranges,
-        const VkPolygonMode              polygon_mode)
+        const std::string&                 vertex_shader,
+        const std::string&                 fragment_shader,
+        std::vector<VkDescriptorSetLayout> descriptor_set_layouts,
+        std::vector<VkPushConstantRange>   push_constant_ranges,
+        const VkPolygonMode                polygon_mode)
     {
         if (vertex_shader.empty() || fragment_shader.empty())
         {

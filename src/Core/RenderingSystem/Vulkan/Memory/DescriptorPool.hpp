@@ -1,6 +1,5 @@
 #pragma once
 #include "boza_pch.hpp"
-#include "DescriptorSetLayout.hpp"
 #include "Singleton.hpp"
 
 namespace boza
@@ -11,8 +10,6 @@ namespace boza
         [[nodiscard]]
         static bool create();
         static void destroy();
-
-        static VkDescriptorSet create_descriptor_set(const DescriptorSetLayout& layout);
 
         [[nodiscard]] static VkDescriptorPool& get_descriptor_pool();
 
