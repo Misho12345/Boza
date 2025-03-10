@@ -28,7 +28,7 @@ namespace boza
 
         auto& inst = instance();
 
-        inst.texture = std::move(Texture::create_from_file("textures/image.png"));
+        inst.texture = std::move(Texture::create_from_file("textures/dancho.jpg"));
         if (inst.texture.get_image_view() == nullptr || inst.texture.get_sampler() == nullptr)
         {
             Logger::error("Texture loading failed or has invalid image view/sampler!");
