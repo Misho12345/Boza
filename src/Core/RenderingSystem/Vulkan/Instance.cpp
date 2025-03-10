@@ -66,12 +66,11 @@ namespace boza
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         #endif
 
-        const char* layers[]
-        {
-            #ifdef _DEBUG
-            "VK_LAYER_KHRONOS_validation"
-            #endif
-        };
+        #ifdef _DEBUG
+        std::array layers { "VK_LAYER_KHRONOS_validation" };
+        #else
+        std::array<const char*, 0> layers{};
+        #endif
 
         if (!check_extensions_and_layers_support(extensions, layers))
             return false;
@@ -82,8 +81,8 @@ namespace boza
             .pNext = nullptr,
             .flags = {},
             .pApplicationInfo = &app_info,
-            .enabledLayerCount = std::size(layers),
-            .ppEnabledLayerNames = layers,
+            .enabledLayerCount = layers.size(),
+            .ppEnabledLayerNames = layers.data(),
             .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
             .ppEnabledExtensionNames = extensions.data()
         };
