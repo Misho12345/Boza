@@ -43,6 +43,7 @@ namespace boza
     Texture Texture::create_from_file(const std::string& filepath)
     {
         int tex_width, tex_height, tex_channels;
+        stbi_set_flip_vertically_on_load(true);
         stbi_uc* pixels = stbi_load(filepath.c_str(), &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
 
         if (!pixels)
