@@ -30,5 +30,8 @@ namespace boza
         #endif
 
         VkInstance vk_instance{ nullptr };
+
+        friend Singleton;
+        Instance() = default;
     };
 }

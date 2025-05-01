@@ -24,6 +24,9 @@ namespace boza
 
         entt::dispatcher dispatcher;
         std::mutex       mutex;
+
+        friend Singleton;
+        EventSystem() = default;
     };
 }
 

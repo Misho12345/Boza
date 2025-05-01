@@ -1,14 +1,14 @@
 #pragma once
 #include "boza_pch.hpp"
-#include "System.hpp"
-#include "Core/JobSystem/JobSystem.hpp"
+#include "FixedSystem.hpp"
 
 namespace boza
 {
-    class BOZA_API PhysicsSystem final : public System<PhysicsSystem, 50>
+    class BOZA_API PhysicsSystem final : public FixedSystem<PhysicsSystem>
     {
-        void on_begin() override;
         void on_iteration() override;
-        std::vector<JobSystem::task_id> tasks;
+
+        friend Singleton;
+        PhysicsSystem() : FixedSystem{ 50 } {}
     };
 }

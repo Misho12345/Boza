@@ -39,5 +39,8 @@ namespace boza
         GLFWwindow* window{ nullptr };
 
         bool fullscreen{ false };
+
+        friend Singleton;
+        Window() = default;
     };
 }

@@ -1,7 +1,6 @@
 #pragma once
 #include "boza_pch.hpp"
-#include "System.hpp"
-#include "Core/Window.hpp"
+#include "FixedSystem.hpp"
 
 namespace boza
 {
@@ -79,10 +78,8 @@ namespace boza
         MouseMiddle = GLFW_MOUSE_BUTTON_MIDDLE
     };
 
-    class BOZA_API InputSystem final : public System<InputSystem, 120>
+    class BOZA_API InputSystem final : public FixedSystem<InputSystem>
     {
-        friend Singleton;
-
     public:
         template<typename T>
             requires (std::is_same_v<T, MouseWheelAction> || std::is_same_v<T, MouseMoveAction>)
@@ -96,9 +93,6 @@ namespace boza
 
         static void on(Key key, KeyAction action, const std::function<void()>& callback);
         static void on(const std::initializer_list<Key>& combination, const std::function<void()>& callback);
-
-    protected:
-        InputSystem();
 
     private:
         struct KeyCombinationEvent
@@ -140,5 +134,8 @@ namespace boza
         std::vector<std::function<void(double, double)>> mouse_move_events;
 
         hash_map<Key, KeyState> key_states;
+
+        friend Singleton;
+        InputSystem();
     };
 }

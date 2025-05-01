@@ -34,6 +34,9 @@ namespace boza
         hash_map<pipeline_id_t, Pipeline>       pipelines;
         hash_map<std::string, VkShaderModule> shader_modules;
         pipeline_id_t                           next_id{ 0 };
+
+        friend Singleton;
+        PipelineManager() = default;
     };
 }
 

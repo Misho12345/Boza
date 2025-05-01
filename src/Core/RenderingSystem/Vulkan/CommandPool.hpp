@@ -21,5 +21,8 @@ namespace boza
     private:
         VkCommandPool command_pool{ nullptr };
         VkCommandBuffer command_buffer{ nullptr };
+
+        friend Singleton;
+        CommandPool() = default;
     };
 }

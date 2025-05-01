@@ -24,6 +24,9 @@ namespace boza
     private:
         hash_map<mesh_id_t, Mesh> meshes;
         mesh_id_t                 next_id{ 0 };
+
+        friend Singleton;
+        MeshManager() = default;
     };
 }
 

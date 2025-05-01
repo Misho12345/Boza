@@ -15,5 +15,8 @@ namespace boza
 
     private:
         VkDescriptorPool descriptor_pool{ nullptr };
+
+        friend Singleton;
+        DescriptorPool() = default;
     };
 }

@@ -33,7 +33,6 @@ add_library(BozaEngine SHARED
         src/Logger.cpp
 
         src/Singleton.hpp
-        src/System.hpp
 
         src/Core/JobSystem/JobSystem.cpp
         src/Core/JobSystem/JobSystem.hpp
@@ -99,6 +98,9 @@ add_library(BozaEngine SHARED
         src/Core/RenderingSystem/Vulkan/Memory/DescriptorSet.inl
         src/Core/RenderingSystem/Vulkan/Memory/Texture.cpp
         src/Core/RenderingSystem/Vulkan/Memory/Texture.hpp
+        src/SystemBase.hpp
+        src/FixedSystem.hpp
+        src/VariableSystem.hpp
 )
 
 target_precompile_headers(BozaEngine PRIVATE src/boza_pch.hpp)

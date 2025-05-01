@@ -55,5 +55,8 @@ namespace boza
         descriptor_set_binding binding1{ 0 };
         descriptor_set_binding binding2{ 0 };
         std::vector<RenderObject> render_queue;
+
+        friend Singleton;
+        Renderer() = default;
     };
 }

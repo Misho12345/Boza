@@ -14,5 +14,8 @@ namespace boza
 
     private:
         VmaAllocator allocator{ nullptr };
+
+        friend Singleton;
+        Allocator() = default;
     };
 }

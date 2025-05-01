@@ -1,11 +1,12 @@
 #include "InputSystem.hpp"
 #include "Core/JobSystem/JobSystem.hpp"
+#include "Core/Window.hpp"
 
 namespace boza
 {
     constexpr double double_click_timeout = 0.3;
 
-    InputSystem::InputSystem()
+    InputSystem::InputSystem() : FixedSystem{ 240 }
     {
         glfwSetKeyCallback(Window::get_glfw_window(), on_key_callback);
         glfwSetMouseButtonCallback(Window::get_glfw_window(), on_mouse_button_callback);

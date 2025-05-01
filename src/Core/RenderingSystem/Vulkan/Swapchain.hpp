@@ -74,5 +74,8 @@ namespace boza
         std::array<Frame, max_frames_in_flight> frames{};
 
         bool should_recreate{ false };
+
+        friend Singleton;
+        Swapchain() = default;
     };
 }

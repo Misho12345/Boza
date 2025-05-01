@@ -45,5 +45,8 @@ namespace boza
         VkQueue            present_queue{ nullptr };
 
         constexpr static const char* required_extensions[]{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+
+        friend Singleton;
+        Device() = default;
     };
 }

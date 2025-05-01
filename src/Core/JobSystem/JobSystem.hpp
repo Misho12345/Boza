@@ -13,7 +13,7 @@ namespace boza
         SystemShutdown
     };
 
-    class BOZA_API JobSystem final : Singleton<JobSystem>
+    class BOZA_API JobSystem final : public Singleton<JobSystem>
     {
     public:
         using task_id = uint64_t;
@@ -46,5 +46,8 @@ namespace boza
         std::mutex mutex;
         std::atomic_size_t next_task_id;
         std::unordered_map<uint64_t, std::shared_ptr<TaskData>> tasks;
+
+        friend Singleton;
+        JobSystem() = default;
     };
 }
