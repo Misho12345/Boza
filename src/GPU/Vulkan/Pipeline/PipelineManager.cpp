@@ -1,7 +1,7 @@
 #include "PipelineManager.hpp"
 
-#include "CommandPool.hpp"
-#include "Device.hpp"
+#include "GPU/Vulkan/Core/CommandPool.hpp"
+#include "GPU/Vulkan/Core/Device.hpp"
 
 namespace boza
 {

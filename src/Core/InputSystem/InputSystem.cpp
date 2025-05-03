@@ -6,15 +6,6 @@ namespace boza
 {
     constexpr double double_click_timeout = 0.3;
 
-    InputSystem::InputSystem() : FixedSystem{ 240 }
-    {
-        glfwSetKeyCallback(Window::get_glfw_window(), on_key_callback);
-        glfwSetMouseButtonCallback(Window::get_glfw_window(), on_mouse_button_callback);
-        glfwSetScrollCallback(Window::get_glfw_window(), on_scroll_callback);
-        glfwSetCursorPosCallback(Window::get_glfw_window(), on_cursor_pos_callback);
-    }
-
-
     void InputSystem::on_key_callback(GLFWwindow*, const int key_, int, const int action, int)
     {
         auto& inst =  instance();
@@ -104,6 +95,14 @@ namespace boza
         inst.key_combination_events.emplace_back(std::move(event));
     }
 
+
+    void InputSystem::on_begin()
+    {
+        glfwSetKeyCallback(Window::get_glfw_window(), on_key_callback);
+        glfwSetMouseButtonCallback(Window::get_glfw_window(), on_mouse_button_callback);
+        glfwSetScrollCallback(Window::get_glfw_window(), on_scroll_callback);
+        glfwSetCursorPosCallback(Window::get_glfw_window(), on_cursor_pos_callback);
+    }
 
     void InputSystem::on_iteration()
     {

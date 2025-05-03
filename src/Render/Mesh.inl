@@ -1,6 +1,6 @@
 #pragma once
 #include "Mesh.hpp"
-#include "Memory/Buffer.hpp"
+#include "GPU/Vulkan/Memory/Buffer.hpp"
 #include "Logger.hpp"
 
 namespace boza

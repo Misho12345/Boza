@@ -9,10 +9,10 @@ namespace boza
         auto& inst = instance();
 
         VK_CHECK(volkInitialize(),
-        {
-            LOG_VK_ERROR("Failed to initialize Volk");
-            return false;
-        });
+                 {
+                 LOG_VK_ERROR("Failed to initialize Volk");
+                 return false;
+                 });
 
         if (!inst.create_instance(app_name)) return false;
         volkLoadInstance(inst.vk_instance);
@@ -32,17 +32,14 @@ namespace boza
         if (inst.vk_instance == nullptr) return;
 
         #ifdef _DEBUG
-        if (inst.debug_messenger != nullptr)
-            vkDestroyDebugUtilsMessengerEXT(inst.vk_instance, inst.debug_messenger, nullptr);
+        if (inst.debug_messenger != nullptr) vkDestroyDebugUtilsMessengerEXT(
+            inst.vk_instance, inst.debug_messenger, nullptr);
         #endif
 
         vkDestroyInstance(inst.vk_instance, nullptr);
     }
 
-    VkInstance& Instance::get_instance()
-    {
-        return instance().vk_instance;
-    }
+    VkInstance& Instance::get_instance() { return instance().vk_instance; }
 
     bool Instance::create_instance(const std::string_view& app_name)
     {
@@ -58,22 +55,21 @@ namespace boza
         };
 
 
-        uint32_t glfw_extension_count = 0;
-        const char** glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
-        std::vector extensions(glfw_extensions, glfw_extensions + glfw_extension_count);
+        uint32_t     glfw_extension_count = 0;
+        const char** glfw_extensions      = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
+        std::vector  extensions(glfw_extensions, glfw_extensions + glfw_extension_count);
 
         #ifdef _DEBUG
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         #endif
 
         #ifdef _DEBUG
-        std::array layers { "VK_LAYER_KHRONOS_validation" };
+        std::array layers{ "VK_LAYER_KHRONOS_validation" };
         #else
         std::array<const char*, 0> layers{};
         #endif
 
-        if (!check_extensions_and_layers_support(extensions, layers))
-            return false;
+        if (!check_extensions_and_layers_support(extensions, layers)) return false;
 
         const VkInstanceCreateInfo instance_create_info
         {
@@ -88,10 +84,10 @@ namespace boza
         };
 
         VK_CHECK(vkCreateInstance(&instance_create_info, nullptr, &vk_instance),
-        {
-            LOG_VK_ERROR("Failed to create instance");
-            return false;
-        });
+                 {
+                 LOG_VK_ERROR("Failed to create instance");
+                 return false;
+                 });
 
         return true;
     }
@@ -102,17 +98,17 @@ namespace boza
     {
         uint32_t extension_count = 0;
         VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr),
-        {
-            LOG_VK_ERROR("Failed to enumerate extension properties");
-            return false;
-        });
+                 {
+                 LOG_VK_ERROR("Failed to enumerate extension properties");
+                 return false;
+                 });
 
         std::vector<VkExtensionProperties> available_extensions(extension_count);
         VK_CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, available_extensions.data()),
-        {
-            LOG_VK_ERROR("Failed to enumerate extension properties");
-            return false;
-        });
+                 {
+                 LOG_VK_ERROR("Failed to enumerate extension properties");
+                 return false;
+                 });
 
         for (const auto& extension : extensions)
         {
@@ -123,9 +119,9 @@ namespace boza
                 {
                     found = true;
                     Logger::trace("Extension {} ({}.{}.{}) is supported", extension,
-                        VK_API_VERSION_MAJOR(version),
-                        VK_API_VERSION_MINOR(version),
-                        VK_API_VERSION_PATCH(version));
+                                  VK_API_VERSION_MAJOR(version),
+                                  VK_API_VERSION_MINOR(version),
+                                  VK_API_VERSION_PATCH(version));
                     break;
                 }
             }
@@ -139,17 +135,17 @@ namespace boza
 
         uint32_t layer_count = 0;
         VK_CHECK(vkEnumerateInstanceLayerProperties(&layer_count, nullptr),
-        {
-            LOG_VK_ERROR("Failed to enumerate layer properties");
-            return false;
-        });
+                 {
+                 LOG_VK_ERROR("Failed to enumerate layer properties");
+                 return false;
+                 });
 
         std::vector<VkLayerProperties> available_layers(layer_count);
         VK_CHECK(vkEnumerateInstanceLayerProperties(&layer_count, available_layers.data()),
-        {
-            LOG_VK_ERROR("Failed to enumerate layer properties");
-            return false;
-        });
+                 {
+                 LOG_VK_ERROR("Failed to enumerate layer properties");
+                 return false;
+                 });
 
         for (const auto& layer : layers)
         {
@@ -160,9 +156,9 @@ namespace boza
                 {
                     found = true;
                     Logger::trace("Layer {} ({}.{}.{}) is supported", layer,
-                        VK_API_VERSION_MAJOR(spec_version),
-                        VK_API_VERSION_MINOR(spec_version),
-                        VK_API_VERSION_PATCH(spec_version));
+                                  VK_API_VERSION_MAJOR(spec_version),
+                                  VK_API_VERSION_MINOR(spec_version),
+                                  VK_API_VERSION_PATCH(spec_version));
                     break;
                 }
             }
@@ -186,39 +182,44 @@ namespace boza
             .pNext = nullptr,
             .flags = {},
             .messageSeverity =
-                // VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-                VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
-                VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-                VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
+            // VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
             .messageType =
-                // VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-                VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-                VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+            // VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+            VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+            VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
             .pfnUserCallback = [](
-                const VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-                const VkDebugUtilsMessageTypeFlagsEXT        message_type,
-                const VkDebugUtilsMessengerCallbackDataEXT*  callback_data,
-                [[maybe_unused]] void*                       user_data) -> VkBool32
+        const VkDebugUtilsMessageSeverityFlagBitsEXT severity,
+        const VkDebugUtilsMessageTypeFlagsEXT        message_type,
+        const VkDebugUtilsMessengerCallbackDataEXT*  callback_data,
+        [[maybe_unused]] void*                       user_data) -> VkBool32
             {
-                const char* message_type_str;
-                switch (message_type)
+                const char* message_type_str = magic_enum::enum_switch([](auto v)
                 {
-                    case VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT: message_type_str = "General"; break;
-                    case VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT: message_type_str = "Validation"; break;
-                    case VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT: message_type_str = "Performance"; break;
-                    default: message_type_str = "Unknown";
-                }
+                    if constexpr (v == VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT) return "General";
+                    else if constexpr (v == VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT) return "Validation";
+                    else if constexpr (v == VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT) return "Performance";
+
+                    return "Unknown";
+                }, static_cast<VkDebugUtilsMessageTypeFlagBitsEXT>(message_type));
 
                 const std::string message = std::format("Validation layer ({}): {}",
-                    message_type_str, callback_data->pMessage);
+                                                        message_type_str, callback_data->pMessage);
 
                 switch (severity)
                 {
-                    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT: Logger::trace(message); break;
-                    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT: Logger::info(message); break;
-                    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT: Logger::warn(message); break;
-                    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT: Logger::critical(message); break;
-                    default: Logger::error(message); break;
+                    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT: Logger::trace(message);
+                        break;
+                    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT: Logger::info(message);
+                        break;
+                    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT: Logger::warn(message);
+                        break;
+                    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT: Logger::critical(message);
+                        break;
+                    default: Logger::error(message);
+                        break;
                 }
 
                 return VK_TRUE;
@@ -227,10 +228,10 @@ namespace boza
         };
 
         VK_CHECK(vkCreateDebugUtilsMessengerEXT(vk_instance, &debug_messenger_create_info, nullptr, &debug_messenger),
-        {
-            LOG_VK_ERROR("Failed to create debug messenger");
-            return false;
-        });
+                 {
+                 LOG_VK_ERROR("Failed to create debug messenger");
+                 return false;
+                 });
 
         return true;
     }

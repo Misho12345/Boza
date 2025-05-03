@@ -63,15 +63,15 @@ namespace boza
             VkPhysicalDeviceProperties device_properties;
             vkGetPhysicalDeviceProperties(device, &device_properties);
 
-            const char* type;
-            switch (device_properties.deviceType)
+            const char* type = magic_enum::enum_switch([](auto v)
             {
-                case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU: type = "Integrated"; break;
-                case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU: type = "Discrete"; break;
-                case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU: type = "Virtual"; break;
-                case VK_PHYSICAL_DEVICE_TYPE_CPU: type = "CPU"; break;
-                default: type = "Unknown"; break;
-            }
+                if constexpr (v == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) return "Integrated";
+                else if constexpr (v == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) return "Discrete";
+                else if constexpr (v == VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU) return "Virtual";
+                else if constexpr (v == VK_PHYSICAL_DEVICE_TYPE_CPU) return "CPU";
+
+                return "Unknown";
+            }, device_properties.deviceType);
 
             msg += std::format("\n\t ({}) {}", type, device_properties.deviceName);
         }

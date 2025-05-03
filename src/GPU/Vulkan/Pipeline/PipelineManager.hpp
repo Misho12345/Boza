@@ -14,11 +14,6 @@ namespace boza
         static void cleanup();
 
         template<typename Vertex>
-            requires requires
-            {
-                { Vertex::get_binding_description() } -> std::same_as<VkVertexInputBindingDescription>;
-                { Vertex::get_attribute_descriptions() } -> std::same_as<std::vector<VkVertexInputAttributeDescription>>;
-            }
         static pipeline_id_t create_pipeline(
             const std::string&                 vertex_shader,
             const std::string&                 fragment_shader,

@@ -3,8 +3,8 @@
 #include "Logger.hpp"
 #include "Core/GameObject.hpp"
 
-#include "Vulkan/Device.hpp"
-#include "Vulkan/Renderer.hpp"
+#include "GPU/Vulkan/Core/Device.hpp"
+#include "Render/Renderer.hpp"
 
 namespace boza
 {
@@ -13,7 +13,7 @@ namespace boza
         if (!Renderer::initialize())
         {
             Logger::critical("Failed to initialize renderer");
-            stop();
+            stop_flag.store(true);
             return;
         }
 
@@ -28,17 +28,18 @@ namespace boza
     void RenderingSystem::on_iteration()
     {
         hash_set<GameObject*> game_objects = Scene::get_active_scene().get_game_objects();
+        const duration dt = get_delta_time();
 
         for (const auto* game_object : game_objects)
         {
             for (auto* behaviour : game_object->behaviours)
-                behaviour->update();
+                behaviour->update(dt);
         }
 
         for (const auto* game_object : game_objects)
         {
             for (auto* behaviour : game_object->behaviours)
-                behaviour->late_update();
+                behaviour->late_update(dt);
         }
 
         if (!Renderer::render())
@@ -50,6 +51,7 @@ namespace boza
 
     void RenderingSystem::on_end()
     {
+        Logger::trace("RenderingSystem::on_end()");
         Device::wait_idle();
         Renderer::shutdown();
     }

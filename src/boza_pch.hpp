@@ -52,6 +52,8 @@ using namespace std::chrono_literals;
 
 #include <taskflow/taskflow.hpp>
 
+#include <magic_enum/magic_enum_all.hpp>
+
 #include <entt/entt.hpp>
 using namespace entt::literals;
 
@@ -79,4 +81,8 @@ namespace boza
     using hash_map = entt::dense_map<Key, Value>;
 
     using hashed_string = entt::hashed_string;
+
+    using clock      = std::chrono::high_resolution_clock;
+    using time_point = clock::time_point;
+    using duration   = std::chrono::microseconds;
 }

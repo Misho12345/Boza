@@ -1,8 +1,8 @@
 #pragma once
 #include "boza_pch.hpp"
 
-#include "Buffer.hpp"
-#include "Texture.hpp"
+#include "GPU/Vulkan/Memory/Buffer.hpp"
+#include "GPU/Vulkan/Memory/Texture.hpp"
 
 namespace boza
 {

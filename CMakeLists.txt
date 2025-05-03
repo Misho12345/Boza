@@ -34,6 +34,13 @@ add_library(BozaEngine SHARED
 
         src/Singleton.hpp
 
+        src/SystemBase.hpp
+        src/FixedSystem.hpp
+        src/VariableSystem.hpp
+
+        src/Core/App.hpp
+        src/Core/App.cpp
+
         src/Core/JobSystem/JobSystem.cpp
         src/Core/JobSystem/JobSystem.hpp
 
@@ -49,32 +56,40 @@ add_library(BozaEngine SHARED
         src/Core/RenderingSystem/RenderingSystem.hpp
         src/Core/RenderingSystem/RenderingSystem.cpp
 
-        src/Core/RenderingSystem/Vulkan/Renderer.cpp
-        src/Core/RenderingSystem/Vulkan/Renderer.hpp
-        src/Core/RenderingSystem/Vulkan/Instance.hpp
-        src/Core/RenderingSystem/Vulkan/Instance.cpp
-        src/Core/RenderingSystem/Vulkan/Device.hpp
-        src/Core/RenderingSystem/Vulkan/Device.cpp
-        src/Core/RenderingSystem/Vulkan/Swapchain.hpp
-        src/Core/RenderingSystem/Vulkan/Swapchain.cpp
-        src/Core/RenderingSystem/Vulkan/ShaderLoader.hpp
-        src/Core/RenderingSystem/Vulkan/ShaderLoader.cpp
-        src/Core/RenderingSystem/Vulkan/Pipeline.hpp
-        src/Core/RenderingSystem/Vulkan/Pipeline.cpp
-        src/Core/RenderingSystem/Vulkan/PipelineManager.cpp
-        src/Core/RenderingSystem/Vulkan/PipelineManager.hpp
-        src/Core/RenderingSystem/Vulkan/PipelineManager.inl
-        src/Core/RenderingSystem/Vulkan/CommandPool.hpp
-        src/Core/RenderingSystem/Vulkan/CommandPool.cpp
-        src/Core/RenderingSystem/Vulkan/Mesh.cpp
-        src/Core/RenderingSystem/Vulkan/Mesh.hpp
-        src/Core/RenderingSystem/Vulkan/Mesh.inl
-        src/Core/RenderingSystem/Vulkan/Memory/Buffer.hpp
-        src/Core/RenderingSystem/Vulkan/Memory/Buffer.cpp
-        src/Core/RenderingSystem/Vulkan/Memory/Allocator.hpp
-        src/Core/RenderingSystem/Vulkan/Memory/Allocator.cpp
-        src/Core/RenderingSystem/Vulkan/Memory/DescriptorPool.cpp
-        src/Core/RenderingSystem/Vulkan/Memory/DescriptorPool.hpp
+        src/Render/Renderer.cpp
+        src/Render/Renderer.hpp
+        src/GPU/Vulkan/Core/Instance.hpp
+        src/GPU/Vulkan/Core/Instance.cpp
+        src/GPU/Vulkan/Core/Device.hpp
+        src/GPU/Vulkan/Core/Device.cpp
+        src/GPU/Vulkan/Core/Swapchain.hpp
+        src/GPU/Vulkan/Core/Swapchain.cpp
+        src/GPU/Vulkan/Pipeline/ShaderLoader.hpp
+        src/GPU/Vulkan/Pipeline/ShaderLoader.cpp
+        src/GPU/Vulkan/Pipeline/Pipeline.hpp
+        src/GPU/Vulkan/Pipeline/Pipeline.cpp
+        src/GPU/Vulkan/Pipeline/PipelineManager.cpp
+        src/GPU/Vulkan/Pipeline/PipelineManager.hpp
+        src/GPU/Vulkan/Pipeline/PipelineManager.inl
+        src/GPU/Vulkan/Core/CommandPool.hpp
+        src/GPU/Vulkan/Core/CommandPool.cpp
+        src/Render/Mesh.cpp
+        src/Render/Mesh.hpp
+        src/Render/Mesh.inl
+        src/GPU/Vulkan/Memory/Buffer.hpp
+        src/GPU/Vulkan/Memory/Buffer.cpp
+        src/GPU/Vulkan/Memory/Allocator.hpp
+        src/GPU/Vulkan/Memory/Allocator.cpp
+        src/GPU/Vulkan/Descriptor/DescriptorPool.cpp
+        src/GPU/Vulkan/Descriptor/DescriptorPool.hpp
+        src/Render/MeshManager.cpp
+        src/Render/MeshManager.hpp
+        src/Render/MeshManager.inl
+        src/GPU/Vulkan/Descriptor/DescriptorSet.cpp
+        src/GPU/Vulkan/Descriptor/DescriptorSet.hpp
+        src/GPU/Vulkan/Descriptor/DescriptorSet.inl
+        src/GPU/Vulkan/Memory/Texture.cpp
+        src/GPU/Vulkan/Memory/Texture.hpp
 
         src/Core/GameObject.hpp
         src/Core/GameObject.inl
@@ -90,17 +105,7 @@ add_library(BozaEngine SHARED
         src/Core/Components/GameObjData.hpp
         src/Core/Components/Transform.hpp
         src/Core/Components/Behaviour.hpp
-        src/Core/RenderingSystem/Vulkan/MeshManager.cpp
-        src/Core/RenderingSystem/Vulkan/MeshManager.hpp
-        src/Core/RenderingSystem/Vulkan/MeshManager.inl
-        src/Core/RenderingSystem/Vulkan/Memory/DescriptorSet.cpp
-        src/Core/RenderingSystem/Vulkan/Memory/DescriptorSet.hpp
-        src/Core/RenderingSystem/Vulkan/Memory/DescriptorSet.inl
-        src/Core/RenderingSystem/Vulkan/Memory/Texture.cpp
-        src/Core/RenderingSystem/Vulkan/Memory/Texture.hpp
-        src/SystemBase.hpp
-        src/FixedSystem.hpp
-        src/VariableSystem.hpp
+        src/GPU/Vulkan/Vertex/VertexLayout.hpp
 )
 
 target_precompile_headers(BozaEngine PRIVATE src/boza_pch.hpp)
@@ -121,6 +126,8 @@ find_package(Stb REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(Lua REQUIRED)
 find_package(Taskflow CONFIG REQUIRED)
+find_package(magic_enum CONFIG REQUIRED)
+find_package(boost_pfr CONFIG REQUIRED)
 
 target_link_libraries(BozaEngine PUBLIC
         Vulkan::Headers
@@ -137,6 +144,8 @@ target_link_libraries(BozaEngine PUBLIC
         SndFile::sndfile
         ${LUA_LIBRARIES}
         Taskflow::Taskflow
+        magic_enum::magic_enum
+        Boost::pfr
 )
 
 add_executable(BozaExample

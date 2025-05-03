@@ -3,8 +3,8 @@
 
 #include "Allocator.hpp"
 
-#include "../Instance.hpp"
-#include "../Device.hpp"
+#include "GPU/Vulkan/Core/Instance.hpp"
+#include "GPU/Vulkan/Core/Device.hpp"
 #include "Logger.hpp"
 
 namespace boza

@@ -2,8 +2,9 @@
 #include "Singleton.hpp"
 #include "Mesh.hpp"
 #include "MeshManager.hpp"
-#include "PipelineManager.hpp"
-#include "Memory/DescriptorSet.hpp"
+#include "GPU/Vulkan/Pipeline/PipelineManager.hpp"
+#include "GPU/Vulkan/Descriptor/DescriptorSet.hpp"
+#include "GPU/Vulkan/Vertex/VertexLayout.hpp"
 
 namespace boza
 {
@@ -26,9 +27,6 @@ namespace boza
     private:
         struct Vertex
         {
-            static VkVertexInputBindingDescription get_binding_description();
-            static std::vector<VkVertexInputAttributeDescription> get_attribute_descriptions();
-
             glm::vec3 position;
             glm::vec3 color;
             glm::vec2 tex_coord;

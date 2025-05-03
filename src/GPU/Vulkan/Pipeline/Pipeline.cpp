@@ -1,8 +1,8 @@
 #include "Pipeline.hpp"
 
-#include "Device.hpp"
+#include "GPU/Vulkan/Core/Device.hpp"
+#include "GPU/Vulkan/Core/Swapchain.hpp"
 #include "Logger.hpp"
-#include "Swapchain.hpp"
 
 namespace boza
 {

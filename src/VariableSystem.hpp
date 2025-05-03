@@ -44,8 +44,7 @@ namespace boza
                 this->on_iteration();
 
                 if (capped_framerate.load() && time_elapsed < min_delta_time.load())
-                    std::this_thread::sleep_for(
-                        min_delta_time.load() - time_elapsed);
+                    std::this_thread::sleep_for(min_delta_time.load() - time_elapsed);
             }
 
             this->on_end();

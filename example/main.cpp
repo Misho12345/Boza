@@ -2,19 +2,11 @@
 
 using namespace boza;
 
+
 int main()
 {
-    auto scene = std::make_unique<Scene>("default");
-
-    Logger::setup();
-    JobSystem::start();
-
-    Window::create(800, 600, "Boza");
-
-    RenderingSystem::start();
-    PhysicsSystem::start();
-
-    InputSystem::start();
+    App app{ App::Config{ 1280, 720, "Boza Example" } };
+    app.initialize();
 
     InputSystem::on(Key::A, KeyAction::Press, [] { Logger::info("A pressed"); });
     // InputSystem::on(Key::A, KeyAction::Hold, [] { Logger::warn("A held"); });
@@ -33,14 +25,6 @@ int main()
 
     InputSystem::on({ Key::LShift, Key::B, Key::Comma }, [] { Logger::info("Shift + B + ,"); });
 
-    Window::wait_to_close();
-
-    InputSystem::stop();
-
-    PhysicsSystem::stop();
-    RenderingSystem::stop();
-
-    Window::destroy();
-
-    JobSystem::stop();
+    app.run();
+    app.shutdown();
 }

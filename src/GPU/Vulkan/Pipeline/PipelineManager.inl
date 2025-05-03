@@ -2,15 +2,11 @@
 #include "PipelineManager.hpp"
 #include "ShaderLoader.hpp"
 #include "Logger.hpp"
+#include "GPU/Vulkan/Vertex/VertexLayout.hpp"
 
 namespace boza
 {
     template<typename Vertex>
-        requires requires
-        {
-            { Vertex::get_binding_description() } -> std::same_as<VkVertexInputBindingDescription>;
-            { Vertex::get_attribute_descriptions() } -> std::same_as<std::vector<VkVertexInputAttributeDescription>>;
-        }
     pipeline_id_t PipelineManager::create_pipeline(
         const std::string&                 vertex_shader,
         const std::string&                 fragment_shader,
@@ -23,6 +19,9 @@ namespace boza
             Logger::error("Failed to create pipeline: shader path is empty");
             return INVALID_PIPELINE_ID;
         }
+
+        const VertexLayout layout = get_layout<Vertex>();
+        if (layout.attributes.size() == 0) return INVALID_PIPELINE_ID;
 
         auto& inst = instance();
 
@@ -58,11 +57,10 @@ namespace boza
             return INVALID_PIPELINE_ID;
         }
 
-
         const PipelineCreateInfo create_info
         {
-            .binding_description = Vertex::get_binding_description(),
-            .attribute_descriptions = Vertex::get_attribute_descriptions(),
+            .binding_description = layout.binding,
+            .attribute_descriptions = std::move(layout.attributes),
             .descriptor_set_layouts = std::move(descriptor_set_layouts),
             .push_constant_ranges = std::move(push_constant_ranges),
             .vertex_shader = vertex_shader_module,

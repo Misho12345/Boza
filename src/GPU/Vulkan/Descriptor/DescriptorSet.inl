@@ -1,7 +1,7 @@
 #pragma once
 #include "DescriptorSet.hpp"
 #include "DescriptorPool.hpp"
-#include "../Swapchain.hpp"
+#include "GPU/Vulkan/Core/Swapchain.hpp"
 
 namespace boza
 {

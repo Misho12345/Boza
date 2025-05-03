@@ -9,9 +9,9 @@ namespace boza
         friend class GameObject;
 
         virtual void start() {}
-        virtual void update() {}
-        virtual void fixed_update() {}
-        virtual void late_update() {}
+        virtual void update(const duration& dt) {}
+        virtual void fixed_update(const duration& dt) {}
+        virtual void late_update(const duration& dt) {}
 
         [[nodiscard]]
         inline Transform& get_transform() const;

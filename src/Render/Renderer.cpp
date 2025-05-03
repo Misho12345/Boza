@@ -1,11 +1,11 @@
 #include "Renderer.hpp"
 
-#include "Instance.hpp"
-#include "Device.hpp"
-#include "Swapchain.hpp"
-#include "CommandPool.hpp"
-#include "Memory/Allocator.hpp"
-#include "Memory/DescriptorPool.hpp"
+#include "GPU/Vulkan/Core/Instance.hpp"
+#include "GPU/Vulkan/Core/Device.hpp"
+#include "GPU/Vulkan/Core/Swapchain.hpp"
+#include "GPU/Vulkan/Core/CommandPool.hpp"
+#include "GPU/Vulkan/Memory/Allocator.hpp"
+#include "GPU/Vulkan/Descriptor/DescriptorPool.hpp"
 #include "MeshManager.hpp"
 
 
@@ -53,6 +53,8 @@ namespace boza
                     .offset = 0,
                     .size = sizeof(PushConstant)
                 }});
+
+        if (default_pipeline == INVALID_PIPELINE_ID) return false;
 
         const auto mesh1 = MeshManager::create_mesh<Vertex>({
             { glm::vec3{ -1.0f, -1.0f, 0.0f } * 0.8f, glm::vec3{ 1.0f, 0.0f, 0.0f }, glm::vec2{ 0.0f, 1.0f } },
@@ -183,39 +185,5 @@ namespace boza
     void Renderer::submit(const RenderObject& object)
     {
         instance().render_queue.push_back(object);
-    }
-
-    VkVertexInputBindingDescription Renderer::Vertex::get_binding_description()
-    {
-        constexpr VkVertexInputBindingDescription binding_description
-        {
-            .binding = 0,
-            .stride = sizeof(Vertex),
-            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
-        };
-
-        return binding_description;
-    }
-
-    std::vector<VkVertexInputAttributeDescription> Renderer::Vertex::get_attribute_descriptions()
-    {
-        std::vector<VkVertexInputAttributeDescription> attribute_descriptions(3);
-
-        attribute_descriptions[0].binding  = 0;
-        attribute_descriptions[0].location = 0;
-        attribute_descriptions[0].format   = VK_FORMAT_R32G32B32_SFLOAT;
-        attribute_descriptions[0].offset   = offsetof(Vertex, position);
-
-        attribute_descriptions[1].binding  = 0;
-        attribute_descriptions[1].location = 1;
-        attribute_descriptions[1].format   = VK_FORMAT_R32G32B32_SFLOAT;
-        attribute_descriptions[1].offset   = offsetof(Vertex, color);
-
-        attribute_descriptions[2].binding  = 0;
-        attribute_descriptions[2].location = 2;
-        attribute_descriptions[2].format   = VK_FORMAT_R32G32_SFLOAT;
-        attribute_descriptions[2].offset   = offsetof(Vertex, tex_coord);
-
-        return attribute_descriptions;
     }
 }

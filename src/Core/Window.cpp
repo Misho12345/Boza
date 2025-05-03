@@ -1,7 +1,7 @@
 #include "Window.hpp"
 
 #include "Logger.hpp"
-#include "RenderingSystem/Vulkan/Device.hpp"
+#include "GPU/Vulkan/Core/Device.hpp"
 
 namespace boza
 {

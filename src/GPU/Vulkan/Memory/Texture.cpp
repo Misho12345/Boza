@@ -1,9 +1,9 @@
 #include "Texture.hpp"
 
 #include "Allocator.hpp"
-#include "DescriptorSet.hpp"
-#include "../Device.hpp"
-#include "../CommandPool.hpp"
+#include "GPU/Vulkan/Core/Device.hpp"
+#include "GPU/Vulkan/Core/CommandPool.hpp"
+#include "GPU/Vulkan/Descriptor/DescriptorSet.hpp"
 #include "Logger.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION

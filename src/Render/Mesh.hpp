@@ -1,6 +1,6 @@
 #pragma once
 #include "boza_pch.hpp"
-#include "Memory/Buffer.hpp"
+#include "GPU/Vulkan/Memory/Buffer.hpp"
 
 namespace boza
 {

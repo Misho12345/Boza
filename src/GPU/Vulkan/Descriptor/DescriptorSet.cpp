@@ -1,5 +1,5 @@
 #include "DescriptorSet.hpp"
-#include "../Device.hpp"
+#include "GPU/Vulkan/Core/Device.hpp"
 #include "Logger.hpp"
 
 namespace boza

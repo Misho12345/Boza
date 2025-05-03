@@ -1,6 +1,6 @@
 #include "ShaderLoader.hpp"
 
-#include "Device.hpp"
+#include "GPU/Vulkan/Core/Device.hpp"
 #include "Logger.hpp"
 
 namespace boza
@@ -49,7 +49,7 @@ namespace boza
         std::ifstream file(path.data(), std::ios::binary | std::ios::ate);
         if (!file.is_open()) return {};
 
-        const size_t          size = file.tellg();
+        const std::size_t          size = file.tellg();
         std::vector<uint32_t> buffer((size + sizeof(uint32_t) - 1) / sizeof(uint32_t));
 
         file.seekg(0);

@@ -81,8 +81,7 @@ namespace boza
     class BOZA_API InputSystem final : public FixedSystem<InputSystem>
     {
     public:
-        template<typename T>
-            requires (std::is_same_v<T, MouseWheelAction> || std::is_same_v<T, MouseMoveAction>)
+        template<typename T> requires (std::is_same_v<T, MouseWheelAction> || std::is_same_v<T, MouseMoveAction>)
         static void on(const std::function<void(double, double)>& callback)
         {
             auto&           inst = instance();
@@ -115,6 +114,7 @@ namespace boza
             std::bitset<2> data{ 0 };
         };
 
+        void on_begin() override;
         void on_iteration() override;
 
         static void on_key_callback(GLFWwindow* window, int key_, int, int action, int);
@@ -136,6 +136,6 @@ namespace boza
         hash_map<Key, KeyState> key_states;
 
         friend Singleton;
-        InputSystem();
+        InputSystem() : FixedSystem{ 240 } {}
     };
 }
