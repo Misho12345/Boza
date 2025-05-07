@@ -32,7 +32,7 @@ namespace boza
         std::thread thread;
         std::atomic_bool stop_flag{ false };
 
-        friend Singleton;
+        friend Singleton<Derived>;
         SystemBase() = default;
     };
 }

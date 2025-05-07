@@ -4,7 +4,6 @@
 #include "MeshManager.hpp"
 #include "GPU/Vulkan/Pipeline/PipelineManager.hpp"
 #include "GPU/Vulkan/Descriptor/DescriptorSet.hpp"
-#include "GPU/Vulkan/Vertex/VertexLayout.hpp"
 
 namespace boza
 {

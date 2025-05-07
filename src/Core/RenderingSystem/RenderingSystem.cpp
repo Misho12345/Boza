@@ -51,7 +51,6 @@ namespace boza
 
     void RenderingSystem::on_end()
     {
-        Logger::trace("RenderingSystem::on_end()");
         Device::wait_idle();
         Renderer::shutdown();
     }
