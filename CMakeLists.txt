@@ -70,7 +70,6 @@ add_library(BozaEngine SHARED
         src/GPU/Vulkan/Pipeline/Pipeline.cpp
         src/GPU/Vulkan/Pipeline/PipelineManager.cpp
         src/GPU/Vulkan/Pipeline/PipelineManager.hpp
-        src/GPU/Vulkan/Pipeline/PipelineManager.inl
         src/GPU/Vulkan/Core/CommandPool.hpp
         src/GPU/Vulkan/Core/CommandPool.cpp
         src/Render/Mesh.cpp
@@ -106,6 +105,7 @@ add_library(BozaEngine SHARED
         src/Core/Components/Transform.hpp
         src/Core/Components/Behaviour.hpp
         src/GPU/Vulkan/Vertex/VertexLayout.hpp
+        src/Serialize.hpp
 )
 
 target_precompile_headers(BozaEngine PRIVATE src/boza_pch.hpp)
@@ -115,6 +115,10 @@ target_include_directories(BozaEngine PUBLIC src/)
 find_package(VulkanHeaders REQUIRED)
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 find_package(volk CONFIG REQUIRED)
+find_package(unofficial-spirv-reflect CONFIG REQUIRED)
+find_package(unofficial-shaderc CONFIG REQUIRED)
+find_package(SPIRV-Tools CONFIG REQUIRED)
+find_package(SPIRV-Tools-opt CONFIG REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(imgui REQUIRED)
 find_package(glm CONFIG REQUIRED)
@@ -124,15 +128,19 @@ find_package(OpenAL REQUIRED)
 find_package(SndFile REQUIRED)
 find_package(Stb REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
-find_package(Lua REQUIRED)
 find_package(Taskflow CONFIG REQUIRED)
 find_package(magic_enum CONFIG REQUIRED)
-find_package(boost_pfr CONFIG REQUIRED)
+find_package(Boost REQUIRED COMPONENTS pfr preprocessor)
+find_package(nlohmann_json CONFIG REQUIRED)
 
 target_link_libraries(BozaEngine PUBLIC
         Vulkan::Headers
         GPUOpen::VulkanMemoryAllocator
         volk::volk volk::volk_headers
+        unofficial::spirv-reflect
+        unofficial::shaderc::shaderc
+        SPIRV-Tools-static
+        SPIRV-Tools-opt
         glfw
         imgui::imgui
         glm::glm-header-only
@@ -142,10 +150,11 @@ target_link_libraries(BozaEngine PUBLIC
         spdlog::spdlog_header_only
         OpenAL::OpenAL
         SndFile::sndfile
-        ${LUA_LIBRARIES}
         Taskflow::Taskflow
         magic_enum::magic_enum
         Boost::pfr
+        Boost::preprocessor
+        nlohmann_json::nlohmann_json
 )
 
 add_executable(BozaExample

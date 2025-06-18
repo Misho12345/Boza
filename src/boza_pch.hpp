@@ -33,15 +33,10 @@
 #include <future>
 
 #include <filesystem>
-namespace fs = std::filesystem;
-
 #include <typeindex>
-
+#include <type_traits>
 #include <chrono>
-using namespace std::chrono_literals;
-
 #include <ctime>
-
 #include <cassert>
 
 #include "API.hpp"
@@ -55,13 +50,17 @@ using namespace std::chrono_literals;
 #include <magic_enum/magic_enum_all.hpp>
 
 #include <entt/entt.hpp>
-using namespace entt::literals;
 
 #define VK_NO_PROTOTYPES
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <volk.h>
 #include <vk_mem_alloc.h>
+
+#include <spirv_reflect.h>
+#include <shaderc/shaderc.hpp>
+#include <spirv-tools/libspirv.hpp>
+#include <spirv-tools/optimizer.hpp>
 
 #define GLM_FORCE_RADIANS
 #define GLM_ENABLE_EXPERIMENTAL
@@ -70,7 +69,18 @@ using namespace entt::literals;
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #include <glm/ext.hpp>
 
-#include "macros.hpp"
+#include <nlohmann/json.hpp>
+#include <boost/pfr.hpp>
+#include <boost/preprocessor.hpp>
+
+namespace fs = std::filesystem;
+using namespace std::string_literals;
+using namespace std::string_view_literals;
+using namespace std::chrono_literals;
+using namespace entt::literals;
+
+using json = nlohmann::json;
+namespace pfr = boost::pfr;
 
 namespace boza
 {
@@ -86,3 +96,6 @@ namespace boza
     using time_point = clock::time_point;
     using duration   = std::chrono::microseconds;
 }
+
+#include "Serialize.hpp"
+#include "macros.hpp"

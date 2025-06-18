@@ -36,40 +36,33 @@ namespace boza
         }
 
         auto& descriptor_set = inst.descriptor_set;
-        // inst.binding0 = descriptor_set.add_uniform_buffer<UBO1>(VK_SHADER_STAGE_VERTEX_BIT);
-        // inst.binding1 = descriptor_set.add_uniform_buffer<UBO2>(VK_SHADER_STAGE_VERTEX_BIT);
-        inst.binding2 = descriptor_set.add_image_sampler(VK_SHADER_STAGE_FRAGMENT_BIT);
+        inst.binding0 = descriptor_set.add_uniform_buffer<UBO1>(VK_SHADER_STAGE_VERTEX_BIT);
+        inst.binding1 = descriptor_set.add_uniform_buffer<UBO2>(VK_SHADER_STAGE_VERTEX_BIT);
+        inst.texture_binding = descriptor_set.add_image_sampler(VK_SHADER_STAGE_FRAGMENT_BIT);
         descriptor_set.create();
 
-        // descriptor_set.update_buffer(inst.binding0, UBO1{ .offset = { 0.0f, 0.0f } });
-        // descriptor_set.update_buffer(inst.binding1, UBO2{ .scale = { 1.0f, 1.0f } });
-        descriptor_set.update_image_sampler(inst.binding2, inst.texture);
+        descriptor_set.update_buffer(inst.binding0, UBO1{ .offset = { 0.0f, 0.0f } });
+        descriptor_set.update_buffer(inst.binding1, UBO2{ .scale = { 1.0f, 1.0f } });
+        descriptor_set.update_image_sampler(inst.texture_binding, inst.texture);
 
-        const pipeline_id_t default_pipeline = PipelineManager::create_pipeline<Vertex>(
-            "default.vert", "default.frag",
-            { descriptor_set.get_layout() }, {
-                VkPushConstantRange{
-                    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-                    .offset = 0,
-                    .size = sizeof(PushConstant)
-                }});
+        const pipeline_id_t default_pipeline = PipelineManager::create_pipeline(
+            "shaders/default.vert",
+            "shaders/default.frag");
+
+        const pipeline_id_t default_pipeline2 = PipelineManager::create_pipeline(
+            "shaders/default.vert",
+            "shaders/test.frag");
 
         if (default_pipeline == INVALID_PIPELINE_ID) return false;
+        if (default_pipeline2 == INVALID_PIPELINE_ID) return false;
 
         const auto mesh1 = MeshManager::create_mesh<Vertex>({
-            { glm::vec3{ -1.0f, -1.0f, 0.0f } * 0.8f, glm::vec3{ 1.0f, 0.0f, 0.0f }, glm::vec2{ 0.0f, 1.0f } },
-            { glm::vec3{  1.0f, -1.0f, 0.0f } * 0.8f, glm::vec3{ 0.0f, 1.0f, 0.0f }, glm::vec2{ 1.0f, 1.0f } },
-            { glm::vec3{  1.0f,  1.0f, 0.0f } * 0.8f, glm::vec3{ 0.0f, 0.0f, 1.0f }, glm::vec2{ 1.0f, 0.0f } },
-            { glm::vec3{ -1.0f,  1.0f, 0.0f } * 0.8f, glm::vec3{ 1.0f, 1.0f, 1.0f }, glm::vec2{ 0.0f, 0.0f } },
+            { glm::vec3{ -1.0f, -1.0f, 0.0f } * 0.3f, glm::vec3{ 1.0f, 0.0f, 0.0f }, glm::vec2{ 0.0f, 1.0f } },
+            { glm::vec3{  1.0f, -1.0f, 0.0f } * 0.3f, glm::vec3{ 0.0f, 1.0f, 0.0f }, glm::vec2{ 1.0f, 1.0f } },
+            { glm::vec3{  1.0f,  1.0f, 0.0f } * 0.3f, glm::vec3{ 0.0f, 0.0f, 1.0f }, glm::vec2{ 1.0f, 0.0f } },
+            { glm::vec3{ -1.0f,  1.0f, 0.0f } * 0.3f, glm::vec3{ 1.0f, 1.0f, 1.0f }, glm::vec2{ 0.0f, 0.0f } },
         },
         { 0, 1, 2, 0, 2, 3 });
-
-        // const auto mesh2 = MeshManager::create_mesh<Vertex>({
-        //     { glm::vec3{  1.0f,  1.0f, 0.0f } * 0.5, glm::vec3{ 0.0f, 1.0f, 1.0f }, glm::vec2{ 0.0f, 0.0f } },
-        //     { glm::vec3{ -1.0f,  1.0f, 0.0f } * 0.5, glm::vec3{ 1.0f, 0.0f, 1.0f }, glm::vec2{ 0.0f, 0.0f } },
-        //     { glm::vec3{  0.0f,  0.5f, 0.0f } * 0.5, glm::vec3{ 1.0f, 1.0f, 0.0f }, glm::vec2{ 0.0f, 0.0f } },
-        // },
-        // { 0, 1, 2 });
         //
         // const auto mesh3 = MeshManager::create_mesh<Vertex>({
         //     { glm::vec3{ 0.0f, 0.0f, 0.0f } * 0.5, glm::vec3{ 1.0f, 0.0f, 0.0f }, glm::vec2{ 0.0f, 0.0f } },
@@ -87,7 +80,7 @@ namespace boza
         }
 
         submit({ mesh1, default_pipeline });
-        // submit({ mesh2, default_pipeline });
+        submit({ mesh1, default_pipeline2 });
         // submit({ mesh3, default_pipeline });
 
         return true;
@@ -130,12 +123,12 @@ namespace boza
 
         static float angle = 0.0f;
         if (angle >= 360.0f) angle = 0.0f;
-        angle += 0.5f;
+        ++angle;
 
         const float rad_angle = glm::radians(angle);
 
-        // instance().descriptor_set.update_buffer(instance().binding0, UBO1{ .offset = { cos(rad_angle) * 0.3, sin(rad_angle) * 0.3 } });
-        // instance().descriptor_set.update_buffer(instance().binding1, UBO2{ .scale = { 0.5, 0.5 } });
+        instance().descriptor_set.update_buffer(instance().binding0, UBO1{ .offset = { cos(rad_angle) * 0.3, sin(rad_angle) * 0.3 } });
+        instance().descriptor_set.update_buffer(instance().binding1, UBO2{ .scale = { 0.5, 0.5 } });
 
         vkCmdBindDescriptorSets(
             command_buffer,
@@ -151,7 +144,7 @@ namespace boza
             PipelineManager::bind_pipeline(command_buffer, pipeline);
 
             PushConstant push_constant {
-                .rotation_angle = rad_angle * 2
+                .rotation_angle = rad_angle
             };
 
             vkCmdPushConstants(

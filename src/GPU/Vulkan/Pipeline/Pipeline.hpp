@@ -5,10 +5,12 @@ namespace boza
 {
     struct PipelineCreateInfo
     {
-        VkVertexInputBindingDescription binding_description;
-        std::vector<VkVertexInputAttributeDescription> attribute_descriptions;
+        VkVertexInputBindingDescription binding{};
+        std::vector<VkVertexInputAttributeDescription> attributes;
+
         std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
-        std::vector<VkPushConstantRange> push_constant_ranges;
+        std::vector<VkPushConstantRange>   push_constant_ranges;
+
 
         VkShaderModule vertex_shader{ nullptr };
         VkShaderModule fragment_shader{ nullptr };

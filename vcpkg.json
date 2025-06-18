@@ -40,9 +40,6 @@
     "name" : "spdlog",
     "version>=" : "1.15.1"
   }, {
-    "name" : "lua",
-    "version>=" : "5.4.7"
-  }, {
     "name" : "taskflow",
     "version>=" : "3.9.0"
   }, {
@@ -50,6 +47,18 @@
     "version>=" : "0.9.7#1"
   }, {
     "name" : "boost-pfr",
+    "version>=" : "1.87.0"
+  }, {
+    "name" : "spirv-reflect",
+    "version>=" : "1.4.304.1"
+  }, {
+    "name" : "shaderc",
+    "version>=" : "2025.2"
+  }, {
+    "name" : "nlohmann-json",
+    "version>=" : "3.12.0"
+  }, {
+    "name" : "boost-preprocessor",
     "version>=" : "1.87.0"
   } ]
 }

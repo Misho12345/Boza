@@ -48,9 +48,9 @@ namespace boza
 
         DescriptorSet descriptor_set{};
         Texture texture{};
-        descriptor_set_binding binding0{ 0 };
-        descriptor_set_binding binding1{ 0 };
-        descriptor_set_binding binding2{ 0 };
+        descriptor_set_binding binding0{};
+        descriptor_set_binding binding1{};
+        descriptor_set_binding texture_binding{};
         std::vector<RenderObject> render_queue;
 
         friend Singleton;

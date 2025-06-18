@@ -2,6 +2,8 @@
 #include "boza_pch.hpp"
 #include <boost/pfr.hpp>
 
+#include "Logger.hpp"
+
 #define DEFINE_FORMAT(TYPE, VK_FORMAT) template<> struct format_of<TYPE>{ static constexpr VkFormat value = VK_FORMAT; }
 
 #define DEFINE_FORMAT_GROUP(TYPE, SIZE, SUFFIX)                                           \

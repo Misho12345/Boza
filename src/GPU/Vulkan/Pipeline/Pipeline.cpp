@@ -72,10 +72,10 @@ namespace boza
             VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
             nullptr,
             {},
-            1,
-            &create_info.binding_description,
-            static_cast<uint32_t>(create_info.attribute_descriptions.size()),
-            create_info.attribute_descriptions.data(),
+            create_info.binding.stride == 0 ? 0u : 1u,
+            create_info.binding.stride == 0 ? nullptr : &create_info.binding,
+            static_cast<uint32_t>(create_info.attributes.size()),
+            create_info.attributes.data(),
         };
 
         VkPipelineInputAssemblyStateCreateInfo input_assembly_info
@@ -229,18 +229,13 @@ namespace boza
 
     bool Pipeline::create_pipeline_layout(const PipelineCreateInfo& create_info)
     {
-        std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
-        descriptor_set_layouts.reserve(create_info.descriptor_set_layouts.size());
-        for (const auto& set_layout : create_info.descriptor_set_layouts)
-            descriptor_set_layouts.push_back(set_layout);
-
-        const VkPipelineLayoutCreateInfo layout_info
+         const VkPipelineLayoutCreateInfo layout_info
         {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             .pNext = nullptr,
             .flags = {},
-            .setLayoutCount = static_cast<uint32_t>(descriptor_set_layouts.size()),
-            .pSetLayouts = descriptor_set_layouts.data(),
+            .setLayoutCount = static_cast<uint32_t>(create_info.descriptor_set_layouts.size()),
+            .pSetLayouts = create_info.descriptor_set_layouts.data(),
             .pushConstantRangeCount = static_cast<uint32_t>(create_info.push_constant_ranges.size()),
             .pPushConstantRanges = create_info.push_constant_ranges.data(),
         };
