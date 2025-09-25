@@ -1,0 +1,48 @@
+#pragma once
+
+#include <filesystem>
+#include <string>
+#include <vector>
+
+#include <shaderc/shaderc.hpp>
+#include <spirv-tools/optimizer.hpp>
+
+
+namespace fs = std::filesystem;
+
+namespace sp
+{
+    /**
+     * @class ShaderCompiler
+     * @brief Compiles GLSL shader source to SPIR-V binary format.
+     */
+    class ShaderCompiler
+    {
+    public:
+        ShaderCompiler();
+
+        /**
+         * @brief Compiles a GLSL source string to unoptimized SPIR-V.
+         * @param source The GLSL source code.
+         * @param kind The shader stage (vertex, fragment, etc.).
+         * @param filename The original filename, used for error messages.
+         * @return An optional containing the SPIR-V bytecode, or an empty optional on failure.
+         */
+        std::vector<uint32_t> compile_to_spirv(
+            const std::string&  source,
+            shaderc_shader_kind kind,
+            const std::string&  filename) const;
+
+        /**
+         * @brief Determines the shaderc_shader_kind from a file extension.
+         * @param extension The file extension (e.g., ".vert", ".frag").
+         * @return The corresponding shaderc_shader_kind.
+         */
+        static shaderc_shader_kind get_shader_kind(const std::string& extension);
+
+    private:
+        shaderc::Compiler       compiler;
+        shaderc::CompileOptions options;
+        spvtools::SpirvTools    validator;
+    };
+}

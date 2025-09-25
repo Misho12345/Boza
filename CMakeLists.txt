@@ -9,5 +9,10 @@ include(BozaOptions)
 include(BozaCompilerWarnings)
 include(BozaUtils)
 
+set(BOZA_GAME_TARGET boza_game)
+
+add_subdirectory(tools/shader_processor)
+add_subdirectory(shaders)
+
 add_subdirectory(engine)
 add_subdirectory(game)

@@ -4,6 +4,7 @@ function(boza_enable_warnings target)
                 /W4
                 /permissive-
                 /wd4702
+                /wd4065
         )
 
         if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "19.30")

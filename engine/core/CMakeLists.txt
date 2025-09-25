@@ -7,10 +7,6 @@ target_sources(boza_core PRIVATE ${BOZA_CORE_SOURCES})
 set_default_include_dirs(boza_core ${CMAKE_CURRENT_SOURCE_DIR})
 boza_enable_warnings(boza_core)
 
-#find_package(unofficial-spirv-reflect CONFIG REQUIRED)
-#find_package(unofficial-shaderc CONFIG REQUIRED)
-#find_package(SPIRV-Tools CONFIG REQUIRED)
-#find_package(SPIRV-Tools-opt CONFIG REQUIRED)
 #find_package(EnTT CONFIG REQUIRED)
 
 #find_package(glm CONFIG REQUIRED)
@@ -28,10 +24,6 @@ target_link_libraries(boza_core
 #        Boost::preprocessor
         PRIVATE
         Boza::Common
-        #        unofficial::spirv-reflect
-        #        unofficial::shaderc::shaderc
-        #        SPIRV-Tools-static
-        #        SPIRV-Tools-opt
 )
 
 

@@ -1,9 +1,25 @@
 {
-  "name" : "boza",
-  "version-string" : "1.0.0",
-  "builtin-baseline" : "7e21420f775f72ae938bdeb5e6068f722088f06a",
-  "dependencies" : [ "glfw3", "volk", "vulkan-headers", "vulkan-memory-allocator", "libsndfile", "glm", "entt", "stb", "spdlog", "spirv-reflect", "shaderc", "magic-enum", "boost-pfr", "boost-preprocessor", "gtest", {
-    "name" : "openal-soft",
-    "version>=" : "1.24.3#1"
-  } ]
+  "name": "boza",
+  "version-string": "1.0.0",
+  "builtin-baseline": "7e21420f775f72ae938bdeb5e6068f722088f06a",
+  "dependencies": [
+    "glfw3",
+    "volk",
+    "vulkan-headers",
+    "vulkan-memory-allocator",
+    "shaderc",
+    "spirv-cross",
+    "spirv-tools",
+    "libsndfile",
+    "openal-soft",
+    "glm",
+    "entt",
+    "stb",
+    "spdlog",
+    "nlohmann-json",
+    "magic-enum",
+    "boost-pfr",
+    "boost-preprocessor",
+    "gtest"
+  ]
 }

@@ -21,3 +21,11 @@ target_link_libraries(boza_engine
         Boza::Rhi
         Boza::Ahi
 )
+
+add_custom_command(TARGET boza_engine POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        $<TARGET_FILE_DIR:boza_engine>
+        $<TARGET_FILE_DIR:${BOZA_GAME_TARGET}>
+        COMMENT "Copying engine dll to game output folder"
+        VERBATIM
+)
