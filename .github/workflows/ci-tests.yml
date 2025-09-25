@@ -2,7 +2,7 @@ name: CI - Unit Tests
 
 on:
   push:
-    branches: [ main, master, dev ]
+    branches: [ main, dev ]
   pull_request:
 
 jobs:
@@ -18,7 +18,7 @@ jobs:
       BOZA_CMAKE_COMMON: >-
         -DBOZA_BUILD_TESTS=ON
         -DBOZA_ENABLE_OPENGL=OFF
-        -DBOZA_ENABLE_VULKAN=OFF
+        -DBOZA_ENABLE_VULKAN=ON
         -DBOZA_ENABLE_METAL=OFF
         -DBOZA_ENABLE_DIRECTX11=OFF
         -DBOZA_ENABLE_DIRECTX12=OFF
@@ -42,34 +42,33 @@ jobs:
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             echo "VCPKG_DEFAULT_TRIPLET=x64-windows" >> "$GITHUB_ENV"
+            echo "VCPKG_ROOT=${{ runner.temp }}/vcpkg" >> "$GITHUB_ENV"
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
             echo "VCPKG_DEFAULT_TRIPLET=arm64-osx" >> "$GITHUB_ENV"
+            echo "VCPKG_ROOT=${{ runner.temp }}/vcpkg" >> "$GITHUB_ENV"
           else
             echo "VCPKG_DEFAULT_TRIPLET=x64-linux" >> "$GITHUB_ENV"
+            echo "VCPKG_ROOT=${{ runner.temp }}/vcpkg" >> "$GITHUB_ENV"
           fi
-          echo "VCPKG_ROOT=$HOME/vcpkg" >> "$GITHUB_ENV"
 
-      - name: Cache vcpkg installed
+      - name: Cache vcpkg
         uses: actions/cache@v4
+        id: vcpkg-cache
         with:
-          path: ${{ env.VCPKG_ROOT }}/installed
-          key: vcpkg-${{ runner.os }}-${{ env.VCPKG_DEFAULT_TRIPLET }}-${{ hashFiles('**/vcpkg.json','**/vcpkg-configuration.json') }}
-          restore-keys: |
-            vcpkg-${{ runner.os }}-${{ env.VCPKG_DEFAULT_TRIPLET }}-
+          path: ${{ env.VCPKG_ROOT }}
+          key: vcpkg-${{ runner.os }}-${{ env.VCPKG_DEFAULT_TRIPLET }}-${{ hashFiles('**/vcpkg.json') }}
 
-      - name: Bootstrap vcpkg (Unix)
-        if: runner.os != 'Windows'
+      - name: Bootstrap vcpkg
+        if: steps.vcpkg-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
-          git clone --depth 1 https://github.com/microsoft/vcpkg "$VCPKG_ROOT"
-          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
-
-      - name: Bootstrap vcpkg (Windows)
-        if: runner.os == 'Windows'
-        shell: cmd
-        run: |
-          git clone --depth 1 https://github.com/microsoft/vcpkg "%VCPKG_ROOT%"
-          "%VCPKG_ROOT%\bootstrap-vcpkg.bat" -disableMetrics
+          git clone https://github.com/microsoft/vcpkg.git "${{ env.VCPKG_ROOT }}"
+          cd "${{ env.VCPKG_ROOT }}"
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            ./bootstrap-vcpkg.bat -disableMetrics
+          else
+            ./bootstrap-vcpkg.sh -disableMetrics
+          fi
 
       - name: Configure (Windows)
         if: runner.os == 'Windows'
@@ -77,7 +76,7 @@ jobs:
         run: >
           cmake -S . -B build
           -G "Visual Studio 17 2022" -A x64
-          -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+          -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake"
           $BOZA_CMAKE_COMMON
 
       - name: Configure (Unix)
@@ -86,7 +85,7 @@ jobs:
         run: >
           cmake -S . -B build
           -DCMAKE_BUILD_TYPE=RelWithDebInfo
-          -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+          -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake"
           $BOZA_CMAKE_COMMON
 
       - name: Build (Windows)
