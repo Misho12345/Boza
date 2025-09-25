@@ -1,0 +1,1 @@
+create_tests(boza_platform_tests Boza::Platform ${CMAKE_CURRENT_SOURCE_DIR})

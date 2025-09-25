@@ -1,0 +1,1 @@
+create_tests(boza_ahi_tests Boza::Ahi ${CMAKE_CURRENT_SOURCE_DIR})
