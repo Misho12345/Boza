@@ -42,7 +42,13 @@ namespace boza::rhi::vk
         VkQueue compute_queue{ nullptr };
         VkQueue transfer_queue{ nullptr };
 
-        static constexpr const char* required_extensions[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+        static constexpr const char* required_extensions[] = {
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+
+            #ifdef __APPLE__
+            "VK_KHR_portability_subset"
+            #endif
+        };
 
         friend GraphicsObject;
     };

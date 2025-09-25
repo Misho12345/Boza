@@ -7,14 +7,16 @@ target_sources(boza_ahi PRIVATE ${BOZA_AHI_SOURCES})
 set_default_include_dirs(boza_ahi ${CMAKE_CURRENT_SOURCE_DIR})
 boza_enable_warnings(boza_ahi)
 
-find_package(SndFile REQUIRED)
+if (BOZA_AUDIO_ENABLED)
+    find_package(SndFile REQUIRED)
+    target_link_libraries(boza_ahi PRIVATE SndFile::sndfile)
+endif ()
 
 target_link_libraries(boza_ahi
-        PRIVATE
+        PUBLIC
         Boza::Common
         Boza::Core
         Boza::Platform
-        SndFile::sndfile
 )
 
 if (BOZA_ENABLE_OPENAL)

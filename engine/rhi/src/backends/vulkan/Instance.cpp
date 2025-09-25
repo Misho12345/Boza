@@ -57,6 +57,10 @@ namespace boza::rhi::vk
 
         auto extensions = desc.window->get_required_extensions();
 
+        #ifdef __APPLE__
+        extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+        #endif
+
         #ifdef BOZA_DEBUG
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         #endif
@@ -69,11 +73,16 @@ namespace boza::rhi::vk
 
         if (!check_extensions_and_layers_support(extensions, layers)) return false;
 
+        VkInstanceCreateFlags flags{};
+        #ifdef __APPLE__
+        flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+        #endif
+
         const VkInstanceCreateInfo instance_create_info
         {
             .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
             .pNext = nullptr,
-            .flags = {},
+            .flags = flags,
             .pApplicationInfo = &app_info,
             .enabledLayerCount = static_cast<uint32_t>(layers.size()),
             .ppEnabledLayerNames = layers.data(),

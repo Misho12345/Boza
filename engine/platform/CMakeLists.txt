@@ -10,9 +10,10 @@ boza_enable_warnings(boza_platform)
 find_package(glfw3 REQUIRED)
 
 target_link_libraries(boza_platform
-        PRIVATE
+        PUBLIC
         Boza::Common
         Boza::Core
+        PRIVATE
         glfw
 )
 
