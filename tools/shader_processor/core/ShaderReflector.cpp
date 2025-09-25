@@ -2,28 +2,29 @@
 
 namespace sp
 {
-    ShaderReflector::ShaderReflector(std::vector<uint32_t> spirv)
-        : compiler{ std::move(spirv) } { resources_ = compiler.get_shader_resources(); }
-
-    json ShaderReflector::generate_metadata()
+    json ShaderReflector::generate_metadata(const std::vector<uint32_t>& spirv)
     {
         json metadata;
 
-        reflect_resources(resources_.uniform_buffers, "uniform_buffers", metadata);
-        reflect_resources(resources_.storage_buffers, "storage_buffers", metadata);
-        reflect_resources(resources_.stage_inputs, "stage_inputs", metadata);
-        reflect_resources(resources_.stage_outputs, "stage_outputs", metadata);
-        reflect_resources(resources_.sampled_images, "sampled_images", metadata);
-        reflect_resources(resources_.storage_images, "storage_images", metadata);
-        reflect_push_constants(metadata);
+        const spirv_cross::Compiler        compiler{ spirv };
+        const spirv_cross::ShaderResources resources{ compiler.get_shader_resources() };
+
+        reflect_resources(compiler, resources.uniform_buffers, "uniform_buffers", metadata);
+        reflect_resources(compiler, resources.storage_buffers, "storage_buffers", metadata);
+        reflect_resources(compiler, resources.stage_inputs, "stage_inputs", metadata);
+        reflect_resources(compiler, resources.stage_outputs, "stage_outputs", metadata);
+        reflect_resources(compiler, resources.sampled_images, "sampled_images", metadata);
+        reflect_resources(compiler, resources.storage_images, "storage_images", metadata);
+        reflect_push_constants(compiler, resources, metadata);
 
         return metadata;
     }
 
     void ShaderReflector::reflect_resources(
+        const spirv_cross::Compiler&                           compiler,
         const spirv_cross::SmallVector<spirv_cross::Resource>& resources,
         const std::string&                                     type_name,
-        json&                                                  metadata) const
+        json&                                                  metadata)
     {
         if (resources.empty()) return;
         json j_resources = json::array();
@@ -46,12 +47,15 @@ namespace sp
         metadata[type_name] = j_resources;
     }
 
-    void ShaderReflector::reflect_push_constants(json& metadata)
+    void ShaderReflector::reflect_push_constants(
+        const spirv_cross::Compiler&        compiler,
+        const spirv_cross::ShaderResources& resources,
+        json&                               metadata)
     {
-        if (resources_.push_constant_buffers.empty()) return;
+        if (resources.push_constant_buffers.empty()) return;
         json push_constants_array = json::array();
 
-        for (const auto& push_constant_resource : resources_.push_constant_buffers)
+        for (const auto& push_constant_resource : resources.push_constant_buffers)
         {
             json        j_pc;
             const auto& type = compiler.get_type(push_constant_resource.type_id);

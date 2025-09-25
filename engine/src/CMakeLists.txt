@@ -29,3 +29,4 @@ add_custom_command(TARGET boza_engine POST_BUILD
         COMMENT "Copying engine dll to game output folder"
         VERBATIM
 )
+ 

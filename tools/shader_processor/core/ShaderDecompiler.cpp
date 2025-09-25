@@ -8,9 +8,7 @@
 
 namespace sp
 {
-    ShaderDecompiler::ShaderDecompiler(const std::vector<uint32_t>& spirv) : spirv{ spirv } {}
-
-    std::string ShaderDecompiler::decompile_to_glsl() const
+    std::string ShaderDecompiler::decompile_to_glsl(const std::vector<uint32_t>& spirv)
     {
         try
         {
@@ -28,7 +26,7 @@ namespace sp
         }
     }
 
-    std::string ShaderDecompiler::decompile_to_hlsl() const
+    std::string ShaderDecompiler::decompile_to_hlsl(const std::vector<uint32_t>& spirv)
     {
         try
         {
@@ -45,7 +43,7 @@ namespace sp
         }
     }
 
-    std::string ShaderDecompiler::decompile_to_msl() const
+    std::string ShaderDecompiler::decompile_to_msl(const std::vector<uint32_t>& spirv)
     {
         try
         {

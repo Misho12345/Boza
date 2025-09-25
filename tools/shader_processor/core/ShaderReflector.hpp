@@ -17,23 +17,25 @@ namespace sp
     class ShaderReflector
     {
     public:
-        explicit ShaderReflector(std::vector<uint32_t> spirv);
+        ShaderReflector() = delete;
+        ~ShaderReflector() = default;
 
         /**
          * @brief Generates a JSON object containing all reflected shader metadata.
          * @return A json object with the shader's metadata.
          */
-        json generate_metadata();
+        static json generate_metadata(const std::vector<uint32_t>& spirv);
 
     private:
-        void reflect_resources(
+        static void reflect_resources(
+            const spirv_cross::Compiler& compiler,
             const spirv_cross::SmallVector<spirv_cross::Resource>& resources,
             const std::string&                                     type_name,
-            json&                                                  metadata) const;
+            json&                                                  metadata);
 
-        void reflect_push_constants(json& metadata);
-
-        spirv_cross::Compiler compiler;
-        spirv_cross::ShaderResources resources_;
+        static void reflect_push_constants(
+            const spirv_cross::Compiler& compiler,
+            const spirv_cross::ShaderResources& resources,
+            json& metadata);
     };
 }

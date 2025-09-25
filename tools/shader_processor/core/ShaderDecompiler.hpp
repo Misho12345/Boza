@@ -12,13 +12,11 @@ namespace sp
     class ShaderDecompiler
     {
     public:
-        explicit ShaderDecompiler(const std::vector<uint32_t>& spirv);
+        ShaderDecompiler() = delete;
+        ~ShaderDecompiler() = delete;
 
-        std::string decompile_to_glsl() const;
-        std::string decompile_to_hlsl() const;
-        std::string decompile_to_msl() const;
-
-    private:
-        const std::vector<uint32_t>& spirv;
+        static std::string decompile_to_glsl(const std::vector<uint32_t>& spirv);
+        static std::string decompile_to_hlsl(const std::vector<uint32_t>& spirv);
+        static std::string decompile_to_msl(const std::vector<uint32_t>& spirv);
     };
 }

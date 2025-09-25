@@ -19,7 +19,8 @@ namespace sp
     class ShaderCompiler
     {
     public:
-        ShaderCompiler();
+        ShaderCompiler() = delete;
+        ~ShaderCompiler() = delete;
 
         /**
          * @brief Compiles a GLSL source string to unoptimized SPIR-V.
@@ -28,10 +29,10 @@ namespace sp
          * @param filename The original filename, used for error messages.
          * @return An optional containing the SPIR-V bytecode, or an empty optional on failure.
          */
-        std::vector<uint32_t> compile_to_spirv(
+        static std::vector<uint32_t> compile_to_spirv(
             const std::string&  source,
             shaderc_shader_kind kind,
-            const std::string&  filename) const;
+            const std::string&  filename);
 
         /**
          * @brief Determines the shaderc_shader_kind from a file extension.
@@ -39,10 +40,5 @@ namespace sp
          * @return The corresponding shaderc_shader_kind.
          */
         static shaderc_shader_kind get_shader_kind(const std::string& extension);
-
-    private:
-        shaderc::Compiler       compiler;
-        shaderc::CompileOptions options;
-        spvtools::SpirvTools    validator;
     };
 }

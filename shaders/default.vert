@@ -1,4 +1,5 @@
 #version 450
+#include "math.glsl"
 
 layout (set = 0, binding = 0) uniform UBO1 {
     vec2 offset;
@@ -26,7 +27,7 @@ void main()
         cos(pushConstants.rotationAngle), sin(pushConstants.rotationAngle),
         -sin(pushConstants.rotationAngle), cos(pushConstants.rotationAngle));
 
-    gl_Position = vec4((rotationMatrix * inPosition.xy + ubo1.offset) * ubo2.scale, inPosition.z, 1.0);
+    gl_Position = vec4((rotationMatrix * inPosition.xy + ubo1.offset) * ubo2.scale, inPosition.z, add(1.0, 0.0));
 
     fragColor = inColor;
     fragTexCoord = inTexCoord;

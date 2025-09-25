@@ -1,0 +1,110 @@
+name: CI - Unit Tests
+
+on:
+  push:
+    branches: [ main, master, dev ]
+  pull_request:
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ windows-latest, ubuntu-latest, macos-latest ]
+
+    env:
+      BOZA_CMAKE_COMMON: >-
+        -DBOZA_BUILD_TESTS=ON
+        -DBOZA_ENABLE_OPENGL=OFF
+        -DBOZA_ENABLE_VULKAN=OFF
+        -DBOZA_ENABLE_METAL=OFF
+        -DBOZA_ENABLE_DIRECTX11=OFF
+        -DBOZA_ENABLE_DIRECTX12=OFF
+        -DBOZA_ENABLE_OPENAL=OFF
+        -DBOZA_ENABLE_XAUDIO2=OFF
+        -DBOZA_ENABLE_COREAUDIO=OFF
+      CMAKE_BUILD_PARALLEL_LEVEL: 4
+      VCPKG_FEATURE_FLAGS: manifests
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup CMake 3.30+
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.30.5'
+
+      - name: Select vcpkg triplet and root
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            echo "VCPKG_DEFAULT_TRIPLET=x64-windows" >> "$GITHUB_ENV"
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            echo "VCPKG_DEFAULT_TRIPLET=arm64-osx" >> "$GITHUB_ENV"
+          else
+            echo "VCPKG_DEFAULT_TRIPLET=x64-linux" >> "$GITHUB_ENV"
+          fi
+          echo "VCPKG_ROOT=$HOME/vcpkg" >> "$GITHUB_ENV"
+
+      - name: Cache vcpkg installed
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.VCPKG_ROOT }}/installed
+          key: vcpkg-${{ runner.os }}-${{ env.VCPKG_DEFAULT_TRIPLET }}-${{ hashFiles('**/vcpkg.json','**/vcpkg-configuration.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-${{ env.VCPKG_DEFAULT_TRIPLET }}-
+
+      - name: Bootstrap vcpkg (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg "$VCPKG_ROOT"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+
+      - name: Bootstrap vcpkg (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg "%VCPKG_ROOT%"
+          "%VCPKG_ROOT%\bootstrap-vcpkg.bat" -disableMetrics
+
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: >
+          cmake -S . -B build
+          -G "Visual Studio 17 2022" -A x64
+          -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+          $BOZA_CMAKE_COMMON
+
+      - name: Configure (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: >
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
+          $BOZA_CMAKE_COMMON
+
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: cmake --build build --config Release --parallel
+
+      - name: Build (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: cmake --build build --parallel
+
+      - name: Run tests (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Run tests (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: ctest --test-dir build --output-on-failure

@@ -4,9 +4,15 @@
 
 namespace sp
 {
-    ShaderCompiler::ShaderCompiler() : validator{ SPV_ENV_VULKAN_1_3 }
+    std::vector<uint32_t> ShaderCompiler::compile_to_spirv(
+        const std::string&        source,
+        const shaderc_shader_kind kind,
+        const std::string&        filename)
     {
-        // Compile with debug info to preserve names for reflection
+        const shaderc::Compiler compiler;
+        shaderc::CompileOptions options;
+        spvtools::SpirvTools    validator{ SPV_ENV_VULKAN_1_3 };
+
         options.SetGenerateDebugInfo();
         options.SetOptimizationLevel(shaderc_optimization_level_zero);
 
@@ -15,13 +21,7 @@ namespace sp
             {
                 std::print(stderr, "[SPIR-V-VALIDATE] {}:{}: {}", pos.line, pos.column, msg);
             });
-    }
 
-    std::vector<uint32_t> ShaderCompiler::compile_to_spirv(
-        const std::string&        source,
-        const shaderc_shader_kind kind,
-        const std::string&        filename) const
-    {
         const shaderc::SpvCompilationResult module = compiler.CompileGlslToSpv(
             source, kind, filename.c_str(), options);
 

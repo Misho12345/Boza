@@ -12,16 +12,14 @@ namespace sp
     class SpirvOptimizer
     {
     public:
-        SpirvOptimizer();
+        SpirvOptimizer() = delete;
+        ~SpirvOptimizer() = delete;
 
         /**
          * @brief Runs performance optimization passes on the SPIR-V code.
          * @param spirv The input SPIR-V bytecode.
          * @return The optimized SPIR-V bytecode. If optimization fails, returns the original bytecode.
          */
-        std::vector<uint32_t> optimize(const std::vector<uint32_t>& spirv) const;
-
-    private:
-        spvtools::Optimizer optimizer;
+        static std::vector<uint32_t> optimize(const std::vector<uint32_t>& spirv);
     };
 }

@@ -5,8 +5,6 @@ find_package(unofficial-shaderc CONFIG REQUIRED)
 
 find_package(SPIRV-Tools CONFIG REQUIRED)
 find_package(SPIRV-Tools-opt CONFIG REQUIRED)
-find_package(SPIRV-Tools-lint CONFIG REQUIRED)
-find_package(SPIRV-Tools-link CONFIG REQUIRED)
 
 find_package(spirv_cross_core CONFIG REQUIRED)
 find_package(spirv_cross_glsl CONFIG REQUIRED)
@@ -26,8 +24,6 @@ target_link_libraries(shader_processor PRIVATE
 
         SPIRV-Tools-static
         SPIRV-Tools-opt
-        SPIRV-Tools-lint
-        SPIRV-Tools-link
 
         spirv-cross-core
         spirv-cross-glsl
