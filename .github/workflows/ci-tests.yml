@@ -19,19 +19,6 @@ env:
   CMAKE_BUILD_PARALLEL_LEVEL: 4
   VCPKG_FEATURE_FLAGS: manifests
 
-x-patch-vcpkg: &patch-vcpkg
-  name: Patch vcpkg for libogg download
-  shell: bash
-  run: |
-    VCPKG_LIBOGG_PORTFILE=$(find "${{ env.VCPKG_ROOT }}" -name "portfile.cmake" -path "*/libogg/*")
-    if [ -f "$VCPKG_LIBOGG_PORTFILE" ]; then
-      echo "Patching libogg portfile: $VCPKG_LIBOGG_PORTFILE"
-      sed -i.bak 's|https://gitlab.xiph.org/xiph/ogg/-/archive/v${VERSION}/ogg-v${VERSION}.tar.gz|https://downloads.xiph.org/releases/ogg/libogg-${VERSION}.tar.gz|' "$VCPKG_LIBOGG_PORTFILE"
-      sed -i.bak 's|ogg-v${VERSION}|libogg-${VERSION}|' "$VCPKG_LIBOGG_PORTFILE"
-    else
-      echo "libogg portfile not found, skipping patch."
-    fi
-
 jobs:
   test:
     strategy:
@@ -110,7 +97,17 @@ jobs:
           cd "${{ env.VCPKG_ROOT_UNIX }}"
           ${{ matrix.bootstrap_script }} -disableMetrics
 
-      - <<: *patch-vcpkg
+      - name: Patch vcpkg for libogg download
+        shell: bash
+        run: |
+          VCPKG_LIBOGG_PORTFILE=$(find "${{ env.VCPKG_ROOT }}" -name "portfile.cmake" -path "*/libogg/*")
+          if [ -f "$VCPKG_LIBOGG_PORTFILE" ]; then
+            echo "Patching libogg portfile: $VCPKG_LIBOGG_PORTFILE"
+            sed -i.bak 's|https://gitlab.xiph.org/xiph/ogg/-/archive/v${VERSION}/ogg-v${VERSION}.tar.gz|https://downloads.xiph.org/releases/ogg/libogg-${VERSION}.tar.gz|' "$VCPKG_LIBOGG_PORTFILE"
+            sed -i.bak 's|ogg-v${VERSION}|libogg-${VERSION}|' "$VCPKG_LIBOGG_PORTFILE"
+          else
+            echo "libogg portfile not found, skipping patch."
+          fi
 
       - name: Configure
         shell: bash
