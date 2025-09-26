@@ -2,37 +2,71 @@ name: CI - Unit Tests
 
 on:
   push:
-    branches: [ main, dev ]
+    branches: [ master, dev ]
   pull_request:
 
+env:
+  BOZA_CMAKE_COMMON: >-
+    -DBOZA_BUILD_TESTS=ON
+    -DBOZA_ENABLE_OPENGL=OFF
+    -DBOZA_ENABLE_VULKAN=ON
+    -DBOZA_ENABLE_METAL=OFF
+    -DBOZA_ENABLE_DIRECTX11=OFF
+    -DBOZA_ENABLE_DIRECTX12=OFF
+    -DBOZA_ENABLE_OPENAL=OFF
+    -DBOZA_ENABLE_XAUDIO2=OFF
+    -DBOZA_ENABLE_COREAUDIO=OFF
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+  VCPKG_FEATURE_FLAGS: manifests
+
+x-patch-vcpkg: &patch-vcpkg
+  name: Patch vcpkg for libogg download
+  shell: bash
+  run: |
+    VCPKG_LIBOGG_PORTFILE=$(find "${{ env.VCPKG_ROOT }}" -name "portfile.cmake" -path "*/libogg/*")
+    if [ -f "$VCPKG_LIBOGG_PORTFILE" ]; then
+      echo "Patching libogg portfile: $VCPKG_LIBOGG_PORTFILE"
+      sed -i.bak 's|https://gitlab.xiph.org/xiph/ogg/-/archive/v${VERSION}/ogg-v${VERSION}.tar.gz|https://downloads.xiph.org/releases/ogg/libogg-${VERSION}.tar.gz|' "$VCPKG_LIBOGG_PORTFILE"
+      sed -i.bak 's|ogg-v${VERSION}|libogg-${VERSION}|' "$VCPKG_LIBOGG_PORTFILE"
+    else
+      echo "libogg portfile not found, skipping patch."
+    fi
+
 jobs:
-  build-and-test:
-    name: ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+  test:
     strategy:
       fail-fast: false
       matrix:
         os: [ windows-latest, ubuntu-latest, macos-latest ]
+        include:
+          - os: windows-latest
+            vcpkg_triplet: x64-windows
+            cmake_build_type: Release
+            cmake_generator: -G "Visual Studio 17 2022" -A x64
+            bootstrap_script: ./bootstrap-vcpkg.bat
+          - os: ubuntu-latest
+            vcpkg_triplet: x64-linux
+            cmake_build_type: RelWithDebInfo
+            bootstrap_script: ./bootstrap-vcpkg.sh
+            cc: gcc-14
+            cxx: g++-14
+          - os: macos-latest
+            vcpkg_triplet: arm64-osx
+            cmake_build_type: RelWithDebInfo
+            bootstrap_script: ./bootstrap-vcpkg.sh
 
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     env:
-      BOZA_CMAKE_COMMON: >-
-        -DBOZA_BUILD_TESTS=ON
-        -DBOZA_ENABLE_OPENGL=OFF
-        -DBOZA_ENABLE_VULKAN=ON
-        -DBOZA_ENABLE_METAL=OFF
-        -DBOZA_ENABLE_DIRECTX11=OFF
-        -DBOZA_ENABLE_DIRECTX12=OFF
-        -DBOZA_ENABLE_OPENAL=OFF
-        -DBOZA_ENABLE_XAUDIO2=OFF
-        -DBOZA_ENABLE_COREAUDIO=OFF
-      CMAKE_BUILD_PARALLEL_LEVEL: 4
-      VCPKG_FEATURE_FLAGS: manifests
+      VCPKG_DEFAULT_TRIPLET: ${{ matrix.vcpkg_triplet }}
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Linux dependencies
+      - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
@@ -40,36 +74,26 @@ jobs:
           sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
           sudo apt-get update
           sudo apt-get install -y gcc-14 g++-14
-          echo "CC=gcc-14" >> "$GITHUB_ENV"
-          echo "CXX=g++-14" >> "$GITHUB_ENV"
 
-      - name: Install macOS dependencies
+      - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
-        run: |
-          brew install molten-vk
+        run: brew install molten-vk
 
       - name: Setup CMake 3.30+
         uses: jwlawson/actions-setup-cmake@v2
         with:
           cmake-version: '3.30.5'
 
-      - name: Select vcpkg triplet and root
+      - name: Set vcpkg root
         shell: bash
         run: |
+          VCPKG_ROOT_PATH="${{ runner.temp }}/vcpkg"
+          echo "VCPKG_ROOT=${VCPKG_ROOT_PATH}" >> "$GITHUB_ENV"
+          # For Windows bash, we need to convert paths for git clone
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            VCPKG_ROOT_PATH="${{ runner.temp }}/vcpkg"
-            echo "VCPKG_DEFAULT_TRIPLET=x64-windows" >> "$GITHUB_ENV"
-            echo "VCPKG_ROOT=${VCPKG_ROOT_PATH}" >> "$GITHUB_ENV"
-            echo "VCPKG_ROOT_UNIX=$(echo $VCPKG_ROOT_PATH | sed 's|\\|/|g')" >> "$GITHUB_ENV"
-          elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            echo "VCPKG_DEFAULT_TRIPLET=arm64-osx" >> "$GITHUB_ENV"
-            echo "VCPKG_ROOT=${{ runner.temp }}/vcpkg" >> "$GITHUB_ENV"
-            echo "VCPKG_ROOT_UNIX=${{ runner.temp }}/vcpkg" >> "$GITHUB_ENV"
-          else
-            echo "VCPKG_DEFAULT_TRIPLET=x64-linux" >> "$GITHUB_ENV"
-            echo "VCPKG_ROOT=${{ runner.temp }}/vcpkg" >> "$GITHUB_ENV"
-            echo "VCPKG_ROOT_UNIX=${{ runner.temp }}/vcpkg" >> "$GITHUB_ENV"
+            VCPKG_ROOT_PATH=$(echo $VCPKG_ROOT_PATH | sed 's|\\|/|g')
           fi
+          echo "VCPKG_ROOT_UNIX=${VCPKG_ROOT_PATH}" >> "$GITHUB_ENV"
 
       - name: Cache vcpkg
         uses: actions/cache@v4
@@ -84,58 +108,21 @@ jobs:
         run: |
           git clone https://github.com/microsoft/vcpkg.git "${{ env.VCPKG_ROOT_UNIX }}"
           cd "${{ env.VCPKG_ROOT_UNIX }}"
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            ./bootstrap-vcpkg.bat -disableMetrics
-          else
-            ./bootstrap-vcpkg.sh -disableMetrics
-          fi
+          ${{ matrix.bootstrap_script }} -disableMetrics
 
-      - name: Patch vcpkg for libogg download
-        shell: bash
-        run: |
-          VCPKG_LIBOGG_PORTFILE=$(find "${{ env.VCPKG_ROOT_UNIX }}" -name "portfile.cmake" -path "*/libogg/*")
-          if [ -f "$VCPKG_LIBOGG_PORTFILE" ]; then
-            echo "Patching libogg portfile: $VCPKG_LIBOGG_PORTFILE"
-            sed -i.bak 's|https://gitlab.xiph.org/xiph/ogg/-/archive/v${VERSION}/ogg-v${VERSION}.tar.gz|https://downloads.xiph.org/releases/ogg/libogg-${VERSION}.tar.gz|' "$VCPKG_LIBOGG_PORTFILE"
-            sed -i.bak 's|ogg-v${VERSION}|libogg-${VERSION}|' "$VCPKG_LIBOGG_PORTFILE"
-          else
-            echo "libogg portfile not found, skipping patch."
-          fi
+      - <<: *patch-vcpkg
 
-      - name: Configure (Windows)
-        if: runner.os == 'Windows'
+      - name: Configure
         shell: bash
         run: >
           cmake -S . -B build
-          -G "Visual Studio 17 2022" -A x64
+          ${{ matrix.cmake_generator }}
+          -DCMAKE_BUILD_TYPE=${{ matrix.cmake_build_type }}
           -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake"
           $BOZA_CMAKE_COMMON
 
-      - name: Configure (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: >
-          cmake -S . -B build
-          -DCMAKE_BUILD_TYPE=RelWithDebInfo
-          -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake"
-          $BOZA_CMAKE_COMMON
+      - name: Build
+        run: cmake --build build --config ${{ matrix.cmake_build_type }} --parallel
 
-      - name: Build (Windows)
-        if: runner.os == 'Windows'
-        shell: bash
-        run: cmake --build build --config Release --parallel
-
-      - name: Build (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: cmake --build build --parallel
-
-      - name: Run tests (Windows)
-        if: runner.os == 'Windows'
-        shell: bash
-        run: ctest --test-dir build -C Release --output-on-failure
-
-      - name: Run tests (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: ctest --test-dir build --output-on-failure
+      - name: Run tests
+        run: ctest --test-dir build -C ${{ matrix.cmake_build_type }} --output-on-failure
