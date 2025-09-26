@@ -37,7 +37,7 @@ namespace boza
         [[nodiscard]] bool is_minimized() const;
 
         [[nodiscard]]
-        std::vector<const char*> get_required_extensions();
+        std::vector<const char*> get_required_extensions() const;
 
         #ifdef BOZA_VULKAN_ENABLED
         // VkResult

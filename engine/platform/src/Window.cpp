@@ -175,7 +175,7 @@ namespace boza
 
     bool Window::is_minimized() const { return !(width && height); }
 
-    std::vector<const char*> Window::get_required_extensions()
+    std::vector<const char*> Window::get_required_extensions() const
     {
         uint32_t count = 0;
         const char** ext = glfwGetRequiredInstanceExtensions(&count);

@@ -5,7 +5,10 @@ namespace boza
 {
     void Logger::init()
     {
-        spdlog::set_default_logger(spdlog::stdout_color_mt("console"));
+        auto console_logger = spdlog::get("console");
+        if (!console_logger) console_logger = spdlog::stdout_color_mt("console");
+
+        spdlog::set_default_logger(console_logger);
         spdlog::set_pattern("%^[%Y-%m-%d %H:%M:%S.%e] [%l] %v%$");
 
         #ifdef BOZA_DEBUG

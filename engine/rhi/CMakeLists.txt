@@ -34,6 +34,13 @@ if (BOZA_ENABLE_VULKAN)
             volk::volk_headers)
 
     if (APPLE)
+        find_library(MOLTENVK_LIB MoltenVK PATHS
+                "$ENV{HOMEBREW_PREFIX}/lib"
+                "/opt/homebrew/lib"
+                "/usr/local/lib"
+                REQUIRED
+        )
+
         target_link_libraries(boza_rhi PRIVATE
                 "-framework Metal"
                 "-framework QuartzCore"
@@ -41,17 +48,11 @@ if (BOZA_ENABLE_VULKAN)
                 "-framework IOSurface"
                 "-framework CoreGraphics"
                 "-framework AppKit"
+                ${MOLTENVK_LIB}
         )
 
-        set_target_properties(boza_rhi PROPERTIES
-                BUILD_WITH_INSTALL_RPATH ON
-                INSTALL_RPATH "@executable_path/../Frameworks;/usr/local/lib;/opt/homebrew/lib"
-        )
-
-        target_compile_definitions(boza_rhi PRIVATE
-                VK_USE_PLATFORM_MACOS_MVK
-                VK_USE_PLATFORM_METAL_EXT
-        )
+        get_filename_component(MVK_DIR "${MOLTENVK_LIB}" DIRECTORY)
+        target_link_options(boza_rhi PRIVATE "-Wl,-rpath,${MVK_DIR}")
     endif ()
 
     target_precompile_headers(boza_rhi PRIVATE src/backends/vulkan/pch.hpp)

@@ -28,17 +28,20 @@ jobs:
         include:
           - os: windows-latest
             vcpkg_triplet: x64-windows
+            vcpkg_host_triplet: x64-windows
             cmake_build_type: Release
             cmake_generator: -G "Visual Studio 17 2022" -A x64
             bootstrap_script: ./bootstrap-vcpkg.bat
           - os: ubuntu-latest
             vcpkg_triplet: x64-linux
+            vcpkg_host_triplet: x64-linux
             cmake_build_type: RelWithDebInfo
             bootstrap_script: ./bootstrap-vcpkg.sh
             cc: gcc-14
             cxx: g++-14
           - os: macos-latest
             vcpkg_triplet: arm64-osx
+            vcpkg_host_triplet: x64-osx
             cmake_build_type: RelWithDebInfo
             bootstrap_script: ./bootstrap-vcpkg.sh
 
@@ -46,12 +49,15 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       VCPKG_DEFAULT_TRIPLET: ${{ matrix.vcpkg_triplet }}
+      VCPKG_DEFAULT_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       CC: ${{ matrix.cc }}
       CXX: ${{ matrix.cxx }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
 
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
@@ -87,7 +93,7 @@ jobs:
         id: vcpkg-cache
         with:
           path: ${{ env.VCPKG_ROOT }}
-          key: vcpkg-${{ runner.os }}-${{ env.VCPKG_DEFAULT_TRIPLET }}-${{ hashFiles('**/vcpkg.json') }}
+          key: vcpkg-${{ runner.os }}-${{ env.VCPKG_DEFAULT_TRIPLET }}-${{ env.VCPKG_DEFAULT_HOST_TRIPLET }}-${{ hashFiles('**/vcpkg.json', '**/vcpkg-configuration.json') }}
 
       - name: Bootstrap vcpkg
         if: steps.vcpkg-cache.outputs.cache-hit != 'true'

@@ -3,48 +3,19 @@
 
 #include <magic_enum/magic_enum_all.hpp>
 
-#ifdef __APPLE__
-#include <dlfcn.h>
-#endif
-
 namespace boza::rhi::vk
 {
-    #ifdef __APPLE__
-    static bool ensure_moltenvk_loaded()
-    {
-        const char* candidates[] = {
-            "/usr/local/lib/libMoltenVK.dylib",
-            "/usr/local/opt/molten-vk/lib/libMoltenVK.dylib",
-            "/opt/homebrew/lib/libMoltenVK.dylib",
-            nullptr
-        };
-
-        for (const char** p = candidates; *p; ++p)
-        {
-            void* h = dlopen(*p, RTLD_NOW | RTLD_GLOBAL);
-            if (h)
-            {
-                Logger::trace("Loaded MoltenVK from %s\n", *p);
-                return true;
-            }
-        }
-
-        Logger::error("No MoltenVK found\n");
-        return false;
-    }
-    #endif
-
     bool Instance::init()
     {
         #ifdef __APPLE__
-        if (!ensure_moltenvk_loaded()) return false;
-        #endif
-
+        volkInitializeCustom(vkGetInstanceProcAddr);
+        #else
         VK_CHECK(volkInitialize(),
         {
             LOG_VK_ERROR("Failed to initialize Volk");
             return false;
         });
+        #endif
 
         Logger::trace("Creating vulkan instance");
         if (!create_instance()) return false;
