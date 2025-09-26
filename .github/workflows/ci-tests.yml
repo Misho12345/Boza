@@ -37,6 +37,16 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libxinerama-dev libxcursor-dev xorg-dev libglu1-mesa-dev pkg-config
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y gcc-14 g++-14
+          echo "CC=gcc-14" >> "$GITHUB_ENV"
+          echo "CXX=g++-14" >> "$GITHUB_ENV"
+
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: |
+          brew install -y molten-vk
 
       - name: Setup CMake 3.30+
         uses: jwlawson/actions-setup-cmake@v2
@@ -74,6 +84,32 @@ jobs:
             ./bootstrap-vcpkg.bat -disableMetrics
           else
             ./bootstrap-vcpkg.sh -disableMetrics
+          fi
+
+      - name: Patch vcpkg for libogg download (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          VCPKG_LIBOGG_PORTFILE=$(find ${{ env.VCPKG_ROOT }} -name "portfile.cmake" -path "*/libogg/*")
+          if [ -f "$VCPKG_LIBOGG_PORTFILE" ]; then
+            echo "Patching libogg portfile: $VCPKG_LIBOGG_PORTFILE"
+            sed -i.bak 's|https://gitlab.xiph.org/xiph/ogg/-/archive/v${VERSION}/ogg-v${VERSION}.tar.gz|https://downloads.xiph.org/releases/ogg/libogg-${VERSION}.tar.gz|' "$VCPKG_LIBOGG_PORTFILE"
+            sed -i.bak 's|ogg-v${VERSION}|libogg-${VERSION}|' "$VCPKG_LIBOGG_PORTFILE"
+          else
+            echo "libogg portfile not found, skipping patch."
+          fi
+
+      - name: Patch vcpkg for libogg download (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          VCPKG_LIBOGG_PORTFILE=$(find ${{ env.VCPKG_ROOT }} -name "portfile.cmake" -path "*/libogg/*")
+          if [ -f "$VCPKG_LIBOGG_PORTFILE" ]; then
+            echo "Patching libogg portfile: $VCPKG_LIBOGG_PORTFILE"
+            sed -i.bak 's|https://gitlab.xiph.org/xiph/ogg/-/archive/v${VERSION}/ogg-v${VERSION}.tar.gz|https://downloads.xiph.org/releases/ogg/libogg-${VERSION}.tar.gz|' "$VCPKG_LIBOGG_PORTFILE"
+            sed -i.bak 's|ogg-v${VERSION}|libogg-${VERSION}|' "$VCPKG_LIBOGG_PORTFILE"
+          else
+            echo "libogg portfile not found, skipping patch."
           fi
 
       - name: Configure (Windows)

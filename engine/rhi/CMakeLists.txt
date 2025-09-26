@@ -33,6 +33,27 @@ if (BOZA_ENABLE_VULKAN)
             volk::volk
             volk::volk_headers)
 
+    if (APPLE)
+        target_link_libraries(boza_rhi PRIVATE
+                "-framework Metal"
+                "-framework QuartzCore"
+                "-framework Foundation"
+                "-framework IOSurface"
+                "-framework CoreGraphics"
+                "-framework AppKit"
+        )
+
+        set_target_properties(boza_rhi PROPERTIES
+                BUILD_WITH_INSTALL_RPATH ON
+                INSTALL_RPATH "@executable_path/../Frameworks;/usr/local/lib;/opt/homebrew/lib"
+        )
+
+        target_compile_definitions(boza_rhi PRIVATE
+                VK_USE_PLATFORM_MACOS_MVK
+                VK_USE_PLATFORM_METAL_EXT
+        )
+    endif ()
+
     target_precompile_headers(boza_rhi PRIVATE src/backends/vulkan/pch.hpp)
 endif ()
 
