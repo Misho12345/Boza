@@ -5,7 +5,6 @@
 #include <vector>
 
 #include <shaderc/shaderc.hpp>
-#include <spirv-tools/optimizer.hpp>
 
 
 namespace fs = std::filesystem;
