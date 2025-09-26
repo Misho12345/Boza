@@ -8,24 +8,49 @@ function(get_source_files out_sources)
         message(FATAL_ERROR "At least base directory must be specified")
     endif ()
 
-    set(collected_sources_list "")
+    set(_collected_sources_list "")
 
     foreach (arg IN LISTS ARGN)
         if(IS_DIRECTORY "${arg}")
             file(GLOB_RECURSE dir_sources
                     CONFIGURE_DEPENDS
                     "${arg}/*.hpp"
+                    "${arg}/*.hh"
+                    "${arg}/*.h"
                     "${arg}/*.inl"
+                    "${arg}/*.ipp"
                     "${arg}/*.cpp"
+                    "${arg}/*.cc"
+                    "${arg}/*.cxx"
+                    "${arg}/*.c"
             )
 
-            list(APPEND collected_sources_list ${dir_sources})
+            list(APPEND _collected_sources_list ${dir_sources})
         else()
             message(WARNING "Skipping '${arg}': Not a valid directory")
         endif()
     endforeach ()
 
-    set(${out_sources} ${collected_sources_list} PARENT_SCOPE)
+    set(_filtered_sources "")
+    foreach(_f IN LISTS _collected_sources_list)
+        if (_f MATCHES "[/\\\\]build([/\\\\]|$)")
+            message(VERBOSE "get_source_files: filtered out (in build dir): ${_f}")
+            continue()
+        endif()
+
+        if (_f MATCHES "\\.gch$" OR _f MATCHES "\\.pch$" OR
+                _f MATCHES "\\.o$" OR _f MATCHES "\\.obj$" OR
+                _f MATCHES "\\.a$" OR _f MATCHES "\\.so$" OR _f MATCHES "\\.dll$" OR
+                _f MATCHES "\\.lib$" OR _f MATCHES "\\.dylib$" OR
+                _f MATCHES "\\.pyc$" OR _f MATCHES "\\.class$")
+            message(VERBOSE "get_source_files: filtered out (artifact ext): ${_f}")
+            continue()
+        endif()
+
+        list(APPEND _filtered_sources "${_f}")
+    endforeach()
+
+    set(${out_sources} ${_filtered_sources} PARENT_SCOPE)
 endfunction()
 
 
