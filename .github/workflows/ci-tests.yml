@@ -114,7 +114,7 @@ jobs:
         run: >
           cmake -S . -B build
             -DVCPKG_OVERLAY_PORTS="${{ github.workspace }}/.github/vcpkg-ports"
-            -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake"
+            -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake"
             ${{ matrix.cmake_generator }}
             -DCMAKE_BUILD_TYPE=${{ matrix.cmake_build_type }}
             $BOZA_CMAKE_COMMON
