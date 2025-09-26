@@ -31,23 +31,22 @@ jobs:
             vcpkg_host_triplet: x64-windows
             cmake_build_type: Release
             cmake_generator: -G "Visual Studio 17 2022" -A x64
-            bootstrap_script: ./bootstrap-vcpkg.bat
           - os: ubuntu-latest
             vcpkg_triplet: x64-linux
             vcpkg_host_triplet: x64-linux
             cmake_build_type: RelWithDebInfo
-            bootstrap_script: ./bootstrap-vcpkg.sh
             cc: gcc-14
             cxx: g++-14
           - os: macos-latest
             vcpkg_triplet: arm64-osx
             vcpkg_host_triplet: x64-osx
             cmake_build_type: RelWithDebInfo
-            bootstrap_script: ./bootstrap-vcpkg.sh
 
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+
     env:
+      VCPKG_ROOT: ${{ runner.temp }}/vcpkg
       VCPKG_DEFAULT_TRIPLET: ${{ matrix.vcpkg_triplet }}
       VCPKG_DEFAULT_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       CC: ${{ matrix.cc }}
@@ -70,23 +69,14 @@ jobs:
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
-        run: brew install molten-vk
+        run: |
+          brew update
+          brew install molten-vk
 
       - name: Setup CMake 3.30+
         uses: jwlawson/actions-setup-cmake@v2
         with:
           cmake-version: '3.30.5'
-
-      - name: Set vcpkg root
-        shell: bash
-        run: |
-          VCPKG_ROOT_PATH="${{ runner.temp }}/vcpkg"
-          echo "VCPKG_ROOT=${VCPKG_ROOT_PATH}" >> "$GITHUB_ENV"
-          # For Windows bash, we need to convert paths for git clone
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            VCPKG_ROOT_PATH=$(echo $VCPKG_ROOT_PATH | sed 's|\\|/|g')
-          fi
-          echo "VCPKG_ROOT_UNIX=${VCPKG_ROOT_PATH}" >> "$GITHUB_ENV"
 
       - name: Cache vcpkg
         uses: actions/cache@v4
@@ -95,18 +85,43 @@ jobs:
           path: ${{ env.VCPKG_ROOT }}
           key: vcpkg-${{ runner.os }}-${{ env.VCPKG_DEFAULT_TRIPLET }}-${{ env.VCPKG_DEFAULT_HOST_TRIPLET }}-${{ hashFiles('**/vcpkg.json', '**/vcpkg-configuration.json') }}
 
-      - name: Bootstrap vcpkg
-        if: steps.vcpkg-cache.outputs.cache-hit != 'true'
-        shell: bash
+      - name: Bootstrap vcpkg (Windows)
+        if: runner.os == 'Windows' && steps.vcpkg-cache.outputs.cache-hit != 'true'
+        shell: powershell
         run: |
-          git clone https://github.com/microsoft/vcpkg.git "${{ env.VCPKG_ROOT_UNIX }}"
-          cd "${{ env.VCPKG_ROOT_UNIX }}"
-          ${{ matrix.bootstrap_script }} -disableMetrics
+          git clone https://github.com/microsoft/vcpkg.git "$env:VCPKG_ROOT"
+          Set-Location -Path $env:VCPKG_ROOT
+          # run the batch bootstrap on Windows
+          .\bootstrap-vcpkg.bat -disableMetrics
 
-      - name: Patch vcpkg for libogg download
+      - name: Bootstrap vcpkg (Unix)
+        if: runner.os != 'Windows' && steps.vcpkg-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
-          VCPKG_LIBOGG_PORTFILE=$(find "${{ env.VCPKG_ROOT }}" -name "portfile.cmake" -path "*/libogg/*")
+          git clone https://github.com/microsoft/vcpkg.git "${VCPKG_ROOT}"
+          cd "${VCPKG_ROOT}"
+          ./bootstrap-vcpkg.sh -disableMetrics
+
+      - name: Patch vcpkg for libogg download (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $portfile = Get-ChildItem -Path $env:VCPKG_ROOT -Recurse -Filter portfile.cmake | Where-Object { $_.FullName -match '\\libogg\\' } | Select-Object -First 1
+          if ($portfile) {
+            Write-Host "Patching libogg portfile: $($portfile.FullName)"
+            $content = Get-Content -Raw -Path $portfile.FullName
+            $content = $content -replace 'https://gitlab.xiph.org/xiph/ogg/-/archive/v\${VERSION}/ogg-v\${VERSION}.tar.gz','https://downloads.xiph.org/releases/ogg/libogg-${VERSION}.tar.gz'
+            $content = $content -replace 'ogg-v\${VERSION}','libogg-${VERSION}'
+            Set-Content -Path $portfile.FullName -Value $content
+          } else {
+            Write-Host "libogg portfile not found, skipping patch."
+          }
+
+      - name: Patch vcpkg for libogg download (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          VCPKG_LIBOGG_PORTFILE=$(find "${VCPKG_ROOT}" -name "portfile.cmake" -path "*/libogg/*" || true)
           if [ -f "$VCPKG_LIBOGG_PORTFILE" ]; then
             echo "Patching libogg portfile: $VCPKG_LIBOGG_PORTFILE"
             sed -i.bak 's|https://gitlab.xiph.org/xiph/ogg/-/archive/v${VERSION}/ogg-v${VERSION}.tar.gz|https://downloads.xiph.org/releases/ogg/libogg-${VERSION}.tar.gz|' "$VCPKG_LIBOGG_PORTFILE"
@@ -115,17 +130,54 @@ jobs:
             echo "libogg portfile not found, skipping patch."
           fi
 
-      - name: Configure
+      - name: show installed vcpkg packages
+        if: ${{ always() }}
+        run: |
+          echo "VCPKG_ROOT = $VCPKG_ROOT"
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            powershell -Command "Get-ChildItem -Path $env:VCPKG_ROOT -Depth 2 | Select-Object -First 20"
+          else
+            ls -la "${VCPKG_ROOT}" || true
+            ls -la "${VCPKG_ROOT}/installed" || true
+          fi
+
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          Write-Host "Configuring with CMake (Windows)"
+          cd $PSScriptRoot
+          cmake -S . -B build ${{ matrix.cmake_generator }} -DCMAKE_BUILD_TYPE=${{ matrix.cmake_build_type }} -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" $env:BOZA_CMAKE_COMMON
+
+      - name: Configure (Unix)
+        if: runner.os != 'Windows'
         shell: bash
-        run: >
-          cmake -S . -B build
-            ${{ matrix.cmake_generator }}
-            -DCMAKE_BUILD_TYPE=${{ matrix.cmake_build_type }}
-            -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake"
+        run: |
+          echo "Configuring with CMake (Unix)"
+          cmake -S . -B build \
+            ${{ matrix.cmake_generator }} \
+            -DCMAKE_BUILD_TYPE=${{ matrix.cmake_build_type }} \
+            -DCMAKE_TOOLCHAIN_FILE="${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" \
             $BOZA_CMAKE_COMMON
 
-      - name: Build
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          cmake --build build --config ${{ matrix.cmake_build_type }} --parallel
+
+      - name: Build (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
         run: cmake --build build --config ${{ matrix.cmake_build_type }} --parallel
 
-      - name: Run tests
+      - name: Run tests (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          ctest --test-dir build -C ${{ matrix.cmake_build_type }} --output-on-failure
+
+      - name: Run tests (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
         run: ctest --test-dir build -C ${{ matrix.cmake_build_type }} --output-on-failure
