@@ -46,7 +46,7 @@ jobs:
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
         run: |
-          brew install -y molten-vk
+          brew install molten-vk
 
       - name: Setup CMake 3.30+
         uses: jwlawson/actions-setup-cmake@v2
@@ -57,14 +57,18 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
+            VCPKG_ROOT_PATH="${{ runner.temp }}/vcpkg"
             echo "VCPKG_DEFAULT_TRIPLET=x64-windows" >> "$GITHUB_ENV"
-            echo "VCPKG_ROOT=${{ runner.temp }}/vcpkg" >> "$GITHUB_ENV"
+            echo "VCPKG_ROOT=${VCPKG_ROOT_PATH}" >> "$GITHUB_ENV"
+            echo "VCPKG_ROOT_UNIX=$(echo $VCPKG_ROOT_PATH | sed 's|\\|/|g')" >> "$GITHUB_ENV"
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
             echo "VCPKG_DEFAULT_TRIPLET=arm64-osx" >> "$GITHUB_ENV"
             echo "VCPKG_ROOT=${{ runner.temp }}/vcpkg" >> "$GITHUB_ENV"
+            echo "VCPKG_ROOT_UNIX=${{ runner.temp }}/vcpkg" >> "$GITHUB_ENV"
           else
             echo "VCPKG_DEFAULT_TRIPLET=x64-linux" >> "$GITHUB_ENV"
             echo "VCPKG_ROOT=${{ runner.temp }}/vcpkg" >> "$GITHUB_ENV"
+            echo "VCPKG_ROOT_UNIX=${{ runner.temp }}/vcpkg" >> "$GITHUB_ENV"
           fi
 
       - name: Cache vcpkg
@@ -78,32 +82,18 @@ jobs:
         if: steps.vcpkg-cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
-          git clone https://github.com/microsoft/vcpkg.git "${{ env.VCPKG_ROOT }}"
-          cd "${{ env.VCPKG_ROOT }}"
+          git clone https://github.com/microsoft/vcpkg.git "${{ env.VCPKG_ROOT_UNIX }}"
+          cd "${{ env.VCPKG_ROOT_UNIX }}"
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             ./bootstrap-vcpkg.bat -disableMetrics
           else
             ./bootstrap-vcpkg.sh -disableMetrics
           fi
 
-      - name: Patch vcpkg for libogg download (Windows)
-        if: runner.os == 'Windows'
+      - name: Patch vcpkg for libogg download
         shell: bash
         run: |
-          VCPKG_LIBOGG_PORTFILE=$(find ${{ env.VCPKG_ROOT }} -name "portfile.cmake" -path "*/libogg/*")
-          if [ -f "$VCPKG_LIBOGG_PORTFILE" ]; then
-            echo "Patching libogg portfile: $VCPKG_LIBOGG_PORTFILE"
-            sed -i.bak 's|https://gitlab.xiph.org/xiph/ogg/-/archive/v${VERSION}/ogg-v${VERSION}.tar.gz|https://downloads.xiph.org/releases/ogg/libogg-${VERSION}.tar.gz|' "$VCPKG_LIBOGG_PORTFILE"
-            sed -i.bak 's|ogg-v${VERSION}|libogg-${VERSION}|' "$VCPKG_LIBOGG_PORTFILE"
-          else
-            echo "libogg portfile not found, skipping patch."
-          fi
-
-      - name: Patch vcpkg for libogg download (macOS)
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          VCPKG_LIBOGG_PORTFILE=$(find ${{ env.VCPKG_ROOT }} -name "portfile.cmake" -path "*/libogg/*")
+          VCPKG_LIBOGG_PORTFILE=$(find "${{ env.VCPKG_ROOT_UNIX }}" -name "portfile.cmake" -path "*/libogg/*")
           if [ -f "$VCPKG_LIBOGG_PORTFILE" ]; then
             echo "Patching libogg portfile: $VCPKG_LIBOGG_PORTFILE"
             sed -i.bak 's|https://gitlab.xiph.org/xiph/ogg/-/archive/v${VERSION}/ogg-v${VERSION}.tar.gz|https://downloads.xiph.org/releases/ogg/libogg-${VERSION}.tar.gz|' "$VCPKG_LIBOGG_PORTFILE"
