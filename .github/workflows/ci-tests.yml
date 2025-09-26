@@ -30,7 +30,8 @@ jobs:
             vcpkg_triplet: x64-windows
             vcpkg_host_triplet: x64-windows
             cmake_build_type: Release
-            cmake_generator: -G "Visual Studio 17 2022" -A x64
+            cmake_generator: 'Visual Studio 17 2022'
+            cmake_arch: x64
           - os: ubuntu-latest
             vcpkg_triplet: x64-linux
             vcpkg_host_triplet: x64-linux
@@ -46,7 +47,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     env:
-      VCPKG_ROOT: ${{ runner.temp }}/vcpkg
+      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
       VCPKG_DEFAULT_TRIPLET: ${{ matrix.vcpkg_triplet }}
       VCPKG_DEFAULT_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
       CC: ${{ matrix.cc }}
@@ -91,7 +92,6 @@ jobs:
         run: |
           git clone https://github.com/microsoft/vcpkg.git "$env:VCPKG_ROOT"
           Set-Location -Path $env:VCPKG_ROOT
-          # run the batch bootstrap on Windows
           .\bootstrap-vcpkg.bat -disableMetrics
 
       - name: Bootstrap vcpkg (Unix)
@@ -109,10 +109,8 @@ jobs:
           $portfile = Get-ChildItem -Path $env:VCPKG_ROOT -Recurse -Filter portfile.cmake | Where-Object { $_.FullName -match '\\libogg\\' } | Select-Object -First 1
           if ($portfile) {
             Write-Host "Patching libogg portfile: $($portfile.FullName)"
-            $content = Get-Content -Raw -Path $portfile.FullName
-            $content = $content -replace 'https://gitlab.xiph.org/xiph/ogg/-/archive/v\${VERSION}/ogg-v\${VERSION}.tar.gz','https://downloads.xiph.org/releases/ogg/libogg-${VERSION}.tar.gz'
-            $content = $content -replace 'ogg-v\${VERSION}','libogg-${VERSION}'
-            Set-Content -Path $portfile.FullName -Value $content
+            (Get-Content -Raw -Path $portfile.FullName) -replace 'https://gitlab.xiph.org/xiph/ogg/-/archive/v\${VERSION}/ogg-v\${VERSION}.tar.gz','https://downloads.xiph.org/releases/ogg/libogg-${VERSION}.tar.gz' `
+              -replace 'ogg-v\${VERSION}','libogg-${VERSION}' | Set-Content -Path $portfile.FullName
           } else {
             Write-Host "libogg portfile not found, skipping patch."
           }
@@ -135,7 +133,7 @@ jobs:
         run: |
           echo "VCPKG_ROOT = $VCPKG_ROOT"
           if [ "${{ runner.os }}" = "Windows" ]; then
-            powershell -Command "Get-ChildItem -Path $env:VCPKG_ROOT -Depth 2 | Select-Object -First 20"
+            powershell -Command "Get-ChildItem -Path $env:VCPKG_ROOT -Depth 2 | Select-Object -First 40"
           else
             ls -la "${VCPKG_ROOT}" || true
             ls -la "${VCPKG_ROOT}/installed" || true
@@ -147,7 +145,7 @@ jobs:
         run: |
           Write-Host "Configuring with CMake (Windows)"
           cd $PSScriptRoot
-          cmake -S . -B build ${{ matrix.cmake_generator }} -DCMAKE_BUILD_TYPE=${{ matrix.cmake_build_type }} -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" $env:BOZA_CMAKE_COMMON
+          cmake -S . -B build -G "${{ matrix.cmake_generator }}" -A ${{ matrix.cmake_arch }} -DCMAKE_BUILD_TYPE=${{ matrix.cmake_build_type }} -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" $env:BOZA_CMAKE_COMMON
 
       - name: Configure (Unix)
         if: runner.os != 'Windows'
@@ -155,7 +153,6 @@ jobs:
         run: |
           echo "Configuring with CMake (Unix)"
           cmake -S . -B build \
-            ${{ matrix.cmake_generator }} \
             -DCMAKE_BUILD_TYPE=${{ matrix.cmake_build_type }} \
             -DCMAKE_TOOLCHAIN_FILE="${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" \
             $BOZA_CMAKE_COMMON
