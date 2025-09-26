@@ -113,10 +113,11 @@ jobs:
         shell: bash
         run: >
           cmake -S . -B build
-          ${{ matrix.cmake_generator }}
-          -DCMAKE_BUILD_TYPE=${{ matrix.cmake_build_type }}
-          -DCMAKE_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake"
-          $BOZA_CMAKE_COMMON
+            -DVCPKG_OVERLAY_PORTS="${{ github.workspace }}/.github/vcpkg-ports"
+            -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake"
+            ${{ matrix.cmake_generator }}
+            -DCMAKE_BUILD_TYPE=${{ matrix.cmake_build_type }}
+            $BOZA_CMAKE_COMMON
 
       - name: Build
         run: cmake --build build --config ${{ matrix.cmake_build_type }} --parallel

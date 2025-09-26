@@ -23,7 +23,6 @@ function(boza_enable_warnings target)
                 -Wcast-align
                 -Wunused
                 -Wold-style-cast
-                -Wshadow
         )
 
         if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
