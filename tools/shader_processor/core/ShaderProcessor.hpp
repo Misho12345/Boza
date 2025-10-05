@@ -1,8 +1,5 @@
 #pragma once
-
-#include <filesystem>
-
-namespace fs = std::filesystem;
+#include "ProcessorConfig.hpp"
 
 namespace sp
 {
@@ -22,6 +19,6 @@ namespace sp
          * @param out_dir The output directory for processed files.
          * @return True on success, false on failure.
          */
-        static bool process(const fs::path& path, const fs::path& out_dir);
+        static bool process(const fs::path& path, const fs::path& out_dir, const ProcessorConfig& config);
     };
 }

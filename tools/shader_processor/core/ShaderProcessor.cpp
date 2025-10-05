@@ -13,7 +13,7 @@ namespace sp
 {
     using utils::File;
 
-    bool ShaderProcessor::process(const fs::path& path, const fs::path& out_dir)
+    bool ShaderProcessor::process(const fs::path& path, const fs::path& out_dir, const ProcessorConfig& config)
     {
         std::println("Processing shader: {}", path.string());
 
@@ -59,28 +59,38 @@ namespace sp
         else std::println("Successfully wrote optimized SPIR-V to {}", spv_path.string());
 
         // 7. Decompile to other languages
-        if (auto glsl_source = ShaderDecompiler::decompile_to_glsl(spirv_optimized); !glsl_source.empty())
+
+        if (config.enable_opengl)
         {
-            if (fs::path output_path = out_dir / path.filename().replace_extension(".glsl");
-                !File::write(output_path, glsl_source))
-                std::println(stderr, "Failed to write GLSL file.");
-            else std::println("Successfully wrote GLSL to {}", output_path.string());
+            if (auto glsl_source = ShaderDecompiler::decompile_to_glsl(spirv_optimized); !glsl_source.empty())
+            {
+                if (fs::path output_path = out_dir / path.filename().replace_extension(".glsl");
+                    !File::write(output_path, glsl_source))
+                    std::println(stderr, "Failed to write GLSL file.");
+                else std::println("Successfully wrote GLSL to {}", output_path.string());
+            }
         }
 
-        if (auto hlsl_source = ShaderDecompiler::decompile_to_hlsl(spirv_optimized); !hlsl_source.empty())
+        if (config.enable_directx)
         {
-            if (fs::path output_path = out_dir / path.filename().replace_extension(".hlsl");
-                !File::write(output_path, hlsl_source))
-                std::println(stderr, "Failed to write HLSL file.");
-            else std::println("Successfully wrote HLSL to {}", output_path.string());
+            if (auto hlsl_source = ShaderDecompiler::decompile_to_hlsl(spirv_optimized); !hlsl_source.empty())
+            {
+                if (fs::path output_path = out_dir / path.filename().replace_extension(".hlsl");
+                    !File::write(output_path, hlsl_source))
+                    std::println(stderr, "Failed to write HLSL file.");
+                else std::println("Successfully wrote HLSL to {}", output_path.string());
+            }
         }
 
-        if (auto msl_source = ShaderDecompiler::decompile_to_msl(spirv_optimized); !msl_source.empty())
+        if (config.enable_metal)
         {
-            if (fs::path output_path = out_dir / path.filename().replace_extension(".msl");
-                !File::write(output_path, msl_source))
-                std::println(stderr, "Failed to write MSL file.");
-            else std::println("Successfully wrote MSL to {}", output_path.string());
+            if (auto msl_source = ShaderDecompiler::decompile_to_msl(spirv_optimized); !msl_source.empty())
+            {
+                if (fs::path output_path = out_dir / path.filename().replace_extension(".msl");
+                    !File::write(output_path, msl_source))
+                    std::println(stderr, "Failed to write MSL file.");
+                else std::println("Successfully wrote MSL to {}", output_path.string());
+            }
         }
 
         std::println("------------------------------------");

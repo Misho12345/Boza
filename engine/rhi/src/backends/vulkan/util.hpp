@@ -56,5 +56,7 @@ namespace boza::rhi::vk
             case VK_ERROR_NOT_ENOUGH_SPACE_KHR: return "Error Not Enough Space KHR";
             default: return "Error Unknown";
         }
+
+        std::unreachable();
     }
 }

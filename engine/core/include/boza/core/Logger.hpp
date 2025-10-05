@@ -9,10 +9,6 @@ namespace boza
     public:
         Logger() = delete;
         ~Logger() = delete;
-        Logger(const Logger&) = delete;
-        Logger(Logger&&) = delete;
-        Logger& operator=(const Logger&) = delete;
-        Logger& operator=(Logger&&) = delete;
 
         static void trace(const auto& value);
         static void debug(const auto& value);
@@ -28,10 +24,7 @@ namespace boza
         template<typename... Args> static void error(fmt::format_string<Args...> fmt, Args&&... args);
         template<typename... Args> static void critical(fmt::format_string<Args...> fmt, Args&&... args);
 
-    private:
         static void init();
-
-        friend struct LoggerBootstrap;
     };
 }
 

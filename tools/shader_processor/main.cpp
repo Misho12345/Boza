@@ -7,44 +7,72 @@ static void print_usage(const char* argv0)
     std::println(stderr, "Usage: {} <shader_file> --out <output_directory>", argv0);
 }
 
+
+static ProcessorConfig parse_args(const int argc, const char** argv)
+{
+    ProcessorConfig config{};
+    if (argc < 4) return config;
+
+    config.input_file = argv[1];
+
+    for (int i = 2; i < argc; ++i)
+    {
+        const std::string_view arg = argv[i];
+
+        if (arg == "--out")
+        {
+            if (i + 1 >= argc)
+            {
+                std::println(stderr, "Error: --out requires a directory path");
+                config.input_file.clear();
+                return config;
+            }
+            config.output_dir = argv[++i];
+        }
+        else if (arg == "--no-opengl") config.enable_opengl = false;
+        else if (arg == "--no-directx") config.enable_directx = false;
+        else if (arg == "--no-metal") config.enable_metal = false;
+        else
+        {
+            std::println(stderr, "Unknown argument: {}", arg);
+            config.input_file.clear();
+            return config;
+        }
+    }
+
+        return config;
+}
+
+
 int main(const int argc, const char** argv)
 {
-    if (argc != 4)
+    const ProcessorConfig config = parse_args(argc, argv);
+
+    if (config.input_file.empty() || config.output_dir.empty())
     {
         print_usage(argv[0]);
         return 1;
     }
 
-    const fs::path         input_file = argv[1];
-    const std::string_view out_flag   = argv[2];
-    const fs::path         output_dir = argv[3];
-
-    if (out_flag != "--out")
+    if (!fs::exists(config.input_file) || !fs::is_regular_file(config.input_file))
     {
-        std::println(stderr, "Invalid argument: {}. Expected '--out'.", argv[2]);
-        print_usage(argv[0]);
+        std::println(stderr, "Input file does not exist or is not a regular file: {}", config.input_file.string());
         return 1;
     }
 
-    if (!fs::exists(input_file) || !fs::is_regular_file(input_file))
+    if (fs::exists(config.output_dir))
     {
-        std::println(stderr, "Input file does not exist or is not a regular file: {}", input_file.string());
-        return 1;
-    }
-
-    if (fs::exists(output_dir))
-    {
-        if (!fs::is_directory(output_dir))
+        if (!fs::is_directory(config.output_dir))
         {
-            std::println(stderr, "Output path exists but is not a directory: {}", output_dir.string());
+            std::println(stderr, "Output path exists but is not a directory: {}", config.output_dir.string());
             return 1;
         }
     }
-    else if (!fs::create_directory(output_dir))
+    else if (!fs::create_directory(config.output_dir))
     {
-        std::println(stderr, "Failed to create output directory: {}", output_dir.string());
+        std::println(stderr, "Failed to create output directory: {}", config.output_dir.string());
         return 1;
     }
 
-    return !sp::ShaderProcessor::process(input_file, output_dir);
+    return !sp::ShaderProcessor::process(config.input_file, config.output_dir, config);
 }

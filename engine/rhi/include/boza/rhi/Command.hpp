@@ -1,6 +1,7 @@
 #pragma once
-#include "boza/std_pch.hpp"
+#include "Descriptor.hpp"
 #include "GraphicsObject.hpp"
+
 #include "boza/util/Flags.hpp"
 
 namespace boza::rhi
@@ -117,8 +118,12 @@ namespace boza::rhi
 
         virtual void dispatch(uint32_t group_x, uint32_t group_y, uint32_t group_z) = 0;
 
+        virtual void bind_descriptor_set(DescriptorSet* set, uint32_t set_index) = 0;
+        virtual void bind_descriptor_sets(const std::vector<DescriptorSet*>& sets, uint32_t first_set) = 0;
+
     protected:
-        explicit          CommandBuffer(const CommandBufferDesc& desc) : desc(desc) {}
+        explicit CommandBuffer(const CommandBufferDesc& desc) : desc(desc) {}
+
         CommandBufferDesc desc;
     };
 

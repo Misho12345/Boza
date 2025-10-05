@@ -3,14 +3,18 @@ get_source_files(BOZA_RHI_INTERFACE_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_sources(boza_rhi_interface INTERFACE ${BOZA_RHI_INTERFACE_SOURCES})
 
 target_include_directories(boza_rhi_interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(boza_rhi_interface INTERFACE Boza::Common Boza::Core Boza::Platform)
+target_link_libraries(boza_rhi_interface INTERFACE
+        Boza::Common
+        Boza::Core
+        Boza::PlatformInterface
+)
 
 
 
 add_library(boza_rhi STATIC)
 add_library(Boza::Rhi ALIAS boza_rhi)
 
-target_sources(boza_rhi PRIVATE src/Factory.cpp)
+target_sources(boza_rhi PRIVATE src/Factory.cpp src/ShaderModule.cpp)
 
 set_default_include_dirs(boza_rhi ${CMAKE_CURRENT_SOURCE_DIR})
 boza_enable_warnings(boza_rhi)
@@ -29,11 +33,35 @@ if (BOZA_ENABLE_VULKAN)
     find_package(VulkanMemoryAllocator CONFIG REQUIRED)
     find_package(volk CONFIG REQUIRED)
 
-    target_link_libraries(boza_rhi_vulkan PRIVATE
+    # Create a separate static library for VMA implementation
+    # This is done to avoid issues with the precompiled header in boza_rhi_vulkan that has vma included
+
+    set(VMA_IMPL_FILE "${CMAKE_CURRENT_BINARY_DIR}/vma_implementation.cpp")
+    file(WRITE ${VMA_IMPL_FILE}
+            "
+            #define VMA_STATIC_VULKAN_FUNCTIONS 0
+            #define VMA_DYNAMIC_VULKAN_FUNCTIONS 1
+            #define VMA_IMPLEMENTATION
+            #if __has_include(<vk_mem_alloc.h>)
+            #include <vk_mem_alloc.h>
+            #elif __has_include(<vma/vk_mem_alloc.h>)
+            #include <vma/vk_mem_alloc.h>
+            #else
+            #error \"Cannot find vk_mem_alloc.h\"
+            #endif
+            ")
+
+    add_library(boza_vma_impl STATIC ${VMA_IMPL_FILE})
+    target_link_libraries(boza_vma_impl PUBLIC
             Vulkan::Headers
             GPUOpen::VulkanMemoryAllocator
             volk::volk
-            volk::volk_headers)
+            volk::volk_headers
+    )
+
+
+    target_link_libraries(boza_rhi_vulkan PRIVATE boza_vma_impl)
+
 
     if (APPLE)
         find_library(MOLTENVK_LIB MoltenVK PATHS

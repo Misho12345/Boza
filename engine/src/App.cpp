@@ -2,7 +2,11 @@
 
 namespace boza
 {
-    App::App() { choose_graphics_api(); }
+    App::App()
+    {
+        Logger::init();
+        choose_graphics_api();
+    }
 
     App::~App()
     {

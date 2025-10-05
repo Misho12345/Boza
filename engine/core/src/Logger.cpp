@@ -15,11 +15,4 @@ namespace boza
         spdlog::set_level(spdlog::level::trace);
         #endif
     }
-
-    struct LoggerBootstrap
-    {
-        LoggerBootstrap() { Logger::init(); }
-    };
-
-    [[maybe_unused]] static LoggerBootstrap logger_bootstrap;
 }

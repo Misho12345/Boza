@@ -1,7 +1,5 @@
 #include "Device.hpp"
 
-#include <ranges>
-
 #include "Instance.hpp"
 #include "Command.hpp"
 
@@ -9,6 +7,8 @@
 
 #include "boza/core/Logger.hpp"
 #include <magic_enum/magic_enum_all.hpp>
+
+#include <ranges>
 
 namespace boza::rhi::vk
 {
@@ -34,12 +34,27 @@ namespace boza::rhi::vk
         if (!get_queues()) return false;
         if (!create_command_pools()) return false;
 
+        const AllocatorDesc allocator_desc
+        {
+            .instance = reinterpret_cast<Instance*>(desc.instance),
+            .device = this
+        };
+
+        allocator_.reset(Allocator::create<Allocator>(allocator_desc));
+        if (!allocator_)
+        {
+            Logger::critical("Failed to create allocator");
+            return false;
+        }
+
         return true;
     }
 
     void Device::destroy()
     {
         Logger::trace("Destroying vulkan device");
+
+        allocator_->destroy();
 
         const auto& vk_instance = reinterpret_cast<Instance*>(desc.instance)->vk_instance();
 
@@ -71,10 +86,12 @@ namespace boza::rhi::vk
     VkPhysicalDevice Device::physical_device() const { return physical_device_; }
     VkSurfaceKHR     Device::surface() const { return surface_; }
 
-    VkQueue Device::graphics_vk_queue() const { return reinterpret_cast<CommandQueue*>(graphics_queue())->vk_queue(); }
-    VkQueue Device::present_vk_queue() const { return reinterpret_cast<CommandQueue*>(present_queue())->vk_queue(); }
-    VkQueue Device::compute_vk_queue() const { return reinterpret_cast<CommandQueue*>(compute_queue())->vk_queue(); }
-    VkQueue Device::transfer_vk_queue() const { return reinterpret_cast<CommandQueue*>(transfer_queue())->vk_queue(); }
+    VkQueue    Device::graphics_vk_queue() const { return reinterpret_cast<CommandQueue*>(graphics_queue())->vk_queue(); }
+    VkQueue    Device::present_vk_queue() const { return reinterpret_cast<CommandQueue*>(present_queue())->vk_queue(); }
+    VkQueue    Device::compute_vk_queue() const { return reinterpret_cast<CommandQueue*>(compute_queue())->vk_queue(); }
+    VkQueue    Device::transfer_vk_queue() const { return reinterpret_cast<CommandQueue*>(transfer_queue())->vk_queue(); }
+
+    Allocator* Device::allocator() const { return allocator_.get(); }
 
 
     bool Device::choose_physical_device()

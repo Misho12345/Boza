@@ -3,7 +3,11 @@ get_source_files(BOZA_AHI_INTERFACE_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_sources(boza_ahi_interface INTERFACE ${BOZA_AHI_INTERFACE_SOURCES})
 
 target_include_directories(boza_ahi_interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(boza_ahi_interface INTERFACE Boza::Common Boza::Core Boza::Platform)
+target_link_libraries(boza_ahi_interface INTERFACE
+        Boza::Common
+        Boza::Core
+        Boza::PlatformInterface
+)
 
 
 add_library(boza_ahi STATIC)

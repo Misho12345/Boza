@@ -1,4 +1,5 @@
 #include "Command.hpp"
+#include "Descriptor.hpp"
 #include "Device.hpp"
 #include "Swapchain.hpp"
 #include "Sync.hpp"
@@ -275,6 +276,7 @@ namespace boza::rhi::vk
     bool CommandBuffer::init() { return true; }
     void CommandBuffer::destroy() { vk_command_buffer_ = nullptr; }
 
+
     bool CommandBuffer::begin() { return begin(desc.usage); }
 
     bool CommandBuffer::begin(const Flags<CommandBufferUsage> usage_flags)
@@ -313,6 +315,7 @@ namespace boza::rhi::vk
         return true;
     }
 
+
     bool CommandBuffer::reset(const bool release_resources)
     {
         const VkCommandBufferResetFlags flags = release_resources ? VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT : 0;
@@ -325,6 +328,7 @@ namespace boza::rhi::vk
 
         return true;
     }
+
 
     void CommandBuffer::draw(
         const uint32_t vertex_count,
@@ -345,9 +349,38 @@ namespace boza::rhi::vk
         vkCmdDrawIndexed(vk_command_buffer_, index_count, instance_count, first_index, vertex_offset, first_instance);
     }
 
+
     void CommandBuffer::dispatch(const uint32_t group_x, const uint32_t group_y, const uint32_t group_z)
     {
         vkCmdDispatch(vk_command_buffer_, group_x, group_y, group_z);
+    }
+
+
+    void CommandBuffer::bind_descriptor_set(rhi::DescriptorSet* set, const uint32_t set_index)
+    {
+        bind_descriptor_sets({ set }, set_index);
+    }
+
+    void CommandBuffer::bind_descriptor_sets(const std::vector<rhi::DescriptorSet*>& sets, const uint32_t first_set)
+    {
+        std::vector<VkDescriptorSet> vk_sets;
+        vk_sets.reserve(sets.size());
+
+        for (const auto& set : sets)
+        {
+            vk_sets.push_back(reinterpret_cast<DescriptorSet*>(set)->vk_descriptor_set());
+        }
+
+        // TODO: This needs to be improved, we need to know the pipeline layout
+        vkCmdBindDescriptorSets(
+            vk_command_buffer_,
+            VK_PIPELINE_BIND_POINT_GRAPHICS,
+            nullptr,
+            first_set,
+            static_cast<uint32_t>(vk_sets.size()),
+            vk_sets.data(),
+            0,
+            nullptr);
     }
 
 
@@ -457,11 +490,7 @@ namespace boza::rhi::vk
             vk_wait_stages.push_back(static_cast<VkPipelineStageFlags>(stage));
         }
 
-        VkFence vk_fence = VK_NULL_HANDLE;
-        if (submit_info.signal_fence)
-        {
-            vk_fence = reinterpret_cast<Fence*>(submit_info.signal_fence)->vk_fence();
-        }
+        const VkFence vk_fence = submit_info.signal_fence ? reinterpret_cast<Fence*>(submit_info.signal_fence)->vk_fence() : nullptr;
 
         const VkSubmitInfo vk_submit_info
         {

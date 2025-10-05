@@ -1,6 +1,5 @@
 #pragma once
 #include "pch.hpp"
-
 #include "boza/rhi/Instance.hpp"
 
 namespace boza::rhi::vk

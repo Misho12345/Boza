@@ -15,6 +15,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <filesystem>
 
 #include <cstdint>
 #include <string>
@@ -33,3 +34,4 @@
 #include <condition_variable>
 #include <future>
 
+namespace fs = std::filesystem;

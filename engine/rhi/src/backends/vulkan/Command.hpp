@@ -1,6 +1,7 @@
 #pragma once
 #include "pch.hpp"
 #include "boza/rhi/Command.hpp"
+#include "boza/rhi/Descriptor.hpp"
 
 namespace boza::rhi::vk
 {
@@ -56,6 +57,8 @@ namespace boza::rhi::vk
 
         void dispatch(uint32_t group_x, uint32_t group_y, uint32_t group_z) override;
 
+        void bind_descriptor_set(rhi::DescriptorSet* set, uint32_t set_index) override;
+        void bind_descriptor_sets(const std::vector<rhi::DescriptorSet*>& sets, uint32_t first_set) override;
 
         void pipeline_image_barrier(
             VkImage       image,

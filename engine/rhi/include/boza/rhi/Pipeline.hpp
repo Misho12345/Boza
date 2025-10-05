@@ -3,7 +3,7 @@
 #include "GraphicsObject.hpp"
 
 #include "ShaderModule.hpp"
-#include "DescriptorSet.hpp"
+#include "Descriptor.hpp"
 #include "Command.hpp"
 
 namespace boza::rhi

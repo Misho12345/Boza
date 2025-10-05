@@ -109,7 +109,7 @@ namespace boza::rhi::vk
         {
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
             .pNext = nullptr,
-            .flags = 0,
+            .flags = {},
             .semaphoreCount = 1,
             .pSemaphores = &vk_semaphore_,
             .pValues = &value

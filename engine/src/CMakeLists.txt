@@ -15,7 +15,7 @@ boza_enable_warnings(boza_engine)
 target_link_libraries(boza_engine
         PUBLIC
         Boza::Common
-        $<TARGET_OBJECTS:Boza::Core>
+        Boza::Core
         PRIVATE
         Boza::Platform
         Boza::Rhi

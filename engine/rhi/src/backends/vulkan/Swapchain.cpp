@@ -135,7 +135,7 @@ namespace boza::rhi::vk
             vk_swapchain_,
             UINT64_MAX,
             vk_semaphore,
-            VK_NULL_HANDLE,
+            nullptr,
             &image_index
         );
 
@@ -220,7 +220,7 @@ namespace boza::rhi::vk
             .imageView = image_views_[image_idx],
             .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             .resolveMode = VK_RESOLVE_MODE_NONE,
-            .resolveImageView = VK_NULL_HANDLE,
+            .resolveImageView = nullptr,
             .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
             .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -231,7 +231,7 @@ namespace boza::rhi::vk
         {
             .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
             .pNext = nullptr,
-            .flags = 0,
+            .flags = {},
             .renderArea = { .offset = { 0, 0 }, .extent = extent_ },
             .layerCount = 1,
             .viewMask = 0,

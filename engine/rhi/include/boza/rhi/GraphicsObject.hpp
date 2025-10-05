@@ -12,7 +12,9 @@ namespace boza
         virtual bool init() = 0;
         virtual void destroy() = 0;
 
-        template<typename Concrete> requires std::is_base_of_v<Derived, Concrete>
+        template<typename Concrete>
+            requires (std::is_same_v<Derived, Concrete> ||
+                std::is_base_of_v<Derived, Concrete> && std::is_abstract_v<Derived>)
         static Derived* create(const Desc& desc)
         {
             const auto ptr = new Concrete(desc);

@@ -1,4 +1,5 @@
 #pragma once
+#include "Allocator.hpp"
 #include "pch.hpp"
 
 #include "boza/rhi/Device.hpp"
@@ -21,6 +22,8 @@ namespace boza::rhi::vk
         [[nodiscard]] VkQueue compute_vk_queue() const;
         [[nodiscard]] VkQueue transfer_vk_queue() const;
 
+        [[nodiscard]] Allocator* allocator() const;
+
     private:
         explicit Device(const DeviceDesc& desc) : rhi::Device(desc) {}
 
@@ -34,6 +37,8 @@ namespace boza::rhi::vk
         VkPhysicalDevice physical_device_{ nullptr };
         VkDevice         logical_device_{ nullptr };
         VkSurfaceKHR     surface_{ nullptr };
+
+        std::unique_ptr<Allocator> allocator_;
 
         static constexpr const char* required_extensions[] = {
             "VK_KHR_swapchain",

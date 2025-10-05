@@ -1,3 +1,19 @@
+add_library(boza_platform_interface INTERFACE)
+add_library(Boza::PlatformInterface ALIAS boza_platform_interface)
+
+get_source_files(BOZA_PLATFORM_INTERFACE_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_sources(boza_platform_interface INTERFACE ${BOZA_PLATFORM_INTERFACE_SOURCES})
+
+target_include_directories(boza_platform_interface
+        INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+)
+
+target_link_libraries(boza_platform_interface INTERFACE Boza::Common)
+
+
+
 add_library(boza_platform STATIC)
 add_library(Boza::Platform ALIAS boza_platform)
 
@@ -13,6 +29,7 @@ target_link_libraries(boza_platform
         PUBLIC
         Boza::Common
         Boza::Core
+        Boza::PlatformInterface
         PRIVATE
         glfw
 )
