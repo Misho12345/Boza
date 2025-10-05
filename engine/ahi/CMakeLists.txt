@@ -1,37 +1,40 @@
+add_library(boza_ahi_interface INTERFACE)
+get_source_files(BOZA_AHI_INTERFACE_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_sources(boza_ahi_interface INTERFACE ${BOZA_AHI_INTERFACE_SOURCES})
+
+target_include_directories(boza_ahi_interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(boza_ahi_interface INTERFACE Boza::Common Boza::Core Boza::Platform)
+
+
 add_library(boza_ahi STATIC)
 add_library(Boza::Ahi ALIAS boza_ahi)
 
-get_source_files(BOZA_AHI_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_sources(boza_ahi PRIVATE ${BOZA_AHI_SOURCES})
+target_sources(boza_ahi PRIVATE src/Factory.cpp)
 
 set_default_include_dirs(boza_ahi ${CMAKE_CURRENT_SOURCE_DIR})
 boza_enable_warnings(boza_ahi)
 
+target_link_libraries(boza_ahi PUBLIC boza_ahi_interface)
+
+
 if (BOZA_AUDIO_ENABLED)
     find_package(SndFile REQUIRED)
     target_link_libraries(boza_ahi PRIVATE SndFile::sndfile)
-endif ()
 
-target_link_libraries(boza_ahi
-        PUBLIC
-        Boza::Common
-        Boza::Core
-        Boza::Platform
-)
+    if (BOZA_ENABLE_OPENAL)
+        setup_backend(boza_ahi_openal boza_ahi_interface boza_ahi ${CMAKE_CURRENT_SOURCE_DIR}/src/backends/openal)
 
-if (BOZA_ENABLE_OPENAL)
-    find_package(OpenAL REQUIRED)
-    target_link_libraries(boza_ahi PRIVATE OpenAL::OpenAL)
+        find_package(OpenAL REQUIRED)
+        target_link_libraries(boza_ahi_openal PRIVATE OpenAL::OpenAL)
+    endif ()
 
-    target_precompile_headers(boza_ahi PRIVATE src/backends/openal/pch.hpp)
-endif ()
+    if (BOZA_ENABLE_XAUDIO2)
+        setup_backend(boza_ahi_xaudio2 boza_ahi_interface boza_ahi ${CMAKE_CURRENT_SOURCE_DIR}/src/backends/xaudio2)
+    endif ()
 
-if (BOZA_ENABLE_XAUDIO2)
-    target_precompile_headers(boza_ahi PRIVATE src/backends/openal/pch.hpp)
-endif ()
-
-if (BOZA_ENABLE_COREAUDIO)
-    target_precompile_headers(boza_ahi PRIVATE src/backends/openal/pch.hpp)
+    if (BOZA_ENABLE_COREAUDIO)
+        setup_backend(boza_ahi_coreaudio boza_ahi_interface boza_ahi ${CMAKE_CURRENT_SOURCE_DIR}/src/backends/coreaudio)
+    endif ()
 endif ()
 
 if (BOZA_BUILD_TESTS)

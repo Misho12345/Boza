@@ -1,9 +1,13 @@
 #include "Device.hpp"
+
+#include <ranges>
+
 #include "Instance.hpp"
-#include "pch.hpp"
+#include "Command.hpp"
+
+#include "FactoryImpl.hpp"
 
 #include "boza/core/Logger.hpp"
-
 #include <magic_enum/magic_enum_all.hpp>
 
 namespace boza::rhi::vk
@@ -12,21 +16,24 @@ namespace boza::rhi::vk
     {
         Logger::trace("Creating vulkan device");
 
-        const auto& vk_instance = reinterpret_cast<Instance*>(desc.instance)->get_vk_instance();
+        const auto& vk_instance = reinterpret_cast<Instance*>(desc.instance)->vk_instance();
 
-        VK_CHECK(desc.window->create_vulkan_surface(vk_instance, surface),
+        VK_CHECK(desc.window->create_vulkan_surface(vk_instance, surface_),
         {
             LOG_VK_ERROR("Failed to create vulkan surface");
             return false;
         });
 
-        if (!choose_physical_device()) return false;
-        if (!find_queue_families()) return false;
-        if (!create_logical_device()) return false;
+        if (!choose_physical_device() ||
+            !find_queue_families() ||
+            !create_logical_device())
+            return false;
 
-        volkLoadDevice(logical_device);
+        volkLoadDevice(logical_device_);
 
-        get_queues();
+        if (!get_queues()) return false;
+        if (!create_command_pools()) return false;
+
         return true;
     }
 
@@ -34,21 +41,45 @@ namespace boza::rhi::vk
     {
         Logger::trace("Destroying vulkan device");
 
-        const auto& vk_instance = reinterpret_cast<Instance*>(desc.instance)->get_vk_instance();
+        const auto& vk_instance = reinterpret_cast<Instance*>(desc.instance)->vk_instance();
 
-        if (logical_device != nullptr) vkDestroyDevice(logical_device, nullptr);
-        if (surface != nullptr) vkDestroySurfaceKHR(vk_instance, surface, nullptr);
+        for (const auto& command_pool : command_pools_ | std::views::values)
+        {
+            command_pool->destroy();
+        }
+
+        if (logical_device_)
+        {
+            vkDestroyDevice(logical_device_, nullptr);
+            logical_device_ = nullptr;
+        }
+
+        if (surface_)
+        {
+            vkDestroySurfaceKHR(vk_instance, surface_, nullptr);
+            surface_ = nullptr;
+        }
     }
 
     void Device::wait_idle()
     {
-        VK_CHECK(vkDeviceWaitIdle(logical_device), { LOG_VK_ERROR("Failed to wait for device idle"); });
+        VK_CHECK(vkDeviceWaitIdle(logical_device_), { LOG_VK_ERROR("Failed to wait for device idle"); });
     }
+
+
+    VkDevice         Device::logical_device() const { return logical_device_; }
+    VkPhysicalDevice Device::physical_device() const { return physical_device_; }
+    VkSurfaceKHR     Device::surface() const { return surface_; }
+
+    VkQueue Device::graphics_vk_queue() const { return reinterpret_cast<CommandQueue*>(graphics_queue())->vk_queue(); }
+    VkQueue Device::present_vk_queue() const { return reinterpret_cast<CommandQueue*>(present_queue())->vk_queue(); }
+    VkQueue Device::compute_vk_queue() const { return reinterpret_cast<CommandQueue*>(compute_queue())->vk_queue(); }
+    VkQueue Device::transfer_vk_queue() const { return reinterpret_cast<CommandQueue*>(transfer_queue())->vk_queue(); }
 
 
     bool Device::choose_physical_device()
     {
-        const auto& vk_instance = reinterpret_cast<Instance*>(desc.instance)->get_vk_instance();
+        const auto& vk_instance = reinterpret_cast<Instance*>(desc.instance)->vk_instance();
 
         uint32_t device_count = 0;
         VK_CHECK(vkEnumeratePhysicalDevices(vk_instance, &device_count, nullptr),
@@ -142,7 +173,7 @@ namespace boza::rhi::vk
                 !supported_vk13_features.dynamicRendering)
                 continue;
 
-            physical_device = device;
+            physical_device_ = device;
             Logger::trace("{} is a suitable device", device_properties.deviceName);
             return true;
         }
@@ -155,9 +186,9 @@ namespace boza::rhi::vk
     bool Device::find_queue_families()
     {
         uint32_t queue_family_count = 0;
-        vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, nullptr);
+        vkGetPhysicalDeviceQueueFamilyProperties(physical_device_, &queue_family_count, nullptr);
         std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
-        vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_count, queue_families.data());
+        vkGetPhysicalDeviceQueueFamilyProperties(physical_device_, &queue_family_count, queue_families.data());
 
         Logger::trace("Found {} queue families", queue_family_count);
 
@@ -172,13 +203,13 @@ namespace boza::rhi::vk
 
             if (!found_graphics_family && (props.queueFlags & VK_QUEUE_GRAPHICS_BIT))
             {
-                queue_family_indices.graphics_family = i;
+                queue_family_indices_.graphics_family = i;
                 found_graphics_family = true;
                 Logger::trace("Queue family {} supports graphics", i);
             }
 
             VkBool32 present_support = VK_FALSE;
-            VK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(physical_device, i, surface, &present_support),
+            VK_CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(physical_device_, i, surface_, &present_support),
             {
                 LOG_VK_ERROR("Failed to get physical device surface support");
                 return false;
@@ -186,7 +217,7 @@ namespace boza::rhi::vk
 
             if (!found_present_family && present_support)
             {
-                queue_family_indices.present_family = i;
+                queue_family_indices_.present_family = i;
                 found_present_family = true;
                 Logger::trace("Queue family {} supports presentation", i);
             }
@@ -195,7 +226,7 @@ namespace boza::rhi::vk
                 (props.queueFlags & VK_QUEUE_COMPUTE_BIT) &&
                 !(props.queueFlags & VK_QUEUE_GRAPHICS_BIT))
             {
-                queue_family_indices.compute_family = i;
+                queue_family_indices_.compute_family = i;
                 found_compute_family = true;
                 Logger::trace("Queue family {} is compute-only (preferred)", i);
             }
@@ -205,7 +236,7 @@ namespace boza::rhi::vk
                 !(props.queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
                 !(props.queueFlags & VK_QUEUE_COMPUTE_BIT))
             {
-                queue_family_indices.transfer_family = i;
+                queue_family_indices_.transfer_family = i;
                 found_transfer_family = true;
                 Logger::trace("Queue family {} is transfer-only (preferred)", i);
             }
@@ -217,13 +248,19 @@ namespace boza::rhi::vk
                 break;
         }
 
+        if (!found_graphics_family || !found_present_family)
+        {
+            Logger::critical("Could not find a suitable device with graphics and presentation support");
+            return false;
+        }
+
         if (!found_compute_family)
         {
             for (uint32_t i = 0; i < queue_family_count; ++i)
             {
                 if (queue_families[i].queueFlags & VK_QUEUE_COMPUTE_BIT)
                 {
-                    queue_family_indices.compute_family = i;
+                    queue_family_indices_.compute_family = i;
                     found_compute_family = true;
                     Logger::trace("Queue family {} supports compute (fallback)", i);
                     break;
@@ -237,7 +274,7 @@ namespace boza::rhi::vk
             {
                 if (queue_families[i].queueFlags & VK_QUEUE_TRANSFER_BIT)
                 {
-                    queue_family_indices.transfer_family = i;
+                    queue_family_indices_.transfer_family = i;
                     found_transfer_family = true;
                     Logger::trace("Queue family {} supports transfer (fallback)", i);
                     break;
@@ -245,16 +282,13 @@ namespace boza::rhi::vk
             }
         }
 
-        if (!found_graphics_family || !found_present_family)
-        {
-            Logger::critical("Could not find a suitable device with graphics and presentation support");
-            return false;
-        }
 
-        if (!found_compute_family) Logger::warn("No compute-capable queue found (very unusual)");
-        if (!found_transfer_family) Logger::warn("No transfer-capable queue found (falling back to graphics queue)");
+        if (found_compute_family && found_transfer_family) return true;
 
-        return true;
+        if (!found_compute_family) Logger::critical("No compute-capable queue found (very unusual)");
+        if (!found_transfer_family) Logger::critical("No transfer-capable queue found (falling back to graphics queue)");
+
+        return false;
     }
 
     bool Device::create_logical_device()
@@ -263,12 +297,12 @@ namespace boza::rhi::vk
 
         std::set unique_queue_families
         {
-            queue_family_indices.graphics_family,
-            queue_family_indices.present_family
+            queue_family_indices_.graphics_family,
+            queue_family_indices_.present_family
         };
 
-        if (queue_family_indices.compute_family != UINT32_MAX) unique_queue_families.insert(queue_family_indices.compute_family);
-        if (queue_family_indices.transfer_family != UINT32_MAX) unique_queue_families.insert(queue_family_indices.transfer_family);
+        if (queue_family_indices_.compute_family != UINT32_MAX) unique_queue_families.insert(queue_family_indices_.compute_family);
+        if (queue_family_indices_.transfer_family != UINT32_MAX) unique_queue_families.insert(queue_family_indices_.transfer_family);
 
         std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
         queue_create_infos.reserve(unique_queue_families.size());
@@ -311,7 +345,7 @@ namespace boza::rhi::vk
             .pEnabledFeatures = &device_features,
         };
 
-        VK_CHECK(vkCreateDevice(physical_device, &device_create_info, nullptr, &logical_device),
+        VK_CHECK(vkCreateDevice(physical_device_, &device_create_info, nullptr, &logical_device_),
         {
             LOG_VK_ERROR("Failed to create logical device");
             return false;
@@ -320,24 +354,61 @@ namespace boza::rhi::vk
         return true;
     }
 
-    void Device::get_queues()
+    bool Device::get_queues()
     {
-        vkGetDeviceQueue(logical_device, queue_family_indices.graphics_family, 0, &graphics_queue);
-        vkGetDeviceQueue(logical_device, queue_family_indices.present_family, 0, &present_queue);
+        std::unordered_set<uint32_t> families{};
+        families.insert(queue_family_indices_.graphics_family);
+        families.insert(queue_family_indices_.present_family);
+        families.insert(queue_family_indices_.compute_family);
+        families.insert(queue_family_indices_.transfer_family);
 
-        if (queue_family_indices.compute_family == queue_family_indices.graphics_family) compute_queue  = graphics_queue;
-        else vkGetDeviceQueue(logical_device, queue_family_indices.compute_family, 0, &compute_queue);
+        for (const auto& family : families)
+        {
+            CommandQueueDesc command_queue_desc
+            {
+                .device = this,
+                .family_index = family,
+                .type = CommandQueueType::None
+            };
 
-        if (queue_family_indices.transfer_family != queue_family_indices.graphics_family &&
-            queue_family_indices.transfer_family != queue_family_indices.compute_family)
-        {
-            vkGetDeviceQueue(logical_device, queue_family_indices.transfer_family, 0, &transfer_queue);
+            const bool is_graphics = family == queue_family_indices_.graphics_family;
+            const bool is_present = family == queue_family_indices_.present_family;
+            const bool is_compute = family == queue_family_indices_.compute_family;
+            const bool is_transfer = family == queue_family_indices_.transfer_family;
+
+            if (is_graphics) command_queue_desc.type |= CommandQueueType::Graphics;
+            if (is_present) command_queue_desc.type |= CommandQueueType::Present;
+            if (is_compute) command_queue_desc.type |= CommandQueueType::Compute;
+            if (is_transfer) command_queue_desc.type |= CommandQueueType::Transfer;
+
+            queues_.emplace(family, create_command_queue(command_queue_desc));
+            if (!queues_.at(family)) return false;
         }
-        else
+
+        return true;
+    }
+
+    bool Device::create_command_pools()
+    {
+        std::unordered_set<uint32_t> families{};
+        families.insert(queue_family_indices_.graphics_family);
+        families.insert(queue_family_indices_.present_family);
+        families.insert(queue_family_indices_.compute_family);
+        families.insert(queue_family_indices_.transfer_family);
+
+        for (const auto& family : families)
         {
-            transfer_queue = queue_family_indices.transfer_family == queue_family_indices.graphics_family
-                                 ? graphics_queue
-                                 : compute_queue;
+            CommandPoolDesc command_pool_desc
+            {
+                .device = this,
+                .flags = CommandPoolOption::ResetCommandBuffer,
+                .queue_family_index = family
+            };
+
+            command_pools_.emplace(family, create_command_pool(command_pool_desc));
+            if (!command_pools_.at(family)) return false;
         }
+
+        return true;
     }
 }

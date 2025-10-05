@@ -1,6 +1,8 @@
 #pragma once
-#include "Device.hpp"
+#include "boza/std_pch.hpp"
 #include "GraphicsObject.hpp"
+
+#include "Device.hpp"
 
 namespace boza::rhi
 {
@@ -34,7 +36,7 @@ namespace boza::rhi
         virtual void  unmap() = 0;
 
         [[nodiscard]]
-        virtual size_t get_size() const = 0;
+        virtual size_t size() const = 0;
         virtual void   upload(const void* data, size_t size, size_t offset) = 0;
 
     protected:

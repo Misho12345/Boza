@@ -29,8 +29,8 @@ namespace boza::ahi
         virtual void stop() = 0;
         virtual void rewind() = 0;
 
-        [[nodiscard]] virtual AudioSourceState get_state() const = 0;
-        [[nodiscard]] virtual float            get_playback_position() const = 0;
+        [[nodiscard]] virtual AudioSourceState state() const = 0;
+        [[nodiscard]] virtual float            playback_position() const = 0;
 
     private:
         explicit AudioSource(const AudioSourceDesc& desc) : AudioObject(desc) {}

@@ -14,10 +14,10 @@ namespace boza
         const uint32_t height,
         std::string    title,
         const bool     fullscreen)
-        : title(std::move(title)),
-          fullscreen(fullscreen),
-          last_width(width),
-          last_height(height) {}
+        : title_(std::move(title)),
+          fullscreen_(fullscreen),
+          last_width_(width),
+          last_height_(height) {}
 
     bool Window::create([[maybe_unused]] const GraphicsApi api)
     {
@@ -44,8 +44,8 @@ namespace boza
             return false;
         }
 
-        last_pos_x = (static_cast<uint32_t>(mode->width) - last_width) / 2;
-        last_pos_y = (static_cast<uint32_t>(mode->height) - last_height) / 2;
+        last_pos_x_ = (static_cast<uint32_t>(mode->width) - last_width_) / 2;
+        last_pos_y_ = (static_cast<uint32_t>(mode->height) - last_height_) / 2;
 
         #ifdef BOZA_OPENGL_ENABLED
         if (api == GraphicsApi::OpenGL)
@@ -59,45 +59,45 @@ namespace boza
             glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         }
 
-        if (fullscreen)
+        if (fullscreen_)
         {
-            width  = static_cast<uint32_t>(mode->width);
-            height = static_cast<uint32_t>(mode->height);
+            width_  = static_cast<uint32_t>(mode->width);
+            height_ = static_cast<uint32_t>(mode->height);
 
-            window = glfwCreateWindow(
+            window_ = glfwCreateWindow(
                 mode->width, mode->height,
-                title.c_str(), primary_monitor, nullptr);
+                title_.c_str(), primary_monitor, nullptr);
 
-            if (!window)
+            if (!window_)
             {
                 Logger::critical("Failed to create window");
                 glfwTerminate();
-                window = nullptr;
+                window_ = nullptr;
                 return false;
             }
         }
         else
         {
-            width  = last_width;
-            height = last_height;
+            width_  = last_width_;
+            height_ = last_height_;
 
-            window = glfwCreateWindow(
-                static_cast<int>(width),
-                static_cast<int>(height),
-                title.c_str(), nullptr, nullptr);
+            window_ = glfwCreateWindow(
+                static_cast<int>(width_),
+                static_cast<int>(height_),
+                title_.c_str(), nullptr, nullptr);
 
-            if (!window)
+            if (!window_)
             {
                 Logger::critical("Failed to create window");
                 glfwTerminate();
-                window = nullptr;
+                window_ = nullptr;
                 return false;
             }
 
             glfwSetWindowPos(
-                window,
-                static_cast<int>(last_pos_x),
-                static_cast<int>(last_pos_y));
+                window_,
+                static_cast<int>(last_pos_x_),
+                static_cast<int>(last_pos_y_));
         }
 
         #ifdef BOZA_OPENGL_ENABLED
@@ -109,83 +109,84 @@ namespace boza
 
     void Window::destroy()
     {
-        glfwDestroyWindow(window);
+        glfwDestroyWindow(window_);
         glfwTerminate();
 
-        window = nullptr;
+        window_ = nullptr;
     }
 
     void Window::toggle_fullscreen()
     {
-        fullscreen = !fullscreen;
+        fullscreen_ = !fullscreen_;
 
-        if (fullscreen)
+        if (fullscreen_)
         {
             GLFWmonitor*       monitor = glfwGetPrimaryMonitor();
             const GLFWvidmode* mode    = glfwGetVideoMode(monitor);
 
-            last_width  = width;
-            last_height = height;
+            last_width_  = width_;
+            last_height_ = height_;
 
             int x, y;
-            glfwGetWindowPos(window, &x, &y);
-            last_pos_x = static_cast<uint32_t>(x);
-            last_pos_y = static_cast<uint32_t>(y);
+            glfwGetWindowPos(window_, &x, &y);
+            last_pos_x_ = static_cast<uint32_t>(x);
+            last_pos_y_ = static_cast<uint32_t>(y);
 
-            glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+            glfwSetWindowMonitor(window_, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
         }
         else
         {
             glfwSetWindowMonitor(
-                window, nullptr,
-                static_cast<int>(last_pos_x),
-                static_cast<int>(last_pos_y),
-                static_cast<int>(last_width),
-                static_cast<int>(last_height), 0);
+                window_, nullptr,
+                static_cast<int>(last_pos_x_),
+                static_cast<int>(last_pos_y_),
+                static_cast<int>(last_width_),
+                static_cast<int>(last_height_), 0);
         }
     }
 
-    uint32_t Window::get_width() const { return width; }
-    uint32_t Window::get_height() const { return height; }
+    uint32_t Window::width() const { return width_; }
+    uint32_t Window::height() const { return height_; }
 
-    void Window::wait_to_close() const { while (!glfwWindowShouldClose(window)) glfwWaitEvents(); }
+    void Window::wait_to_close() const { while (!glfwWindowShouldClose(window_)) glfwWaitEvents(); }
 
     void Window::set_window_resize_callback()
     {
-        glfwSetWindowUserPointer(window, this);
-        glfwSetFramebufferSizeCallback(window, [](GLFWwindow* window, const int width, const int height)
+        glfwSetWindowUserPointer(window_, this);
+        glfwSetFramebufferSizeCallback(window_, [](GLFWwindow* window, const int width, const int height)
         {
             const auto self = static_cast<Window*>(glfwGetWindowUserPointer(window));
-            self->width     = static_cast<uint32_t>(width);
-            self->height    = static_cast<uint32_t>(height);
-            self->resized.store(true);
+
+            self->width_  = static_cast<uint32_t>(width);
+            self->height_ = static_cast<uint32_t>(height);
+            self->resized_.store(true);
         });
     }
 
     bool Window::has_resized()
     {
-        if (resized.load())
+        if (resized_.load())
         {
-            resized.store(false);
+            resized_.store(false);
             return true;
         }
 
         return false;
     }
 
-    bool Window::is_minimized() const { return !(width && height); }
+    bool Window::is_minimized() const { return !(width_ && height_); }
 
     std::vector<const char*> Window::get_required_extensions() const
     {
-        uint32_t count = 0;
-        const char** ext = glfwGetRequiredInstanceExtensions(&count);
+        uint32_t     count = 0;
+        const char** ext   = glfwGetRequiredInstanceExtensions(&count);
         return { ext, ext + count };
     }
 
     #ifdef BOZA_VULKAN_ENABLED
-    int Window::create_vulkan_surface(const VkInstance instance, VkSurfaceKHR& surface) const
+    VkResult_T Window::create_vulkan_surface(const VkInstance instance, VkSurfaceKHR& surface) const
     {
-        return glfwCreateWindowSurface(instance, window, nullptr, &surface);
+        return glfwCreateWindowSurface(instance, window_, nullptr, &surface);
     }
     #endif
 }

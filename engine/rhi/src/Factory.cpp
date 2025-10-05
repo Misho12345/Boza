@@ -1,54 +1,50 @@
 #include "boza/rhi/Factory.hpp"
 
 #ifdef BOZA_OPENGL_ENABLED
-// OpenGL implementation headers
+#include "backends/opengl/FactoryImpl.hpp"
 #endif
 
 #ifdef BOZA_VULKAN_ENABLED
-// Vulkan implementation headers
-#include "backends/vulkan/Instance.hpp"
-#include "backends/vulkan/Device.hpp"
+#include "backends/vulkan/FactoryImpl.hpp"
 #endif
 
 #ifdef BOZA_METAL_ENABLED
-// Metal implementation headers
+#include "backends/metal/FactoryImpl.hpp"
 #endif
 
 #ifdef BOZA_DX11_ENABLED
-// DirectX11 implementation headers
+#include "backends/dx11/FactoryImpl.hpp"
 #endif
 
 #ifdef BOZA_DX12_ENABLED
-// DirectX12 implementation headers
+#include "backends/dx12/FactoryImpl.hpp"
 #endif
 
-#define NOT_IMPLEMENTED(O, API) Logger::warn(#O " is not implemented for " #API); return nullptr
+
+#define DEFINE_FACTORY_FUNC(CLASS, CLASS_LOWER)                                                     \
+    CLASS* create_ ## CLASS_LOWER(const GraphicsApi api, const CLASS ## Desc& desc)                 \
+    {                                                                                               \
+        switch (api)                                                                                \
+        {                                                                                           \
+            BOZA_IF_OPENGL(case GraphicsApi::OpenGL:    return gl::create_   ## CLASS_LOWER(desc);) \
+            BOZA_IF_VULKAN(case GraphicsApi::Vulkan:    return vk::create_   ## CLASS_LOWER(desc);) \
+            BOZA_IF_METAL (case GraphicsApi::Metal:     return ml::create_   ## CLASS_LOWER(desc);) \
+            BOZA_IF_DX11  (case GraphicsApi::DirectX11: return dx11::create_ ## CLASS_LOWER(desc);) \
+            BOZA_IF_DX12  (case GraphicsApi::DirectX12: return dx12::create_ ## CLASS_LOWER(desc);) \
+            default: return nullptr;                                                                \
+        }                                                                                           \
+    }
+
 
 namespace boza::rhi
 {
-    Instance* Factory::create_instance(const GraphicsApi api, const InstanceDesc& desc)
-    {
-        switch(api)
-        {
-            BOZA_IF_OPENGL(case GraphicsApi::OpenGL:    NOT_IMPLEMENTED(Instance, OpenGL);)
-            BOZA_IF_VULKAN(case GraphicsApi::Vulkan:    return Instance::create<vk::Instance>(desc);)
-            BOZA_IF_METAL (case GraphicsApi::Metal:     NOT_IMPLEMENTED(Instance, Metal); )
-            BOZA_IF_DX11  (case GraphicsApi::DirectX11: NOT_IMPLEMENTED(Instance, DirectX11);)
-            BOZA_IF_DX12  (case GraphicsApi::DirectX12: NOT_IMPLEMENTED(Instance, DirectX12);)
-            default: return nullptr;
-        }
-    }
+    DEFINE_FACTORY_FUNC(Instance, instance)
+    DEFINE_FACTORY_FUNC(Device, device)
+    DEFINE_FACTORY_FUNC(Swapchain, swapchain)
 
-    Device* Factory::create_device(const GraphicsApi api, const DeviceDesc& desc)
-    {
-        switch(api)
-        {
-            BOZA_IF_OPENGL(case GraphicsApi::OpenGL:    NOT_IMPLEMENTED(Device, OpenGL); )
-            BOZA_IF_VULKAN(case GraphicsApi::Vulkan:    return Device::create<vk::Device>(desc); )
-            BOZA_IF_METAL (case GraphicsApi::Metal:     NOT_IMPLEMENTED(Device, Metal); )
-            BOZA_IF_DX11  (case GraphicsApi::DirectX11: NOT_IMPLEMENTED(Device, DirectX11); )
-            BOZA_IF_DX12  (case GraphicsApi::DirectX12: NOT_IMPLEMENTED(Device, DirectX12); )
-            default: return nullptr;
-        }
-    }
+    DEFINE_FACTORY_FUNC(CommandPool, command_pool)
+    DEFINE_FACTORY_FUNC(CommandQueue, command_queue)
+
+    DEFINE_FACTORY_FUNC(Fence, fence)
+    DEFINE_FACTORY_FUNC(Semaphore, semaphore)
 }

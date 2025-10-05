@@ -1,4 +1,5 @@
 #pragma once
+#include "boza/std_pch.hpp"
 #include "GraphicsObject.hpp"
 
 namespace boza::rhi

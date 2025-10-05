@@ -9,47 +9,46 @@ namespace boza
     public:
         using UnderlyingType = std::underlying_type_t<T>;
 
-        constexpr Flags() noexcept : bits(0) {}
-        constexpr Flags(T flag) noexcept : bits(static_cast<UnderlyingType>(flag)) {}
+        constexpr Flags() noexcept : bits_(0) {}
+        constexpr Flags(T flag) noexcept : bits_(static_cast<UnderlyingType>(flag)) {}
         constexpr Flags(const Flags& other) noexcept = default;
 
-        constexpr Flags operator|(Flags other) const noexcept { return Flags{ bits | other.bits }; }
-        constexpr Flags operator&(Flags other) const noexcept { return Flags{ bits & other.bits }; }
-        constexpr Flags operator^(Flags other) const noexcept { return Flags{ bits ^ other.bits }; }
-        constexpr Flags operator~() const noexcept { return Flags{ ~bits }; }
+        constexpr Flags operator|(const Flags& other) const noexcept { return Flags{ bits_ | other.bits_ }; }
+        constexpr Flags operator&(const Flags& other) const noexcept { return Flags{ bits_ & other.bits_ }; }
+        constexpr Flags operator^(const Flags& other) const noexcept { return Flags{ bits_ ^ other.bits_ }; }
+        constexpr Flags operator~() const noexcept { return Flags{ ~bits_ }; }
 
-        Flags& operator|=(Flags other) noexcept
+        Flags& operator|=(const Flags& other) noexcept
         {
-            bits |= other.bits;
+            bits_ |= other.bits_;
             return *this;
         }
 
-        Flags& operator&=(Flags other) noexcept
+        Flags& operator&=(const Flags& other) noexcept
         {
-            bits &= other.bits;
+            bits_ &= other.bits_;
             return *this;
         }
 
-        Flags& operator^=(Flags other) noexcept
+        Flags& operator^=(const Flags& other) noexcept
         {
-            bits ^= other.bits;
+            bits_ ^= other.bits_;
             return *this;
         }
 
-        constexpr bool operator==(Flags other) const noexcept { return bits == other.bits; }
-        constexpr bool operator!=(Flags other) const noexcept { return bits != other.bits; }
+        constexpr bool operator==(const Flags& other) const noexcept { return bits_ == other.bits_; }
+        constexpr bool operator!=(const Flags& other) const noexcept { return bits_ != other.bits_; }
 
-        constexpr bool test(T flag) const noexcept { return (bits & static_cast<UnderlyingType>(flag)) != 0; }
+        [[nodiscard]] constexpr bool has(T flag) const noexcept { return (bits_ & static_cast<UnderlyingType>(flag)) != 0; }
+        [[nodiscard]] constexpr bool any() const noexcept { return bits_ != 0; }
+        [[nodiscard]] constexpr bool none() const noexcept { return bits_ == 0; }
 
-        constexpr bool any() const noexcept { return bits != 0; }
-        constexpr bool none() const noexcept { return bits == 0; }
-
-        constexpr UnderlyingType value() const noexcept { return bits; }
+        [[nodiscard]] constexpr UnderlyingType value() const noexcept { return bits_; }
 
     private:
-        constexpr explicit Flags(UnderlyingType bits) noexcept : bits(bits) {}
+        constexpr explicit Flags(UnderlyingType bits) noexcept : bits_(bits) {}
 
-        UnderlyingType bits;
+        UnderlyingType bits_;
     };
 
     template<typename T> constexpr Flags<T> operator|(T lhs, T rhs) noexcept { return Flags<T>(lhs) | Flags<T>(rhs); }

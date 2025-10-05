@@ -1,49 +1,42 @@
 #pragma once
-#include "boza/rhi/Device.hpp"
+#include "pch.hpp"
 
-using VkPhysicalDevice = struct VkPhysicalDevice_T*;
-using VkDevice         = struct VkDevice_T*;
-using VkSurfaceKHR     = struct VkSurfaceKHR_T*;
-using VkQueue          = struct VkQueue_T*;
+#include "boza/rhi/Device.hpp"
 
 namespace boza::rhi::vk
 {
     class Device final : public rhi::Device
     {
     public:
-        struct QueueFamilyIndices
-        {
-            uint32_t graphics_family{ UINT32_MAX };
-            uint32_t present_family{ UINT32_MAX };
-            uint32_t compute_family{ UINT32_MAX };
-            uint32_t transfer_family{ UINT32_MAX };
-        };
-
         bool init() override;
         void destroy() override;
         void wait_idle() override;
+
+        [[nodiscard]] VkDevice logical_device() const;
+        [[nodiscard]] VkPhysicalDevice physical_device() const;
+        [[nodiscard]] VkSurfaceKHR surface() const;
+
+        [[nodiscard]] VkQueue graphics_vk_queue() const;
+        [[nodiscard]] VkQueue present_vk_queue() const;
+        [[nodiscard]] VkQueue compute_vk_queue() const;
+        [[nodiscard]] VkQueue transfer_vk_queue() const;
 
     private:
         explicit Device(const DeviceDesc& desc) : rhi::Device(desc) {}
 
         [[nodiscard]] bool choose_physical_device();
-        [[nodiscard]] bool find_queue_families();
         [[nodiscard]] bool create_logical_device();
 
-        void get_queues();
-        QueueFamilyIndices queue_family_indices{};
+        bool find_queue_families() override;
+        bool get_queues() override;
+        bool create_command_pools() override;
 
-        VkPhysicalDevice physical_device{ nullptr };
-        VkDevice         logical_device{ nullptr };
-        VkSurfaceKHR     surface{ nullptr };
-
-        VkQueue graphics_queue{ nullptr };
-        VkQueue present_queue{ nullptr };
-        VkQueue compute_queue{ nullptr };
-        VkQueue transfer_queue{ nullptr };
+        VkPhysicalDevice physical_device_{ nullptr };
+        VkDevice         logical_device_{ nullptr };
+        VkSurfaceKHR     surface_{ nullptr };
 
         static constexpr const char* required_extensions[] = {
-            VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+            "VK_KHR_swapchain",
 
             #ifdef __APPLE__
             "VK_KHR_portability_subset"

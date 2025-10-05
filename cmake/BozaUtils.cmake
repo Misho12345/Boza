@@ -8,10 +8,10 @@ function(get_source_files out_sources)
         message(FATAL_ERROR "At least base directory must be specified")
     endif ()
 
-    set(_collected_sources_list "")
+    set(collected_sources_list "")
 
     foreach (arg IN LISTS ARGN)
-        if(IS_DIRECTORY "${arg}")
+        if (IS_DIRECTORY "${arg}")
             file(GLOB_RECURSE dir_sources
                     CONFIGURE_DEPENDS
                     "${arg}/*.hpp"
@@ -25,32 +25,13 @@ function(get_source_files out_sources)
                     "${arg}/*.c"
             )
 
-            list(APPEND _collected_sources_list ${dir_sources})
-        else()
+            list(APPEND collected_sources_list ${dir_sources})
+        else ()
             message(WARNING "Skipping '${arg}': Not a valid directory")
-        endif()
+        endif ()
     endforeach ()
 
-    set(_filtered_sources "")
-    foreach(_f IN LISTS _collected_sources_list)
-        if (_f MATCHES "[/\\\\]build([/\\\\]|$)")
-            message(VERBOSE "get_source_files: filtered out (in build dir): ${_f}")
-            continue()
-        endif()
-
-        if (_f MATCHES "\\.gch$" OR _f MATCHES "\\.pch$" OR
-                _f MATCHES "\\.o$" OR _f MATCHES "\\.obj$" OR
-                _f MATCHES "\\.a$" OR _f MATCHES "\\.so$" OR _f MATCHES "\\.dll$" OR
-                _f MATCHES "\\.lib$" OR _f MATCHES "\\.dylib$" OR
-                _f MATCHES "\\.pyc$" OR _f MATCHES "\\.class$")
-            message(VERBOSE "get_source_files: filtered out (artifact ext): ${_f}")
-            continue()
-        endif()
-
-        list(APPEND _filtered_sources "${_f}")
-    endforeach()
-
-    set(${out_sources} ${_filtered_sources} PARENT_SCOPE)
+    set(${out_sources} ${collected_sources_list} PARENT_SCOPE)
 endfunction()
 
 
@@ -67,7 +48,7 @@ function(set_default_include_dirs target dir)
             PUBLIC
             $<BUILD_INTERFACE:${dir}/include>
             $<INSTALL_INTERFACE:include>
-#            PRIVATE
+            PRIVATE
             $<BUILD_INTERFACE:${dir}/src>
     )
 endfunction()
@@ -104,4 +85,36 @@ function(create_tests test_target tested_target test_source_dir)
 
     include(GoogleTest)
     gtest_discover_tests(${test_target} DISCOVERY_TIMEOUT 60)
+endfunction()
+
+# for RHI and AHI backends
+function(setup_backend backend_name interface_target final_target source_dir)
+    if (NOT backend_name)
+        message(FATAL_ERROR "Backend name is required")
+    endif ()
+
+    if (NOT interface_target)
+        message(FATAL_ERROR "Interface target name is required")
+    endif ()
+
+    if (NOT final_target)
+        message(FATAL_ERROR "Final target name is required")
+    endif ()
+
+    if (NOT source_dir OR NOT IS_DIRECTORY ${source_dir})
+        message(FATAL_ERROR "Source directory is required to be a valid directory")
+    endif ()
+
+    add_library(${backend_name} STATIC)
+
+    get_source_files(${backend_name}_SOURCES ${source_dir})
+    target_sources(${backend_name} PRIVATE ${${backend_name}_SOURCES})
+    target_include_directories(${backend_name} PRIVATE ${source_dir})
+
+    target_link_libraries(${backend_name} PRIVATE ${interface_target})
+    target_precompile_headers(${backend_name} PRIVATE ${source_dir}/pch.hpp)
+
+    boza_enable_warnings(${backend_name})
+
+    target_link_libraries(${final_target} PUBLIC ${backend_name})
 endfunction()

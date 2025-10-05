@@ -1,30 +1,32 @@
 #include "boza/ahi/Factory.hpp"
-#include "boza/core/Logger.hpp"
 
 #ifdef BOZA_OPENAL_ENABLED
-// OpenAL implementation headers
+#include "backends/openal/FactoryImpl.hpp"
 #endif
 
 #ifdef BOZA_XAUDIO2_ENABLED
-// XAudio2 implementation headers
+#include "backends/xaudio2/FactoryImpl.hpp"
 #endif
 
 #ifdef BOZA_COREAUDIO_ENABLED
-// CoreAudio implementation headers
+#include "backends/coreaudio/FactoryImpl.hpp"
 #endif
 
-#define NOT_IMPLEMENTED(O, API) Logger::warn(#O " is not implemented for " #API); return nullptr
+
+#define DEFINE_FACTORY_FUNC(CLASS, CLASS_LOWER)                                                    \
+    CLASS* create_ ## CLASS_LOWER(const AudioApi api, [[maybe_unused]] const CLASS ## Desc& desc)  \
+    {                                                                                              \
+        switch (api)                                                                               \
+        {                                                                                          \
+            BOZA_IF_OPENAL   (case AudioApi::OpenAL:    return al::create_  ## CLASS_LOWER(desc);) \
+            BOZA_IF_XAUDIO2  (case AudioApi::XAudio2:   return xa2::create_ ## CLASS_LOWER(desc);) \
+            BOZA_IF_COREAUDIO(case AudioApi::CoreAudio: return ca::create_  ## CLASS_LOWER(desc);) \
+            default: return nullptr;                                                               \
+        }                                                                                          \
+    }
+
 
 namespace boza::ahi
 {
-    AudioDevice* Factory::create_audio_device(const AudioApi api, [[maybe_unused]] const AudioDeviceDesc& desc)
-    {
-        switch(api)
-        {
-            BOZA_IF_OPENAL   (case AudioApi::OpenAL:    NOT_IMPLEMENTED(AudioDevice, OpenAL);)
-            BOZA_IF_XAUDIO2  (case AudioApi::XAudio2:   NOT_IMPLEMENTED(AudioDevice, XAudio2);)
-            BOZA_IF_COREAUDIO(case AudioApi::CoreAudio: NOT_IMPLEMENTED(AudioDevice, CoreAudio); )
-            default: return nullptr;
-        }
-    }
+    DEFINE_FACTORY_FUNC(AudioDevice, audio_device)
 }

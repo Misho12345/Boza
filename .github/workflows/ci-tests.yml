@@ -35,13 +35,13 @@ jobs:
           - os: ubuntu-latest
             vcpkg_triplet: x64-linux
             vcpkg_host_triplet: x64-linux
-            cmake_build_type: RelWithDebInfo
+            cmake_build_type: Release
             cc: gcc-14
             cxx: g++-14
           - os: macos-latest
             vcpkg_triplet: arm64-osx
             vcpkg_host_triplet: x64-osx
-            cmake_build_type: RelWithDebInfo
+            cmake_build_type: Release
 
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -149,9 +149,11 @@ jobs:
         shell: powershell
         run: |
           Write-Host "Configuring with CMake (Windows)"
-          cd $PSScriptRoot
+          # ensure we are in the repository root
+          Set-Location -Path $env:GITHUB_WORKSPACE
           cmake -S . -B build -G "${{ matrix.cmake_generator }}" -A ${{ matrix.cmake_arch }} -DCMAKE_BUILD_TYPE=${{ matrix.cmake_build_type }} -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" $env:BOZA_CMAKE_COMMON
 
+        Why: GITHUB_WORKSPACE is guaranteed to be the checked-out repo root. This will stop CMake trying to read
       - name: Configure (Unix)
         if: runner.os != 'Windows'
         shell: bash

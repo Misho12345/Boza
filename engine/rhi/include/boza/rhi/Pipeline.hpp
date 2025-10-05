@@ -1,9 +1,10 @@
 #pragma once
 #include "boza/std_pch.hpp"
 #include "GraphicsObject.hpp"
+
 #include "ShaderModule.hpp"
 #include "DescriptorSet.hpp"
-#include "CommandBuffer.hpp"
+#include "Command.hpp"
 
 namespace boza::rhi
 {

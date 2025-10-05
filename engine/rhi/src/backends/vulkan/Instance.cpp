@@ -1,6 +1,4 @@
 #include "Instance.hpp"
-#include "pch.hpp"
-
 #include <magic_enum/magic_enum_all.hpp>
 
 namespace boza::rhi::vk
@@ -20,7 +18,7 @@ namespace boza::rhi::vk
         Logger::trace("Creating vulkan instance");
         if (!create_instance()) return false;
 
-        volkLoadInstance(vk_instance);
+        volkLoadInstance(vk_instance_);
 
         #ifdef BOZA_DEBUG
         Logger::trace("Creating debug messenger");
@@ -34,17 +32,21 @@ namespace boza::rhi::vk
     {
         Logger::trace("Destroying vulkan instance");
 
-        if (vk_instance == nullptr) return;
+        if (vk_instance_ == nullptr) return;
 
         #ifdef BOZA_DEBUG
-        if (debug_messenger != nullptr) vkDestroyDebugUtilsMessengerEXT(
-            vk_instance, debug_messenger, nullptr);
+        if (debug_messenger_)
+        {
+            vkDestroyDebugUtilsMessengerEXT(vk_instance_, debug_messenger_, nullptr);
+            debug_messenger_ = nullptr;
+        }
         #endif
 
-        vkDestroyInstance(vk_instance, nullptr);
+        vkDestroyInstance(vk_instance_, nullptr);
+        vk_instance_ = nullptr;
     }
 
-    VkInstance Instance::get_vk_instance() const { return vk_instance; }
+    VkInstance Instance::vk_instance() const { return vk_instance_; }
 
     bool Instance::create_instance()
     {
@@ -94,7 +96,7 @@ namespace boza::rhi::vk
             .ppEnabledExtensionNames = extensions.data()
         };
 
-        VK_CHECK(vkCreateInstance(&instance_create_info, nullptr, &vk_instance),
+        VK_CHECK(vkCreateInstance(&instance_create_info, nullptr, &vk_instance_),
         {
             LOG_VK_ERROR("Failed to create instance");
             return false;
@@ -237,8 +239,8 @@ namespace boza::rhi::vk
         };
 
         VK_CHECK(vkCreateDebugUtilsMessengerEXT(
-            vk_instance, &debug_messenger_create_info,
-            nullptr, &debug_messenger),
+            vk_instance_, &debug_messenger_create_info,
+            nullptr, &debug_messenger_),
         {
             LOG_VK_ERROR("Failed to create debug messenger");
             return false;

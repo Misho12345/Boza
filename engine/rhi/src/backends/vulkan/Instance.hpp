@@ -1,8 +1,7 @@
 #pragma once
-#include "boza/rhi/Instance.hpp"
+#include "pch.hpp"
 
-using VkInstance = struct VkInstance_T*;
-using VkDebugUtilsMessengerEXT = struct VkDebugUtilsMessengerEXT_T*;
+#include "boza/rhi/Instance.hpp"
 
 namespace boza::rhi::vk
 {
@@ -13,7 +12,7 @@ namespace boza::rhi::vk
         void destroy() override;
 
         [[nodiscard]]
-        VkInstance get_vk_instance() const;
+        VkInstance vk_instance() const;
 
     private:
         explicit Instance(const InstanceDesc& desc) : rhi::Instance(desc) {}
@@ -27,11 +26,11 @@ namespace boza::rhi::vk
             const std::span<const char*>& layers);
 
         #ifdef BOZA_DEBUG
-        [[nodiscard]] bool                 create_debug_messenger();
-        VkDebugUtilsMessengerEXT debug_messenger{ nullptr };
+        [[nodiscard]] bool       create_debug_messenger();
+        VkDebugUtilsMessengerEXT debug_messenger_{ nullptr };
         #endif
 
-        VkInstance vk_instance{ nullptr };
+        VkInstance vk_instance_{ nullptr };
 
         friend GraphicsObject;
     };

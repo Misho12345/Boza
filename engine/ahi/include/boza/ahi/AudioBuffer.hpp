@@ -28,9 +28,9 @@ namespace boza::ahi
         [[nodiscard]]
         virtual bool load_from_file(const std::string& filepath) = 0;
 
-        [[nodiscard]] virtual uint32_t get_id() const = 0;
-        [[nodiscard]] virtual size_t   get_size() const = 0;
-        [[nodiscard]] virtual float    get_duration() const = 0;
+        [[nodiscard]] virtual uint32_t id() const = 0;
+        [[nodiscard]] virtual size_t   size() const = 0;
+        [[nodiscard]] virtual float    duration() const = 0;
 
     private:
         explicit AudioBuffer(const AudioObjectDesc& desc) : AudioObject(desc) {}

@@ -1,8 +1,9 @@
 #pragma once
+#include "boza/std_pch.hpp"
 #include "GraphicsObject.hpp"
-#include <glm/glm.hpp>
 
 #include "boza/platform/Window.hpp"
+#include <glm/glm.hpp>
 
 namespace boza::rhi
 {

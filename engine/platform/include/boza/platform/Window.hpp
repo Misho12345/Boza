@@ -5,8 +5,9 @@
 struct GLFWwindow;
 
 #ifdef BOZA_VULKAN_ENABLED
-using VkInstance = struct VkInstance_T*;
+using VkInstance   = struct VkInstance_T*;
 using VkSurfaceKHR = struct VkSurfaceKHR_T*;
+using VkResult_T   = int;
 #endif
 
 namespace boza
@@ -27,8 +28,8 @@ namespace boza
 
         void toggle_fullscreen();
 
-        [[nodiscard]] uint32_t get_width() const;
-        [[nodiscard]] uint32_t get_height() const;
+        [[nodiscard]] uint32_t width() const;
+        [[nodiscard]] uint32_t height() const;
 
         void wait_to_close() const;
         void set_window_resize_callback();
@@ -40,23 +41,24 @@ namespace boza
         std::vector<const char*> get_required_extensions() const;
 
         #ifdef BOZA_VULKAN_ENABLED
-        // VkResult
-        [[nodiscard]] int create_vulkan_surface(VkInstance instance, VkSurfaceKHR& surface) const;
+        [[nodiscard]]
+        VkResult_T create_vulkan_surface(VkInstance instance, VkSurfaceKHR& surface) const;
         #endif
 
     private:
-        uint32_t    width{};
-        uint32_t    height{};
-        std::string title;
-        bool        fullscreen;
+        uint32_t width_{};
+        uint32_t height_{};
 
-        uint32_t last_width;
-        uint32_t last_height;
+        std::string title_;
+        bool        fullscreen_;
 
-        uint32_t last_pos_x{};
-        uint32_t last_pos_y{};
+        uint32_t last_width_;
+        uint32_t last_height_;
 
-        std::atomic_bool resized{ false };
-        GLFWwindow*      window{ nullptr };
+        uint32_t last_pos_x_{};
+        uint32_t last_pos_y_{};
+
+        std::atomic_bool resized_{ false };
+        GLFWwindow*      window_{ nullptr };
     };
 }

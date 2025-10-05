@@ -1,8 +1,12 @@
 #pragma once
+#include <variant>
+
+#include "boza/std_pch.hpp"
+#include "GraphicsObject.hpp"
+
 #include "Buffer.hpp"
 #include "Sampler.hpp"
 #include "Texture.hpp"
-#include "GraphicsObject.hpp"
 #include "ShaderModule.hpp"
 
 #include "boza/util/Flags.hpp"

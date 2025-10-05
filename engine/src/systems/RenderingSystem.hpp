@@ -15,5 +15,6 @@ namespace boza
     private:
         std::unique_ptr<rhi::Instance> instance{ nullptr };
         std::unique_ptr<rhi::Device> device{ nullptr };
+        std::unique_ptr<rhi::Swapchain> swapchain{ nullptr };
     };
 }

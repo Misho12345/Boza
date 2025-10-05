@@ -1,48 +1,59 @@
 #pragma once
 #include "boza/std_pch.hpp"
 #include "GraphicsObject.hpp"
-#include "CommandBuffer.hpp"
+
 #include "boza/platform/Window.hpp"
-#include "Device.hpp"
-#include "Sync.hpp"
 
 namespace boza::rhi
 {
+    class Device;
+    class CommandBuffer;
+    class CommandPool;
+    class Fence;
+    class Semaphore;
+
+    enum class PresentMode : uint8_t
+    {
+        Immediate,      // No vsync (may tear)
+        Mailbox,        // Triple buffering (as fast as it can get, no tearing)
+        Fifo,           // Vsync, always supported (bound to monitor refresh rate)
+        FifoRelaxed     // Vsync with relaxed timing (allow late frames to be displayed immediately, may tear)
+    };
+
     struct SwapchainDesc
     {
-        Device* device;
-        Window* window;
+        Device*      device;
+        Window*      window;
+
+        PresentMode  preferred_present_mode{ PresentMode::Mailbox };
+        uint32_t     preferred_image_count{ 3 };
+        uint32_t     max_frames_in_flight{ 2 };
     };
 
     class Swapchain : public GraphicsObject<Swapchain, SwapchainDesc>
     {
     public:
-        [[nodiscard]] virtual bool     begin_render_pass(uint32_t image_idx);
-        [[nodiscard]] virtual bool     end_render_pass(uint32_t image_idx);
-        [[nodiscard]] virtual uint32_t acquire_next_image();
-        [[nodiscard]] virtual bool     submit_and_present(uint32_t image_idx);
+        virtual bool     begin_frame() = 0;
+        virtual bool     end_frame() = 0;
 
-        virtual void resize(uint32_t width, uint32_t height) = 0;
+        virtual uint32_t acquire_next_image() = 0;
+        virtual bool     present(uint32_t image_index) = 0;
+
+        virtual bool begin_render_pass(uint32_t image_idx) = 0;
+        virtual bool end_render_pass(uint32_t image_idx) = 0;
+
+        virtual uint32_t width() const = 0;
+        virtual uint32_t height() const = 0;
+        virtual uint32_t image_count() const = 0;
+        virtual uint32_t current_frame() const = 0;
+        virtual uint32_t current_image_index() const = 0;
+
+        virtual CommandBuffer* current_command_buffer() = 0;
+        virtual Fence*         current_fence() = 0;
 
     protected:
         explicit Swapchain(const SwapchainDesc& desc) : GraphicsObject(desc) {}
 
-        static constexpr uint32_t preferred_swapchain_image_count = 3;
-        static constexpr uint32_t max_frames_in_flight            = 2;
-
-        struct Frame
-        {
-            CommandBuffer* cmd_buffer;
-            Fence*         in_flight_fence;
-            Semaphore*     image_available_semaphore;
-            Semaphore*     render_finished_semaphore;
-        };
-
-        uint32_t current_frame{};
-        void next_frame() { current_frame = (current_frame + 1) % max_frames_in_flight; }
-        std::array<Frame, max_frames_in_flight> frames{};
-
         virtual bool recreate() = 0;
-        bool         should_recreate{ false };
     };
 }
