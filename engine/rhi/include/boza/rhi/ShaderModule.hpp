@@ -1,4 +1,6 @@
 #pragma once
+#include <variant>
+
 #include "boza/std_pch.hpp"
 #include "GraphicsObject.hpp"
 #include "boza/core/Logger.hpp"
@@ -17,6 +19,55 @@ namespace boza::rhi
         All            = 0b11111111,
     };
 
+    // Shader data types for runtime validation
+    enum class ShaderDataType : uint8_t
+    {
+        Unknown,
+        Bool,
+        Int,
+        Uint,
+        Float,
+        Double,
+        Vec2,
+        Vec3,
+        Vec4,
+        IVec2,
+        IVec3,
+        IVec4,
+        UVec2,
+        UVec3,
+        UVec4,
+        Mat2,
+        Mat3,
+        Mat4,
+        Sampler1D,
+        Sampler2D,
+        Sampler3D,
+        SamplerCube,
+        Sampler1DArray,
+        Sampler2DArray,
+        SamplerCubeArray,
+        Struct
+    };
+
+    // Type variant for push constant members
+    using ShaderTypeValue = std::variant<
+        bool,
+        int32_t,
+        uint32_t,
+        float,
+        double,
+        std::array<float, 2>,
+        std::array<float, 3>,
+        std::array<float, 4>,
+        std::array<int32_t, 2>,
+        std::array<int32_t, 3>,
+        std::array<int32_t, 4>,
+        std::array<uint32_t, 2>,
+        std::array<uint32_t, 3>,
+        std::array<uint32_t, 4>
+    >;
+
     class Device;
 
     struct ShaderModuleDesc
@@ -29,32 +80,55 @@ namespace boza::rhi
     class ShaderModule : public GraphicsObject<ShaderModule, ShaderModuleDesc>
     {
     public:
-        struct ResourceBinding
+        struct ShaderResource
         {
             uint32_t set{ std::numeric_limits<uint32_t>::max() };
             uint32_t binding{ std::numeric_limits<uint32_t>::max() };
             uint32_t location{ std::numeric_limits<uint32_t>::max() };
+            uint32_t size{ 0 };
+            uint32_t vec_size{ 1 };
+            uint32_t columns{ 1 };
+            std::string type_name;
+            ShaderDataType data_type{ ShaderDataType::Unknown };
         };
 
-        struct PushConstantRange
+        struct PushConstantMember
         {
+            std::string name;
+            std::string type_name;
+            ShaderDataType data_type{ ShaderDataType::Unknown };
             uint32_t offset{ 0 };
             uint32_t size{ 0 };
         };
 
-        struct MetaData
+        struct PushConstant
         {
-            std::unordered_map<std::string, ResourceBinding> uniform_buffers;
-            std::unordered_map<std::string, ResourceBinding> storage_buffers;
-            std::unordered_map<std::string, ResourceBinding> stage_inputs;
-            std::unordered_map<std::string, ResourceBinding> stage_outputs;
-            std::unordered_map<std::string, ResourceBinding> sampled_images;
-            std::unordered_map<std::string, ResourceBinding> storage_images;
-            std::unordered_map<std::string, PushConstantRange> push_constants;
+            ShaderStage stage;
+            uint32_t offset{ 0 };
+            uint32_t size{ 0 };
+            std::vector<PushConstantMember> members;
         };
 
-        [[nodiscard]]
-        const MetaData& meta_data() const { return meta_data_; }
+        struct MetaData
+        {
+            std::unordered_map<std::string, ShaderResource> uniform_buffers;
+            std::unordered_map<std::string, ShaderResource> storage_buffers;
+            std::unordered_map<std::string, ShaderResource> stage_inputs;
+            std::unordered_map<std::string, ShaderResource> stage_outputs;
+            std::unordered_map<std::string, ShaderResource> subpass_inputs;
+            std::unordered_map<std::string, ShaderResource> sampled_images;
+            std::unordered_map<std::string, ShaderResource> storage_images;
+            std::unordered_map<std::string, PushConstant> push_constants;
+        };
+
+        [[nodiscard]] const MetaData& meta_data() const { return meta_data_; }
+        [[nodiscard]] ShaderStage     stage() const { return desc.stage; }
+
+        // Helper to validate push constant data type
+        // TODO: make some day
+        // template<typename T>
+        // static bool validate_type(ShaderDataType expected_type);
+
 
     protected:
         explicit ShaderModule(const ShaderModuleDesc& desc) : GraphicsObject(desc) {}
@@ -62,7 +136,7 @@ namespace boza::rhi
         template<typename SegmentType>
         static std::vector<SegmentType> read_file(const fs::path& path)
         {
-            if (fs::exists(path))
+            if (!fs::exists(path))
             {
                 Logger::critical("Shader file {} does not exist", path.string());
                 return {};
@@ -97,6 +171,7 @@ namespace boza::rhi
         }
 
         bool get_meta_data();
+        static ShaderDataType parse_shader_data_type(const std::string& type_str);
 
         MetaData meta_data_;
     };

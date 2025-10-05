@@ -8,6 +8,8 @@
 #include "Command.hpp"
 #include "Sync.hpp"
 
+#include "Pipeline.hpp"
+
 namespace boza::rhi
 {
     Instance*  create_instance(GraphicsApi api, const InstanceDesc& desc);
@@ -20,4 +22,14 @@ namespace boza::rhi
 
     Fence*     create_fence(GraphicsApi api, const FenceDesc& desc);
     Semaphore* create_semaphore(GraphicsApi api, const SemaphoreDesc& desc);
+
+    PipelineLayout* create_pipeline_layout(GraphicsApi api, const PipelineLayoutDesc& desc);
+    ComputePipeline* create_compute_pipeline(GraphicsApi api, const ComputePipelineDesc& desc);
+    GraphicsPipeline* create_graphics_pipeline(GraphicsApi api, const GraphicsPipelineDesc& desc);
+
+    Buffer* create_buffer(GraphicsApi api, const BufferDesc& desc);
+    Texture* create_texture(GraphicsApi api, const TextureDesc& desc);
+    Sampler* create_sampler(GraphicsApi api, const SamplerDesc& desc);
+
+    ShaderModule* create_shader_module(GraphicsApi api, const ShaderModuleDesc& desc);
 }

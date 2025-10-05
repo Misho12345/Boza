@@ -12,7 +12,8 @@ include(BozaOptions)
 include(BozaCompilerWarnings)
 include(BozaUtils)
 
-set(BOZA_GAME_TARGET boza_game)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/$<CONFIG>)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/$<CONFIG>)
 
 add_subdirectory(tools/shader_processor)
 add_subdirectory(shaders)

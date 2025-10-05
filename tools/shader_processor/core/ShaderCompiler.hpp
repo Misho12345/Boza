@@ -39,5 +39,12 @@ namespace sp
          * @return The corresponding shaderc_shader_kind.
          */
         static shaderc_shader_kind get_shader_kind(const std::string& extension);
+
+        /**
+         * @brief Converts a shaderc_shader_kind to a string.
+         * @param kind The shader kind.
+         * @return The shader kind as a string.
+         */
+        static std::string get_shader_kind_string(shaderc_shader_kind kind);
     };
 }

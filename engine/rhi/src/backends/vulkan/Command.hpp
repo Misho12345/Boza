@@ -57,8 +57,11 @@ namespace boza::rhi::vk
 
         void dispatch(uint32_t group_x, uint32_t group_y, uint32_t group_z) override;
 
-        void bind_descriptor_set(rhi::DescriptorSet* set, uint32_t set_index) override;
-        void bind_descriptor_sets(const std::vector<rhi::DescriptorSet*>& sets, uint32_t first_set) override;
+        void bind_graphics_pipeline(rhi::GraphicsPipeline* pipeline) override;
+        void bind_compute_pipeline(rhi::ComputePipeline* pipeline) override;
+
+        void bind_descriptor_set(rhi::PipelineLayout* layout, rhi::DescriptorSet* set, uint32_t set_index) override;
+        void bind_descriptor_sets(rhi::PipelineLayout* layout, const std::vector<rhi::DescriptorSet*>& sets, uint32_t first_set) override;
 
         void pipeline_image_barrier(
             VkImage       image,

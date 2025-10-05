@@ -42,7 +42,7 @@ namespace sp
         }
 
         // 4. Reflect metadata
-        const json metadata = ShaderReflector::generate_metadata(spirv_unoptimized);
+        const json metadata = ShaderReflector::generate_metadata(spirv_unoptimized, ShaderCompiler::get_shader_kind_string(kind));
 
         if (fs::path metadata_path = out_dir / path.filename().replace_extension(".meta.json");
             !File::write(metadata_path, metadata.dump(2)))

@@ -16,5 +16,9 @@ namespace boza
         std::unique_ptr<rhi::Instance> instance{ nullptr };
         std::unique_ptr<rhi::Device> device{ nullptr };
         std::unique_ptr<rhi::Swapchain> swapchain{ nullptr };
+        std::unique_ptr<rhi::ShaderModule> vertex_shader{ nullptr };
+        std::unique_ptr<rhi::ShaderModule> fragment_shader{ nullptr };
+        std::unique_ptr<rhi::PipelineLayout> pipeline_layout{ nullptr };
+        std::unique_ptr<rhi::GraphicsPipeline> graphics_pipeline{ nullptr };
     };
 }

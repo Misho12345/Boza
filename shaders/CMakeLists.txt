@@ -31,7 +31,7 @@ if (SHADER_FILES)
         get_filename_component(SHADER_NAME_WE ${SHADER_PATH} NAME_WE)
         get_filename_component(SHADER_EXT ${SHADER_PATH} EXT)
 
-        set(OUT_DIR ${CMAKE_BINARY_DIR}/shaders/${SHADER_NAME})
+        set(OUT_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders/${SHADER_NAME})
         set(SHADER_OUTPUTS "")
 
         set(SPV_OUT ${OUT_DIR}/${SHADER_NAME_WE}.spv)

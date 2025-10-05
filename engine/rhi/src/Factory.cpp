@@ -47,4 +47,14 @@ namespace boza::rhi
 
     DEFINE_FACTORY_FUNC(Fence, fence)
     DEFINE_FACTORY_FUNC(Semaphore, semaphore)
+
+    DEFINE_FACTORY_FUNC(PipelineLayout, pipeline_layout)
+    DEFINE_FACTORY_FUNC(GraphicsPipeline, graphics_pipeline)
+    DEFINE_FACTORY_FUNC(ComputePipeline, compute_pipeline)
+
+    DEFINE_FACTORY_FUNC(Buffer, buffer)
+    DEFINE_FACTORY_FUNC(Texture, texture)
+    DEFINE_FACTORY_FUNC(Sampler, sampler)
+
+    DEFINE_FACTORY_FUNC(ShaderModule, shader_module)
 }

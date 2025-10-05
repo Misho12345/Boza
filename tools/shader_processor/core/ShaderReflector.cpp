@@ -46,9 +46,10 @@ namespace sp
         return type_str;
     }
 
-    json ShaderReflector::generate_metadata(const std::vector<uint32_t>& spirv)
+    json ShaderReflector::generate_metadata(const std::vector<uint32_t>& spirv, const std::string& shader_type)
     {
         json metadata;
+        metadata["shader_type"] = shader_type;
 
         const spirv_cross::Compiler        compiler{ spirv };
         const spirv_cross::ShaderResources resources{ compiler.get_shader_resources() };
@@ -59,7 +60,7 @@ namespace sp
         reflect_resources(compiler, resources.stage_outputs, "stage_outputs", metadata);
         reflect_resources(compiler, resources.sampled_images, "sampled_images", metadata);
         reflect_resources(compiler, resources.storage_images, "storage_images", metadata);
-        reflect_push_constants(compiler, resources, metadata);
+        reflect_push_constants(compiler, resources, metadata, shader_type);
 
         return metadata;
     }
@@ -108,7 +109,8 @@ namespace sp
     void ShaderReflector::reflect_push_constants(
         const spirv_cross::Compiler&        compiler,
         const spirv_cross::ShaderResources& resources,
-        json&                               metadata)
+        json&                               metadata,
+        const std::string&                  shader_type)
     {
         if (resources.push_constant_buffers.empty()) return;
         json push_constants_array = json::array();
@@ -120,6 +122,7 @@ namespace sp
 
             j_pc["name"] = compiler.get_name(push_constant_resource.id);
             j_pc["type"] = compiler.get_name(type.self);
+            j_pc["shader_stage"] = shader_type;
 
             if (auto ranges = compiler.get_active_buffer_ranges(push_constant_resource.id); !ranges.empty())
             {

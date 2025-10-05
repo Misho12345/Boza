@@ -53,4 +53,18 @@ namespace sp
 
         return shaderc_glsl_infer_from_source;
     }
+
+    std::string ShaderCompiler::get_shader_kind_string(const shaderc_shader_kind kind)
+    {
+        switch (kind)
+        {
+            case shaderc_glsl_vertex_shader: return "vertex";
+            case shaderc_glsl_fragment_shader: return "fragment";
+            case shaderc_glsl_compute_shader: return "compute";
+            case shaderc_glsl_geometry_shader: return "geometry";
+            case shaderc_glsl_tess_control_shader: return "tess_control";
+            case shaderc_glsl_tess_evaluation_shader: return "tess_evaluation";
+            default: return "unknown";
+        }
+    }
 }

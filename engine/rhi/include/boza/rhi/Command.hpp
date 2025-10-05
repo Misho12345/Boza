@@ -10,6 +10,9 @@ namespace boza::rhi
     class Swapchain;
     class Semaphore;
     class Fence;
+    class PipelineLayout;
+    class GraphicsPipeline;
+    class ComputePipeline;
 
     /// ------------------------
     /// ===== Command Pool =====
@@ -118,8 +121,11 @@ namespace boza::rhi
 
         virtual void dispatch(uint32_t group_x, uint32_t group_y, uint32_t group_z) = 0;
 
-        virtual void bind_descriptor_set(DescriptorSet* set, uint32_t set_index) = 0;
-        virtual void bind_descriptor_sets(const std::vector<DescriptorSet*>& sets, uint32_t first_set) = 0;
+        virtual void bind_graphics_pipeline(GraphicsPipeline* pipeline) = 0;
+        virtual void bind_compute_pipeline(ComputePipeline* pipeline) = 0;
+
+        virtual void bind_descriptor_set(PipelineLayout* layout, DescriptorSet* set, uint32_t set_index) = 0;
+        virtual void bind_descriptor_sets(PipelineLayout* layout, const std::vector<DescriptorSet*>& sets, uint32_t first_set) = 0;
 
     protected:
         explicit CommandBuffer(const CommandBufferDesc& desc) : desc(desc) {}

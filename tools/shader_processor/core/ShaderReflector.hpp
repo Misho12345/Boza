@@ -24,7 +24,7 @@ namespace sp
          * @brief Generates a JSON object containing all reflected shader metadata.
          * @return A json object with the shader's metadata.
          */
-        static json generate_metadata(const std::vector<uint32_t>& spirv);
+        static json generate_metadata(const std::vector<uint32_t>& spirv, const std::string& shader_type);
 
     private:
         static void reflect_resources(
@@ -34,8 +34,9 @@ namespace sp
             json&                                                  metadata);
 
         static void reflect_push_constants(
-            const spirv_cross::Compiler& compiler,
+            const spirv_cross::Compiler&        compiler,
             const spirv_cross::ShaderResources& resources,
-            json& metadata);
+            json&                               metadata,
+            const std::string&                  shader_type);
     };
 }

@@ -1,4 +1,5 @@
 #include "Command.hpp"
+#include "Pipeline.hpp"
 #include "Descriptor.hpp"
 #include "Device.hpp"
 #include "Swapchain.hpp"
@@ -355,14 +356,33 @@ namespace boza::rhi::vk
         vkCmdDispatch(vk_command_buffer_, group_x, group_y, group_z);
     }
 
-
-    void CommandBuffer::bind_descriptor_set(rhi::DescriptorSet* set, const uint32_t set_index)
+    void CommandBuffer::bind_graphics_pipeline(rhi::GraphicsPipeline* pipeline)
     {
-        bind_descriptor_sets({ set }, set_index);
+        const auto* vk_pipeline = reinterpret_cast<vk::GraphicsPipeline*>(pipeline);
+        vkCmdBindPipeline(vk_command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline->vk_pipeline());
     }
 
-    void CommandBuffer::bind_descriptor_sets(const std::vector<rhi::DescriptorSet*>& sets, const uint32_t first_set)
+    void CommandBuffer::bind_compute_pipeline(rhi::ComputePipeline* pipeline)
     {
+        const auto* vk_pipeline = reinterpret_cast<vk::ComputePipeline*>(pipeline);
+        vkCmdBindPipeline(vk_command_buffer_, VK_PIPELINE_BIND_POINT_COMPUTE, vk_pipeline->vk_pipeline());
+    }
+
+    void CommandBuffer::bind_descriptor_set(rhi::PipelineLayout* layout, rhi::DescriptorSet* set, const uint32_t set_index)
+    {
+        bind_descriptor_sets(layout, { set }, set_index);
+    }
+
+    void CommandBuffer::bind_descriptor_sets(rhi::PipelineLayout* layout, const std::vector<rhi::DescriptorSet*>& sets, const uint32_t first_set)
+    {
+        if (!layout)
+        {
+            Logger::warn("Cannot bind descriptor sets without a pipeline layout");
+            return;
+        }
+
+        const auto* vk_layout = reinterpret_cast<vk::PipelineLayout*>(layout);
+
         std::vector<VkDescriptorSet> vk_sets;
         vk_sets.reserve(sets.size());
 
@@ -371,11 +391,10 @@ namespace boza::rhi::vk
             vk_sets.push_back(reinterpret_cast<DescriptorSet*>(set)->vk_descriptor_set());
         }
 
-        // TODO: This needs to be improved, we need to know the pipeline layout
         vkCmdBindDescriptorSets(
             vk_command_buffer_,
-            VK_PIPELINE_BIND_POINT_GRAPHICS,
-            nullptr,
+            VK_PIPELINE_BIND_POINT_GRAPHICS, // TODO: Track bound pipeline type
+            vk_layout->vk_pipeline_layout(),
             first_set,
             static_cast<uint32_t>(vk_sets.size()),
             vk_sets.data(),
