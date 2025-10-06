@@ -1,6 +1,6 @@
 #pragma once
 #include "boza/GraphicsApi.hpp"
-#include "boza/std_pch.hpp"
+#include "boza/pch.hpp"
 
 struct GLFWwindow;
 

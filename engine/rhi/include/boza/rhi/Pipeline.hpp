@@ -1,5 +1,5 @@
 #pragma once
-#include "boza/std_pch.hpp"
+#include "boza/pch.hpp"
 #include "GraphicsObject.hpp"
 
 #include "ShaderModule.hpp"

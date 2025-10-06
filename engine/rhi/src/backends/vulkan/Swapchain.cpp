@@ -33,7 +33,15 @@ namespace boza::rhi::vk
 
         if (!vk_device) return;
 
-        desc.device->wait_idle();
+        // Wait for all in-flight fences before destroying resources
+        for (const auto& [cmd_buffer, in_flight_fence, image_available_semaphore, render_finished_semaphore] : frames_)
+        {
+            if (in_flight_fence)
+            {
+                // Ignore return value - we're shutting down anyway
+                (void)in_flight_fence->wait(UINT64_MAX);
+            }
+        }
 
         for (const auto& image_view : image_views_)
             vkDestroyImageView(vk_device, image_view, nullptr);
@@ -70,8 +78,8 @@ namespace boza::rhi::vk
 
         current_image_index_ = acquire_next_image();
 
-        if (current_image_index_ == INVALID_IMAGE_IDX) return false;
-        if (current_image_index_ == SKIP_IMAGE_IDX) return true;
+        if (current_image_index_ == INVALID_IMAGE_IDX ||
+            current_image_index_ == SKIP_IMAGE_IDX) return false;
 
         frame_started_ = true;
 
@@ -108,7 +116,14 @@ namespace boza::rhi::vk
 
     uint32_t Swapchain::acquire_next_image()
     {
-        const VkDevice vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
+        // If swapchain is null, it's been destroyed - don't try to acquire
+        if (!vk_swapchain_)
+        {
+            return INVALID_IMAGE_IDX;
+        }
+
+        const Device* device = reinterpret_cast<Device*>(desc.device);
+        const VkDevice vk_device = device->logical_device();
 
         if (desc.window->is_minimized()) return SKIP_IMAGE_IDX;
 
@@ -375,22 +390,6 @@ namespace boza::rhi::vk
         const VkPresentModeKHR present_mode = choose_present_mode();
         choose_extent();
 
-        #ifdef BOZA_DEBUG
-        const char* present_mode_str = [&present_mode]
-        {
-            switch (present_mode)
-            {
-                case VK_PRESENT_MODE_IMMEDIATE_KHR: return "Immediate";
-                case VK_PRESENT_MODE_MAILBOX_KHR: return "Mailbox";
-                case VK_PRESENT_MODE_FIFO_KHR: return "Fifo";
-                case VK_PRESENT_MODE_FIFO_RELAXED_KHR: return "FifoRelaxed";
-                default: return "Other";
-            }
-        }();
-
-        Logger::trace("Swapchain present mode: {}", present_mode_str);
-        #endif
-
         if (extent_.width == 0 || extent_.height == 0)
         {
             should_recreate_ = true;
@@ -551,21 +550,21 @@ namespace boza::rhi::vk
                 .signaled = true
             }));
 
-            if (frames_[i].in_flight_fence == nullptr)
+            if (!frames_[i].in_flight_fence)
             {
                 Logger::critical("Failed to create in-flight fence for frame {}", i);
                 return false;
             }
 
             frames_[i].image_available_semaphore.reset(create_semaphore({ desc.device }));
-            if (frames_[i].image_available_semaphore == nullptr)
+            if (!frames_[i].image_available_semaphore)
             {
                 Logger::critical("Failed to create image available semaphore for frame {}", i);
                 return false;
             }
 
             frames_[i].render_finished_semaphore.reset(create_semaphore({ desc.device }));
-            if (frames_[i].render_finished_semaphore == nullptr)
+            if (!frames_[i].render_finished_semaphore)
             {
                 Logger::critical("Failed to create render finished semaphore for frame {}", i);
                 return false;

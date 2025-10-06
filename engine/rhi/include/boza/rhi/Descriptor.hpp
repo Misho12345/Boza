@@ -1,7 +1,7 @@
 #pragma once
 #include <variant>
 
-#include "boza/std_pch.hpp"
+#include "boza/pch.hpp"
 #include "GraphicsObject.hpp"
 
 #include "Resources.hpp"

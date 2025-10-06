@@ -4,6 +4,7 @@
 #include "Device.hpp"
 #include "Swapchain.hpp"
 #include "Sync.hpp"
+#include "Resources.hpp"
 
 namespace boza::rhi::vk
 {
@@ -358,14 +359,16 @@ namespace boza::rhi::vk
 
     void CommandBuffer::bind_graphics_pipeline(rhi::GraphicsPipeline* pipeline)
     {
-        const auto* vk_pipeline = reinterpret_cast<vk::GraphicsPipeline*>(pipeline);
+        const auto* vk_pipeline = reinterpret_cast<GraphicsPipeline*>(pipeline);
         vkCmdBindPipeline(vk_command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline->vk_pipeline());
+        current_pipeline_bind_point_ = VK_PIPELINE_BIND_POINT_GRAPHICS;
     }
 
     void CommandBuffer::bind_compute_pipeline(rhi::ComputePipeline* pipeline)
     {
-        const auto* vk_pipeline = reinterpret_cast<vk::ComputePipeline*>(pipeline);
+        const auto* vk_pipeline = reinterpret_cast<ComputePipeline*>(pipeline);
         vkCmdBindPipeline(vk_command_buffer_, VK_PIPELINE_BIND_POINT_COMPUTE, vk_pipeline->vk_pipeline());
+        current_pipeline_bind_point_ = VK_PIPELINE_BIND_POINT_COMPUTE;
     }
 
     void CommandBuffer::bind_descriptor_set(rhi::PipelineLayout* layout, rhi::DescriptorSet* set, const uint32_t set_index)
@@ -393,13 +396,43 @@ namespace boza::rhi::vk
 
         vkCmdBindDescriptorSets(
             vk_command_buffer_,
-            VK_PIPELINE_BIND_POINT_GRAPHICS, // TODO: Track bound pipeline type
+            current_pipeline_bind_point_,
             vk_layout->vk_pipeline_layout(),
             first_set,
             static_cast<uint32_t>(vk_sets.size()),
             vk_sets.data(),
             0,
             nullptr);
+    }
+
+    void CommandBuffer::bind_vertex_buffer(rhi::Buffer* buffer, const uint32_t binding, const uint64_t offset)
+    {
+        const auto* vk_buffer = reinterpret_cast<Buffer*>(buffer);
+        const VkBuffer vk_buf = vk_buffer->vk_buffer();
+        const VkDeviceSize vk_offset = offset;
+        vkCmdBindVertexBuffers(vk_command_buffer_, binding, 1, &vk_buf, &vk_offset);
+    }
+
+    void CommandBuffer::bind_index_buffer(rhi::Buffer* buffer, const uint64_t offset, const bool use_uint16)
+    {
+        const auto* vk_buffer = reinterpret_cast<Buffer*>(buffer);
+        const VkIndexType index_type = use_uint16 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32;
+        vkCmdBindIndexBuffer(vk_command_buffer_, vk_buffer->vk_buffer(), offset, index_type);
+    }
+
+    void CommandBuffer::push_constants(rhi::PipelineLayout* layout, const rhi::ShaderStage stage, const uint32_t offset, const uint32_t size, const void* data)
+    {
+        const auto* vk_layout = reinterpret_cast<vk::PipelineLayout*>(layout);
+
+        VkShaderStageFlags stage_flags = 0;
+        if ((static_cast<uint8_t>(stage) & static_cast<uint8_t>(rhi::ShaderStage::Vertex)) != 0)
+            stage_flags |= VK_SHADER_STAGE_VERTEX_BIT;
+        if ((static_cast<uint8_t>(stage) & static_cast<uint8_t>(rhi::ShaderStage::Fragment)) != 0)
+            stage_flags |= VK_SHADER_STAGE_FRAGMENT_BIT;
+        if ((static_cast<uint8_t>(stage) & static_cast<uint8_t>(rhi::ShaderStage::Compute)) != 0)
+            stage_flags |= VK_SHADER_STAGE_COMPUTE_BIT;
+
+        vkCmdPushConstants(vk_command_buffer_, vk_layout->vk_pipeline_layout(), stage_flags, offset, size, data);
     }
 
 
@@ -472,7 +505,7 @@ namespace boza::rhi::vk
 
         const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
         vkGetDeviceQueue(vk_device, desc.family_index, 0, &vk_queue_);
-        return vk_queue_ != nullptr;
+        return vk_queue_;
     }
 
     void CommandQueue::destroy() { vk_queue_ = nullptr; }

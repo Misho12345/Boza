@@ -9,6 +9,7 @@
 #include "Sync.hpp"
 
 #include "Pipeline.hpp"
+#include "Descriptor.hpp"
 
 namespace boza::rhi
 {
@@ -26,6 +27,9 @@ namespace boza::rhi
     PipelineLayout* create_pipeline_layout(GraphicsApi api, const PipelineLayoutDesc& desc);
     ComputePipeline* create_compute_pipeline(GraphicsApi api, const ComputePipelineDesc& desc);
     GraphicsPipeline* create_graphics_pipeline(GraphicsApi api, const GraphicsPipelineDesc& desc);
+
+    DescriptorSetLayout* create_descriptor_set_layout(GraphicsApi api, const DescriptorSetLayoutDesc& desc);
+    DescriptorPool* create_descriptor_pool(GraphicsApi api, const DescriptorPoolDesc& desc);
 
     Buffer* create_buffer(GraphicsApi api, const BufferDesc& desc);
     Texture* create_texture(GraphicsApi api, const TextureDesc& desc);

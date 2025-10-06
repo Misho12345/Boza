@@ -3,6 +3,11 @@ get_source_files(BOZA_RHI_INTERFACE_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_sources(boza_rhi_interface INTERFACE ${BOZA_RHI_INTERFACE_SOURCES})
 
 target_include_directories(boza_rhi_interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+find_package(Stb REQUIRED)
+
+target_include_directories(boza_rhi_interface INTERFACE ${Stb_INCLUDE_DIR})
+
 target_link_libraries(boza_rhi_interface INTERFACE
         Boza::Common
         Boza::Core
@@ -14,7 +19,8 @@ target_link_libraries(boza_rhi_interface INTERFACE
 add_library(boza_rhi STATIC)
 add_library(Boza::Rhi ALIAS boza_rhi)
 
-target_sources(boza_rhi PRIVATE src/Factory.cpp src/ShaderModule.cpp)
+get_source_files(BOZA_RHI_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/rhi)
+target_sources(boza_rhi PRIVATE ${BOZA_RHI_SOURCES})
 
 set_default_include_dirs(boza_rhi ${CMAKE_CURRENT_SOURCE_DIR})
 boza_enable_warnings(boza_rhi)
@@ -105,4 +111,3 @@ endif ()
 if (BOZA_BUILD_TESTS)
     add_subdirectory(tests)
 endif ()
-

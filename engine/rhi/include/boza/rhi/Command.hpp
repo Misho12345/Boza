@@ -13,6 +13,9 @@ namespace boza::rhi
     class PipelineLayout;
     class GraphicsPipeline;
     class ComputePipeline;
+    class Buffer;
+
+    enum class ShaderStage : uint8_t;
 
     /// ------------------------
     /// ===== Command Pool =====
@@ -124,8 +127,13 @@ namespace boza::rhi
         virtual void bind_graphics_pipeline(GraphicsPipeline* pipeline) = 0;
         virtual void bind_compute_pipeline(ComputePipeline* pipeline) = 0;
 
+        virtual void bind_vertex_buffer(Buffer* buffer, uint32_t binding = 0, uint64_t offset = 0) = 0;
+        virtual void bind_index_buffer(Buffer* buffer, uint64_t offset = 0, bool use_uint16 = false) = 0;
+
         virtual void bind_descriptor_set(PipelineLayout* layout, DescriptorSet* set, uint32_t set_index) = 0;
         virtual void bind_descriptor_sets(PipelineLayout* layout, const std::vector<DescriptorSet*>& sets, uint32_t first_set) = 0;
+
+        virtual void push_constants(PipelineLayout* layout, ShaderStage stage, uint32_t offset, uint32_t size, const void* data) = 0;
 
     protected:
         explicit CommandBuffer(const CommandBufferDesc& desc) : desc(desc) {}

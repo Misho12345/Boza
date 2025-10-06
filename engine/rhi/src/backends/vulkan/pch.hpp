@@ -1,5 +1,5 @@
 #pragma once
-#include "boza/std_pch.hpp"
+#include "boza/pch.hpp"
 
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>

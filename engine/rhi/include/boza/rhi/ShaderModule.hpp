@@ -1,7 +1,7 @@
 #pragma once
 #include <variant>
 
-#include "boza/std_pch.hpp"
+#include "boza/pch.hpp"
 #include "GraphicsObject.hpp"
 #include "boza/core/Logger.hpp"
 
@@ -19,7 +19,6 @@ namespace boza::rhi
         All            = 0b11111111,
     };
 
-    // Shader data types for runtime validation
     enum class ShaderDataType : uint8_t
     {
         Unknown,
@@ -50,22 +49,24 @@ namespace boza::rhi
         Struct
     };
 
-    // Type variant for push constant members
     using ShaderTypeValue = std::variant<
         bool,
         int32_t,
         uint32_t,
         float,
         double,
-        std::array<float, 2>,
-        std::array<float, 3>,
-        std::array<float, 4>,
-        std::array<int32_t, 2>,
-        std::array<int32_t, 3>,
-        std::array<int32_t, 4>,
-        std::array<uint32_t, 2>,
-        std::array<uint32_t, 3>,
-        std::array<uint32_t, 4>
+        glm::vec2,
+        glm::vec3,
+        glm::vec4,
+        glm::ivec2,
+        glm::ivec3,
+        glm::ivec4,
+        glm::uvec2,
+        glm::uvec3,
+        glm::uvec4,
+        glm::mat2,
+        glm::mat3,
+        glm::mat4
     >;
 
     class Device;
@@ -123,12 +124,6 @@ namespace boza::rhi
 
         [[nodiscard]] const MetaData& meta_data() const { return meta_data_; }
         [[nodiscard]] ShaderStage     stage() const { return desc.stage; }
-
-        // Helper to validate push constant data type
-        // TODO: make some day
-        // template<typename T>
-        // static bool validate_type(ShaderDataType expected_type);
-
 
     protected:
         explicit ShaderModule(const ShaderModuleDesc& desc) : GraphicsObject(desc) {}

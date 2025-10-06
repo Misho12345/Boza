@@ -60,8 +60,13 @@ namespace boza::rhi::vk
         void bind_graphics_pipeline(rhi::GraphicsPipeline* pipeline) override;
         void bind_compute_pipeline(rhi::ComputePipeline* pipeline) override;
 
+        void bind_vertex_buffer(rhi::Buffer* buffer, uint32_t binding = 0, uint64_t offset = 0) override;
+        void bind_index_buffer(rhi::Buffer* buffer, uint64_t offset = 0, bool use_uint16 = false) override;
+
         void bind_descriptor_set(rhi::PipelineLayout* layout, rhi::DescriptorSet* set, uint32_t set_index) override;
         void bind_descriptor_sets(rhi::PipelineLayout* layout, const std::vector<rhi::DescriptorSet*>& sets, uint32_t first_set) override;
+
+        void push_constants(rhi::PipelineLayout* layout, rhi::ShaderStage stage, uint32_t offset, uint32_t size, const void* data) override;
 
         void pipeline_image_barrier(
             VkImage       image,
@@ -86,6 +91,7 @@ namespace boza::rhi::vk
 
         void set_vk_command_buffer(VkCommandBuffer cmd_buffer);
         VkCommandBuffer vk_command_buffer_{ nullptr };
+        VkPipelineBindPoint current_pipeline_bind_point_{ VK_PIPELINE_BIND_POINT_GRAPHICS };
 
         friend class CommandPool;
     };

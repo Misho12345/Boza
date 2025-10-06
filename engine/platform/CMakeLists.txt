@@ -25,6 +25,11 @@ boza_enable_warnings(boza_platform)
 
 find_package(glfw3 REQUIRED)
 
+if (BOZA_ENABLE_VULKAN)
+    find_package(VulkanHeaders REQUIRED)
+    target_link_libraries(boza_platform PRIVATE Vulkan::Headers)
+endif()
+
 target_link_libraries(boza_platform
         PUBLIC
         Boza::Common

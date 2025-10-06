@@ -38,6 +38,9 @@ namespace boza::rhi::vk
         bool init() override;
         void destroy() override;
 
+        void upload(const void* data, size_t size) override;
+        bool load_from_file(const std::string& filepath) override;
+
         [[nodiscard]]
         VkImage vk_image() const;
 
@@ -51,6 +54,8 @@ namespace boza::rhi::vk
         VkImageView       image_view_{ nullptr };
         VmaAllocation     allocation_{ nullptr };
         VmaAllocationInfo allocation_info_{};
+
+        void transition_layout(VkImageLayout old_layout, VkImageLayout new_layout);
 
         friend GraphicsObject;
     };

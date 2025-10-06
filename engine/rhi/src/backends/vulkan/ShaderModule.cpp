@@ -1,6 +1,7 @@
 #include "ShaderModule.hpp"
 #include "Device.hpp"
 #include "boza/core/Logger.hpp"
+#include "boza/AssetPaths.hpp"
 
 namespace boza::rhi::vk
 {
@@ -8,7 +9,8 @@ namespace boza::rhi::vk
     {
         Logger::trace("Creating vulkan shader module");
 
-        const fs::path path = fs::current_path() / "shaders" / desc.filename;
+        const fs::path shader_dir = AssetPaths::get_shaders_dir();
+        const fs::path path = shader_dir / desc.filename;
         const fs::path spv_path = path / (fs::path(desc.filename).stem().string() + ".spv");
         const std::vector<uint32_t> spv_data = read_file<uint32_t>(spv_path);
 

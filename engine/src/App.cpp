@@ -25,7 +25,14 @@ namespace boza
 
     void App::run() const
     {
-        std::thread{ [this] { rendering_system.run(); } }.detach();
+        std::thread{ [this]
+        {
+            for (uint32_t i = 0; i < 1000000000; ++i)
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                rendering_system.run();
+            }
+        } }.detach();
         window.wait_to_close();
     }
 

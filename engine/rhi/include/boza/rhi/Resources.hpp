@@ -1,5 +1,5 @@
 #pragma once
-#include "boza/std_pch.hpp"
+#include "boza/pch.hpp"
 #include "GraphicsObject.hpp"
 
 namespace boza::rhi
@@ -85,6 +85,13 @@ namespace boza::rhi
 
     class Texture : public GraphicsObject<Texture, TextureDesc>
     {
+    public:
+        // Upload texture data (must be called before the texture is used)
+        virtual void upload(const void* data, size_t size) = 0;
+
+        // Load texture from file using STB image
+        virtual bool load_from_file(const std::string& filepath) = 0;
+
     protected:
         explicit Texture(const TextureDesc& desc) : GraphicsObject(desc) {}
     };

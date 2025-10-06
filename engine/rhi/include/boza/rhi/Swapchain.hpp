@@ -1,5 +1,5 @@
 #pragma once
-#include "boza/std_pch.hpp"
+#include "boza/pch.hpp"
 #include "GraphicsObject.hpp"
 
 #include "boza/platform/Window.hpp"
@@ -47,6 +47,7 @@ namespace boza::rhi
         virtual uint32_t image_count() const = 0;
         virtual uint32_t current_frame() const = 0;
         virtual uint32_t current_image_index() const = 0;
+        virtual uint32_t format() const = 0;
 
         virtual CommandBuffer* current_command_buffer() = 0;
         virtual Fence*         current_fence() = 0;

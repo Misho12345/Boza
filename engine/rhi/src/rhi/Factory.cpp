@@ -5,7 +5,7 @@
 #endif
 
 #ifdef BOZA_VULKAN_ENABLED
-#include "backends/vulkan/FactoryImpl.hpp"
+#include "../backends/vulkan/FactoryImpl.hpp"
 #endif
 
 #ifdef BOZA_METAL_ENABLED
@@ -51,6 +51,9 @@ namespace boza::rhi
     DEFINE_FACTORY_FUNC(PipelineLayout, pipeline_layout)
     DEFINE_FACTORY_FUNC(GraphicsPipeline, graphics_pipeline)
     DEFINE_FACTORY_FUNC(ComputePipeline, compute_pipeline)
+
+    DEFINE_FACTORY_FUNC(DescriptorSetLayout, descriptor_set_layout)
+    DEFINE_FACTORY_FUNC(DescriptorPool, descriptor_pool)
 
     DEFINE_FACTORY_FUNC(Buffer, buffer)
     DEFINE_FACTORY_FUNC(Texture, texture)

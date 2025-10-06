@@ -34,6 +34,7 @@ namespace boza::rhi::vk
         rhi::Fence*         current_fence() override;
 
         [[nodiscard]] VkSwapchainKHR vk_swapchain() const;
+        [[nodiscard]] uint32_t format() const override { return static_cast<uint32_t>(surface_format_.format); }
 
     private:
         explicit Swapchain(const SwapchainDesc& desc) : rhi::Swapchain(desc) {}

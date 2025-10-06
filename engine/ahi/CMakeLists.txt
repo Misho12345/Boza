@@ -13,7 +13,8 @@ target_link_libraries(boza_ahi_interface INTERFACE
 add_library(boza_ahi STATIC)
 add_library(Boza::Ahi ALIAS boza_ahi)
 
-target_sources(boza_ahi PRIVATE src/Factory.cpp)
+get_source_files(BOZA_AHI_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/ahi)
+target_sources(boza_ahi PRIVATE ${BOZA_AHI_SOURCES})
 
 set_default_include_dirs(boza_ahi ${CMAKE_CURRENT_SOURCE_DIR})
 boza_enable_warnings(boza_ahi)

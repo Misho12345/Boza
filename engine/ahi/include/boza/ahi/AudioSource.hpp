@@ -1,7 +1,7 @@
 #pragma once
 #include "AudioBuffer.hpp"
 #include "AudioObject.hpp"
-#include "boza/std_pch.hpp"
+#include "boza/pch.hpp"
 
 namespace boza::ahi
 {
@@ -17,8 +17,8 @@ namespace boza::ahi
     {
     public:
         virtual void set_buffer(AudioBuffer* buffer) = 0;
-        // virtual void set_position(const Vec3& position) = 0;
-        // virtual void set_velocity(const Vec3& velocity) = 0;
+        virtual void set_position(const glm::vec3& position) = 0;
+        virtual void set_velocity(const glm::vec3& velocity) = 0;
         virtual void set_volume(float volume) = 0;
         virtual void set_pitch(float pitch) = 0;
         virtual void set_looping(bool looping) = 0;

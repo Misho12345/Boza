@@ -121,6 +121,27 @@ namespace boza::rhi::vk
                 default: return VK_BLEND_OP_ADD;
             }
         }
+
+        VkFormat to_vk(const ShaderDataType type)
+        {
+            switch (type)
+            {
+                case ShaderDataType::Float: return VK_FORMAT_R32_SFLOAT;
+                case ShaderDataType::Vec2: return VK_FORMAT_R32G32_SFLOAT;
+                case ShaderDataType::Vec3: return VK_FORMAT_R32G32B32_SFLOAT;
+                case ShaderDataType::Vec4: return VK_FORMAT_R32G32B32A32_SFLOAT;
+                case ShaderDataType::Int: return VK_FORMAT_R32_SINT;
+                case ShaderDataType::IVec2: return VK_FORMAT_R32G32_SINT;
+                case ShaderDataType::IVec3: return VK_FORMAT_R32G32B32_SINT;
+                case ShaderDataType::IVec4: return VK_FORMAT_R32G32B32A32_SINT;
+                case ShaderDataType::Uint: return VK_FORMAT_R32_UINT;
+                case ShaderDataType::UVec2: return VK_FORMAT_R32G32_UINT;
+                case ShaderDataType::UVec3: return VK_FORMAT_R32G32B32_UINT;
+                case ShaderDataType::UVec4: return VK_FORMAT_R32G32B32A32_UINT;
+                case ShaderDataType::Double: return VK_FORMAT_R64_SFLOAT;
+                default: return VK_FORMAT_R32G32B32_SFLOAT;
+            }
+        }
     }
 
     /// ---------------------------
@@ -242,14 +263,36 @@ namespace boza::rhi::vk
         std::vector<VkVertexInputAttributeDescription> attribute_descriptions;
         attribute_descriptions.reserve(desc.attributes.size());
 
+        // Build a map from location to shader input for quick lookup
+        std::unordered_map<uint32_t, const rhi::ShaderModule::ShaderResource*> location_to_input;
+        for (const auto* shader : desc.shaders)
+        {
+            if (shader->stage() == ShaderStage::Vertex)
+            {
+                for (const auto& input : shader->meta_data().stage_inputs | std::views::values)
+                {
+                    location_to_input[input.location] = &input;
+                }
+            }
+        }
+
         for (const auto& [location, binding, offset] : desc.attributes)
         {
-            // TODO: Infer format from shader reflection
+            VkFormat format = VK_FORMAT_R32G32B32_SFLOAT;
+
+            if (const auto it = location_to_input.find(location); it != location_to_input.end())
+            {
+                format = to_vk(it->second->data_type);
+            }
+            else
+            {
+                Logger::warn("Could not find shader input for location {}, using default format", location);
+            }
 
             attribute_descriptions.emplace_back(
                 location,
                 binding,
-                VK_FORMAT_R32G32B32_SFLOAT, // Placeholder
+                format,
                 offset
             );
         }

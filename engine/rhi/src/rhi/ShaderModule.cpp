@@ -2,6 +2,7 @@
 #include <nlohmann/json.hpp>
 
 #include "boza/core/Logger.hpp"
+#include "boza/AssetPaths.hpp"
 
 namespace boza::rhi
 {
@@ -117,7 +118,8 @@ namespace boza::rhi
 
     bool ShaderModule::get_meta_data()
     {
-        const fs::path path = fs::current_path() / "shaders" / desc.filename;
+        const fs::path shader_dir = AssetPaths::get_shaders_dir();
+        const fs::path path = shader_dir / desc.filename;
         const fs::path meta_path = path / (fs::path(desc.filename).stem().string() + ".meta.json");
         const std::vector<uint8_t> meta_file_data = read_file<uint8_t>(meta_path);
 
