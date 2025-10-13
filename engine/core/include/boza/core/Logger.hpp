@@ -1,6 +1,7 @@
 #pragma once
 #include "boza/API.hpp"
 #include <fmt/format.h>
+#include <spdlog/logger.h>
 
 namespace boza
 {
@@ -25,6 +26,9 @@ namespace boza
         template<typename... Args> static void critical(fmt::format_string<Args...> fmt, Args&&... args);
 
         static void init();
+
+    private:
+        static std::shared_ptr<spdlog::logger>& get();
     };
 }
 

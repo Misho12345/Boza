@@ -26,7 +26,7 @@ namespace boza::rhi
             PrimitiveTopology            topology                = PrimitiveTopology::TriangleList) const;
 
         GraphicsPipeline* build_graphics_pipeline(
-            Swapchain*                swapchain,
+            const Swapchain*          swapchain,
             uint32_t                  depth_attachment_format = 0,
             const RasterizationState& rasterization           = {},
             const DepthStencilState&  depth_stencil           = {},
@@ -66,11 +66,15 @@ namespace boza::rhi
 
         bool bind_vertex_buffer(CommandBuffer* cmd, const std::string& attribute_name, Buffer* buffer) const;
 
-        bool update_uniform_buffer(const std::string& name, Buffer* buffer, uint32_t offset = 0, uint32_t range = 0) const;
-        bool update_storage_buffer(const std::string& name, Buffer* buffer, uint32_t offset = 0, uint32_t range = 0);
-        bool update_sampler(const std::string& name, Texture* texture, Sampler* sampler);
+        bool update_uniform_buffer(
+            const std::string& name,
+            Buffer*            buffer,
+            uint32_t           offset = 0,
+            uint32_t           range  = 0) const;
+        bool update_storage_buffer(const std::string& name, Buffer* buffer, uint32_t offset = 0, uint32_t range = 0) const;
+        bool update_sampler(const std::string& name, Texture* texture, Sampler* sampler) const;
 
-        void bind_descriptor_sets(CommandBuffer* cmd);
+        void bind_descriptor_sets(CommandBuffer* cmd) const;
 
         [[nodiscard]] uint32_t get_vertex_stride() const;
 

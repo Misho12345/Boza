@@ -7,7 +7,7 @@ namespace boza::rhi::vk
 {
     bool ShaderModule::init()
     {
-        Logger::trace("Creating vulkan shader module");
+        // Logger::trace("Creating vulkan shader module");
 
         const fs::path shader_dir = AssetPaths::get_shaders_dir();
         const fs::path path = shader_dir / desc.filename;
@@ -39,7 +39,7 @@ namespace boza::rhi::vk
 
     void ShaderModule::destroy()
     {
-        Logger::trace("Destroying vulkan shader module");
+        // Logger::trace("Destroying vulkan shader module");
 
         const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
         if (vk_shader_module_)

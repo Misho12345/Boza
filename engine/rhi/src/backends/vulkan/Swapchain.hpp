@@ -35,6 +35,8 @@ namespace boza::rhi::vk
 
         [[nodiscard]] VkSwapchainKHR vk_swapchain() const;
         [[nodiscard]] uint32_t format() const override { return static_cast<uint32_t>(surface_format_.format); }
+        [[nodiscard]] uint32_t depth_format() const override { return depth_format_; }
+        [[nodiscard]] uint32_t max_frames_in_flight() const override { return desc.max_frames_in_flight; }
 
     private:
         explicit Swapchain(const SwapchainDesc& desc) : rhi::Swapchain(desc) {}
@@ -54,6 +56,8 @@ namespace boza::rhi::vk
         bool create_image_views();
         bool create_sync_objects();
         bool create_command_buffers();
+        bool create_depth_resources();
+        void destroy_depth_resources();
 
         VkPresentModeKHR choose_present_mode() const;
         void             choose_surface_format();
@@ -70,6 +74,12 @@ namespace boza::rhi::vk
         std::vector<VkImage>       images_;
         std::vector<VkImageView>   image_views_;
         std::vector<VkImageLayout> image_layouts_;
+
+        // Depth buffer resources
+        VkImage        depth_image_{ VK_NULL_HANDLE };
+        VkImageView    depth_image_view_{ VK_NULL_HANDLE };
+        VmaAllocation  depth_allocation_{ VK_NULL_HANDLE };
+        uint32_t       depth_format_{ 0 };
 
         std::vector<FrameData> frames_;
 

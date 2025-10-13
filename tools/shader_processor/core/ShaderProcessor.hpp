@@ -17,6 +17,7 @@ namespace sp
          * @brief Runs the complete shader processing pipeline.
          * @param path The path to the shader file.
          * @param out_dir The output directory for processed files.
+         * @param config The configuration settings for processing.
          * @return True on success, false on failure.
          */
         static bool process(const fs::path& path, const fs::path& out_dir, const ProcessorConfig& config);

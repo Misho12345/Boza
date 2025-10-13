@@ -31,6 +31,7 @@ namespace boza::rhi
         size_t           size;
         BufferUsage      usage;
         BufferMemoryType memory_type;
+        bool             is_constant = false; // If true, create 1 buffer; if false, create per-swapchain-image buffers
     };
 
     class Buffer : public GraphicsObject<Buffer, BufferDesc>
@@ -53,9 +54,18 @@ namespace boza::rhi
 
     enum class TextureFormat : uint8_t
     {
+        R8,
+        RG8,
+        RGB8,
         RGBA8,
         BGRA8,
+        R16F,
+        RG16F,
+        RGB16F,
         RGBA16F,
+        R32F,
+        RG32F,
+        RGB32F,
         RGBA32F,
         DEPTH24STENCIL8,
         DEPTH32F
@@ -86,11 +96,11 @@ namespace boza::rhi
     class Texture : public GraphicsObject<Texture, TextureDesc>
     {
     public:
-        // Upload texture data (must be called before the texture is used)
         virtual void upload(const void* data, size_t size) = 0;
-
-        // Load texture from file using STB image
         virtual bool load_from_file(const std::string& filepath) = 0;
+
+        [[nodiscard]] uint32_t width() const { return desc.width; }
+        [[nodiscard]] uint32_t height() const { return desc.height; }
 
     protected:
         explicit Texture(const TextureDesc& desc) : GraphicsObject(desc) {}

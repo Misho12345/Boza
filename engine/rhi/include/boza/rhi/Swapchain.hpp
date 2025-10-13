@@ -28,6 +28,8 @@ namespace boza::rhi
         PresentMode  preferred_present_mode{ PresentMode::Mailbox };
         uint32_t     preferred_image_count{ 3 };
         uint32_t     max_frames_in_flight{ 2 };
+        bool         enable_depth{ false };
+        uint32_t     depth_format{ 0 }; // VkFormat, 0 = auto-select
     };
 
     class Swapchain : public GraphicsObject<Swapchain, SwapchainDesc>
@@ -48,6 +50,8 @@ namespace boza::rhi
         virtual uint32_t current_frame() const = 0;
         virtual uint32_t current_image_index() const = 0;
         virtual uint32_t format() const = 0;
+        virtual uint32_t depth_format() const = 0;
+        virtual uint32_t max_frames_in_flight() const = 0;
 
         virtual CommandBuffer* current_command_buffer() = 0;
         virtual Fence*         current_fence() = 0;

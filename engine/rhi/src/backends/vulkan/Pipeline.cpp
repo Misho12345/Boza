@@ -150,7 +150,7 @@ namespace boza::rhi::vk
 
     bool PipelineLayout::init()
     {
-        Logger::trace("Creating vulkan pipeline layout");
+        // Logger::trace("Creating vulkan pipeline layout");
 
         const auto* device = reinterpret_cast<Device*>(desc.device);
 
@@ -204,7 +204,7 @@ namespace boza::rhi::vk
 
     void PipelineLayout::destroy()
     {
-        Logger::trace("Destroying vulkan pipeline layout");
+        // Logger::trace("Destroying vulkan pipeline layout");
 
         const auto* device = reinterpret_cast<Device*>(desc.device);
         if (vk_pipeline_layout_)
@@ -222,7 +222,7 @@ namespace boza::rhi::vk
 
     bool GraphicsPipeline::init()
     {
-        Logger::trace("Creating vulkan graphics pipeline");
+        // Logger::trace("Creating vulkan graphics pipeline");
 
         const auto* device = reinterpret_cast<Device*>(desc.device);
         const auto* layout = reinterpret_cast<PipelineLayout*>(desc.layout);
@@ -476,7 +476,7 @@ namespace boza::rhi::vk
 
     void GraphicsPipeline::destroy()
     {
-        Logger::trace("Destroying vulkan graphics pipeline");
+        // Logger::trace("Destroying vulkan graphics pipeline");
 
         const auto* device = reinterpret_cast<Device*>(desc.device);
         if (vk_pipeline_)
@@ -494,7 +494,7 @@ namespace boza::rhi::vk
 
     bool ComputePipeline::init()
     {
-        Logger::trace("Creating vulkan compute pipeline");
+        // Logger::trace("Creating vulkan compute pipeline");
 
         const auto* device = reinterpret_cast<Device*>(desc.device);
         const auto* layout = reinterpret_cast<PipelineLayout*>(desc.layout);
@@ -533,7 +533,7 @@ namespace boza::rhi::vk
 
     void ComputePipeline::destroy()
     {
-        Logger::trace("Destroying vulkan compute pipeline");
+        // Logger::trace("Destroying vulkan compute pipeline");
 
         const auto* device = reinterpret_cast<Device*>(desc.device);
         if (vk_pipeline_)

@@ -5,6 +5,7 @@
 #include "Swapchain.hpp"
 #include "Sync.hpp"
 #include "Resources.hpp"
+#include "boza/core/Logger.hpp"
 
 namespace boza::rhi::vk
 {
@@ -14,7 +15,7 @@ namespace boza::rhi::vk
 
     bool CommandPool::init()
     {
-        Logger::trace("Creating vulkan command pool ({})", desc.queue_family_index);
+        // Logger::trace("Creating vulkan command pool ({})", desc.queue_family_index);
 
         const Device* device = reinterpret_cast<Device*>(desc.device);
 
@@ -41,7 +42,7 @@ namespace boza::rhi::vk
 
     void CommandPool::destroy()
     {
-        Logger::trace("Destroying vulkan command pool ({})", desc.queue_family_index);
+        // Logger::trace("Destroying vulkan command pool ({})", desc.queue_family_index);
 
         const Device* device = reinterpret_cast<Device*>(desc.device);
 
@@ -55,7 +56,7 @@ namespace boza::rhi::vk
 
     rhi::CommandBuffer* CommandPool::allocate_command_buffer(const bool is_primary)
     {
-        Logger::trace("Allocating command buffer for command pool ({})", desc.queue_family_index);
+        // Logger::trace("Allocating command buffer for command pool ({})", desc.queue_family_index);
 
         const CommandBufferDesc cmd_desc
         {
@@ -106,7 +107,7 @@ namespace boza::rhi::vk
 
     std::vector<rhi::CommandBuffer*> CommandPool::allocate_command_buffers(const uint32_t count, const bool is_primary)
     {
-        Logger::trace("Allocating {} command buffers for command pool ({})", count, desc.queue_family_index);
+        // Logger::trace("Allocating {} command buffers for command pool ({})", count, desc.queue_family_index);
 
         if (count == 0) return {};
 
@@ -177,7 +178,8 @@ namespace boza::rhi::vk
 
     void CommandPool::free_command_buffer(rhi::CommandBuffer* command_buffer)
     {
-        Logger::trace("Freeing command buffer for command pool ({})", desc.queue_family_index);
+        // Logger::trace("Freeing command buffer for command pool ({})", desc.queue_family_index);
+
         if (!command_buffer) return;
 
         const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
@@ -190,7 +192,8 @@ namespace boza::rhi::vk
 
     void CommandPool::free_command_buffers(const std::vector<rhi::CommandBuffer*>& command_buffers)
     {
-        Logger::trace("Freeing {} command buffers for command pool ({})", command_buffers.size(), desc.queue_family_index);
+        // Logger::trace("Freeing {} command buffers for command pool ({})", command_buffers.size(), desc.queue_family_index);
+
         if (command_buffers.empty()) return;
 
         const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
@@ -218,6 +221,8 @@ namespace boza::rhi::vk
 
     bool CommandPool::reset(const bool release_resources)
     {
+        // Logger::trace("Resetting command pool (release_resources: {})", release_resources);
+
         const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
 
         const VkCommandPoolResetFlags flags = release_resources ? VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT : 0;
@@ -233,6 +238,8 @@ namespace boza::rhi::vk
 
     rhi::CommandBuffer* CommandPool::begin_single_time_commands()
     {
+        // Logger::trace("Beginning single-time commands");
+
         rhi::CommandBuffer* cmd_buffer = allocate_command_buffer(true);
         if (!cmd_buffer) return nullptr;
 
@@ -247,6 +254,8 @@ namespace boza::rhi::vk
 
     bool CommandPool::end_single_time_commands(rhi::CommandBuffer* command_buffer)
     {
+        // Logger::trace("Ending single-time commands");
+
         if (!command_buffer) return false;
 
         const Device* device = reinterpret_cast<Device*>(desc.device);
@@ -283,6 +292,8 @@ namespace boza::rhi::vk
 
     bool CommandBuffer::begin(const Flags<CommandBufferUsage> usage_flags)
     {
+        // Logger::trace("Beginning command buffer recording");
+
         VkCommandBufferUsageFlags vk_flags{};
 
         if (usage_flags.has(CommandBufferUsage::OneTimeSubmit)) vk_flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -308,6 +319,8 @@ namespace boza::rhi::vk
 
     bool CommandBuffer::end()
     {
+        // Logger::trace("Ending command buffer recording");
+
         VK_CHECK(vkEndCommandBuffer(vk_command_buffer_),
         {
             LOG_VK_ERROR("Failed to end command buffer");
@@ -320,6 +333,8 @@ namespace boza::rhi::vk
 
     bool CommandBuffer::reset(const bool release_resources)
     {
+        // Logger::trace("Resetting command buffer (release_resources: {})", release_resources);
+
         const VkCommandBufferResetFlags flags = release_resources ? VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT : 0;
 
         VK_CHECK(vkResetCommandBuffer(vk_command_buffer_, flags),
@@ -338,6 +353,7 @@ namespace boza::rhi::vk
         const uint32_t first_vertex,
         const uint32_t first_instance)
     {
+        // Logger::trace("Draw call: {} vertices, {} instances", vertex_count, instance_count);
         vkCmdDraw(vk_command_buffer_, vertex_count, instance_count, first_vertex, first_instance);
     }
 
@@ -348,17 +364,20 @@ namespace boza::rhi::vk
         const int32_t  vertex_offset,
         const uint32_t first_instance)
     {
+        // Logger::trace("Draw indexed call: {} indices, {} instances", index_count, instance_count);
         vkCmdDrawIndexed(vk_command_buffer_, index_count, instance_count, first_index, vertex_offset, first_instance);
     }
 
 
     void CommandBuffer::dispatch(const uint32_t group_x, const uint32_t group_y, const uint32_t group_z)
     {
+        // Logger::trace("Dispatch compute: {}x{}x{} groups", group_x, group_y, group_z);
         vkCmdDispatch(vk_command_buffer_, group_x, group_y, group_z);
     }
 
     void CommandBuffer::bind_graphics_pipeline(rhi::GraphicsPipeline* pipeline)
     {
+        // Logger::trace("Binding graphics pipeline");
         const auto* vk_pipeline = reinterpret_cast<GraphicsPipeline*>(pipeline);
         vkCmdBindPipeline(vk_command_buffer_, VK_PIPELINE_BIND_POINT_GRAPHICS, vk_pipeline->vk_pipeline());
         current_pipeline_bind_point_ = VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -366,6 +385,7 @@ namespace boza::rhi::vk
 
     void CommandBuffer::bind_compute_pipeline(rhi::ComputePipeline* pipeline)
     {
+        // Logger::trace("Binding compute pipeline");
         const auto* vk_pipeline = reinterpret_cast<ComputePipeline*>(pipeline);
         vkCmdBindPipeline(vk_command_buffer_, VK_PIPELINE_BIND_POINT_COMPUTE, vk_pipeline->vk_pipeline());
         current_pipeline_bind_point_ = VK_PIPELINE_BIND_POINT_COMPUTE;
@@ -373,11 +393,14 @@ namespace boza::rhi::vk
 
     void CommandBuffer::bind_descriptor_set(rhi::PipelineLayout* layout, rhi::DescriptorSet* set, const uint32_t set_index)
     {
+        // Logger::trace("Binding descriptor set at index {}", set_index);
         bind_descriptor_sets(layout, { set }, set_index);
     }
 
     void CommandBuffer::bind_descriptor_sets(rhi::PipelineLayout* layout, const std::vector<rhi::DescriptorSet*>& sets, const uint32_t first_set)
     {
+        // Logger::trace("Binding {} descriptor set(s) starting at index {}", sets.size(), first_set);
+
         if (!layout)
         {
             Logger::warn("Cannot bind descriptor sets without a pipeline layout");
@@ -407,6 +430,7 @@ namespace boza::rhi::vk
 
     void CommandBuffer::bind_vertex_buffer(rhi::Buffer* buffer, const uint32_t binding, const uint64_t offset)
     {
+        // Logger::trace("Binding vertex buffer at binding {} with offset {}", binding, offset);
         const auto* vk_buffer = reinterpret_cast<Buffer*>(buffer);
         const VkBuffer vk_buf = vk_buffer->vk_buffer();
         const VkDeviceSize vk_offset = offset;
@@ -415,6 +439,7 @@ namespace boza::rhi::vk
 
     void CommandBuffer::bind_index_buffer(rhi::Buffer* buffer, const uint64_t offset, const bool use_uint16)
     {
+        // Logger::trace("Binding index buffer with offset {} ({})", offset, use_uint16 ? "uint16" : "uint32");
         const auto* vk_buffer = reinterpret_cast<Buffer*>(buffer);
         const VkIndexType index_type = use_uint16 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32;
         vkCmdBindIndexBuffer(vk_command_buffer_, vk_buffer->vk_buffer(), offset, index_type);
@@ -422,6 +447,7 @@ namespace boza::rhi::vk
 
     void CommandBuffer::push_constants(rhi::PipelineLayout* layout, const rhi::ShaderStage stage, const uint32_t offset, const uint32_t size, const void* data)
     {
+        // Logger::trace("Pushing constants: {} bytes at offset {}", size, offset);
         const auto* vk_layout = reinterpret_cast<vk::PipelineLayout*>(layout);
 
         VkShaderStageFlags stage_flags = 0;
@@ -452,6 +478,8 @@ namespace boza::rhi::vk
         const uint32_t base_array_layer,
         const uint32_t layer_count) const
     {
+        // Logger::trace("Pipeline image barrier: layout transition {} -> {}", static_cast<uint32_t>(old_layout), static_cast<uint32_t>(new_layout));
+
         VkImageMemoryBarrier2 barrier
         {
             .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
@@ -501,7 +529,7 @@ namespace boza::rhi::vk
 
     bool CommandQueue::init()
     {
-        Logger::trace("Initializing command queue ({})", desc.family_index);
+        // Logger::trace("Initializing command queue ({})", desc.family_index);
 
         const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
         vkGetDeviceQueue(vk_device, desc.family_index, 0, &vk_queue_);
@@ -512,6 +540,8 @@ namespace boza::rhi::vk
 
     bool CommandQueue::submit(const SubmitInfo& submit_info)
     {
+        // Logger::trace("Submitting {} command buffer(s) to queue", submit_info.command_buffers.size());
+
         if (submit_info.command_buffers.empty()) return true;
 
         std::vector<VkCommandBuffer> vk_cmd_buffers;
@@ -585,6 +615,8 @@ namespace boza::rhi::vk
 
     PresentResult CommandQueue::present(const PresentInfo& present_info)
     {
+        // Logger::trace("Presenting {} swapchain(s)", present_info.swapchains.size());
+
         if (present_info.swapchains.empty()) return PresentResult::Success;
 
         if (present_info.swapchains.size() != present_info.image_indices.size())
@@ -651,6 +683,8 @@ namespace boza::rhi::vk
 
     bool CommandQueue::wait_idle()
     {
+        // Logger::trace("Waiting for queue to become idle");
+
         VK_CHECK(vkQueueWaitIdle(vk_queue_),
         {
             LOG_VK_ERROR("Failed to wait for queue to become idle");

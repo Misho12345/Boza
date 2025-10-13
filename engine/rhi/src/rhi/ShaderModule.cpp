@@ -1,13 +1,10 @@
 #include "boza/rhi/ShaderModule.hpp"
-#include <nlohmann/json.hpp>
 
 #include "boza/core/Logger.hpp"
 #include "boza/AssetPaths.hpp"
 
 namespace boza::rhi
 {
-    using json = nlohmann::json;
-
     namespace
     {
         ShaderStage shader_stage_from_string(const std::string& s)

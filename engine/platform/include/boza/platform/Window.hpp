@@ -1,6 +1,7 @@
 #pragma once
 #include "boza/GraphicsApi.hpp"
 #include "boza/pch.hpp"
+#include "boza/core/Property.hpp"
 
 struct GLFWwindow;
 
@@ -28,10 +29,21 @@ namespace boza
 
         void toggle_fullscreen();
 
-        [[nodiscard]] uint32_t width() const;
-        [[nodiscard]] uint32_t height() const;
+        PropertyGet<uint32_t> width{ GET { return width_; } };
+        PropertyGet<uint32_t> height{ GET { return height_; } };
+
+        PropertyGet<float> aspect_ratio
+        {
+            GET
+            {
+                if (height_ == 0) return 1.0f;
+                return static_cast<float>(width_) / static_cast<float>(height_);
+            }
+        };
 
         void wait_to_close() const;
+        bool should_close() const;
+        void poll_events() const;
         void set_window_resize_callback();
 
         [[nodiscard]] bool has_resized();

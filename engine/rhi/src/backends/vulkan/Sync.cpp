@@ -1,5 +1,6 @@
 #include "Sync.hpp"
 #include "Device.hpp"
+#include "boza/core/Logger.hpp"
 
 namespace boza::rhi::vk
 {
@@ -9,7 +10,7 @@ namespace boza::rhi::vk
 
     bool Semaphore::init()
     {
-        Logger::trace("Creating vulkan semaphore");
+        // Logger::trace("Creating vulkan semaphore");
 
         const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
 
@@ -57,7 +58,7 @@ namespace boza::rhi::vk
 
     void Semaphore::destroy()
     {
-        Logger::trace("Destroying vulkan semaphore");
+        // Logger::trace("Destroying vulkan semaphore");
 
         const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
         if (vk_semaphore_)
@@ -152,7 +153,7 @@ namespace boza::rhi::vk
 
     bool Fence::init()
     {
-        Logger::trace("Creating vulkan fence");
+        // Logger::trace("Creating vulkan fence");
 
         const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
 
@@ -174,7 +175,7 @@ namespace boza::rhi::vk
 
     void Fence::destroy()
     {
-        Logger::trace("Destroying vulkan fence");
+        // Logger::trace("Destroying vulkan fence");
         const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
         if (vk_fence_)
         {
@@ -198,6 +199,8 @@ namespace boza::rhi::vk
 
     bool Fence::reset()
     {
+        // Logger::trace("Resetting fence");
+
         const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
 
         VK_CHECK(vkResetFences(vk_device, 1, &vk_fence_),

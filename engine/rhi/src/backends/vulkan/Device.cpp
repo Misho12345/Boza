@@ -14,7 +14,7 @@ namespace boza::rhi::vk
 {
     bool Device::init()
     {
-        Logger::trace("Creating vulkan device");
+        // Logger::trace("Creating vulkan device");
 
         const auto& vk_instance = reinterpret_cast<Instance*>(desc.instance)->vk_instance();
 
@@ -52,7 +52,7 @@ namespace boza::rhi::vk
 
     void Device::destroy()
     {
-        Logger::trace("Destroying vulkan device");
+        // Logger::trace("Destroying vulkan device");
 
         allocator_->destroy();
 
@@ -96,6 +96,8 @@ namespace boza::rhi::vk
 
     bool Device::choose_physical_device()
     {
+        // Logger::trace("Choosing physical device");
+
         const auto& vk_instance = reinterpret_cast<Instance*>(desc.instance)->vk_instance();
 
         uint32_t device_count = 0;
@@ -131,7 +133,8 @@ namespace boza::rhi::vk
 
             msg += std::format("\n\t ({}) {}", type, device_properties.deviceName);
         }
-        Logger::trace(msg);
+
+        // Logger::trace(msg);
         #endif
 
         for (const auto& device : physical_devices)
@@ -191,7 +194,7 @@ namespace boza::rhi::vk
                 continue;
 
             physical_device_ = device;
-            Logger::trace("{} is a suitable device", device_properties.deviceName);
+            // Logger::trace("{} is a suitable device", device_properties.deviceName);
             return true;
         }
 
@@ -202,12 +205,14 @@ namespace boza::rhi::vk
 
     bool Device::find_queue_families()
     {
+        // Logger::trace("Finding queue families");
+
         uint32_t queue_family_count = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(physical_device_, &queue_family_count, nullptr);
         std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
         vkGetPhysicalDeviceQueueFamilyProperties(physical_device_, &queue_family_count, queue_families.data());
 
-        Logger::trace("Found {} queue families", queue_family_count);
+        // Logger::trace("Found {} queue families", queue_family_count);
 
         bool found_graphics_family = false;
         bool found_present_family = false;
@@ -222,7 +227,7 @@ namespace boza::rhi::vk
             {
                 queue_family_indices_.graphics_family = i;
                 found_graphics_family = true;
-                Logger::trace("Queue family {} supports graphics", i);
+                // Logger::trace("Queue family {} supports graphics", i);
             }
 
             VkBool32 present_support = VK_FALSE;
@@ -236,7 +241,7 @@ namespace boza::rhi::vk
             {
                 queue_family_indices_.present_family = i;
                 found_present_family = true;
-                Logger::trace("Queue family {} supports presentation", i);
+                // Logger::trace("Queue family {} supports presentation", i);
             }
 
             if (!found_compute_family &&
@@ -245,7 +250,7 @@ namespace boza::rhi::vk
             {
                 queue_family_indices_.compute_family = i;
                 found_compute_family = true;
-                Logger::trace("Queue family {} is compute-only (preferred)", i);
+                // Logger::trace("Queue family {} is compute-only (preferred)", i);
             }
 
             if (!found_transfer_family &&
@@ -255,7 +260,7 @@ namespace boza::rhi::vk
             {
                 queue_family_indices_.transfer_family = i;
                 found_transfer_family = true;
-                Logger::trace("Queue family {} is transfer-only (preferred)", i);
+                // Logger::trace("Queue family {} is transfer-only (preferred)", i);
             }
 
             if (found_graphics_family &&
@@ -279,7 +284,7 @@ namespace boza::rhi::vk
                 {
                     queue_family_indices_.compute_family = i;
                     found_compute_family = true;
-                    Logger::trace("Queue family {} supports compute (fallback)", i);
+                    // Logger::trace("Queue family {} supports compute (fallback)", i);
                     break;
                 }
             }
@@ -293,7 +298,7 @@ namespace boza::rhi::vk
                 {
                     queue_family_indices_.transfer_family = i;
                     found_transfer_family = true;
-                    Logger::trace("Queue family {} supports transfer (fallback)", i);
+                    // Logger::trace("Queue family {} supports transfer (fallback)", i);
                     break;
                 }
             }
@@ -310,6 +315,8 @@ namespace boza::rhi::vk
 
     bool Device::create_logical_device()
     {
+        // Logger::trace("Creating logical device");
+
         static constexpr float queue_priority = 1.0f;
 
         std::set unique_queue_families
@@ -373,6 +380,8 @@ namespace boza::rhi::vk
 
     bool Device::get_queues()
     {
+        // Logger::trace("Getting device queues");
+
         std::unordered_set<uint32_t> families{};
         families.insert(queue_family_indices_.graphics_family);
         families.insert(queue_family_indices_.present_family);
@@ -407,6 +416,8 @@ namespace boza::rhi::vk
 
     bool Device::create_command_pools()
     {
+        // Logger::trace("Creating command pools for queue families");
+
         std::unordered_set<uint32_t> families{};
         families.insert(queue_family_indices_.graphics_family);
         families.insert(queue_family_indices_.present_family);

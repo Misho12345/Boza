@@ -1,6 +1,7 @@
 #include "Descriptor.hpp"
 #include "Device.hpp"
 #include "Resources.hpp"
+#include "boza/core/Logger.hpp"
 
 namespace boza::rhi::vk
 {
@@ -48,7 +49,7 @@ namespace boza::rhi::vk
 
     bool DescriptorSetLayout::init()
     {
-        Logger::trace("Creating vulkan descriptor set layout");
+        // Logger::trace("Creating vulkan descriptor set layout");
 
         std::vector<VkDescriptorSetLayoutBinding> bindings;
         bindings.reserve(desc.bindings.size());
@@ -85,7 +86,7 @@ namespace boza::rhi::vk
 
     void DescriptorSetLayout::destroy()
     {
-        Logger::trace("Destroying vulkan descriptor set layout");
+        // Logger::trace("Destroying vulkan descriptor set layout");
 
         const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
         if (vk_descriptor_set_layout_)
@@ -105,7 +106,7 @@ namespace boza::rhi::vk
 
     bool DescriptorPool::init()
     {
-        Logger::trace("Creating vulkan descriptor pool");
+        // Logger::trace("Creating vulkan descriptor pool");
 
         std::vector<VkDescriptorPoolSize> pool_sizes;
         pool_sizes.reserve(desc.pool_sizes.size());
@@ -137,7 +138,7 @@ namespace boza::rhi::vk
 
     void DescriptorPool::destroy()
     {
-        Logger::trace("Destroying vulkan descriptor pool");
+        // Logger::trace("Destroying vulkan descriptor pool");
 
         const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
         if (vk_descriptor_pool_)
@@ -150,6 +151,8 @@ namespace boza::rhi::vk
 
     rhi::DescriptorSet* DescriptorPool::allocate_descriptor_set(rhi::DescriptorSetLayout* layout)
     {
+        // Logger::trace("Allocating single descriptor set");
+
         return allocate_descriptor_sets(1, { layout })[0];
     }
 
@@ -157,6 +160,8 @@ namespace boza::rhi::vk
         const uint32_t count,
         const std::vector<rhi::DescriptorSetLayout*>& layouts)
     {
+        // Logger::trace("Allocating {} descriptor set(s)", count);
+
         const auto vk_device = static_cast<Device*>(desc.device)->logical_device();
 
         std::vector<VkDescriptorSetLayout> vk_layouts;
@@ -202,10 +207,16 @@ namespace boza::rhi::vk
     }
 
 
-    void DescriptorPool::free_descriptor_set(rhi::DescriptorSet* set) { free_descriptor_sets({ set }); }
+    void DescriptorPool::free_descriptor_set(rhi::DescriptorSet* set)
+    {
+        // Logger::trace("Freeing single descriptor set");
+        free_descriptor_sets({ set });
+    }
 
     void DescriptorPool::free_descriptor_sets(const std::vector<rhi::DescriptorSet*>& sets)
     {
+        // Logger::trace("Freeing {} descriptor set(s)", sets.size());
+
         const auto vk_device = static_cast<Device*>(desc.device)->logical_device();
 
         std::vector<VkDescriptorSet> vk_descriptor_sets;
@@ -227,6 +238,8 @@ namespace boza::rhi::vk
 
     bool DescriptorPool::reset()
     {
+        // Logger::trace("Resetting descriptor pool");
+
         const auto vk_device = static_cast<Device*>(desc.device)->logical_device();
         VK_CHECK(vkResetDescriptorPool(vk_device, vk_descriptor_pool_, 0),
         {
@@ -250,6 +263,8 @@ namespace boza::rhi::vk
 
     void DescriptorSet::update(const std::vector<DescriptorWrite>& writes)
     {
+        // Logger::trace("Updating descriptor set with {} write(s)", writes.size());
+
         const auto vk_device = static_cast<Device*>(desc.device)->logical_device();
 
         std::vector<VkWriteDescriptorSet> vk_writes;

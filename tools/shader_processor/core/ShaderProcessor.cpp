@@ -71,6 +71,14 @@ namespace sp
             }
         }
 
+        /* TODO:
+         * - For Dx11 compile to .cso using dxc
+         * - For Dx12 compile to DXIL using dxc
+         * - For Metal compile to .metallib with xcrun (has to be installed separately)
+         * They are left here just to see that the conversion SPIR-V -> HLSL/MSL works
+         * To properly handle when dx11, dx12 and metal are supported
+         */
+
         if (config.enable_directx)
         {
             if (auto hlsl_source = ShaderDecompiler::decompile_to_hlsl(spirv_optimized); !hlsl_source.empty())

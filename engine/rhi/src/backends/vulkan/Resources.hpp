@@ -55,7 +55,7 @@ namespace boza::rhi::vk
         VmaAllocation     allocation_{ nullptr };
         VmaAllocationInfo allocation_info_{};
 
-        void transition_layout(VkImageLayout old_layout, VkImageLayout new_layout);
+        void transition_layout(VkImageLayout old_layout, VkImageLayout new_layout) const;
 
         friend GraphicsObject;
     };

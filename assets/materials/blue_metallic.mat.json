@@ -1,0 +1,11 @@
+{
+  "vertex_shader": "default",
+  "fragment_shader": "default",
+  "load_strategy": "on_demand",
+  "textures": {},
+  "material_properties": {
+    "albedo_color": [0.0, 0.5, 1.0, 1.0],
+    "properties": [0.8, 0.2, 0.9, 0.0]
+  }
+}
+

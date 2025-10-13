@@ -3,7 +3,6 @@
 
 namespace sp
 {
-    // Helper function to convert SPIRType to a string
     static std::string get_type_name(const spirv_cross::Compiler& compiler, const spirv_cross::SPIRType& type)
     {
         std::string type_str;
@@ -28,20 +27,15 @@ namespace sp
                     case spv::DimCube: type_str = "samplerCube"; break;
                     default: type_str = "sampler"; break;
                 }
+
                 if (image_type.image.arrayed) type_str += "Array";
                 return type_str;
             }
             default: type_str = "unknown"; break;
         }
 
-        if (type.columns > 1)
-        {
-            return "mat" + std::to_string(type.columns);
-        }
-        if (type.vecsize > 1)
-        {
-            return "vec" + std::to_string(type.vecsize);
-        }
+        if (type.columns > 1) return "mat" + std::to_string(type.columns);
+        if (type.vecsize > 1)  return "vec" + std::to_string(type.vecsize);
 
         return type_str;
     }
@@ -91,7 +85,26 @@ namespace sp
 
             if (type_name == "uniform_buffers" || type_name == "storage_buffers")
             {
-                j_resource["size"] = compiler.get_declared_struct_size(compiler.get_type(resource.base_type_id));
+                const auto& buffer_type = compiler.get_type(resource.base_type_id);
+                j_resource["size"] = compiler.get_declared_struct_size(buffer_type);
+
+                // Reflect struct members
+                json members = json::array();
+                for (uint32_t i = 0; i < buffer_type.member_types.size(); ++i)
+                {
+                    json member;
+                    const auto& member_type = compiler.get_type(buffer_type.member_types[i]);
+                    member["name"] = compiler.get_member_name(buffer_type.self, i);
+                    member["type"] = get_type_name(compiler, member_type);
+                    member["offset"] = compiler.get_member_decoration(buffer_type.self, i, spv::DecorationOffset);
+                    member["size"] = compiler.get_declared_struct_member_size(buffer_type, i);
+
+                    // Add array information if applicable
+                    if (!member_type.array.empty()) member["array_size"] = member_type.array[0];
+
+                    members.push_back(member);
+                }
+                j_resource["members"] = members;
             }
             else if (type_name == "stage_inputs" || type_name == "stage_outputs")
             {
@@ -124,16 +137,8 @@ namespace sp
             j_pc["type"] = compiler.get_name(type.self);
             j_pc["shader_stage"] = shader_type;
 
-            if (auto ranges = compiler.get_active_buffer_ranges(push_constant_resource.id); !ranges.empty())
-            {
-                j_pc["offset"] = ranges[0].offset;
-                j_pc["size"]   = ranges[0].range;
-            }
-            else
-            {
-                j_pc["offset"] = 0;
-                j_pc["size"]   = compiler.get_declared_struct_size(type);
-            }
+            j_pc["offset"] = 0;
+            j_pc["size"]   = compiler.get_declared_struct_size(type);
 
             json members = json::array();
 

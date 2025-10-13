@@ -33,7 +33,7 @@ endif()
 target_link_libraries(boza_platform
         PUBLIC
         Boza::Common
-        Boza::Core
+        Boza::CoreInterface
         Boza::PlatformInterface
         PRIVATE
         glfw

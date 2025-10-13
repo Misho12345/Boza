@@ -9,7 +9,7 @@ namespace boza::rhi::vk
 {
     bool Allocator::init()
     {
-        Logger::trace("Creating vma allocator");
+        // Logger::trace("Creating vma allocator");
 
         VmaVulkanFunctions functions
         {
@@ -71,7 +71,7 @@ namespace boza::rhi::vk
 
     void Allocator::destroy()
     {
-        Logger::trace("Destroying vma allocator");
+        // Logger::trace("Destroying vma allocator");
 
         if (vma_allocator_)
         {

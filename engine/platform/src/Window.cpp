@@ -145,10 +145,11 @@ namespace boza
         }
     }
 
-    uint32_t Window::width() const { return width_; }
-    uint32_t Window::height() const { return height_; }
-
     void Window::wait_to_close() const { while (!glfwWindowShouldClose(window_)) glfwWaitEvents(); }
+
+    bool Window::should_close() const { return glfwWindowShouldClose(window_); }
+
+    void Window::poll_events() const { glfwPollEvents(); }
 
     void Window::set_window_resize_callback()
     {

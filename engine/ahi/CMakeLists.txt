@@ -5,7 +5,7 @@ target_sources(boza_ahi_interface INTERFACE ${BOZA_AHI_INTERFACE_SOURCES})
 target_include_directories(boza_ahi_interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(boza_ahi_interface INTERFACE
         Boza::Common
-        Boza::Core
+        Boza::CoreInterface
         Boza::PlatformInterface
 )
 
@@ -45,4 +45,3 @@ endif ()
 if (BOZA_BUILD_TESTS)
     add_subdirectory(tests)
 endif ()
-

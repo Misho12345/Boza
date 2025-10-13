@@ -13,7 +13,7 @@ namespace sp
 {
     /**
      * @class ShaderCompiler
-     * @brief Compiles GLSL shader source to SPIR-V binary format.
+     * @brief Compiles Vulkan GLSL shader source to SPIR-V format.
      */
     class ShaderCompiler
     {
@@ -26,7 +26,7 @@ namespace sp
          * @param source The GLSL source code.
          * @param kind The shader stage (vertex, fragment, etc.).
          * @param filename The original filename, used for error messages.
-         * @return An optional containing the SPIR-V bytecode, or an empty optional on failure.
+         * @return A vector containing the unoptimised SPIR-V bytecode (empty on failure).
          */
         static std::vector<uint32_t> compile_to_spirv(
             const std::string&  source,

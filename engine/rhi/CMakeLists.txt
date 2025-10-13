@@ -10,7 +10,7 @@ target_include_directories(boza_rhi_interface INTERFACE ${Stb_INCLUDE_DIR})
 
 target_link_libraries(boza_rhi_interface INTERFACE
         Boza::Common
-        Boza::Core
+        Boza::CoreInterface
         Boza::PlatformInterface
 )
 

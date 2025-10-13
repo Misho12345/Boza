@@ -7,4 +7,3 @@ boza_enable_warnings(boza_game)
 add_dependencies(boza_game compile_shaders)
 
 boza_link_assets(boza_game)
-boza_define_asset_paths(boza_game)

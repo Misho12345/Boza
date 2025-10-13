@@ -15,13 +15,13 @@ namespace boza::rhi::vk
         });
         #endif
 
-        Logger::trace("Creating vulkan instance");
+        // Logger::trace("Creating vulkan instance");
         if (!create_instance()) return false;
 
         volkLoadInstance(vk_instance_);
 
         #ifdef BOZA_DEBUG
-        Logger::trace("Creating debug messenger");
+        // Logger::trace("Creating debug messenger");
         if (!create_debug_messenger()) return false;
         #endif
 
@@ -30,7 +30,7 @@ namespace boza::rhi::vk
 
     void Instance::destroy()
     {
-        Logger::trace("Destroying vulkan instance");
+        // Logger::trace("Destroying vulkan instance");
 
         if (!vk_instance_) return;
 
@@ -131,11 +131,11 @@ namespace boza::rhi::vk
                 if (strcmp(extension, name) == 0)
                 {
                     found = true;
-                    Logger::trace(
-                        "Extension {} ({}.{}.{}) is supported", extension,
-                        VK_API_VERSION_MAJOR(version),
-                        VK_API_VERSION_MINOR(version),
-                        VK_API_VERSION_PATCH(version));
+                    // Logger::trace(
+                    //     "Extension {} ({}.{}.{}) is supported", extension,
+                    //     VK_API_VERSION_MAJOR(version),
+                    //     VK_API_VERSION_MINOR(version),
+                    //     VK_API_VERSION_PATCH(version));
                     break;
                 }
             }
@@ -169,11 +169,11 @@ namespace boza::rhi::vk
                 if (strcmp(layer, name) == 0)
                 {
                     found = true;
-                    Logger::trace(
-                        "Layer {} ({}.{}.{}) is supported", layer,
-                        VK_API_VERSION_MAJOR(spec_version),
-                        VK_API_VERSION_MINOR(spec_version),
-                        VK_API_VERSION_PATCH(spec_version));
+                    // Logger::trace(
+                    //     "Layer {} ({}.{}.{}) is supported", layer,
+                    //     VK_API_VERSION_MAJOR(spec_version),
+                    //     VK_API_VERSION_MINOR(spec_version),
+                    //     VK_API_VERSION_PATCH(spec_version));
                     break;
                 }
             }

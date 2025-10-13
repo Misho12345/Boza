@@ -42,4 +42,8 @@ namespace fs = std::filesystem;
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_FORCE_INLINE
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
+#define GLM_FORCE_LEFT_HANDED
 #include <glm/ext.hpp>
+
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;

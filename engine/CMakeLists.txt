@@ -1,9 +1,11 @@
 add_compile_definitions(
-        BOZAENGINE_EXPORTS=1
         BOZA_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
         BOZA_VERSION_MINOR=${PROJECT_VERSION_MINOR}
         BOZA_VERSION_PATCH=${PROJECT_VERSION_PATCH}
 )
+
+add_compile_definitions(BOZAENGINE_EXPORTS)
+
 
 add_subdirectory(common)
 add_subdirectory(core)

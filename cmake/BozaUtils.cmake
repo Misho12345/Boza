@@ -1,3 +1,4 @@
+# Gets all source files from the specified directories and their subdirectories.
 function(get_source_files out_sources)
     if (NOT out_sources)
         message(FATAL_ERROR "Output variable name must be specified")
@@ -34,7 +35,7 @@ function(get_source_files out_sources)
     set(${out_sources} ${collected_sources_list} PARENT_SCOPE)
 endfunction()
 
-
+# Sets up include directories for a target with a standard structure for the engine.
 function(set_default_include_dirs target dir)
     if (NOT target)
         message(FATAL_ERROR "Target name must be specified")
@@ -53,7 +54,7 @@ function(set_default_include_dirs target dir)
     )
 endfunction()
 
-
+# Creates a test executable target with GoogleTest and links it to the tested target.
 function(create_tests test_target tested_target test_source_dir)
     if (NOT test_target)
         message(FATAL_ERROR "Test target name must be specified")

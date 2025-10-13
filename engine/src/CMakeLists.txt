@@ -10,13 +10,15 @@ target_include_directories(boza_engine
         $<INSTALL_INTERFACE:include>
 )
 
+
 boza_enable_warnings(boza_engine)
 
 target_link_libraries(boza_engine
         PUBLIC
         Boza::Common
-        Boza::Core
+        Boza::CoreInterface
         PRIVATE
+        Boza::Core
         Boza::Platform
         Boza::Rhi
         Boza::Ahi

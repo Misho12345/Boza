@@ -12,7 +12,9 @@ namespace boza::rhi
     /// ----------------------------
 
     PipelineBuilder::PipelineBuilder(const GraphicsApi api, Device* device, const std::vector<ShaderModule*>& shaders)
-        : api_(api), device_(device), shaders_(shaders) {}
+        : api_(api),
+          device_(device),
+          shaders_(shaders) {}
 
     std::unordered_map<uint32_t, std::vector<PipelineBuilder::DescriptorBinding>>
     PipelineBuilder::merge_descriptor_bindings() const
@@ -105,7 +107,7 @@ namespace boza::rhi
 
         if (bindings_by_set.empty())
         {
-            Logger::trace("No descriptor bindings found in shaders");
+            // Logger::trace("No descriptor bindings found in shaders");
             return true;
         }
 
@@ -121,8 +123,9 @@ namespace boza::rhi
                 const auto& bindings = bindings_by_set[set_idx];
                 layout_bindings.reserve(bindings.size());
 
-                for (const auto& [binding, type, stages, count] : bindings) layout_bindings.emplace_back(
-                    binding, type, stages, count);
+                for (const auto& [binding, type, stages, count] : bindings)
+                    layout_bindings.emplace_back(
+                        binding, type, stages, count);
             }
 
             auto* layout = create_descriptor_set_layout(
@@ -140,7 +143,7 @@ namespace boza::rhi
             descriptor_set_layouts_.push_back(layout);
         }
 
-        Logger::trace("Created {} descriptor set layout(s)", descriptor_set_layouts_.size());
+        // Logger::trace("Created {} descriptor set layout(s)", descriptor_set_layouts_.size());
         return true;
     }
 
@@ -159,7 +162,7 @@ namespace boza::rhi
             return nullptr;
         }
 
-        Logger::trace("Created pipeline layout with {} descriptor set(s)", descriptor_set_layouts_.size());
+        // Logger::trace("Created pipeline layout with {} descriptor set(s)", descriptor_set_layouts_.size());
         return pipeline_layout_;
     }
 
@@ -193,7 +196,6 @@ namespace boza::rhi
         if (vertex_shader)
         {
             const auto& metadata = vertex_shader->meta_data();
-
             uint32_t total_stride = 0;
 
             for (const auto& input : metadata.stage_inputs | std::views::values) total_stride += input.size;
@@ -202,14 +204,20 @@ namespace boza::rhi
             {
                 bindings.emplace_back(0, total_stride, false);
 
-                uint32_t offset = 0;
+                std::vector<std::pair<uint32_t, ShaderModule::ShaderResource>> sorted_inputs;
                 for (const auto& input : metadata.stage_inputs | std::views::values)
+                    sorted_inputs.emplace_back(input.location, input);
+
+                std::ranges::sort(sorted_inputs, [](const auto& a, const auto& b) { return a.first < b.first; });
+
+                uint32_t offset = 0;
+                for (const auto& [location, input] : sorted_inputs)
                 {
-                    attributes.emplace_back(input.location, 0, offset);
+                    attributes.emplace_back(location, 0, offset);
                     offset += input.size;
                 }
 
-                Logger::trace("Configured vertex input: {} attributes, stride = {}", attributes.size(), total_stride);
+                // Logger::trace("Configured vertex input: {} attributes, stride = {}", attributes.size(), total_stride);
             }
         }
 
@@ -235,12 +243,12 @@ namespace boza::rhi
             return nullptr;
         }
 
-        Logger::trace("Created graphics pipeline");
+        // Logger::trace("Created graphics pipeline");
         return pipeline;
     }
 
     GraphicsPipeline* PipelineBuilder::build_graphics_pipeline(
-        Swapchain*                swapchain,
+        const Swapchain*          swapchain,
         const uint32_t            depth_attachment_format,
         const RasterizationState& rasterization,
         const DepthStencilState&  depth_stencil,
@@ -322,12 +330,10 @@ namespace boza::rhi
 
             if (shader->stage() == ShaderStage::Vertex)
             {
-                for (const auto& [name, input] : metadata.stage_inputs) vertex_inputs_[name] = input;
+                for (const auto& [name, input] : metadata.stage_inputs)
+                    vertex_inputs_[name] = input;
             }
         }
-
-        Logger::trace("Built resource map: {} push constants, {} resources, {} vertex inputs",
-                     push_constant_map_.size(), resource_map_.size(), vertex_inputs_.size());
     }
 
     template<typename T>
@@ -341,8 +347,7 @@ namespace boza::rhi
 
                 if (sizeof(T) != member.size)
                 {
-                    Logger::error("Push constant '{}' size mismatch: expected {}, got {}", name, member.size,
-                                  sizeof(T));
+                    Logger::error("Push constant '{}' size mismatch: expected {}, got {}", name, member.size, sizeof(T));
                     return false;
                 }
 
@@ -351,22 +356,20 @@ namespace boza::rhi
             }
         }
 
-        Logger::error("Push constant '{}' not found in shader metadata. Available blocks: {}", name,
-                      push_constant_map_.size());
+        Logger::error("Push constant '{}' not found in shader metadata. Available blocks: {}", name, push_constant_map_.size());
         for (const auto& [pc_name, pc_info] : push_constant_map_)
         {
             Logger::error("  Block '{}': {} members", pc_name, pc_info.members.size());
-            for (const auto& member_name : pc_info.members | std::views::keys) Logger::error("    - {}", member_name);
+            for (const auto& member_name : pc_info.members | std::views::keys)
+                Logger::error("    - {}", member_name);
         }
+
         return false;
     }
 
     template bool PipelineResourceBinder::set_push_constant<float>(CommandBuffer*, const std::string&, const float&);
     template bool PipelineResourceBinder::set_push_constant<int>(CommandBuffer*, const std::string&, const int&);
-    template bool PipelineResourceBinder::set_push_constant<uint32_t>(
-        CommandBuffer*,
-        const std::string&,
-        const uint32_t&);
+    template bool PipelineResourceBinder::set_push_constant<uint32_t>(CommandBuffer*, const std::string&, const uint32_t&);
 
     bool PipelineResourceBinder::bind_vertex_buffer(
         CommandBuffer*     cmd,
@@ -408,8 +411,7 @@ namespace boza::rhi
             return false;
         }
 
-        // Use buffer size if range not specified
-        if (range == 0) { range = static_cast<uint32_t>(buffer->size() - offset); }
+        if (range == 0) range = static_cast<uint32_t>(buffer->size() - offset);
 
         descriptor_sets_[info.set]->update({
             DescriptorWrite{
@@ -427,7 +429,7 @@ namespace boza::rhi
         const std::string& name,
         Buffer*            buffer,
         const uint32_t     offset,
-        uint32_t           range)
+        uint32_t           range) const
     {
         if (!resource_map_.contains(name))
         {
@@ -462,7 +464,7 @@ namespace boza::rhi
         return true;
     }
 
-    bool PipelineResourceBinder::update_sampler(const std::string& name, Texture* texture, Sampler* sampler)
+    bool PipelineResourceBinder::update_sampler(const std::string& name, Texture* texture, Sampler* sampler) const
     {
         if (!resource_map_.contains(name))
         {
@@ -495,15 +497,15 @@ namespace boza::rhi
         return true;
     }
 
-    void PipelineResourceBinder::bind_descriptor_sets(CommandBuffer* cmd)
+    void PipelineResourceBinder::bind_descriptor_sets(CommandBuffer* cmd) const
     {
-        if (!descriptor_sets_.empty()) { cmd->bind_descriptor_sets(layout_, descriptor_sets_, 0); }
+        if (!descriptor_sets_.empty()) cmd->bind_descriptor_sets(layout_, descriptor_sets_, 0);
     }
 
     uint32_t PipelineResourceBinder::get_vertex_stride() const
     {
         uint32_t stride = 0;
-        for (const auto& [name, input] : vertex_inputs_) { stride += input.size; }
+        for (const auto& input : vertex_inputs_ | std::views::values) { stride += input.size; }
         return stride;
     }
 
@@ -512,13 +514,14 @@ namespace boza::rhi
         std::vector<VertexInputAttribute> attributes;
         uint32_t                          offset = 0;
 
-        for (const auto& [name, input] : vertex_inputs_)
+        for (const auto& input : vertex_inputs_ | std::views::values)
         {
             attributes.push_back({
                 .location = input.location,
                 .binding = 0,
                 .offset = offset
             });
+
             offset += input.size;
         }
 
@@ -528,7 +531,6 @@ namespace boza::rhi
     std::vector<VertexInputBinding> PipelineResourceBinder::get_vertex_bindings() const
     {
         if (vertex_inputs_.empty()) return {};
-
         return { { .binding = 0, .stride = get_vertex_stride(), .per_instance = false } };
     }
 

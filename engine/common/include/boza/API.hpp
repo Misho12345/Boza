@@ -13,5 +13,3 @@
         #define BOZA_API
     #endif
 #endif
-
-#define BOZA_C_API extern "C" BOZA_API

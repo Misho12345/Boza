@@ -5,16 +5,20 @@
 #include "Sync.hpp"
 
 #include "FactoryImpl.hpp"
+#include "boza/core/Logger.hpp"
 
 namespace boza::rhi::vk
 {
     bool Swapchain::init()
     {
+        // Logger::trace("Initializing swapchain with {} max frames in flight", desc.max_frames_in_flight);
+
         frames_.resize(desc.max_frames_in_flight);
 
         if (!query_swapchain_support() ||
             !create_vk_swapchain() ||
             !create_image_views() ||
+            !create_depth_resources() ||
             !create_command_buffers() ||
             !create_sync_objects())
             return false;
@@ -26,7 +30,7 @@ namespace boza::rhi::vk
 
     void Swapchain::destroy()
     {
-        Logger::trace("Destroying swapchain");
+        // Logger::trace("Destroying swapchain");
 
         const Device* device = reinterpret_cast<Device*>(desc.device);
         const VkDevice vk_device = device->logical_device();
@@ -42,6 +46,8 @@ namespace boza::rhi::vk
                 (void)in_flight_fence->wait(UINT64_MAX);
             }
         }
+
+        destroy_depth_resources();
 
         for (const auto& image_view : image_views_)
             vkDestroyImageView(vk_device, image_view, nullptr);
@@ -70,6 +76,8 @@ namespace boza::rhi::vk
 
     bool Swapchain::begin_frame()
     {
+        // Logger::trace("Beginning frame");
+
         if (frame_started_)
         {
             Logger::critical("begin_frame called when frame already started");
@@ -92,6 +100,8 @@ namespace boza::rhi::vk
 
     bool Swapchain::end_frame()
     {
+        // Logger::trace("Ending frame");
+
         if (!frame_started_)
         {
             Logger::critical("end_frame called without begin_frame");
@@ -116,6 +126,8 @@ namespace boza::rhi::vk
 
     uint32_t Swapchain::acquire_next_image()
     {
+        // Logger::trace("Acquiring next swapchain image");
+
         // If swapchain is null, it's been destroyed - don't try to acquire
         if (!vk_swapchain_)
         {
@@ -171,6 +183,8 @@ namespace boza::rhi::vk
 
     bool Swapchain::present(uint32_t image_index)
     {
+        // Logger::trace("Presenting swapchain image {}", image_index);
+
         const Device* device = reinterpret_cast<Device*>(desc.device);
 
         const auto& [cmd_buffer,
@@ -204,6 +218,8 @@ namespace boza::rhi::vk
 
     bool Swapchain::begin_render_pass(const uint32_t image_idx)
     {
+        // Logger::trace("Beginning render pass for image {}", image_idx);
+
         if (image_idx >= images_.size())
         {
             Logger::critical("Invalid image index for begin_render_pass");
@@ -226,7 +242,8 @@ namespace boza::rhi::vk
 
         image_layouts_[image_idx] = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-        constexpr VkClearValue clear_color{ .color = { 0.0f, 0.0f, 0.0f, 1.0f } };
+        constexpr VkClearValue clear_color{ .color = { 0.1f, 0.2f, 0.3f, 1.0f } };
+        constexpr VkClearValue clear_depth{ .depthStencil = { 1.0f, 0 } };
 
         const VkRenderingAttachmentInfo color_attachment
         {
@@ -242,6 +259,26 @@ namespace boza::rhi::vk
             .clearValue = clear_color
         };
 
+        VkRenderingAttachmentInfo depth_attachment{};
+        const VkRenderingAttachmentInfo* depth_attachment_ptr = nullptr;
+
+        if (depth_image_view_ != VK_NULL_HANDLE)
+        {
+            depth_attachment = {
+                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                .pNext = nullptr,
+                .imageView = depth_image_view_,
+                .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                .resolveMode = VK_RESOLVE_MODE_NONE,
+                .resolveImageView = nullptr,
+                .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                .clearValue = clear_depth
+            };
+            depth_attachment_ptr = &depth_attachment;
+        }
+
         const VkRenderingInfo rendering_info
         {
             .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
@@ -252,7 +289,7 @@ namespace boza::rhi::vk
             .viewMask = 0,
             .colorAttachmentCount = 1,
             .pColorAttachments = &color_attachment,
-            .pDepthAttachment = nullptr,
+            .pDepthAttachment = depth_attachment_ptr,
             .pStencilAttachment = nullptr
         };
 
@@ -282,6 +319,8 @@ namespace boza::rhi::vk
 
     bool Swapchain::end_render_pass(const uint32_t image_idx)
     {
+        // Logger::trace("Ending render pass for image {}", image_idx);
+
         if (image_idx >= images_.size())
         {
             Logger::critical("Invalid image index for end_render_pass");
@@ -327,13 +366,12 @@ namespace boza::rhi::vk
         if (desc.window->is_minimized()) return true;
 
         should_recreate_ = false;
-        Logger::trace("Recreating swapchain {} x {}", desc.window->width(), desc.window->height());
+        // Logger::trace("Recreating swapchain {} x {}", desc.window->width, desc.window->height);
 
-        const Device* device = reinterpret_cast<Device*>(desc.device);
-        const VkDevice vk_device = device->logical_device();
+        const VkDevice vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
 
-        device->graphics_queue()->wait_idle();
-        device->present_queue()->wait_idle();
+        desc.device->graphics_queue()->wait_idle();
+        desc.device->present_queue()->wait_idle();
 
         const auto old_swapchain = vk_swapchain_;
 
@@ -371,6 +409,7 @@ namespace boza::rhi::vk
         }
 
         if (!create_image_views()) return false;
+        if (!create_depth_resources()) return false;
         // if (!create_command_buffers()) return false;
         // if (!create_sync_objects()) return false;
 
@@ -382,7 +421,7 @@ namespace boza::rhi::vk
 
     bool Swapchain::create_vk_swapchain(const VkSwapchainKHR old_swapchain)
     {
-        Logger::trace("Creating vulkan swapchain");
+        // Logger::trace("Creating vulkan swapchain");
 
         const Device* device = reinterpret_cast<Device*>(desc.device);
 
@@ -407,8 +446,8 @@ namespace boza::rhi::vk
 
         const std::array queue_family_indices =
         {
-            device->queue_family_indices().graphics_family,
-            device->queue_family_indices().present_family
+            desc.device->queue_family_indices().graphics_family,
+            desc.device->queue_family_indices().present_family
         };
 
         const bool different = queue_family_indices[0] != queue_family_indices[1];
@@ -448,6 +487,8 @@ namespace boza::rhi::vk
 
     bool Swapchain::query_swapchain_support()
     {
+        // Logger::trace("Querying swapchain support");
+
         const Device* device          = reinterpret_cast<Device*>(desc.device);
         const auto    physical_device = device->physical_device();
         const auto    surface         = device->surface();
@@ -492,6 +533,8 @@ namespace boza::rhi::vk
 
     bool Swapchain::create_image_views()
     {
+        // Logger::trace("Creating swapchain image views");
+
         const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
 
         uint32_t image_count;
@@ -543,6 +586,8 @@ namespace boza::rhi::vk
 
     bool Swapchain::create_sync_objects()
     {
+        // Logger::trace("Creating swapchain synchronization objects");
+
         for (uint32_t i = 0; i < frames_.size(); ++i)
         {
             frames_[i].in_flight_fence.reset(create_fence({
@@ -576,6 +621,8 @@ namespace boza::rhi::vk
 
     bool Swapchain::create_command_buffers()
     {
+        // Logger::trace("Creating swapchain command buffers");
+
         rhi::CommandPool* graphics_command_pool = desc.device->command_pool(desc.device->queue_family_indices().graphics_family);
         const auto command_buffers = graphics_command_pool->allocate_command_buffers(static_cast<uint32_t>(frames_.size()));
 
@@ -602,6 +649,8 @@ namespace boza::rhi::vk
 
     VkPresentModeKHR Swapchain::choose_present_mode() const
     {
+        // Logger::trace("Choosing present mode");
+
         const VkPresentModeKHR preferred = [this]
         {
             switch (desc.preferred_present_mode)
@@ -624,6 +673,8 @@ namespace boza::rhi::vk
 
     void Swapchain::choose_surface_format()
     {
+        // Logger::trace("Choosing surface format");
+
         for (const auto& available_format : surface_formats_)
         {
             if (available_format.format == VK_FORMAT_B8G8R8A8_UNORM &&
@@ -639,6 +690,8 @@ namespace boza::rhi::vk
 
     void Swapchain::choose_extent()
     {
+        // Logger::trace("Choosing swapchain extent");
+
         if (surface_capabilities_.currentExtent.width != UINT32_MAX)
         {
             extent_ = surface_capabilities_.currentExtent;
@@ -654,5 +707,142 @@ namespace boza::rhi::vk
                                  surface_capabilities_.minImageExtent.height,
                                  surface_capabilities_.maxImageExtent.height)
         };
+    }
+
+    bool Swapchain::create_depth_resources()
+    {
+        // Logger::trace("Creating depth resources");
+
+        // If depth is not enabled, skip depth resource creation
+        if (!desc.enable_depth)
+        {
+            depth_format_ = 0;
+            return true;
+        }
+
+        const Device* device = reinterpret_cast<Device*>(desc.device);
+        const VkDevice vk_device = device->logical_device();
+
+        // Choose depth format (auto-select if not specified)
+        if (desc.depth_format == 0)
+        {
+            // Try to find a supported depth format
+            const std::array candidates = { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT };
+
+            for (const auto format : candidates)
+            {
+                VkFormatProperties props;
+                vkGetPhysicalDeviceFormatProperties(device->physical_device(), format, &props);
+
+                if (props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
+                {
+                    depth_format_ = format;
+                    break;
+                }
+            }
+
+            if (depth_format_ == 0)
+            {
+                Logger::error("Failed to find supported depth format");
+                return false;
+            }
+        }
+        else
+        {
+            depth_format_ = desc.depth_format;
+        }
+
+        // Create depth image
+        const VkImageCreateInfo image_info
+        {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .imageType = VK_IMAGE_TYPE_2D,
+            .format = static_cast<VkFormat>(depth_format_),
+            .extent = { extent_.width, extent_.height, 1 },
+            .mipLevels = 1,
+            .arrayLayers = 1,
+            .samples = VK_SAMPLE_COUNT_1_BIT,
+            .tiling = VK_IMAGE_TILING_OPTIMAL,
+            .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+            .queueFamilyIndexCount = 0,
+            .pQueueFamilyIndices = nullptr,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+        };
+
+        const VmaAllocationCreateInfo alloc_info
+        {
+            .flags = 0,
+            .usage = VMA_MEMORY_USAGE_GPU_ONLY,
+            .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            .preferredFlags = 0,
+            .memoryTypeBits = 0,
+            .pool = VK_NULL_HANDLE,
+            .pUserData = nullptr,
+            .priority = 0.0f
+        };
+
+        VK_CHECK(vmaCreateImage(device->allocator()->vma_allocator(), &image_info, &alloc_info, &depth_image_, &depth_allocation_, nullptr),
+        {
+            LOG_VK_ERROR("Failed to create depth image");
+            return false;
+        });
+
+        // Create depth image view
+        const VkImageViewCreateInfo view_info
+        {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .image = depth_image_,
+            .viewType = VK_IMAGE_VIEW_TYPE_2D,
+            .format = static_cast<VkFormat>(depth_format_),
+            .components = {},
+            .subresourceRange = {
+                .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1
+            }
+        };
+
+        VK_CHECK(vkCreateImageView(vk_device, &view_info, nullptr, &depth_image_view_),
+        {
+            LOG_VK_ERROR("Failed to create depth image view");
+            vmaDestroyImage(device->allocator()->vma_allocator(), depth_image_, depth_allocation_);
+            return false;
+        });
+
+        // Logger::trace("Created depth buffer with format {}", depth_format_);
+        return true;
+    }
+
+    void Swapchain::destroy_depth_resources()
+    {
+        // Logger::trace("Destroying depth resources");
+
+        if (depth_image_view_ == VK_NULL_HANDLE && depth_image_ == VK_NULL_HANDLE)
+            return;
+
+        const Device* device = reinterpret_cast<Device*>(desc.device);
+        const VkDevice vk_device = device->logical_device();
+
+        if (depth_image_view_ != VK_NULL_HANDLE)
+        {
+            vkDestroyImageView(vk_device, depth_image_view_, nullptr);
+            depth_image_view_ = VK_NULL_HANDLE;
+        }
+
+        if (depth_image_ != VK_NULL_HANDLE)
+        {
+            vmaDestroyImage(device->allocator()->vma_allocator(), depth_image_, depth_allocation_);
+            depth_image_ = VK_NULL_HANDLE;
+            depth_allocation_ = VK_NULL_HANDLE;
+        }
+
+        depth_format_ = 0;
     }
 }

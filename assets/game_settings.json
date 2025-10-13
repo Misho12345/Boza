@@ -1,0 +1,19 @@
+{
+  "tags": {
+    "None": 0,
+    "Player": 1,
+    "Enemy": 2,
+    "Bullet": 3,
+    "Pickup": 4,
+    "Environment": 5
+  },
+  "layers": {
+    "Default": 0,
+    "Ground": 1,
+    "Wall": 2,
+    "Soft": 3,
+    "Player": 4,
+    "Enemy": 5,
+    "Projectile": 6
+  }
+}

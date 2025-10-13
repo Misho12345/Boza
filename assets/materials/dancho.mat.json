@@ -1,0 +1,13 @@
+{
+  "vertex_shader": "default",
+  "fragment_shader": "default",
+  "load_strategy": "game_load",
+  "textures": {
+    "albedo_map": "dancho.jpg"
+  },
+  "material_properties": {
+    "albedo_color": [1.0, 1.0, 1.0, 1.0],
+    "properties": [0.0, 0.5, 0.5, 0.0]
+  }
+}
+
