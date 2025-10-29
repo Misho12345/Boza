@@ -5,7 +5,6 @@ target_sources(boza_rhi_interface INTERFACE ${BOZA_RHI_INTERFACE_SOURCES})
 target_include_directories(boza_rhi_interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 find_package(Stb REQUIRED)
-
 target_include_directories(boza_rhi_interface INTERFACE ${Stb_INCLUDE_DIR})
 
 target_link_libraries(boza_rhi_interface INTERFACE
@@ -42,7 +41,7 @@ if (BOZA_ENABLE_VULKAN)
     # Create a separate static library for VMA implementation
     # This is done to avoid issues with the precompiled header in boza_rhi_vulkan that has vma included
 
-    set(VMA_IMPL_FILE "${CMAKE_CURRENT_BINARY_DIR}/vma_implementation.cpp")
+    set(VMA_IMPL_FILE "${CMAKE_CURRENT_BINARY_DIR}/vma_impl.cpp")
     file(WRITE ${VMA_IMPL_FILE}
             "
             #define VMA_STATIC_VULKAN_FUNCTIONS 0
@@ -105,7 +104,19 @@ if (BOZA_ENABLE_DIRECTX12)
 endif ()
 
 
+set(STB_IMPL_FILE "${CMAKE_CURRENT_BINARY_DIR}/stb_impl.cpp")
+file(WRITE ${STB_IMPL_FILE}
+        "
+        #define STB_IMAGE_IMPLEMENTATION
+        #include <stb_image.h>
 
+        #define STB_IMAGE_WRITE_IMPLEMENTATION
+        #include <stb_image_write.h>
+        ")
+
+add_library(boza_stb_impl STATIC ${STB_IMPL_FILE})
+target_include_directories(boza_stb_impl PUBLIC ${Stb_INCLUDE_DIR})
+target_link_libraries(boza_rhi PRIVATE boza_stb_impl)
 
 
 if (BOZA_BUILD_TESTS)

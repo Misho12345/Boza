@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.30)
+cmake_minimum_required(VERSION 3.24)
 project(Boza
         VERSION 1.0.0
         LANGUAGES CXX
@@ -12,9 +12,6 @@ include(BozaOptions)
 include(BozaCompilerWarnings)
 include(BozaUtils)
 include(BozaAssets)
-
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/$<CONFIG>)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/$<CONFIG>)
 
 add_subdirectory(tools/shader_processor)
 add_subdirectory(shaders)
