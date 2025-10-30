@@ -31,6 +31,7 @@ Short, focused status and next steps for development.
 - A proper UI system (e.g., using Dear ImGui).
 - CPU & GPU profiling.
 - Proper collision detection, physics, etc.
+- Unit tests.
 
 ## Long-term (improbable to achieve soon)
 - Editor & tooling when systems are stable.
