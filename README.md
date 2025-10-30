@@ -9,6 +9,13 @@ Boza is a small C++23 game engine prototype.
 - Lightweight scene/Entity-Component framework and `GameLoop`
 - Sample game (`game/`) demonstrating scene setup and behavior scripts
 
+## My goals for this project:
+- To make a simple lightweight engine that has the essential functionality (rendering, audio, input, scene management, ECS, materials, etc.) to prevent unnecessary bloat
+- To be straightforward to access low-level functionality (like writing custom shaders and defining custom render passes)
+- To provide a clean modular architecture that can be extended in the future
+- To be cross-platform
+- To be testable (unit tests, integration tests, load tests, etc.)
+
 ## Build & Run
 See [BUILD.md](BUILD.md) for detailed build and setup instructions.
 
