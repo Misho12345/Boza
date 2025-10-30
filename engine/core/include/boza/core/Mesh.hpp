@@ -7,9 +7,9 @@ namespace boza
 {
     struct Vertex
     {
-        glm::packed_vec3 position;
-        glm::packed_vec3 normal;
-        glm::vec2        tex_coord;
+        glm::vec3 position;
+        glm::vec3 normal;
+        glm::vec2 tex_coord;
     };
 
     #ifdef _MSC_VER
