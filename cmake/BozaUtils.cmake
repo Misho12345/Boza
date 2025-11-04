@@ -76,9 +76,6 @@ function(create_tests test_target tested_target test_source_dir)
     target_link_libraries(${test_target}
             PRIVATE
             ${tested_target}
-            GTest::gtest
-            GTest::gtest_main
-            GTest::gmock
             GTest::gmock_main
     )
 

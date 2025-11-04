@@ -36,7 +36,3 @@ boza_enable_warnings(boza_core)
 
 target_link_libraries(boza_core PUBLIC boza_core_interface)
 
-
-if(BOZA_BUILD_TESTS)
-    add_subdirectory(tests)
-endif()

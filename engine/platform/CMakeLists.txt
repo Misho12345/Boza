@@ -38,7 +38,3 @@ target_link_libraries(boza_platform
         PRIVATE
         glfw
 )
-
-if(BOZA_BUILD_TESTS)
-    add_subdirectory(tests)
-endif()

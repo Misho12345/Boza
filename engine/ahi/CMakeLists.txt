@@ -41,7 +41,3 @@ if (BOZA_AUDIO_ENABLED)
         setup_backend(boza_ahi_coreaudio boza_ahi_interface boza_ahi ${CMAKE_CURRENT_SOURCE_DIR}/src/backends/coreaudio)
     endif ()
 endif ()
-
-if (BOZA_BUILD_TESTS)
-    add_subdirectory(tests)
-endif ()

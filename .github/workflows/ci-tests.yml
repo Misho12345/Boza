@@ -1,187 +1,450 @@
-name: CI - Unit Tests
+name: CI Tests
 
 on:
   push:
-    branches: [ master, dev ]
+    branches: [ main, develop ]
   pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
 
 env:
-  BOZA_CMAKE_COMMON: >-
-    -DBOZA_BUILD_TESTS=ON
-    -DBOZA_ENABLE_OPENGL=OFF
-    -DBOZA_ENABLE_VULKAN=ON
-    -DBOZA_ENABLE_METAL=OFF
-    -DBOZA_ENABLE_DIRECTX11=OFF
-    -DBOZA_ENABLE_DIRECTX12=OFF
-    -DBOZA_ENABLE_OPENAL=OFF
-    -DBOZA_ENABLE_XAUDIO2=OFF
-    -DBOZA_ENABLE_COREAUDIO=OFF
-  CMAKE_BUILD_PARALLEL_LEVEL: 4
-  VCPKG_FEATURE_FLAGS: manifests
+  BUILD_TYPE: Release
 
 jobs:
-  test:
+  build-and-test-linux:
+    name: Linux (Ubuntu 22.04, GCC 13)
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            pkg-config \
+            libx11-dev \
+            libxrandr-dev \
+            libxinerama-dev \
+            libxcursor-dev \
+            libxi-dev \
+            libgl1-mesa-dev \
+            libasound2-dev \
+            curl \
+            zip \
+            unzip \
+            tar \
+            git
+
+      - name: Install GCC 13
+        run: |
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+          sudo apt-get update
+          sudo apt-get install -y gcc-13 g++-13
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
+
+      - name: Verify compiler version
+        run: |
+          gcc --version
+          g++ --version
+          cmake --version
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: '6b2ebcd8a4f886e46cba4906da684c2e0ecac7b3'
+          vcpkgDirectory: '${{ github.workspace }}/vcpkg'
+
+      - name: Configure CMake
+        run: |
+          cmake --preset Release \
+            -DCMAKE_C_COMPILER=gcc-13 \
+            -DCMAKE_CXX_COMPILER=g++-13
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
+      - name: Build
+        run: cmake --build --preset Release
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
+      - name: Run tests
+        run: ctest --preset unit:Release --output-on-failure
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-linux
+          path: build/Release/Testing/Temporary/LastTest.log
+
+  build-and-test-windows:
+    name: Windows (MSVC 2022)
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: '6b2ebcd8a4f886e46cba4906da684c2e0ecac7b3'
+          vcpkgDirectory: '${{ github.workspace }}/vcpkg'
+
+      - name: Configure CMake
+        run: cmake --preset Release
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
+      - name: Build
+        run: cmake --build --preset Release
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
+      - name: Run tests
+        run: ctest --preset unit:Release --output-on-failure
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-windows
+          path: build/Release/Testing/Temporary/LastTest.log
+
+  build-and-test-macos:
+    name: macOS (Clang, Apple Silicon)
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          brew update
+          brew install cmake ninja pkg-config
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: '6b2ebcd8a4f886e46cba4906da684c2e0ecac7b3'
+          vcpkgDirectory: '${{ github.workspace }}/vcpkg'
+
+      - name: Configure CMake
+        run: cmake --preset Release
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
+      - name: Build
+        run: cmake --build --preset Release
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
+      - name: Run tests
+        run: ctest --preset unit:Release --output-on-failure
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-macos
+          path: build/Release/Testing/Temporary/LastTest.log
+
+  debug-build-linux:
+    name: Debug Build (Linux, GCC 13)
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            pkg-config \
+            libx11-dev \
+            libxrandr-dev \
+            libxinerama-dev \
+            libxcursor-dev \
+            libxi-dev \
+            libgl1-mesa-dev \
+            libasound2-dev \
+            curl \
+            zip \
+            unzip \
+            tar \
+            git
+
+      - name: Install GCC 13
+        run: |
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+          sudo apt-get update
+          sudo apt-get install -y gcc-13 g++-13
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
+
+      - name: Install Vulkan SDK
+        run: |
+          wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -
+          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list https://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
+          sudo apt-get update
+          sudo apt-get install -y vulkan-sdk
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: '6b2ebcd8a4f886e46cba4906da684c2e0ecac7b3'
+          vcpkgDirectory: '${{ github.workspace }}/vcpkg'
+
+      - name: Configure CMake
+        run: |
+          cmake --preset Debug \
+            -DCMAKE_C_COMPILER=gcc-13 \
+            -DCMAKE_CXX_COMPILER=g++-13
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
+      - name: Build
+        run: cmake --build --preset Debug
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
+      - name: Run tests
+        run: ctest --preset unit:Debug --output-on-failure
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-debug-linux
+          path: build/Debug/Testing/Temporary/LastTest.log
+
+  sanitizers:
+    name: Sanitizers (Linux, Debug)
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
-        os: [ windows-latest, ubuntu-latest, macos-latest ]
-        include:
-          - os: windows-latest
-            vcpkg_triplet: x64-windows
-            vcpkg_host_triplet: x64-windows
-            cmake_build_type: Release
-            cmake_generator: 'Visual Studio 17 2022'
-            cmake_arch: x64
-          - os: ubuntu-latest
-            vcpkg_triplet: x64-linux
-            vcpkg_host_triplet: x64-linux
-            cmake_build_type: Release
-            cc: gcc-14
-            cxx: g++-14
-          - os: macos-latest
-            vcpkg_triplet: arm64-osx
-            vcpkg_host_triplet: x64-osx
-            cmake_build_type: Release
-
-    name: ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-
-    env:
-      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
-      VCPKG_DEFAULT_TRIPLET: ${{ matrix.vcpkg_triplet }}
-      VCPKG_DEFAULT_HOST_TRIPLET: ${{ matrix.vcpkg_host_triplet }}
-      CC: ${{ matrix.cc }}
-      CXX: ${{ matrix.cxx }}
+        sanitizer: [asan, ubsan]
 
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
-          submodules: 'recursive'
+          submodules: recursive
 
-      - name: Install dependencies (Linux)
-        if: runner.os == 'Linux'
+      - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libxinerama-dev libxcursor-dev xorg-dev libglu1-mesa-dev pkg-config
-          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            pkg-config \
+            libx11-dev \
+            libxrandr-dev \
+            libxinerama-dev \
+            libxcursor-dev \
+            libxi-dev \
+            libgl1-mesa-dev \
+            libasound2-dev \
+            curl \
+            zip \
+            unzip \
+            tar \
+            git
+
+      - name: Install GCC 13
+        run: |
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
           sudo apt-get update
-          sudo apt-get install -y gcc-14 g++-14
+          sudo apt-get install -y gcc-13 g++-13
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
 
-      - name: Install dependencies (macOS)
-        if: runner.os == 'macOS'
+      - name: Install Vulkan SDK
         run: |
-          brew update
-          brew install molten-vk
-          brew install autoconf automake libtool pkg-config nasm
+          wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -
+          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list https://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
+          sudo apt-get update
+          sudo apt-get install -y vulkan-sdk
 
-      - name: Setup CMake 3.30+
-        uses: jwlawson/actions-setup-cmake@v2
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
         with:
-          cmake-version: '3.30.5'
+          vcpkgGitCommitId: '6b2ebcd8a4f886e46cba4906da684c2e0ecac7b3'
+          vcpkgDirectory: '${{ github.workspace }}/vcpkg'
 
-      - name: Cache vcpkg
-        uses: actions/cache@v4
-        id: vcpkg-cache
-        with:
-          path: ${{ env.VCPKG_ROOT }}
-          key: vcpkg-${{ runner.os }}-${{ env.VCPKG_DEFAULT_TRIPLET }}-${{ env.VCPKG_DEFAULT_HOST_TRIPLET }}-${{ hashFiles('**/vcpkg.json', '**/vcpkg-configuration.json') }}
-
-      - name: Bootstrap vcpkg (Windows)
-        if: runner.os == 'Windows' && steps.vcpkg-cache.outputs.cache-hit != 'true'
-        shell: powershell
+      - name: Configure CMake with ${{ matrix.sanitizer }}
         run: |
-          git clone https://github.com/microsoft/vcpkg.git "$env:VCPKG_ROOT"
-          Set-Location -Path $env:VCPKG_ROOT
-          .\bootstrap-vcpkg.bat -disableMetrics
-
-      - name: Bootstrap vcpkg (Unix)
-        if: runner.os != 'Windows' && steps.vcpkg-cache.outputs.cache-hit != 'true'
-        shell: bash
-        run: |
-          git clone https://github.com/microsoft/vcpkg.git "${VCPKG_ROOT}"
-          cd "${VCPKG_ROOT}"
-          ./bootstrap-vcpkg.sh -disableMetrics
-
-      - name: Patch vcpkg for libogg download (Windows)
-        if: runner.os == 'Windows'
-        shell: powershell
-        run: |
-          $portfile = Get-ChildItem -Path $env:VCPKG_ROOT -Recurse -Filter portfile.cmake | Where-Object { $_.FullName -match '\\libogg\\' } | Select-Object -First 1
-          if ($portfile) {
-            Write-Host "Patching libogg portfile: $($portfile.FullName)"
-            (Get-Content -Raw -Path $portfile.FullName) -replace 'https://gitlab.xiph.org/xiph/ogg/-/archive/v\${VERSION}/ogg-v\${VERSION}.tar.gz','https://downloads.xiph.org/releases/ogg/libogg-${VERSION}.tar.gz' `
-              -replace 'ogg-v\${VERSION}','libogg-${VERSION}' | Set-Content -Path $portfile.FullName
-          } else {
-            Write-Host "libogg portfile not found, skipping patch."
-          }
-
-      - name: Patch vcpkg for libogg download (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          VCPKG_LIBOGG_PORTFILE=$(find "${VCPKG_ROOT}" -name "portfile.cmake" -path "*/libogg/*" || true)
-          if [ -f "$VCPKG_LIBOGG_PORTFILE" ]; then
-            echo "Patching libogg portfile: $VCPKG_LIBOGG_PORTFILE"
-            sed -i.bak 's|https://gitlab.xiph.org/xiph/ogg/-/archive/v${VERSION}/ogg-v${VERSION}.tar.gz|https://downloads.xiph.org/releases/ogg/libogg-${VERSION}.tar.gz|' "$VCPKG_LIBOGG_PORTFILE"
-            sed -i.bak 's|ogg-v${VERSION}|libogg-${VERSION}|' "$VCPKG_LIBOGG_PORTFILE"
-          else
-            echo "libogg portfile not found, skipping patch."
+          SANITIZER_FLAG=""
+          if [ "${{ matrix.sanitizer }}" = "asan" ]; then
+            SANITIZER_FLAG="-DBOZA_ENABLE_ASAN=ON"
+          elif [ "${{ matrix.sanitizer }}" = "ubsan" ]; then
+            SANITIZER_FLAG="-DBOZA_ENABLE_UBSAN=ON"
           fi
+          cmake --preset Debug \
+            -DCMAKE_C_COMPILER=gcc-13 \
+            -DCMAKE_CXX_COMPILER=g++-13 \
+            $SANITIZER_FLAG
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
 
-      - name: Show installed vcpkg packages (Windows)
-        if: runner.os == 'Windows'
-        shell: powershell
+      - name: Build
+        run: cmake --build --preset Debug
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
+      - name: Run tests
+        run: ctest --preset unit:Debug --output-on-failure
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+          ASAN_OPTIONS: detect_leaks=1:symbolize=1:abort_on_error=1
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.sanitizer }}
+          path: build/Debug/Testing/Temporary/LastTest.log
+
+  code-coverage:
+    name: Code Coverage (Linux)
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install system dependencies
         run: |
-          Write-Host "VCPKG_ROOT = $env:VCPKG_ROOT"
-          Get-ChildItem -Path $env:VCPKG_ROOT -Depth 2 | Select-Object -First 40
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            pkg-config \
+            libx11-dev \
+            libxrandr-dev \
+            libxinerama-dev \
+            libxcursor-dev \
+            libxi-dev \
+            libgl1-mesa-dev \
+            libasound2-dev \
+            curl \
+            zip \
+            unzip \
+            tar \
+            git \
+            gcovr
 
-      - name: Show installed vcpkg packages (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
+      - name: Install GCC 13
         run: |
-          echo "VCPKG_ROOT = ${VCPKG_ROOT}"
-          ls -la "${VCPKG_ROOT}" || true
-          ls -la "${VCPKG_ROOT}/installed" || true
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+          sudo apt-get update
+          sudo apt-get install -y gcc-13 g++-13
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
 
-      - name: Configure (Windows)
-        if: runner.os == 'Windows'
-        shell: powershell
+      - name: Install Vulkan SDK
         run: |
-          Write-Host "Configuring with CMake (Windows)"
-          # ensure we are in the repository root
-          Set-Location -Path $env:GITHUB_WORKSPACE
-          cmake -S . -B build -G "${{ matrix.cmake_generator }}" -A ${{ matrix.cmake_arch }} -DCMAKE_BUILD_TYPE=${{ matrix.cmake_build_type }} -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" $env:BOZA_CMAKE_COMMON
+          wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -
+          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list https://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
+          sudo apt-get update
+          sudo apt-get install -y vulkan-sdk
 
-        Why: GITHUB_WORKSPACE is guaranteed to be the checked-out repo root. This will stop CMake trying to read
-      - name: Configure (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: '6b2ebcd8a4f886e46cba4906da684c2e0ecac7b3'
+          vcpkgDirectory: '${{ github.workspace }}/vcpkg'
+
+      - name: Configure CMake with coverage
         run: |
-          echo "Configuring with CMake (Unix)"
-          cmake -S . -B build \
-            -DCMAKE_BUILD_TYPE=${{ matrix.cmake_build_type }} \
-            -DCMAKE_TOOLCHAIN_FILE="${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" \
-            $BOZA_CMAKE_COMMON
+          cmake --preset Debug \
+            -DCMAKE_C_COMPILER=gcc-13 \
+            -DCMAKE_CXX_COMPILER=g++-13 \
+            -DCMAKE_CXX_FLAGS="--coverage" \
+            -DCMAKE_C_FLAGS="--coverage" \
+            -DCMAKE_EXE_LINKER_FLAGS="--coverage"
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
 
-      - name: Build (Windows)
-        if: runner.os == 'Windows'
-        shell: powershell
+      - name: Build
+        run: cmake --build --preset Debug
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
+      - name: Run tests
+        run: ctest --preset unit:Debug --output-on-failure
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+
+      - name: Generate coverage report
         run: |
-          cmake --build build --config ${{ matrix.cmake_build_type }} --parallel
+          gcovr --root . \
+            --exclude 'vcpkg/*' \
+            --exclude 'build/*' \
+            --exclude 'tests/*' \
+            --exclude-throw-branches \
+            --exclude-unreachable-branches \
+            --print-summary \
+            --xml coverage.xml \
+            --html coverage.html
 
-      - name: Build (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: cmake --build build --config ${{ matrix.cmake_build_type }} --parallel
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage.xml
+            coverage.html
 
-      - name: Run tests (Windows)
-        if: runner.os == 'Windows'
-        shell: powershell
+  build-summary:
+    name: Build Summary
+    runs-on: ubuntu-22.04
+    needs: [build-and-test-linux, build-and-test-windows, build-and-test-macos, debug-build-linux, sanitizers]
+    if: always()
+
+    steps:
+      - name: Check build status
         run: |
-          ctest --test-dir build -C ${{ matrix.cmake_build_type }} --output-on-failure
-
-      - name: Run tests (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: ctest --test-dir build -C ${{ matrix.cmake_build_type }} --output-on-failure
+          if [ "${{ needs.build-and-test-linux.result }}" != "success" ] || \
+             [ "${{ needs.build-and-test-windows.result }}" != "success" ] || \
+             [ "${{ needs.build-and-test-macos.result }}" != "success" ] || \
+             [ "${{ needs.debug-build-linux.result }}" != "success" ] || \
+             [ "${{ needs.sanitizers.result }}" != "success" ]; then
+            echo "❌ Some builds failed"
+            exit 1
+          else
+            echo "✅ All builds passed"
+          fi

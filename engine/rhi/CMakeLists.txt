@@ -118,7 +118,3 @@ add_library(boza_stb_impl STATIC ${STB_IMPL_FILE})
 target_include_directories(boza_stb_impl PUBLIC ${Stb_INCLUDE_DIR})
 target_link_libraries(boza_rhi PRIVATE boza_stb_impl)
 
-
-if (BOZA_BUILD_TESTS)
-    add_subdirectory(tests)
-endif ()

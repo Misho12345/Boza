@@ -37,16 +37,72 @@
     {
       "name": "Debug",
       "configurePreset": "Debug",
-      "description": "Build Debug target",
+      "description": "Build boza_game (Debug)",
       "targets": ["all"],
       "jobs": 4
     },
     {
       "name": "Release",
       "configurePreset": "Release",
-      "description": "Build Release target",
+      "description": "Build boza_game (Release)",
       "targets": ["all"],
       "jobs": 4
+    },
+    {
+      "name": "game:Debug",
+      "configurePreset": "Debug",
+      "description": "Build boza_game only (Debug)",
+      "targets": ["boza_game"],
+      "jobs": 4
+    },
+    {
+      "name": "game:Release",
+      "configurePreset": "Release",
+      "description": "Build boza_game only (Release)",
+      "targets": ["boza_game"],
+      "jobs": 4
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "unit:Debug",
+      "configurePreset": "Debug",
+      "description": "Run unit tests via CTest (Debug)",
+      "output": { "outputOnFailure": true },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": true
+      }
+    },
+    {
+      "name": "unit:Release",
+      "configurePreset": "Release",
+      "description": "Run unit tests via CTest (Release)",
+      "output": { "outputOnFailure": true },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": true
+      }
+    },
+    {
+      "name": "all:Debug",
+      "configurePreset": "Debug",
+      "description": "Run all tests sequentially (Debug)",
+      "output": { "outputOnFailure": true },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
+    },
+    {
+      "name": "all:Release",
+      "configurePreset": "Release",
+      "description": "Run all tests sequentially (Release)",
+      "output": { "outputOnFailure": true },
+      "execution": {
+        "noTestsAction": "error",
+        "stopOnFailure": false
+      }
     }
   ]
 }

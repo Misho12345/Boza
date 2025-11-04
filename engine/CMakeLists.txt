@@ -14,6 +14,6 @@ add_subdirectory(rhi)
 add_subdirectory(ahi)
 add_subdirectory(src)
 
-if(BOZA_BUILD_TESTS)
+if (BOZA_BUILD_TESTS)
     add_subdirectory(tests)
-endif()
+endif ()
