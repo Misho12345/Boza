@@ -26,7 +26,7 @@ namespace boza
         std::unordered_map<std::string, Texture*> textures;
 
         bool create_material_buffer();
-        bool load_textures();
+        void load_textures();
         bool load_shader_metadata();
         void update_buffer_from_properties();
         bool validate_property(const std::string& prop_name, const MaterialPropertyValue& value) const;
@@ -70,11 +70,7 @@ namespace boza
             return false;
         }
 
-        if (!impl_->load_textures())
-        {
-            Logger::error("Failed to load textures for material '{}'", impl_->name);
-            return false;
-        }
+        impl_->load_textures();
 
         impl_->is_initialized = true;
         Logger::trace("Material '{}' initialized successfully", impl_->name);
@@ -84,7 +80,13 @@ namespace boza
     void Material::destroy() const
     {
         impl_->textures.clear();
-        impl_->material_buffer.reset();
+
+        if (impl_->material_buffer)
+        {
+            impl_->material_buffer->destroy();
+            impl_->material_buffer.reset();
+        }
+
         impl_->buffer_data.clear();
         impl_->material_ubo_info = nullptr;
         impl_->is_initialized    = false;
@@ -181,8 +183,8 @@ namespace boza
             else return true; // No UBO for this material
         }
 
-        const auto api    = material_system->get_api();
-        auto*      device = material_system->get_device();
+        const auto api    = material_system->api();
+        auto*      device = material_system->device();
 
         material_buffer.reset(rhi::create_buffer(
             api,
@@ -199,12 +201,10 @@ namespace boza
         return true;
     }
 
-    bool Material::Impl::load_textures()
+    void Material::Impl::load_textures()
     {
-        for (const auto& [texture_name, texture_path] : definition.textures) textures[texture_name] = material_system->
-                get_or_load_texture(texture_path);
-
-        return true;
+        for (const auto& [texture_name, texture_path] : definition.textures)
+            textures[texture_name] = material_system->get_or_load_texture(texture_path);
     }
 
     bool Material::Impl::load_shader_metadata()

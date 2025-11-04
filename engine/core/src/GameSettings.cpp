@@ -57,13 +57,13 @@ namespace boza
             // Logger::tr("Game settings loaded from: {}", filepath);
             return true;
         }
-        catch (json::parse_error& e)
+        catch (const json::parse_error& e)
         {
             Logger::error("Failed to parse game settings JSON: {}", e.what());
             load_defaults();
             return false;
         }
-        catch (std::exception& e)
+        catch (const std::exception& e)
         {
             Logger::error("Failed to load game settings: {}", e.what());
             load_defaults();

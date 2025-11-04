@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 
 #ifdef BOZA_OPENGL_ENABLED
 #define BOZA_IF_OPENGL(...) __VA_ARGS__
@@ -39,5 +40,14 @@ namespace boza
         BOZA_IF_METAL(Metal,)
         BOZA_IF_DX11(DirectX11,)
         BOZA_IF_DX12(DirectX12)
+    };
+
+    constexpr std::array graphics_apis_by_priority
+    {
+        BOZA_IF_METAL(GraphicsApi::Metal,)
+        BOZA_IF_DX12(GraphicsApi::DirectX12,)
+        BOZA_IF_VULKAN(GraphicsApi::Vulkan,)
+        BOZA_IF_DX11(GraphicsApi::DirectX11,)
+        BOZA_IF_OPENGL(GraphicsApi::OpenGL,)
     };
 }

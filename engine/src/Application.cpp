@@ -9,8 +9,7 @@ namespace boza
 {
     struct Application::Impl
     {
-        AppConfig   config;
-        GraphicsApi api{ GraphicsApi::Vulkan };
+        AppConfig config;
 
         std::unique_ptr<Window>          window;
         std::unique_ptr<RenderingSystem> rendering_system;
@@ -50,9 +49,9 @@ namespace boza
             impl_->config.fullscreen
         );
 
-        if (!impl_->window->create(impl_->api))
+        if (!Window::init())
         {
-            Logger::error("Failed to create window");
+            Logger::critical("Failed to initialize windowing system");
             return false;
         }
 
@@ -61,7 +60,7 @@ namespace boza
         if (!impl_->active_scene) active_scene = create_scene("Default Scene");
 
         impl_->rendering_system = std::make_unique<RenderingSystem>();
-        if (!impl_->rendering_system->init(impl_->api, *impl_->window, impl_->active_scene))
+        if (!impl_->rendering_system->init(*impl_->window, impl_->active_scene))
         {
             Logger::error("Failed to initialize rendering system");
             return false;
@@ -92,7 +91,6 @@ namespace boza
 
         impl_->game_loop->start();
 
-
         while (!impl_->window->should_close() && impl_->game_loop->running)
         {
             using namespace std::chrono_literals;
@@ -102,25 +100,11 @@ namespace boza
 
         Logger::trace("Stopping application...");
 
-        if (impl_->game_loop)
-        {
-            impl_->game_loop->stop();
-            impl_->game_loop.reset();
-        }
+        if (impl_->game_loop) impl_->game_loop->stop();
+        if (impl_->rendering_system) impl_->rendering_system->destroy();
+        if (impl_->window) impl_->window->destroy();
 
-        if (impl_->rendering_system)
-        {
-            impl_->rendering_system->destroy();
-            impl_->rendering_system.reset();
-        }
-
-        if (impl_->window)
-        {
-            impl_->window->destroy();
-            impl_->window.reset();
-        }
-
-        impl_->active_scene.reset();
+        Window::terminate();
 
         Logger::trace("Application stopped");
     }

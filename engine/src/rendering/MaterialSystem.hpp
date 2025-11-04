@@ -1,11 +1,9 @@
 #pragma once
+#include "boza/pch.hpp"
 #include "boza/core/IMaterialProvider.hpp"
 #include "boza/GraphicsApi.hpp"
 #include "boza/rendering/Material.hpp"
 #include "boza/rendering/MaterialCommon.hpp"
-#include <string>
-#include <unordered_map>
-#include <memory>
 
 namespace boza
 {
@@ -41,9 +39,9 @@ namespace boza
         Texture*      get_default_texture() const { return default_texture_.get(); }
         void          upload_dirty_materials(uint32_t frame_index = 0);
 
-        GraphicsApi  get_api() const { return api_; }
-        rhi::Device* get_device() const { return device_; }
-        uint32_t     get_frames_in_flight() const { return frames_in_flight_; }
+        GraphicsApi  api() const { return api_; }
+        rhi::Device* device() const { return device_; }
+        uint32_t     frames_in_flight() const { return frames_in_flight_; }
 
     private:
         static MaterialDefinition parse_material_definition(const std::string& filepath);

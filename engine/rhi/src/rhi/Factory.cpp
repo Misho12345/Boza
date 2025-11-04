@@ -5,7 +5,7 @@
 #endif
 
 #ifdef BOZA_VULKAN_ENABLED
-#include "../backends/vulkan/FactoryImpl.hpp"
+#include "backends/vulkan/FactoryImpl.hpp"
 #endif
 
 #ifdef BOZA_METAL_ENABLED

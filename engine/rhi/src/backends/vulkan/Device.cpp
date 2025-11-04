@@ -52,15 +52,19 @@ namespace boza::rhi::vk
 
     void Device::destroy()
     {
-        // Logger::trace("Destroying vulkan device");
+        Logger::trace("Destroying vulkan device");
 
-        allocator_->destroy();
+        if (allocator_)
+        {
+            allocator_->destroy();
+            allocator_ = nullptr;
+        }
 
         const auto& vk_instance = reinterpret_cast<Instance*>(desc.instance)->vk_instance();
 
         for (const auto& command_pool : command_pools_ | std::views::values)
         {
-            command_pool->destroy();
+            if (command_pool) command_pool->destroy();
         }
 
         if (logical_device_)

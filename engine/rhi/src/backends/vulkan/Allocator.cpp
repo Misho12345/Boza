@@ -75,6 +75,19 @@ namespace boza::rhi::vk
 
         if (vma_allocator_)
         {
+            // if vmaDestroyAllocator asserts, uncomment to check if some data hasn't been freed properly
+
+            // char* statsString = nullptr;
+            // vmaBuildStatsString(vma_allocator_, &statsString, VK_TRUE);
+            // std::string stats{ statsString };
+            // vmaFreeStatsString(vma_allocator_, statsString);
+            //
+            // if (statsString)
+            // {
+            //     Logger::debug("VMA status on destruction:\n{}", statsString);
+            //     vmaFreeStatsString(vma_allocator_, statsString);
+            // }
+
             vmaDestroyAllocator(vma_allocator_);
             vma_allocator_ = nullptr;
         }

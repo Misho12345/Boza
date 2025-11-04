@@ -79,7 +79,7 @@ namespace boza
         if (!impl_->create_rhi_texture()) Logger::error("Failed to create RHI texture");
     }
 
-    Texture::~Texture() = default;
+    Texture::~Texture() { impl_->rhi_texture->destroy(); }
 
     Texture::Texture(Texture&&) noexcept            = default;
     Texture& Texture::operator=(Texture&&) noexcept = default;

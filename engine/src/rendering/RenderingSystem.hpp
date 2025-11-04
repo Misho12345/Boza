@@ -17,7 +17,7 @@ namespace boza
     class RenderingSystem final : public SystemProvider
     {
     public:
-        bool init(GraphicsApi api, Window& window, std::shared_ptr<Scene> scene);
+        bool init(Window& window, std::shared_ptr<Scene> scene);
         void run();
         void destroy();
 

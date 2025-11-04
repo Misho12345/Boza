@@ -19,7 +19,7 @@ namespace boza
           last_width_(width),
           last_height_(height) {}
 
-    bool Window::create([[maybe_unused]] const GraphicsApi api)
+    bool Window::init()
     {
         if (!glfwInit())
         {
@@ -27,6 +27,11 @@ namespace boza
             return false;
         }
 
+        return true;
+    }
+
+    bool Window::create([[maybe_unused]] const GraphicsApi api)
+    {
         GLFWmonitor* primary_monitor = glfwGetPrimaryMonitor();
 
         if (!primary_monitor)
@@ -58,6 +63,8 @@ namespace boza
         {
             glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         }
+
+        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE); // hidden by default to prevent flickering if graphics api fails
 
         if (fullscreen_)
         {
@@ -109,11 +116,15 @@ namespace boza
 
     void Window::destroy()
     {
-        glfwDestroyWindow(window_);
-        glfwTerminate();
-
-        window_ = nullptr;
+        if (window_)
+        {
+            glfwDestroyWindow(window_);
+            window_ = nullptr;
+        }
     }
+
+    void Window::terminate() { glfwTerminate(); }
+
 
     void Window::toggle_fullscreen()
     {
@@ -145,9 +156,9 @@ namespace boza
         }
     }
 
-    void Window::wait_to_close() const { while (!glfwWindowShouldClose(window_)) glfwWaitEvents(); }
 
     bool Window::should_close() const { return glfwWindowShouldClose(window_); }
+
 
     void Window::poll_events() const { glfwPollEvents(); }
 
@@ -164,6 +175,9 @@ namespace boza
         });
     }
 
+    void Window::show() const { glfwShowWindow(window_); }
+    void Window::hide() const { glfwHideWindow(window_); }
+
     bool Window::has_resized()
     {
         if (resized_.load())
@@ -176,6 +190,7 @@ namespace boza
     }
 
     bool Window::is_minimized() const { return !(width_ && height_); }
+
 
     std::vector<const char*> Window::get_required_extensions() const
     {

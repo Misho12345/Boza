@@ -36,7 +36,7 @@ namespace boza
           device_(device),
           frames_in_flight_(frames_in_flight) { create_default_texture(); }
 
-    MaterialSystem::~MaterialSystem() { destroy(); }
+    MaterialSystem::~MaterialSystem() = default;
 
     Material* MaterialSystem::material(const std::string& name)
     {
@@ -133,7 +133,8 @@ namespace boza
 
     void MaterialSystem::destroy()
     {
-        for (const auto& material : materials_ | std::views::values) material->destroy();
+        for (const auto& material : materials_ | std::views::values) if (material) material->destroy();
+        for (const auto& sampler : sampler_cache_  | std::views::values) if (sampler) sampler->destroy();
 
         materials_.clear();
         texture_cache_.clear();

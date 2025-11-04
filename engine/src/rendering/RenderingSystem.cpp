@@ -30,74 +30,106 @@ namespace boza
         glm::mat4 model;
     };
 
-    bool RenderingSystem::init(GraphicsApi api, Window& window, std::shared_ptr<Scene> scene)
+    bool RenderingSystem::init(Window& window, std::shared_ptr<Scene> scene)
     {
-        api_          = api;
+        bool found = false;
+
         window_       = &window;
         active_scene_ = std::move(scene);
 
-        instance_.reset(rhi::create_instance(
-            api, {
-                .app_name = "Boza App",
-                .engine_name = "Boza",
-                .app_version = { 0, 0, 1 },
-                .engine_version = { BOZA_VERSION_MAJOR, BOZA_VERSION_MINOR, BOZA_VERSION_PATCH },
-                .window = window_
-            }));
+        for (const auto& api : graphics_apis_by_priority)
+        {
+            if (api != graphics_apis_by_priority[0])
+            {
+                destroy();
+                window_->destroy();
+            }
 
-        if (!instance_) return false;
+            window_->create(api);
 
-        device_.reset(rhi::create_device(
-            api, {
-                .instance = instance_.get(),
-                .window = window_
-            }));
+            instance_.reset(rhi::create_instance(
+                api, {
+                    .app_name = "Test Boza App",
+                    .engine_name = "Boza",
+                    .app_version = { 0, 0, 1 },
+                    .engine_version = { BOZA_VERSION_MAJOR, BOZA_VERSION_MINOR, BOZA_VERSION_PATCH },
+                    .window = window_
+                }));
 
-        if (!device_) return false;
+            if (!instance_) continue;
 
-        swapchain_.reset(rhi::create_swapchain(
-            api, {
-                .device = device_.get(),
-                .window = window_,
-                .preferred_present_mode = rhi::PresentMode::Mailbox,
-                .preferred_image_count = 3,
-                .max_frames_in_flight = 2,
-                .enable_depth = true
-            }));
+            device_.reset(rhi::create_device(
+                api, {
+                    .instance = instance_.get(),
+                    .window = window_
+                }));
 
-        if (!swapchain_) return false;
+            if (!device_) continue;
 
-        material_system_ = std::make_unique<MaterialSystem>(api, device_.get(), swapchain_->max_frames_in_flight());
+            swapchain_.reset(rhi::create_swapchain(
+                api, {
+                    .device = device_.get(),
+                    .window = window_,
+                    .preferred_present_mode = rhi::PresentMode::Mailbox,
+                    .preferred_image_count = 3,
+                    .max_frames_in_flight = 2,
+                    .enable_depth = true
+                }));
 
-        material_system_->load_materials_for_strategy(MaterialLoadStrategy::GameLoad);
+            if (!swapchain_) continue;
 
-        descriptor_pool_.reset(rhi::create_descriptor_pool(
-            api, {
-                .device = device_.get(),
-                .max_sets = 300,
-                .pool_sizes = {
-                    { rhi::DescriptorType::UniformBuffer, 300 },
-                    { rhi::DescriptorType::CombinedImageSampler, 300 }
-                }
-            }));
+            material_system_ = std::make_unique<MaterialSystem>(api, device_.get(), swapchain_->max_frames_in_flight());
 
-        if (!descriptor_pool_) return false;
+            material_system_->load_materials_for_strategy(MaterialLoadStrategy::GameLoad);
 
-        setup_camera_buffer();
-        setup_light_buffer();
+            descriptor_pool_.reset(rhi::create_descriptor_pool(
+                api, {
+                    .device = device_.get(),
+                    .max_sets = 300,
+                    .pool_sizes = {
+                        { rhi::DescriptorType::UniformBuffer, 300 },
+                        { rhi::DescriptorType::CombinedImageSampler, 300 }
+                    }
+                }));
 
-        sampler_.reset(rhi::create_sampler(
-            api, {
-                .device = device_.get(),
-                .filter = rhi::SamplerFilter::Linear,
-                .address_mode_u = rhi::SamplerAddressMode::Repeat,
-                .address_mode_v = rhi::SamplerAddressMode::Repeat,
-                .address_mode_w = rhi::SamplerAddressMode::Repeat
-            }));
+            if (!descriptor_pool_) continue;
 
-        if (!sampler_) return false;
+            setup_camera_buffer();
+            setup_light_buffer();
 
-        // Logger::trace("RenderingSystem initialized successfully");
+            sampler_.reset(rhi::create_sampler(
+                api, {
+                    .device = device_.get(),
+                    .filter = rhi::SamplerFilter::Linear,
+                    .address_mode_u = rhi::SamplerAddressMode::Repeat,
+                    .address_mode_v = rhi::SamplerAddressMode::Repeat,
+                    .address_mode_w = rhi::SamplerAddressMode::Repeat
+                }));
+
+            if (!sampler_) continue;
+
+            api_ = api;
+            found = true;
+            break;
+        }
+
+        if (!found) return false;
+
+        Logger::trace("RenderingSystem initialized successfully with graphics api: {}", [this] -> const char*
+        {
+            switch (api_)
+            {
+                BOZA_IF_OPENGL(case GraphicsApi::OpenGL:    return "OpenGL";)
+                BOZA_IF_VULKAN(case GraphicsApi::Vulkan:    return "Vulkan";)
+                BOZA_IF_METAL( case GraphicsApi::Metal:     return "Metal";)
+                BOZA_IF_DX11(  case GraphicsApi::DirectX11: return "DirectX11";)
+                BOZA_IF_DX12(  case GraphicsApi::DirectX12: return "DirectX12";)
+            }
+
+            std::unreachable();
+        }());
+
+        window_->show();
         return true;
     }
 
@@ -322,16 +354,32 @@ namespace boza
     {
         if (device_) device_->wait_idle();
 
-        gpu_meshes_.clear();
-        material_system_.reset();
-        shader_pipelines_.clear();
-        descriptor_pool_.reset();
-        camera_ubo_.reset();
-        light_ubo_.reset();
-        sampler_.reset();
-        swapchain_.reset();
-        device_.reset();
-        instance_.reset();
+        for (const auto& [vertex_buffer, index_buffer] : gpu_meshes_ | std::views::values)
+        {
+            if (vertex_buffer) vertex_buffer->destroy();
+            if (index_buffer) index_buffer->destroy();
+        }
+
+        if (material_system_) material_system_->destroy();
+
+        for (const auto& shader_pipeline : shader_pipelines_ | std::views::values)
+        {
+            if (shader_pipeline->graphics_pipeline) shader_pipeline->graphics_pipeline->destroy();
+            if (shader_pipeline->pipeline_layout) shader_pipeline->pipeline_layout->destroy();
+            if (shader_pipeline->fragment_shader) shader_pipeline->fragment_shader->destroy();
+            if (shader_pipeline->vertex_shader) shader_pipeline->vertex_shader->destroy();
+
+            for (const auto& descriptor_set_layout : shader_pipeline->descriptor_set_layouts)
+                if (descriptor_set_layout) descriptor_set_layout->destroy();
+        }
+
+        if (descriptor_pool_) descriptor_pool_->destroy();
+        if (camera_ubo_) camera_ubo_->destroy();
+        if (light_ubo_) light_ubo_->destroy();
+        if (sampler_) sampler_->destroy();
+        if (swapchain_) swapchain_->destroy();
+        if (device_) device_->destroy();
+        if (instance_) instance_->destroy();
     }
 
     void RenderingSystem::ShaderPipeline::reset_frame_allocations(const uint32_t frame_index)

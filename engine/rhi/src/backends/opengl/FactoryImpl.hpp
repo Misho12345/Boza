@@ -5,7 +5,12 @@
 #include "boza/rhi/Swapchain.hpp"
 
 #include "boza/rhi/Command.hpp"
+#include "boza/rhi/Descriptor.hpp"
+
 #include "boza/rhi/Sync.hpp"
+
+#include "boza/rhi/Pipeline.hpp"
+#include "boza/rhi/Resources.hpp"
 
 namespace boza::rhi::gl
 {

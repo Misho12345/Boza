@@ -24,8 +24,11 @@ namespace boza
         Window& operator=(const Window&) = delete;
         Window& operator=(Window&&)      = delete;
 
+        static bool init();
         bool create(GraphicsApi api);
-        void destroy();
+
+        void        destroy();
+        static void terminate();
 
         void toggle_fullscreen();
 
@@ -41,10 +44,12 @@ namespace boza
             }
         };
 
-        void wait_to_close() const;
         bool should_close() const;
         void poll_events() const;
         void set_window_resize_callback();
+
+        void show() const;
+        void hide() const;
 
         [[nodiscard]] bool has_resized();
         [[nodiscard]] bool is_minimized() const;
