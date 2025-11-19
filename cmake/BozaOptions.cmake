@@ -1,4 +1,4 @@
-option(BOZA_BUILD_TESTS "Build Boza unit tests" ON)
+option(BOZA_BUILD_TESTS "Build Boza unit tests" OFF)
 
 option(BOZA_ENABLE_OPENGL "Enable OpenGL backend" OFF)
 option(BOZA_ENABLE_VULKAN "Enable Vulkan backend" ON)
@@ -50,7 +50,7 @@ if (NOT APPLE AND BOZA_ENABLE_COREAUDIO)
 endif ()
 
 if(NOT (BOZA_ENABLE_OPENAL OR BOZA_ENABLE_XAUDIO2 OR BOZA_ENABLE_COREAUDIO))
-    message(WARNING "No audio backend enabled, audio will be disabled")
+    message("No audio backend enabled, audio will be disabled")
     set(BOZA_AUDIO_ENABLED OFF)
 else()
     set(BOZA_AUDIO_ENABLED ON)

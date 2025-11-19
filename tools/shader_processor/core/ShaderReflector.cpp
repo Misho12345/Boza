@@ -3,6 +3,54 @@
 
 namespace sp
 {
+    static std::string get_image_format_name(const spv::ImageFormat format)
+    {
+        switch (format)
+        {
+            case spv::ImageFormatRgba32f: return "rgba32f";
+            case spv::ImageFormatRgba16f: return "rgba16f";
+            case spv::ImageFormatR32f: return "r32f";
+            case spv::ImageFormatRgba8: return "rgba8";
+            case spv::ImageFormatRgba8Snorm: return "rgba8_snorm";
+            case spv::ImageFormatRg32f: return "rg32f";
+            case spv::ImageFormatRg16f: return "rg16f";
+            case spv::ImageFormatR11fG11fB10f: return "r11f_g11f_b10f";
+            case spv::ImageFormatR16f: return "r16f";
+            case spv::ImageFormatRgba16: return "rgba16";
+            case spv::ImageFormatRgb10A2: return "rgb10_a2";
+            case spv::ImageFormatRg16: return "rg16";
+            case spv::ImageFormatRg8: return "rg8";
+            case spv::ImageFormatR16: return "r16";
+            case spv::ImageFormatR8: return "r8";
+            case spv::ImageFormatRgba16Snorm: return "rgba16_snorm";
+            case spv::ImageFormatRg16Snorm: return "rg16_snorm";
+            case spv::ImageFormatRg8Snorm: return "rg8_snorm";
+            case spv::ImageFormatR16Snorm: return "r16_snorm";
+            case spv::ImageFormatR8Snorm: return "r8_snorm";
+            case spv::ImageFormatRgba32i: return "rgba32i";
+            case spv::ImageFormatRgba16i: return "rgba16i";
+            case spv::ImageFormatRgba8i: return "rgba8i";
+            case spv::ImageFormatR32i: return "r32i";
+            case spv::ImageFormatRg32i: return "rg32i";
+            case spv::ImageFormatRg16i: return "rg16i";
+            case spv::ImageFormatRg8i: return "rg8i";
+            case spv::ImageFormatR16i: return "r16i";
+            case spv::ImageFormatR8i: return "r8i";
+            case spv::ImageFormatRgba32ui: return "rgba32ui";
+            case spv::ImageFormatRgba16ui: return "rgba16ui";
+            case spv::ImageFormatRgba8ui: return "rgba8ui";
+            case spv::ImageFormatR32ui: return "r32ui";
+            case spv::ImageFormatRgb10a2ui: return "rgb10_a2ui";
+            case spv::ImageFormatRg32ui: return "rg32ui";
+            case spv::ImageFormatRg16ui: return "rg16ui";
+            case spv::ImageFormatRg8ui: return "rg8ui";
+            case spv::ImageFormatR16ui: return "r16ui";
+            case spv::ImageFormatR8ui: return "r8ui";
+            case spv::ImageFormatUnknown:
+            default: return "unknown";
+        }
+    }
+
     static std::string get_type_name(const spirv_cross::Compiler& compiler, const spirv_cross::SPIRType& type)
     {
         std::string type_str;
@@ -19,13 +67,16 @@ namespace sp
             case spirv_cross::SPIRType::SampledImage:
             {
                 const auto& image_type = type;
+                const bool is_storage = type.basetype == spirv_cross::SPIRType::Image;
+                const std::string prefix = is_storage ? "image" : "sampler";
+
                 switch (image_type.image.dim)
                 {
-                    case spv::Dim1D: type_str = "sampler1D"; break;
-                    case spv::Dim2D: type_str = "sampler2D"; break;
-                    case spv::Dim3D: type_str = "sampler3D"; break;
-                    case spv::DimCube: type_str = "samplerCube"; break;
-                    default: type_str = "sampler"; break;
+                    case spv::Dim1D: type_str = prefix + "1D"; break;
+                    case spv::Dim2D: type_str = prefix + "2D"; break;
+                    case spv::Dim3D: type_str = prefix + "3D"; break;
+                    case spv::DimCube: type_str = prefix + "Cube"; break;
+                    default: type_str = prefix; break;
                 }
 
                 if (image_type.image.arrayed) type_str += "Array";
@@ -55,6 +106,8 @@ namespace sp
         reflect_resources(compiler, resources.sampled_images, "sampled_images", metadata);
         reflect_resources(compiler, resources.storage_images, "storage_images", metadata);
         reflect_push_constants(compiler, resources, metadata, shader_type);
+
+        if (shader_type == "compute") reflect_compute_work_group_size(compiler, metadata);
 
         return metadata;
     }
@@ -108,9 +161,21 @@ namespace sp
             }
             else if (type_name == "stage_inputs" || type_name == "stage_outputs")
             {
-                size_t size = (type.width / 8) * type.vecsize;
+                size_t size = type.width / 8 * type.vecsize;
                 if (type.columns > 1) size *= type.columns;
                 j_resource["size"] = size;
+            }
+            else if (type_name == "storage_images")
+            {
+                const auto& image_type = type;
+                j_resource["format"] = get_image_format_name(image_type.image.format);
+
+                const auto access = compiler.get_decoration(resource.id, spv::DecorationNonReadable);
+                const auto writable = compiler.get_decoration(resource.id, spv::DecorationNonWritable);
+
+                if (access && !writable) j_resource["access"] = "writeonly";
+                else if (!access && writable) j_resource["access"] = "readonly";
+                else j_resource["access"] = "readwrite";
             }
 
             j_resources.push_back(j_resource);
@@ -159,5 +224,42 @@ namespace sp
         }
 
         metadata["push_constants"] = push_constants_array;
+    }
+
+    void ShaderReflector::reflect_compute_work_group_size(
+        const spirv_cross::Compiler& compiler,
+        json&                        metadata)
+    {
+        const auto& entry_points = compiler.get_entry_points_and_stages();
+        for (const auto& [name, execution_model] : entry_points)
+        {
+            if (execution_model == spv::ExecutionModelGLCompute)
+            {
+                spirv_cross::SpecializationConstant x_spec, y_spec, z_spec;
+                compiler.get_work_group_size_specialization_constants(x_spec, y_spec, z_spec);
+
+                uint32_t x = 1, y = 1, z = 1;
+
+                if (x_spec.id != 0) x = compiler.get_constant(x_spec.id).scalar();
+                if (y_spec.id != 0) y = compiler.get_constant(y_spec.id).scalar();
+                if (z_spec.id != 0) z = compiler.get_constant(z_spec.id).scalar();
+
+                if (x == 1 && y == 1 && z == 1)
+                {
+                    const auto sizes = compiler.get_entry_point(name, execution_model).workgroup_size;
+                    x = sizes.x;
+                    y = sizes.y;
+                    z = sizes.z;
+                }
+
+                json work_group_size;
+                work_group_size["x"] = x;
+                work_group_size["y"] = y;
+                work_group_size["z"] = z;
+
+                metadata["work_group_size"] = work_group_size;
+                break;
+            }
+        }
     }
 }

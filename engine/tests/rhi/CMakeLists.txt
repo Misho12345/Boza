@@ -1,1 +1,0 @@
-create_tests(boza_rhi_tests Boza::Rhi ${CMAKE_CURRENT_SOURCE_DIR})

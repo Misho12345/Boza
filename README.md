@@ -18,7 +18,3 @@ Boza is a small C++23 game engine prototype.
 
 ## Build & Run
 See [BUILD.md](BUILD.md) for detailed build and setup instructions.
-
-## Documentation
-- [Structure](docs/structure.md): Detailed project and engine module structure with diagrams.
-- [Roadmap](docs/roadmap.md): Current work and future plans.

@@ -25,13 +25,7 @@ if (SHADER_FILES)
         list(APPEND SHADER_FORMAT_ARGS "--no-metal")
     endif ()
 
-    if (CMAKE_CONFIGURATION_TYPES)
-        # Multi-config generator (Visual Studio, Xcode)
-        set(SHADER_OUT_BASE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/shaders)
-    else ()
-        # Single-config generator (Unix Makefiles, Ninja)
-        set(SHADER_OUT_BASE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders)
-    endif ()
+    set(SHADER_OUT_BASE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders)
 
     foreach (SHADER_PATH ${SHADER_FILES})
         get_filename_component(SHADER_NAME ${SHADER_PATH} NAME)
@@ -67,11 +61,11 @@ if (SHADER_FILES)
         add_custom_command(
                 OUTPUT ${SHADER_OUTPUTS}
                 COMMAND ${CMAKE_COMMAND} -E make_directory ${OUT_DIR}
-                COMMAND $<TARGET_FILE:shader_processor>
+                COMMAND $<TARGET_FILE:Tools::ShaderProcessor>
                 ${SHADER_PATH}
                 --out ${OUT_DIR}
                 ${SHADER_FORMAT_ARGS}
-                DEPENDS shader_processor ${SHADER_PATH}
+                DEPENDS Tools::ShaderProcessor ${SHADER_PATH}
                 COMMENT "Compiling shader ${SHADER_NAME})"
                 VERBATIM
         )

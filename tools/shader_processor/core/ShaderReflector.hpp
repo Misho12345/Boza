@@ -38,5 +38,9 @@ namespace sp
             const spirv_cross::ShaderResources& resources,
             json&                               metadata,
             const std::string&                  shader_type);
+
+        static void reflect_compute_work_group_size(
+            const spirv_cross::Compiler& compiler,
+            json&                        metadata);
     };
 }

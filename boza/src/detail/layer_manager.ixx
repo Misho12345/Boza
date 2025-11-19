@@ -1,0 +1,25 @@
+export module boza.detail:layer_manager;
+import std;
+
+export namespace boza::detail
+{
+    class LayerManager final
+    {
+    public:
+        static LayerManager& instance();
+
+        void register_layer(const std::string& name, std::uint32_t shift_amount);
+
+        [[nodiscard]] std::uint32_t layer_mask(const std::string& name) const;
+        [[nodiscard]] const std::string& layer_name(std::uint32_t mask) const;
+
+        [[nodiscard]] bool has_layer(const std::string& name) const;
+        void clear();
+
+    private:
+        LayerManager() = default;
+
+        std::unordered_map<std::string, std::uint32_t> name_to_mask_{};
+        std::unordered_map<std::uint32_t, std::string> mask_to_name_{};
+    };
+}

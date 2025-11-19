@@ -3,9 +3,11 @@ function(boza_enable_warnings target)
         target_compile_options(${target} PRIVATE
                 /W4
                 /permissive-
-                /wd4702
-                /wd4065
-                /wd4251
+                /wd4702 # unreachable code
+                /wd4065 # switch statement contains 'default' but no 'case' labels
+                /wd4251 # DLL-interface warning
+                /wd5050 # something about modules
+                /wd4127 # conditional expression is constant
         )
 
         if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "19.30")

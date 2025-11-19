@@ -2,13 +2,14 @@
   "version": 3,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 24,
+    "minor": 30,
     "patch": 0
   },
   "configurePresets": [
     {
       "name": "Debug",
       "description": "Debug build",
+      "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/Debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
@@ -17,11 +18,15 @@
         "CMAKE_RUNTIME_OUTPUT_DIRECTORY": "${sourceDir}/build/Debug/bin",
         "CMAKE_LIBRARY_OUTPUT_DIRECTORY": "${sourceDir}/build/Debug/lib",
         "CMAKE_ARCHIVE_OUTPUT_DIRECTORY": "${sourceDir}/build/Debug/lib"
+      },
+      "warnings": {
+        "dev": false
       }
     },
     {
       "name": "Release",
       "description": "Release build",
+      "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/Release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
@@ -30,6 +35,9 @@
         "CMAKE_RUNTIME_OUTPUT_DIRECTORY": "${sourceDir}/build/Release/bin",
         "CMAKE_LIBRARY_OUTPUT_DIRECTORY": "${sourceDir}/build/Release/lib",
         "CMAKE_ARCHIVE_OUTPUT_DIRECTORY": "${sourceDir}/build/Release/lib"
+      },
+      "warnings": {
+        "dev": false
       }
     }
   ],
@@ -46,20 +54,6 @@
       "configurePreset": "Release",
       "description": "Build boza_game (Release)",
       "targets": ["all"],
-      "jobs": 4
-    },
-    {
-      "name": "game:Debug",
-      "configurePreset": "Debug",
-      "description": "Build boza_game only (Debug)",
-      "targets": ["boza_game"],
-      "jobs": 4
-    },
-    {
-      "name": "game:Release",
-      "configurePreset": "Release",
-      "description": "Build boza_game only (Release)",
-      "targets": ["boza_game"],
       "jobs": 4
     }
   ],

@@ -1,5 +1,6 @@
-get_source_files(SHADER_COMPILER_SOURCES ${CMAKE_CURRENT_SOURCE_DIR})
-add_executable(shader_processor ${SHADER_COMPILER_SOURCES})
+get_source_files(SHADER_PROCESSOR_SOURCES ${CMAKE_CURRENT_SOURCE_DIR})
+add_executable(shader_processor ${SHADER_PROCESSOR_SOURCES})
+add_executable(Tools::ShaderProcessor ALIAS shader_processor)
 
 find_package(unofficial-shaderc CONFIG REQUIRED)
 
