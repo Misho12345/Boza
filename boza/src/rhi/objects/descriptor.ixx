@@ -80,10 +80,15 @@ export namespace boza::rhi
         virtual void free_descriptor_set(DescriptorSet* set) = 0;
         virtual void free_descriptor_sets(const std::vector<DescriptorSet*>& sets) = 0;
 
+        virtual void recycle_descriptor_set(DescriptorSet* set) = 0;
+
         virtual bool reset() = 0;
 
     protected:
         explicit DescriptorPool(const DescriptorPoolDesc& desc) : GraphicsObject(desc) {}
+
+        std::unordered_map<std::size_t, std::vector<DescriptorSet*>> free_sets_by_layout_;
+        std::uint64_t current_generation_{ 0 };
     };
 
 
@@ -142,6 +147,8 @@ export namespace boza::rhi
         virtual void destroy() = 0;
 
         virtual void update(const std::vector<DescriptorWrite>& writes) = 0;
+
+        std::uint64_t generation{ 0 };
 
     protected:
         explicit          DescriptorSet(const DescriptorSetDesc& desc) : desc(desc) {}

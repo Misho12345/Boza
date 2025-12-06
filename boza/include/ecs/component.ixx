@@ -1,7 +1,7 @@
 module;
 
-#include "api.hpp"
 #include <cstddef>
+#include "api.hpp"
 
 export module boza.ecs:component;
 
@@ -20,13 +20,26 @@ export namespace boza
     public:
         virtual ~Component() = default;
 
-        PropertyGet<Component, Scene&>      scene{ &Component::get_scene, offsetof(Component, scene) };
-        PropertyGet<Component, Transform&>  transform{ &Component::get_transform, offsetof(Component, transform) };
-        PropertyGet<Component, GameObject&> game_object{
+        PropertyGet<Component, Transform&> transform
+        {
+            &Component::get_transform,
+            offsetof(Component, transform)
+        };
+
+        PropertyGet<Component, Scene&> scene
+        {
+            &Component::get_scene,
+            offsetof(Component, scene)
+        };
+
+        PropertyGet<Component, GameObject&> game_object
+        {
             &Component::get_game_object,
             offsetof(Component, game_object)
         };
-        PropertyGetSet<Component, bool> enabled{
+
+        PropertyGetSet<Component, bool> enabled
+        {
             &Component::get_enabled,
             &Component::set_enabled,
             offsetof(Component, enabled)
@@ -35,14 +48,15 @@ export namespace boza
     protected:
         Component() = default;
 
-        Scene&      get_scene() const { return *scene_; }
-        Transform&  get_transform() const { return *transform_; }
-        GameObject& get_game_object() const { return *game_object_; }
+    private:
+        [[nodiscard]] Transform&  get_transform() const { return *transform_; }
+        [[nodiscard]] Scene&      get_scene() const { return *scene_; }
+        [[nodiscard]] GameObject& get_game_object() const { return *game_object_; }
 
+        [[nodiscard]]
         bool get_enabled() const;
         void set_enabled(bool value);
 
-    private:
         Transform*   transform_{ nullptr };
         GameObject*  game_object_{ nullptr };
         entt::entity entity_{ entt::null };

@@ -18,7 +18,7 @@ export namespace boza::rhi
 
         GraphicsPipeline* build_graphics_pipeline(
             const std::vector<std::uint32_t>& color_attachment_formats,
-            std::uint32_t                     depth_attachment_format = 0,
+            DepthFormat                       depth_attachment_format = DepthFormat::None,
             const RasterizationState&         rasterization           = {},
             const DepthStencilState&          depth_stencil           = {},
             const ColorBlendState&            color_blend             = {},
@@ -26,7 +26,7 @@ export namespace boza::rhi
 
         GraphicsPipeline* build_graphics_pipeline(
             const Swapchain*          swapchain,
-            std::uint32_t             depth_attachment_format = 0,
+            DepthFormat               depth_attachment_format = DepthFormat::None,
             const RasterizationState& rasterization           = {},
             const DepthStencilState&  depth_stencil           = {},
             const ColorBlendState&    color_blend             = {},
@@ -113,65 +113,5 @@ export namespace boza::rhi
 
         void                        build_resource_maps();
         [[nodiscard]] static size_t get_type_size(ShaderDataType type);
-    };
-
-     class ComputeDispatcher
-    {
-    public:
-        ComputeDispatcher(
-            ShaderModule*                      shader,
-            PipelineLayout*                    layout,
-            const std::vector<DescriptorSet*>& descriptor_sets);
-
-        class ResourceBinding
-        {
-        public:
-            ResourceBinding(ComputeDispatcher* dispatcher, std::string  name)
-                : dispatcher_(dispatcher), name_(std::move(name)) {}
-
-            ResourceBinding& operator=(Texture* texture);
-            ResourceBinding& operator=(Buffer* buffer);
-            ResourceBinding& operator=(std::pair<Texture*, Sampler*> texture_sampler);
-
-        private:
-            ComputeDispatcher* dispatcher_;
-            std::string        name_{};
-        };
-
-        ResourceBinding operator[](const std::string& name) { return { this, name }; }
-
-        template<typename T>
-        bool set_push_constant(CommandBuffer* cmd, const std::string& name, const T& value);
-        void bind_and_dispatch(CommandBuffer* cmd, std::uint32_t group_count_x, std::uint32_t group_count_y = 1, std::uint32_t group_count_z = 1) const;
-        void dispatch_by_size(CommandBuffer* cmd, std::uint32_t width, std::uint32_t height = 1, std::uint32_t depth = 1) const;
-
-        [[nodiscard]] glm::uvec3 work_group_size() const { return work_group_size_; }
-
-    private:
-        friend class ResourceBinding;
-
-        struct ResourceInfo
-        {
-            std::uint32_t  set;
-            std::uint32_t  binding;
-            DescriptorType type;
-            ShaderDataType data_type;
-            std::string    format; // For storage images
-            std::string    access; // For storage images (readonly/writeonly/readwrite)
-        };
-
-        ShaderModule*               shader_;
-        PipelineLayout*             layout_;
-        std::vector<DescriptorSet*> descriptor_sets_;
-        glm::uvec3                  work_group_size_{ 1, 1, 1 };
-
-        std::unordered_map<std::string, ResourceInfo>                 resource_map_;
-        std::unordered_map<std::string, ShaderModule::PushConstant>   push_constant_map_;
-
-        void build_resource_maps();
-        bool update_storage_image(const std::string& name, Texture* texture);
-        bool update_storage_buffer(const std::string& name, Buffer* buffer);
-        bool update_uniform_buffer(const std::string& name, Buffer* buffer);
-        bool update_sampler(const std::string& name, Texture* texture, Sampler* sampler);
     };
 }

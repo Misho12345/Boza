@@ -1,0 +1,492 @@
+module;
+
+#include "api.hpp"
+
+module boza.gfx;
+
+import :material;
+import :texture;
+import :buffer;
+import boza.rhi;
+import boza.core;
+import boza.detail;
+
+namespace boza
+{
+    #ifdef BOZA_DEBUG
+    template<typename T>
+    constexpr rhi::ShaderDataType get_expected_shader_type()
+    {
+        if constexpr (std::is_same_v<T, float>) return rhi::ShaderDataType::Float;
+        else if constexpr (std::is_same_v<T, std::int32_t>) return rhi::ShaderDataType::Int;
+        else if constexpr (std::is_same_v<T, std::uint32_t>) return rhi::ShaderDataType::Uint;
+        else if constexpr (std::is_same_v<T, glm::vec2>) return rhi::ShaderDataType::Vec2;
+        else if constexpr (std::is_same_v<T, glm::vec3>) return rhi::ShaderDataType::Vec3;
+        else if constexpr (std::is_same_v<T, glm::vec4>) return rhi::ShaderDataType::Vec4;
+        else if constexpr (std::is_same_v<T, glm::ivec2>) return rhi::ShaderDataType::IVec2;
+        else if constexpr (std::is_same_v<T, glm::ivec3>) return rhi::ShaderDataType::IVec3;
+        else if constexpr (std::is_same_v<T, glm::ivec4>) return rhi::ShaderDataType::IVec4;
+        else if constexpr (std::is_same_v<T, glm::uvec2>) return rhi::ShaderDataType::UVec2;
+        else if constexpr (std::is_same_v<T, glm::uvec3>) return rhi::ShaderDataType::UVec3;
+        else if constexpr (std::is_same_v<T, glm::uvec4>) return rhi::ShaderDataType::UVec4;
+        else if constexpr (std::is_same_v<T, glm::mat2>) return rhi::ShaderDataType::Mat2;
+        else if constexpr (std::is_same_v<T, glm::mat3>) return rhi::ShaderDataType::Mat3;
+        else if constexpr (std::is_same_v<T, glm::mat4>) return rhi::ShaderDataType::Mat4;
+        else return rhi::ShaderDataType::Unknown;
+    }
+
+    template<typename T>
+    bool validate_property_type(const std::string& name, rhi::ShaderDataType actual_type)
+    {
+        const auto expected = get_expected_shader_type<T>();
+        if (expected != rhi::ShaderDataType::Unknown && expected != actual_type)
+        {
+            Log::warn("Material property '{}' type mismatch: expected {}, got {}",
+                      name, static_cast<int>(expected), static_cast<int>(actual_type));
+            return false;
+        }
+        return true;
+    }
+    #endif
+
+    struct Material::Impl
+    {
+        rhi::GraphicsPipeline*                  pipeline{ nullptr };
+        rhi::PipelineLayout*                    pipeline_layout{ nullptr };
+        std::vector<rhi::DescriptorSetLayout*>  descriptor_set_layouts;
+        rhi::DescriptorReflection*              reflection{ nullptr };
+        std::vector<rhi::DescriptorSet*>        descriptor_sets;
+        std::vector<std::byte>                  push_constant_staging;
+        std::unordered_map<std::uint32_t, bool> dirty_sets;
+
+        std::unordered_map<std::uint32_t, std::vector<std::byte>> uniform_buffer_staging;
+        std::unordered_map<std::uint32_t, rhi::Buffer*>           uniform_buffers;
+    };
+
+    Material::Material() : impl_(std::make_unique<Impl>()) { impl_->push_constant_staging.resize(128); }
+
+    Material::~Material()
+    {
+        if (impl_)
+        {
+            if (impl_->pipeline)
+            {
+                impl_->pipeline->destroy();
+                impl_->pipeline = nullptr;
+            }
+
+            if (impl_->pipeline_layout)
+            {
+                impl_->pipeline_layout->destroy();
+                impl_->pipeline_layout = nullptr;
+            }
+
+            for (auto* layout : impl_->descriptor_set_layouts) { if (layout) { layout->destroy(); } }
+            impl_->descriptor_set_layouts.clear();
+
+            for (auto* desc_set : impl_->descriptor_sets) { if (desc_set) { desc_set->destroy(); } }
+            impl_->descriptor_sets.clear();
+
+            if (impl_->reflection)
+            {
+                delete impl_->reflection;
+                impl_->reflection = nullptr;
+            }
+        }
+    }
+
+    Material* Material::create(const std::string& vertex_shader_name, const std::string& fragment_shader_name)
+    {
+        if (!detail::RenderContext::initialized() || !detail::RenderContext::device())
+        {
+            Log::error("Render context not initialized. Cannot create material.");
+            return nullptr;
+        }
+
+        auto* device          = static_cast<rhi::Device*>(detail::RenderContext::device());
+        auto  api             = static_cast<rhi::GraphicsApi>(detail::RenderContext::api());
+        auto* resource_cache  = static_cast<rhi::ResourceCache*>(detail::RenderContext::resource_cache());
+        auto* descriptor_pool = static_cast<rhi::DescriptorPool*>(detail::RenderContext::descriptor_pool());
+
+        if (!resource_cache)
+        {
+            Log::error("ResourceCache not available in graphics context. Cannot create material.");
+            return nullptr;
+        }
+
+        if (!descriptor_pool)
+        {
+            Log::error("DescriptorPool not available in graphics context. Cannot create material.");
+            return nullptr;
+        }
+
+        const rhi::ShaderModuleDesc vert_desc{
+            .device = device,
+            .filename = vertex_shader_name + ".vert",
+            .stage = rhi::ShaderStage::Vertex
+        };
+
+        const rhi::ShaderModuleDesc frag_desc{
+            .device = device,
+            .filename = fragment_shader_name + ".frag",
+            .stage = rhi::ShaderStage::Fragment
+        };
+
+        const auto vert_shader_shared = resource_cache->get_or_create_shader(
+            vert_desc,
+            [api](const rhi::ShaderModuleDesc& desc) { return rhi::create_shader_module(api, desc); });
+
+        if (!vert_shader_shared)
+        {
+            Log::error("Failed to load vertex shader: {}", vertex_shader_name);
+            return nullptr;
+        }
+
+        const auto frag_shader_shared = resource_cache->get_or_create_shader(
+            frag_desc,
+            [api](const rhi::ShaderModuleDesc& desc) { return rhi::create_shader_module(api, desc); });
+
+        if (!frag_shader_shared)
+        {
+            Log::error("Failed to load fragment shader: {}", fragment_shader_name);
+            return nullptr;
+        }
+
+        rhi::ShaderModule* vert_shader = vert_shader_shared.get();
+        rhi::ShaderModule* frag_shader = frag_shader_shared.get();
+
+        rhi::PipelineBuilder builder(api, device, { vert_shader, frag_shader });
+
+        if (!builder.build_descriptor_set_layouts())
+        {
+            Log::error("Failed to build descriptor set layouts for material");
+            return nullptr;
+        }
+
+        rhi::PipelineLayout* pipeline_layout = builder.build_pipeline_layout();
+        if (!pipeline_layout)
+        {
+            Log::error("Failed to create pipeline layout for material");
+            const auto& layouts = builder.get_descriptor_set_layouts();
+            for (auto* layout : layouts) { if (layout) layout->destroy(); }
+            return nullptr;
+        }
+
+        const auto* swapchain = static_cast<rhi::Swapchain*>(detail::RenderContext::swapchain());
+        if (!swapchain)
+        {
+            Log::error("Swapchain not available in graphics context. Cannot create material.");
+            if (pipeline_layout) pipeline_layout->destroy();
+            const auto& layouts = builder.get_descriptor_set_layouts();
+            for (auto* layout : layouts) { if (layout) layout->destroy(); }
+            return nullptr;
+        }
+
+        rhi::GraphicsPipeline* pipeline = builder.build_graphics_pipeline(swapchain, swapchain->depth_format());
+        if (!pipeline)
+        {
+            Log::error("Failed to create graphics pipeline for material");
+            if (pipeline_layout) pipeline_layout->destroy();
+            const auto& layouts = builder.get_descriptor_set_layouts();
+            for (auto* layout : layouts) { if (layout) layout->destroy(); }
+            return nullptr;
+        }
+
+        const auto&                      descriptor_set_layouts = builder.get_descriptor_set_layouts();
+        std::vector<rhi::DescriptorSet*> descriptor_sets;
+        descriptor_sets.reserve(descriptor_set_layouts.size());
+
+        for (auto* layout : descriptor_set_layouts)
+        {
+            auto* desc_set = descriptor_pool->allocate_descriptor_set(layout);
+            if (!desc_set)
+            {
+                Log::error("Failed to allocate descriptor set for material");
+
+                for (auto* set : descriptor_sets) { if (set) set->destroy(); }
+                if (pipeline) pipeline->destroy();
+                if (pipeline_layout) pipeline_layout->destroy();
+                for (auto* l : descriptor_set_layouts) { if (l) l->destroy(); }
+                return nullptr;
+            }
+            descriptor_sets.push_back(desc_set);
+        }
+
+        auto* material                          = new Material();
+        material->impl_->pipeline               = pipeline;
+        material->impl_->pipeline_layout        = pipeline_layout;
+        material->impl_->descriptor_set_layouts = descriptor_set_layouts;
+        material->impl_->descriptor_sets        = std::move(descriptor_sets);
+
+        auto* reflection = new rhi::DescriptorReflection();
+        reflection->build_from_shaders({ vert_shader, frag_shader });
+        material->impl_->reflection = reflection;
+
+        Log::trace("Material created with shaders: {} and {}", vertex_shader_name, fragment_shader_name);
+        return material;
+    }
+
+    PropertyBinder Material::operator[](const std::string_view name) { return PropertyBinder(this, std::string(name)); }
+
+    void Material::bind()
+    {
+        if (!impl_->pipeline)
+        {
+            Log::error("Cannot bind material: pipeline is null");
+            return;
+        }
+
+        auto* cmd = static_cast<rhi::CommandBuffer*>(detail::RenderContext::current_command_buffer());
+        if (!cmd)
+        {
+            Log::error("Cannot bind material: no active command buffer.");
+            return;
+        }
+
+        cmd->bind_graphics_pipeline(impl_->pipeline);
+
+        if (!impl_->descriptor_sets.empty())
+        {
+            cmd->bind_descriptor_sets(impl_->pipeline_layout, impl_->descriptor_sets, 0);
+        }
+    }
+
+    template<typename T>
+    void Material::push_constants(const std::string& name, const T& value)
+    {
+        if (!impl_->reflection)
+        {
+            Log::error("Cannot push constants: reflection is null");
+            return;
+        }
+
+        const auto binding_info = impl_->reflection->lookup(name);
+        if (!binding_info.has_value())
+        {
+            Log::warn("Material push constant '{}' not found in shader reflection", name);
+            return;
+        }
+
+        const auto& info = binding_info.value();
+        if (!info.is_push_constant)
+        {
+            Log::warn("Material property '{}' is not a push constant", name);
+            return;
+        }
+
+        auto* cmd = static_cast<rhi::CommandBuffer*>(detail::RenderContext::current_command_buffer());
+        if (!cmd)
+        {
+            Log::error("Cannot push constants: no active command buffer");
+            return;
+        }
+
+        cmd->push_constants(
+            impl_->pipeline_layout,
+            rhi::ShaderStage::Vertex,
+            info.offset,
+            sizeof(T),
+            &value);
+    }
+
+    void Material::mark_set_dirty(const std::uint32_t set) { impl_->dirty_sets[set] = true; }
+
+    template<typename T>
+    void Material::update_property(const std::string& name, const T& value)
+    {
+        if (!impl_->reflection)
+        {
+            Log::error("Cannot update property: reflection is null");
+            return;
+        }
+
+        const auto binding_info = impl_->reflection->lookup(name);
+        if (!binding_info.has_value())
+        {
+            Log::warn("Material property '{}' not found in shader reflection", name);
+            return;
+        }
+
+        const auto& info = binding_info.value();
+
+        #ifdef BOZA_DEBUG
+        validate_property_type<T>(name, info.data_type);
+        #endif
+
+        if (info.is_push_constant)
+        {
+            if (info.offset + sizeof(T) <= impl_->push_constant_staging.size())
+            {
+                std::memcpy(impl_->push_constant_staging.data() + info.offset, &value, sizeof(T));
+            }
+            else
+            {
+                Log::error("Push constant '{}' offset {} + size {} exceeds staging buffer size {}",
+                           name, info.offset, sizeof(T), impl_->push_constant_staging.size());
+            }
+        }
+        else
+        {
+            auto& staging = impl_->uniform_buffer_staging[info.set];
+            if (staging.empty()) { staging.resize(4096); }
+
+            if (info.offset + sizeof(T) <= staging.size())
+            {
+                std::memcpy(staging.data() + info.offset, &value, sizeof(T));
+                mark_set_dirty(info.set);
+            }
+            else
+            {
+                Log::error("Uniform buffer property '{}' offset {} + size {} exceeds staging buffer size {}",
+                           name, info.offset, sizeof(T), staging.size());
+            }
+        }
+    }
+
+    void Material::update_texture(const std::string& name, Texture* texture)
+    {
+        if (!impl_->reflection)
+        {
+            Log::error("Cannot update texture: reflection is null");
+            return;
+        }
+
+        const auto binding_info = impl_->reflection->lookup(name);
+        if (!binding_info.has_value())
+        {
+            Log::warn("Material texture property '{}' not found in shader reflection", name);
+            return;
+        }
+
+        const auto& info = binding_info.value();
+
+        if (info.descriptor_type != rhi::DescriptorType::CombinedImageSampler)
+        {
+            Log::warn("Material property '{}' is not a combined image sampler", name);
+            return;
+        }
+
+        if (info.set < impl_->descriptor_sets.size())
+        {
+            rhi::DescriptorWrite write{
+                .binding = info.binding,
+                .array_element = 0,
+                .type = rhi::DescriptorType::CombinedImageSampler,
+                .info = rhi::CombinedImageSampler{
+                    .sampler = texture ? static_cast<rhi::Sampler*>(texture->rhi_sampler_handle()) : nullptr,
+                    .texture = texture ? static_cast<rhi::Texture*>(texture->rhi_handle()) : nullptr
+                }
+            };
+
+            impl_->descriptor_sets[info.set]->update({ write });
+            mark_set_dirty(info.set);
+        }
+    }
+
+    void Material::update_buffer(const std::string& name, Buffer* buffer)
+    {
+        if (!impl_->reflection)
+        {
+            Log::error("Cannot update buffer: reflection is null");
+            return;
+        }
+
+        const auto binding_info = impl_->reflection->lookup(name);
+        if (!binding_info.has_value())
+        {
+            Log::warn("Material buffer property '{}' not found in shader reflection", name);
+            return;
+        }
+
+        const auto& info = binding_info.value();
+
+        if (info.set < impl_->descriptor_sets.size() && buffer)
+        {
+            rhi::DescriptorWrite write{
+                .binding = info.binding,
+                .array_element = 0,
+                .type = info.descriptor_type,
+                .info = info.descriptor_type == rhi::DescriptorType::UniformBuffer
+                            ? rhi::DescriptorInfo(rhi::UniformBuffer{
+                                .buffer = static_cast<rhi::Buffer*>(buffer->rhi_handle()),
+                                .offset = 0,
+                                .range = static_cast<std::uint32_t>(buffer->size)
+                            })
+                            : rhi::DescriptorInfo(rhi::StorageBuffer{
+                                .buffer = static_cast<rhi::Buffer*>(buffer->rhi_handle()),
+                                .offset = 0,
+                                .range = static_cast<std::uint32_t>(buffer->size)
+                            })
+            };
+
+            impl_->descriptor_sets[info.set]->update({ write });
+            mark_set_dirty(info.set);
+        }
+    }
+
+
+    void* Material::rhi_pipeline_handle() const { return impl_->pipeline; }
+
+    void* Material::rhi_pipeline_layout_handle() const
+    {
+        if (!impl_->pipeline) return nullptr;
+        return impl_->pipeline->get_layout();
+    }
+
+    std::size_t Material::descriptor_set_count() const { return impl_->descriptor_sets.size(); }
+
+    void* Material::rhi_descriptor_set_handle(const std::size_t index) const
+    {
+        if (index >= impl_->descriptor_sets.size()) return nullptr;
+        return impl_->descriptor_sets[index];
+    }
+
+
+    PropertyBinder& PropertyBinder::operator=(Texture* texture)
+    {
+        material_->update_texture(name_, texture);
+        return *this;
+    }
+
+    PropertyBinder& PropertyBinder::operator=(Buffer* buffer)
+    {
+        material_->update_buffer(name_, buffer);
+        return *this;
+    }
+
+    template BOZA_API void Material::update_property(const std::string&, const float&);
+    template BOZA_API void Material::update_property(const std::string&, const double&);
+    template BOZA_API void Material::update_property(const std::string&, const std::int32_t&);
+    template BOZA_API void Material::update_property(const std::string&, const std::uint32_t&);
+    template BOZA_API void Material::update_property(const std::string&, const bool&);
+    template BOZA_API void Material::update_property(const std::string&, const glm::vec2&);
+    template BOZA_API void Material::update_property(const std::string&, const glm::vec3&);
+    template BOZA_API void Material::update_property(const std::string&, const glm::vec4&);
+    template BOZA_API void Material::update_property(const std::string&, const glm::ivec2&);
+    template BOZA_API void Material::update_property(const std::string&, const glm::ivec3&);
+    template BOZA_API void Material::update_property(const std::string&, const glm::ivec4&);
+    template BOZA_API void Material::update_property(const std::string&, const glm::uvec2&);
+    template BOZA_API void Material::update_property(const std::string&, const glm::uvec3&);
+    template BOZA_API void Material::update_property(const std::string&, const glm::uvec4&);
+    template BOZA_API void Material::update_property(const std::string&, const glm::mat2&);
+    template BOZA_API void Material::update_property(const std::string&, const glm::mat3&);
+    template BOZA_API void Material::update_property(const std::string&, const glm::mat4&);
+
+    template BOZA_API void Material::push_constants(const std::string&, const float&);
+    template BOZA_API void Material::push_constants(const std::string&, const double&);
+    template BOZA_API void Material::push_constants(const std::string&, const std::int32_t&);
+    template BOZA_API void Material::push_constants(const std::string&, const std::uint32_t&);
+    template BOZA_API void Material::push_constants(const std::string&, const bool&);
+    template BOZA_API void Material::push_constants(const std::string&, const glm::vec2&);
+    template BOZA_API void Material::push_constants(const std::string&, const glm::vec3&);
+    template BOZA_API void Material::push_constants(const std::string&, const glm::vec4&);
+    template BOZA_API void Material::push_constants(const std::string&, const glm::ivec2&);
+    template BOZA_API void Material::push_constants(const std::string&, const glm::ivec3&);
+    template BOZA_API void Material::push_constants(const std::string&, const glm::ivec4&);
+    template BOZA_API void Material::push_constants(const std::string&, const glm::uvec2&);
+    template BOZA_API void Material::push_constants(const std::string&, const glm::uvec3&);
+    template BOZA_API void Material::push_constants(const std::string&, const glm::uvec4&);
+    template BOZA_API void Material::push_constants(const std::string&, const glm::mat2&);
+    template BOZA_API void Material::push_constants(const std::string&, const glm::mat3&);
+    template BOZA_API void Material::push_constants(const std::string&, const glm::mat4&);
+}

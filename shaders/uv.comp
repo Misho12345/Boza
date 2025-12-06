@@ -11,6 +11,7 @@ void main()
     ivec2 size = imageSize(outImage);
     if (gid.x >= size.x || gid.y >= size.y) return;
 
-    //    vec2 uv = (vec2(gid) + vec2(0.5)) / vec2(size);
-    imageStore(outImage, gid, vec4(1.0, 0.0, 0.0, 1.0));
+    vec2 uv = vec2(gid) / vec2(size);
+    vec4 color = vec4(uv.xy, 0.0, 1.0);
+    imageStore(outImage, gid, color);
 }

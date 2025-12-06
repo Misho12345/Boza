@@ -1,10 +1,10 @@
 export module boza.detail:asset_paths;
+
 import std;
+import boza.common;
 
 export namespace boza::detail
 {
-    namespace fs = std::filesystem;
-
     class AssetPaths final
     {
     public:
@@ -23,10 +23,11 @@ export namespace boza::detail
             return materials_dir() / (material_name + ".mat.json");
         }
 
-
         static std::vector<fs::path> all_material_files()
         {
             std::vector<fs::path> files;
+
+            if (!fs::exists(materials_dir())) return files;
 
             for (const auto& entry : fs::directory_iterator(materials_dir()))
             {
@@ -37,5 +38,8 @@ export namespace boza::detail
 
             return files;
         }
+
+    private:
+        static inline fs::path base_dir_{};
     };
 }

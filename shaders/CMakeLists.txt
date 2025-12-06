@@ -66,7 +66,7 @@ if (SHADER_FILES)
                 --out ${OUT_DIR}
                 ${SHADER_FORMAT_ARGS}
                 DEPENDS Tools::ShaderProcessor ${SHADER_PATH}
-                COMMENT "Compiling shader ${SHADER_NAME})"
+                COMMENT "Compiling shader ${SHADER_NAME}"
                 VERBATIM
         )
     endforeach ()

@@ -4,6 +4,7 @@ import std;
 import boza.platform;
 import :graphics_object;
 import :device;
+import :resources;
 
 namespace boza::rhi
 {
@@ -35,7 +36,11 @@ export namespace boza::rhi
         std::uint32_t preferred_image_count{ 3 };
         std::uint32_t max_frames_in_flight{ 2 };
         bool          enable_depth{ false };
-        std::uint32_t depth_format{ 0 }; // VkFormat, 0 = auto-select
+        DepthFormat   depth_format{ DepthFormat::Auto };
+
+        std::array<float, 4> clear_color{ 0.0f, 0.0f, 0.0f, 1.0f };
+        float                clear_depth{ 1.0f };
+        std::uint32_t        clear_stencil{ 0 };
     };
 
     class Swapchain : public GraphicsObject<Swapchain, SwapchainDesc>
@@ -56,7 +61,7 @@ export namespace boza::rhi
         virtual std::uint32_t current_frame() const = 0;
         virtual std::uint32_t current_image_index() const = 0;
         virtual std::uint32_t format() const = 0;
-        virtual std::uint32_t depth_format() const = 0;
+        virtual DepthFormat   depth_format() const = 0;
         virtual std::uint32_t max_frames_in_flight() const = 0;
 
         virtual CommandBuffer* current_command_buffer() = 0;

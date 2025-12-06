@@ -29,7 +29,7 @@ void main() {
     vec3 lightColor = lightUBO.light_color.xyz * lightIntensity;
 
     // Ambient
-    float ambientStrength = 0.1;
+    float ambientStrength = 0.15;
     vec3 ambient = ambientStrength * lightColor;
 
     // Diffuse
@@ -41,15 +41,11 @@ void main() {
     // Specular (using material properties)
     vec3 viewDir = normalize(lightUBO.viewPos.xyz - fragPosWorld);
     vec3 reflectDir = reflect(-lightDir, norm);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0 * (1.0 - material.properties.z));
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0 * (1.0 - material.properties.y));
     vec3 specular = material.properties.z * spec * lightColor;
 
-    // Simple metallic workflow
-    vec3 result = mix(
-        (ambient + diffuse + specular) * albedo,
-        albedo * (diffuse + specular),
-        material.properties.x  // metallic
-    );
+    // Combine lighting
+    vec3 result = (ambient + diffuse + specular) * albedo;
 
-    outColor = vec4(result, material.albedo_color.w * texColor.a);  // alpha
+    outColor = vec4(result, material.albedo_color.w * texColor.a);
 }

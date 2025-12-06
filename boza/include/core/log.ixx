@@ -74,7 +74,7 @@ namespace std
         constexpr auto parse(std::format_parse_context& ctx) -> decltype(ctx.begin())
         {
             auto it  = ctx.begin();
-            auto end = ctx.end();
+            const auto end = ctx.end();
 
             if (it != end && (*it == 'c' || *it == 'a')) presentation = *it++;
             if (it != end && *it != '}') throw std::format_error("invalid format for quaternion");

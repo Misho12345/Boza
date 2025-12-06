@@ -4,11 +4,11 @@ import boza;
 class RotatorBehaviour : public boza::Behaviour
 {
 public:
-    void update(float dt) override
+    void update(const float dt) override
     {
-        auto euler = glm::gtc::eulerAngles(transform->rotation());
+        auto euler = glm::gtc::eulerAngles(transform().rotation());
         euler.y += glm::radians(90.0f) * dt;
-        transform->rotation = glm::quat(euler);
+        transform().rotation(glm::quat(euler));
     }
 };
 
@@ -31,19 +31,19 @@ protected:
     {
         boza::Log::info("Setting up scene...");
 
-        auto scene = create_scene("Main Scene");
+        const auto scene = create_scene("Main Scene");
 
         auto& cube1 = scene->create_game_object("Rotating Cube 1");
-        cube1.transform->position = glm::vec3(0.0f, 0.0f, 5.0f);
-        cube1.transform->scale = glm::vec3(1.0f, 1.0f, 1.0f);
+        cube1.transform().position(glm::vec3(0.0f, 0.0f, 5.0f));
+        cube1.transform().scale(glm::vec3(1.0f, 1.0f, 1.0f));
 
         [[maybe_unused]] auto& rotator = cube1.add_component<RotatorBehaviour>();
 
         boza::Log::info("Created game object: {}", cube1.name);
-        boza::Log::info("Position: {}", cube1.transform->position());
+        boza::Log::info("Position: {}", cube1.transform().position());
 
         auto& cube2 = scene->create_game_object("Static Cube");
-        cube2.transform->position = glm::vec3(3.0f, 0.0f, 5.0f);
+        cube2.transform().position(glm::vec3(3.0f, 0.0f, 5.0f));
         cube2.tag = boza::Tag("Cube");
 
         boza::Log::info("Created game object: {}", cube2.name);

@@ -20,7 +20,7 @@ export namespace boza
         Tag& operator=(const std::string& _name);
         Tag& operator=(std::uint32_t _id);
 
-        PropertyGet<Tag, uint32_t> id{ &Tag::get_id, offsetof(Tag, id) };
+        PropertyGet<Tag, std::uint32_t> id{ &Tag::get_id, offsetof(Tag, id) };
         PropertyGet<Tag, std::string> name{ &Tag::get_name, offsetof(Tag, name) };
 
         bool operator==(const Tag& other) const;

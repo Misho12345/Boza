@@ -5,17 +5,17 @@ import boza.detail;
 
 namespace boza::rhi::vk
 {
-    namespace fs = std::filesystem;
     using detail::AssetPaths;
 
     bool ShaderModule::init()
     {
-        // Log::trace("Creating vulkan shader module");
-
         const fs::path shader_dir = AssetPaths::shaders_dir();
-        const fs::path path = shader_dir / desc.filename;
-        const fs::path spv_path = path / (fs::path(desc.filename).stem().string() + ".spv");
-        const std::vector<uint32_t> spv_data = read_file<uint32_t>(spv_path);
+        const fs::path shader_subdir = shader_dir / desc.filename;
+
+        const fs::path shader_name = fs::path(desc.filename).stem();
+        const fs::path spv_path = shader_subdir / (shader_name.string() + ".spv");
+
+        const std::vector<std::uint32_t> spv_data = read_file<std::uint32_t>(spv_path);
 
         if (spv_data.empty()) return false;
 

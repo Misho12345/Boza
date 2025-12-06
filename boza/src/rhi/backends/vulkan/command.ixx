@@ -13,16 +13,16 @@ export namespace boza::rhi::vk
         bool init() override;
         void destroy() override;
 
-        rhi::CommandBuffer*              allocate_command_buffer(bool is_primary = true) override;
-        std::vector<rhi::CommandBuffer*> allocate_command_buffers(std::uint32_t count, bool is_primary = true) override;
+        CommandBuffer*              allocate_command_buffer(bool is_primary = true) override;
+        std::vector<CommandBuffer*> allocate_command_buffers(std::uint32_t count, bool is_primary = true) override;
 
-        void free_command_buffer(rhi::CommandBuffer* command_buffer) override;
-        void free_command_buffers(const std::vector<rhi::CommandBuffer*>& command_buffers) override;
+        void free_command_buffer(CommandBuffer* command_buffer) override;
+        void free_command_buffers(const std::vector<CommandBuffer*>& command_buffers) override;
 
         bool reset(bool release_resources = false) override;
 
-        rhi::CommandBuffer* begin_single_time_commands() override;
-        bool                end_single_time_commands(rhi::CommandBuffer* command_buffer) override;
+        CommandBuffer* begin_single_time_commands() override;
+        bool                end_single_time_commands(CommandBuffer* command_buffer) override;
 
         [[nodiscard]] VkCommandPool vk_command_pool() const;
 
@@ -59,16 +59,18 @@ export namespace boza::rhi::vk
 
         void dispatch(std::uint32_t group_x, std::uint32_t group_y, std::uint32_t group_z) override;
 
-        void bind_graphics_pipeline(rhi::GraphicsPipeline* pipeline) override;
-        void bind_compute_pipeline(rhi::ComputePipeline* pipeline) override;
+        void bind_graphics_pipeline(GraphicsPipeline* pipeline) override;
+        void bind_compute_pipeline(ComputePipeline* pipeline) override;
 
-        void bind_vertex_buffer(rhi::Buffer* buffer, std::uint32_t binding = 0, std::uint64_t offset = 0) override;
-        void bind_index_buffer(rhi::Buffer* buffer, std::uint64_t offset = 0, bool use_uint16 = false) override;
+        void bind_vertex_buffer(Buffer* buffer, std::uint32_t binding = 0, std::uint64_t offset = 0) override;
+        void bind_index_buffer(Buffer* buffer, std::uint64_t offset = 0, bool use_uint16 = false) override;
 
-        void bind_descriptor_set(rhi::PipelineLayout* layout, rhi::DescriptorSet* set, std::uint32_t set_index) override;
-        void bind_descriptor_sets(rhi::PipelineLayout* layout, const std::vector<rhi::DescriptorSet*>& sets, std::uint32_t first_set) override;
+        void bind_descriptor_set(PipelineLayout* layout, DescriptorSet* set, std::uint32_t set_index) override;
+        void bind_descriptor_sets(PipelineLayout* layout, const std::vector<DescriptorSet*>& sets, std::uint32_t first_set) override;
 
-        void push_constants(rhi::PipelineLayout* layout, rhi::ShaderStage stage, std::uint32_t offset, std::uint32_t size, const void* data) override;
+        void push_constants(PipelineLayout* layout, ShaderStage stage, std::uint32_t offset, std::uint32_t size, const void* data) override;
+
+        void image_barrier(Texture* texture, ResourceState old_state, ResourceState new_state) override;
 
         void pipeline_image_barrier(
             VkImage       image,
@@ -107,13 +109,13 @@ export namespace boza::rhi::vk
         bool submit(const SubmitInfo& submit_info) override;
         bool submit(
             const std::vector<rhi::CommandBuffer*>& command_buffers,
-            rhi::Fence*                                  signal_fence = nullptr) override;
+            Fence*                                  signal_fence = nullptr) override;
 
         PresentResult present(const PresentInfo& present_info) override;
         PresentResult present(
-            rhi::Swapchain* swapchain,
+            Swapchain* swapchain,
             std::uint32_t image_index,
-            const std::vector<rhi::Semaphore*>& wait_semaphores) override;
+            const std::vector<Semaphore*>& wait_semaphores) override;
 
         bool wait_idle() override;
 

@@ -30,13 +30,15 @@ export namespace boza::rhi::vk
         uint32_t current_frame() const override;
         uint32_t current_image_index() const override;
 
-        rhi::CommandBuffer* current_command_buffer() override;
-        rhi::Fence*         current_fence() override;
+        CommandBuffer* current_command_buffer() override;
+        Fence*         current_fence() override;
 
         [[nodiscard]] VkSwapchainKHR vk_swapchain() const;
         [[nodiscard]] uint32_t format() const override { return static_cast<uint32_t>(surface_format_.format); }
-        [[nodiscard]] uint32_t depth_format() const override { return depth_format_; }
+        [[nodiscard]] DepthFormat depth_format() const override { return depth_format_; }
         [[nodiscard]] uint32_t max_frames_in_flight() const override { return desc.max_frames_in_flight; }
+
+        [[nodiscard]] VkFormat vk_depth_format() const { return vk_depth_format_; }
 
     private:
         explicit Swapchain(const SwapchainDesc& desc) : rhi::Swapchain(desc) {}
@@ -79,7 +81,8 @@ export namespace boza::rhi::vk
         VkImage        depth_image_{ VK_NULL_HANDLE };
         VkImageView    depth_image_view_{ VK_NULL_HANDLE };
         VmaAllocation  depth_allocation_{ VK_NULL_HANDLE };
-        uint32_t       depth_format_{ 0 };
+        DepthFormat    depth_format_{ DepthFormat::None };
+        VkFormat       vk_depth_format_{ VK_FORMAT_UNDEFINED };
 
         std::vector<FrameData> frames_;
 

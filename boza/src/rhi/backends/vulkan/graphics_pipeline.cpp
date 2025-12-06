@@ -125,17 +125,17 @@ namespace boza::rhi::vk
             .lineWidth = desc.rasterization.line_width
         };
 
-        constexpr VkPipelineMultisampleStateCreateInfo multisampling
+        const VkPipelineMultisampleStateCreateInfo multisampling
         {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
-            .sampleShadingEnable = false,
-            .minSampleShading = 1.0f,
+            .rasterizationSamples = static_cast<VkSampleCountFlagBits>(desc.multisample.sample_count),
+            .sampleShadingEnable = desc.multisample.sample_shading_enable,
+            .minSampleShading = desc.multisample.min_sample_shading,
             .pSampleMask = nullptr,
-            .alphaToCoverageEnable = false,
-            .alphaToOneEnable = false
+            .alphaToCoverageEnable = desc.multisample.alpha_to_coverage_enable,
+            .alphaToOneEnable = desc.multisample.alpha_to_one_enable
         };
 
         const VkPipelineDepthStencilStateCreateInfo depth_stencil
@@ -215,6 +215,20 @@ namespace boza::rhi::vk
             color_formats.push_back(static_cast<VkFormat>(format));
         }
 
+        auto depth_format_to_vk = [](DepthFormat fmt) -> VkFormat
+        {
+            switch (fmt)
+            {
+                case DepthFormat::D16:    return VK_FORMAT_D16_UNORM;
+                case DepthFormat::D24:    return VK_FORMAT_X8_D24_UNORM_PACK32;
+                case DepthFormat::D32F:   return VK_FORMAT_D32_SFLOAT;
+                case DepthFormat::D16S8:  return VK_FORMAT_D16_UNORM_S8_UINT;
+                case DepthFormat::D24S8:  return VK_FORMAT_D24_UNORM_S8_UINT;
+                case DepthFormat::D32FS8: return VK_FORMAT_D32_SFLOAT_S8_UINT;
+                default:                  return VK_FORMAT_UNDEFINED;
+            }
+        };
+
         VkPipelineRenderingCreateInfo rendering_info
         {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
@@ -222,7 +236,7 @@ namespace boza::rhi::vk
             .viewMask = 0,
             .colorAttachmentCount = static_cast<uint32_t>(color_formats.size()),
             .pColorAttachmentFormats = color_formats.empty() ? nullptr : color_formats.data(),
-            .depthAttachmentFormat = static_cast<VkFormat>(desc.depth_attachment_format),
+            .depthAttachmentFormat = depth_format_to_vk(desc.depth_attachment_format),
             .stencilAttachmentFormat = static_cast<VkFormat>(desc.stencil_attachment_format)
         };
 

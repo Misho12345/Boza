@@ -7,6 +7,8 @@ export import :component;
 export import :behaviour;
 
 export import :transform;
+export import :camera;
+export import :mesh_renderer;
 
 export import :tag;
 export import :layer;

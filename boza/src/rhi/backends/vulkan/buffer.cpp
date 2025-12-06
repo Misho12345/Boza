@@ -72,6 +72,8 @@ namespace boza::rhi::vk
         {
             const auto allocator = reinterpret_cast<Device*>(desc.device)->allocator()->vma_allocator();
             vmaDestroyBuffer(allocator, buffer_, allocation_);
+            buffer_ = nullptr;
+            allocation_ = nullptr;
         }
     }
 

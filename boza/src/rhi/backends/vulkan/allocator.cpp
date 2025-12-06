@@ -78,8 +78,6 @@ namespace boza::rhi::vk
 
             // char* statsString = nullptr;
             // vmaBuildStatsString(vma_allocator_, &statsString, true);
-            // std::string stats{ statsString };
-            // vmaFreeStatsString(vma_allocator_, statsString);
             //
             // if (statsString)
             // {

@@ -8,6 +8,64 @@ import :shader_module;
 
 namespace boza::rhi::vk
 {
+    std::pair<VkImageLayout, VkPipelineStageFlags> state_to_layout_and_stage(const ResourceState state)
+    {
+        switch (state)
+        {
+            case ResourceState::Undefined: return { VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT };
+            case ResourceState::ShaderResource: return {
+                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+                };
+            case ResourceState::UnorderedAccess: return {
+                    VK_IMAGE_LAYOUT_GENERAL,
+                    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+                };
+            case ResourceState::RenderTarget: return {
+                    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                };
+            case ResourceState::DepthStencil: return {
+                    VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                    VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT
+                };
+            case ResourceState::DepthRead: return {
+                    VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+                };
+            case ResourceState::CopySource: return {
+                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    VK_PIPELINE_STAGE_TRANSFER_BIT
+                };
+            case ResourceState::CopyDest: return {
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    VK_PIPELINE_STAGE_TRANSFER_BIT
+                };
+            case ResourceState::Present: return {
+                    VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
+                };
+            default: return { VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT };
+        }
+    }
+
+    VkAccessFlags state_to_access(const ResourceState state)
+    {
+        switch (state)
+        {
+            case ResourceState::Undefined: return VK_ACCESS_NONE;
+            case ResourceState::ShaderResource: return VK_ACCESS_SHADER_READ_BIT;
+            case ResourceState::UnorderedAccess: return VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+            case ResourceState::RenderTarget: return VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            case ResourceState::DepthStencil: return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            case ResourceState::DepthRead: return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+            case ResourceState::CopySource: return VK_ACCESS_TRANSFER_READ_BIT;
+            case ResourceState::CopyDest: return VK_ACCESS_TRANSFER_WRITE_BIT;
+            case ResourceState::Present: return VK_ACCESS_NONE;
+            default: return VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+        }
+    }
+
     bool CommandBuffer::init() { return true; }
     void CommandBuffer::destroy() { vk_command_buffer_ = nullptr; }
 
@@ -20,8 +78,10 @@ namespace boza::rhi::vk
         VkCommandBufferUsageFlags vk_flags{};
 
         if (usage_flags.has(CommandBufferUsage::OneTimeSubmit)) vk_flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-        if (usage_flags.has(CommandBufferUsage::RenderPassContinue)) vk_flags |= VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
-        if (usage_flags.has(CommandBufferUsage::SimultaneousUse)) vk_flags |= VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+        if (usage_flags.has(CommandBufferUsage::RenderPassContinue)) vk_flags |=
+                VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
+        if (usage_flags.has(CommandBufferUsage::SimultaneousUse)) vk_flags |=
+                VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
 
         const VkCommandBufferBeginInfo begin_info
         {
@@ -133,7 +193,7 @@ namespace boza::rhi::vk
             return;
         }
 
-        const auto* vk_layout = reinterpret_cast<vk::PipelineLayout*>(layout);
+        const auto* vk_layout = reinterpret_cast<PipelineLayout*>(layout);
 
         std::vector<VkDescriptorSet> vk_sets;
         vk_sets.reserve(sets.size());
@@ -169,21 +229,47 @@ namespace boza::rhi::vk
     }
 
     void CommandBuffer::push_constants(
-        rhi::PipelineLayout*   layout,
-        const rhi::ShaderStage stage,
-        const uint32_t         offset,
-        const uint32_t         size,
-        const void*            data)
+        rhi::PipelineLayout* layout,
+        const ShaderStage    stage,
+        const uint32_t       offset,
+        const uint32_t       size,
+        const void*          data)
     {
         // Log::trace("Pushing constants: {} bytes at offset {}", size, offset);
-        const auto* vk_layout = reinterpret_cast<vk::PipelineLayout*>(layout);
+        const auto* vk_layout = reinterpret_cast<PipelineLayout*>(layout);
 
         VkShaderStageFlags stage_flags = 0;
-        if (static_cast<uint8_t>(stage) & static_cast<uint8_t>(rhi::ShaderStage::Vertex)) stage_flags |= VK_SHADER_STAGE_VERTEX_BIT;
-        if (static_cast<uint8_t>(stage) & static_cast<uint8_t>(rhi::ShaderStage::Fragment)) stage_flags |= VK_SHADER_STAGE_FRAGMENT_BIT;
-        if (static_cast<uint8_t>(stage) & static_cast<uint8_t>(rhi::ShaderStage::Compute)) stage_flags |= VK_SHADER_STAGE_COMPUTE_BIT;
+        if (static_cast<uint8_t>(stage) & static_cast<uint8_t>(ShaderStage::Vertex)) stage_flags |= VK_SHADER_STAGE_VERTEX_BIT;
+        if (static_cast<uint8_t>(stage) & static_cast<uint8_t>(ShaderStage::Fragment)) stage_flags |= VK_SHADER_STAGE_FRAGMENT_BIT;
+        if (static_cast<uint8_t>(stage) & static_cast<uint8_t>(ShaderStage::Compute)) stage_flags |= VK_SHADER_STAGE_COMPUTE_BIT;
 
         vkCmdPushConstants(vk_command_buffer_, vk_layout->vk_pipeline_layout(), stage_flags, offset, size, data);
+    }
+
+
+    void CommandBuffer::image_barrier(
+        rhi::Texture*       texture,
+        const ResourceState old_state,
+        const ResourceState new_state)
+    {
+        const auto* vk_texture = reinterpret_cast<Texture*>(texture);
+
+        auto [old_layout, src_stage] = state_to_layout_and_stage(old_state);
+        auto [new_layout, dst_stage] = state_to_layout_and_stage(new_state);
+
+        const VkAccessFlags src_access = state_to_access(old_state);
+        const VkAccessFlags dst_access = state_to_access(new_state);
+
+        pipeline_image_barrier(
+            vk_texture->vk_image(),
+            old_layout,
+            new_layout,
+            src_stage,
+            src_access,
+            dst_stage,
+            dst_access,
+            VK_IMAGE_ASPECT_COLOR_BIT,
+            0, 1, 0, 1);
     }
 
 

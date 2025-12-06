@@ -87,10 +87,10 @@ namespace boza::app
     }
 
     float GameLoop::get_target_fps() const { return config_.target_fps; }
-    void GameLoop::set_target_fps(float fps) { config_.target_fps = fps; }
+    void GameLoop::set_target_fps(const float fps) { config_.target_fps = fps; }
 
     float GameLoop::get_fixed_timestep() const { return config_.fixed_timestep; }
-    void GameLoop::set_fixed_timestep(float timestep)
+    void GameLoop::set_fixed_timestep(const float timestep)
     {
         config_.fixed_timestep = timestep;
         Time::set_fixed_delta_time(config_.fixed_timestep);

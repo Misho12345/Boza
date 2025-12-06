@@ -24,7 +24,51 @@ namespace boza::rhi::vk
         {
             case SamplerAddressMode::Repeat: return VK_SAMPLER_ADDRESS_MODE_REPEAT;
             case SamplerAddressMode::ClampToEdge: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            case SamplerAddressMode::ClampToBorder: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
             case SamplerAddressMode::Mirror: return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+        }
+
+        std::unreachable();
+    }
+
+    VkSamplerMipmapMode to_vk(const SamplerMipmapMode mode)
+    {
+        switch (mode)
+        {
+            case SamplerMipmapMode::Nearest: return VK_SAMPLER_MIPMAP_MODE_NEAREST;
+            case SamplerMipmapMode::Linear: return VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        }
+
+        std::unreachable();
+    }
+
+    VkBorderColor to_vk(const BorderColor color)
+    {
+        switch (color)
+        {
+            case BorderColor::FloatTransparentBlack: return VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+            case BorderColor::IntTransparentBlack: return VK_BORDER_COLOR_INT_TRANSPARENT_BLACK;
+            case BorderColor::FloatOpaqueBlack: return VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+            case BorderColor::IntOpaqueBlack: return VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+            case BorderColor::FloatOpaqueWhite: return VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+            case BorderColor::IntOpaqueWhite: return VK_BORDER_COLOR_INT_OPAQUE_WHITE;
+        }
+
+        std::unreachable();
+    }
+
+    VkCompareOp to_vk(const SamplerCompareOp op)
+    {
+        switch (op)
+        {
+            case SamplerCompareOp::Never: return VK_COMPARE_OP_NEVER;
+            case SamplerCompareOp::Less: return VK_COMPARE_OP_LESS;
+            case SamplerCompareOp::Equal: return VK_COMPARE_OP_EQUAL;
+            case SamplerCompareOp::LessOrEqual: return VK_COMPARE_OP_LESS_OR_EQUAL;
+            case SamplerCompareOp::Greater: return VK_COMPARE_OP_GREATER;
+            case SamplerCompareOp::NotEqual: return VK_COMPARE_OP_NOT_EQUAL;
+            case SamplerCompareOp::GreaterOrEqual: return VK_COMPARE_OP_GREATER_OR_EQUAL;
+            case SamplerCompareOp::Always: return VK_COMPARE_OP_ALWAYS;
         }
 
         std::unreachable();
@@ -32,32 +76,35 @@ namespace boza::rhi::vk
 
     bool Sampler::init()
     {
-        // Log::trace("Creating sampler");
-
         const auto vk_device_ptr = reinterpret_cast<Device*>(desc.device);
         const auto vk_device = vk_device_ptr->logical_device();
 
         VkPhysicalDeviceProperties properties{};
         vkGetPhysicalDeviceProperties(vk_device_ptr->physical_device(), &properties);
 
+        const bool anisotropy_enabled = desc.filter == SamplerFilter::Anisotropic;
+        const float max_anisotropy = anisotropy_enabled
+            ? std::min(desc.max_anisotropy, properties.limits.maxSamplerAnisotropy)
+            : 1.0f;
+
         const VkSamplerCreateInfo sampler_create_info
         {
             .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
             .magFilter = to_vk(desc.filter),
             .minFilter = to_vk(desc.filter),
-            .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+            .mipmapMode = to_vk(desc.mipmap_mode),
             .addressModeU = to_vk(desc.address_mode_u),
             .addressModeV = to_vk(desc.address_mode_v),
             .addressModeW = to_vk(desc.address_mode_w),
-            .mipLodBias = 0.0f,
-            .anisotropyEnable = desc.filter == SamplerFilter::Anisotropic,
-            .maxAnisotropy = desc.filter == SamplerFilter::Anisotropic ? properties.limits.maxSamplerAnisotropy : 1.0f,
-            .compareEnable = false,
-            .compareOp = VK_COMPARE_OP_ALWAYS,
-            .minLod = 0.0f,
-            .maxLod = vk_log_clamp_none,
-            .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
-            .unnormalizedCoordinates = false,
+            .mipLodBias = desc.mip_lod_bias,
+            .anisotropyEnable = anisotropy_enabled,
+            .maxAnisotropy = max_anisotropy,
+            .compareEnable = desc.compare_enable,
+            .compareOp = to_vk(desc.compare_op),
+            .minLod = desc.min_lod,
+            .maxLod = desc.max_lod,
+            .borderColor = to_vk(desc.border_color),
+            .unnormalizedCoordinates = desc.unnormalized_coordinates,
         };
 
         if (!vk_check(

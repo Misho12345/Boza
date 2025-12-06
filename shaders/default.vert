@@ -11,18 +11,18 @@ layout(location = 2) out vec3 fragPosWorld;
 layout(set = 0, binding = 0) uniform CameraUBO {
     mat4 view;
     mat4 proj;
-} camera;
+} cam;
 
 layout(push_constant) uniform PushConstants {
     mat4 model;
-} pushConstants;
+} pc;
 
 void main() {
-    vec4 worldPos = pushConstants.model * vec4(inPosition, 1.0);
-    gl_Position = camera.proj * camera.view * worldPos;
+    vec4 worldPos = pc.model * vec4(inPosition, 1.0);
+    gl_Position = cam.proj * cam.view * worldPos;
     fragPosWorld = worldPos.xyz;
 
-    mat3 normalMatrix = transpose(inverse(mat3(pushConstants.model)));
+    mat3 normalMatrix = transpose(inverse(mat3(pc.model)));
     fragNormal = normalize(normalMatrix * inNormal);
 
     fragTexCoord = inTexCoord;

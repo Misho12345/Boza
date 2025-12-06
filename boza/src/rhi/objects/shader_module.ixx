@@ -5,11 +5,6 @@ import boza.common;
 import boza.core;
 import :graphics_object;
 
-namespace boza::rhi
-{
-    namespace fs = std::filesystem;
-}
-
 export namespace boza::rhi
 {
     enum class ShaderStage : std::uint8_t
@@ -63,6 +58,15 @@ export namespace boza::rhi
     class ShaderModule : public GraphicsObject<ShaderModule, ShaderModuleDesc>
     {
     public:
+        struct PushConstantMember
+        {
+            std::string name;
+            std::string type_name;
+            ShaderDataType data_type{ ShaderDataType::Unknown };
+            std::uint32_t offset{ 0 };
+            std::uint32_t size{ 0 };
+        };
+
         struct ShaderResource
         {
             std::uint32_t set{ std::numeric_limits<std::uint32_t>::max() };
@@ -73,15 +77,7 @@ export namespace boza::rhi
             std::uint32_t columns{ 1 };
             std::string type_name;
             ShaderDataType data_type{ ShaderDataType::Unknown };
-        };
-
-        struct PushConstantMember
-        {
-            std::string name;
-            std::string type_name;
-            ShaderDataType data_type{ ShaderDataType::Unknown };
-            std::uint32_t offset{ 0 };
-            std::uint32_t size{ 0 };
+            std::vector<PushConstantMember> members;  // For uniform buffer members
         };
 
         struct PushConstant
@@ -102,6 +98,7 @@ export namespace boza::rhi
             std::unordered_map<std::string, ShaderResource> sampled_images;
             std::unordered_map<std::string, ShaderResource> storage_images;
             std::unordered_map<std::string, PushConstant> push_constants;
+            glm::uvec3 work_group_size{ 1, 1, 1 };
         };
 
         [[nodiscard]] const MetaData& meta_data() const { return meta_data_; }

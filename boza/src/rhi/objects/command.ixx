@@ -144,6 +144,11 @@ export namespace boza::rhi
             std::uint32_t   size,
             const void*     data) = 0;
 
+        virtual void image_barrier(
+            Texture*      texture,
+            ResourceState old_state,
+            ResourceState new_state) = 0;
+
     protected:
         explicit CommandBuffer(const CommandBufferDesc& desc) : desc(desc) {}
 

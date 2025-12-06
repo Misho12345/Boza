@@ -132,6 +132,14 @@ namespace boza::rhi::vk
             vk_descriptor_sets.data());
     }
 
+    void DescriptorPool::recycle_descriptor_set(rhi::DescriptorSet* set)
+    {
+        // Log::trace("Recycling descriptor set");
+
+        // In Vulkan, recycling is effectively the same as freeing back to the pool
+        // The descriptor set can be reused when the pool allocates again
+        free_descriptor_set(set);
+    }
 
     bool DescriptorPool::reset()
     {

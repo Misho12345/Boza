@@ -10,6 +10,8 @@ export namespace boza::rhi::vk
     class PipelineLayout final : public rhi::PipelineLayout
     {
     public:
+        ~PipelineLayout() override { destroy(); }
+
         bool init() override;
         void destroy() override;
 
@@ -24,7 +26,7 @@ export namespace boza::rhi::vk
     private:
         explicit PipelineLayout(const PipelineLayoutDesc& desc) : rhi::PipelineLayout(desc) {}
         VkPipelineLayout vk_pipeline_layout_{ nullptr };
-        std::unordered_map<std::string, rhi::ShaderModule::PushConstant> push_constants_;
+        std::unordered_map<std::string, ShaderModule::PushConstant> push_constants_;
 
         friend GraphicsObject;
     };
@@ -32,6 +34,8 @@ export namespace boza::rhi::vk
     class GraphicsPipeline final : public rhi::GraphicsPipeline
     {
     public:
+        ~GraphicsPipeline() override { destroy(); }
+
         bool init() override;
         void destroy() override;
 
@@ -47,6 +51,8 @@ export namespace boza::rhi::vk
     class ComputePipeline final : public rhi::ComputePipeline
     {
     public:
+        ~ComputePipeline() override { destroy(); }
+
         bool init() override;
         void destroy() override;
 

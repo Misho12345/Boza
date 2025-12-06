@@ -1,14 +1,13 @@
 module boza.rhi.objects;
 
+import std;
 import boza.detail;
+import boza.common;
 import :shader_module;
-import <nlohmann/json.hpp>;
 
 namespace boza::rhi
 {
-    using nlohmann::json;
     using detail::AssetPaths;
-    namespace fs = std::filesystem;
 
     ShaderStage shader_stage_from_string(const std::string& s)
     {
@@ -71,6 +70,22 @@ namespace boza::rhi
                 res.at("type").get_to(resource.type_name);
                 resource.data_type = parse_data_type(resource.type_name);
             }
+
+            // Parse uniform buffer members
+            if (res.contains("members"))
+            {
+                for (const auto& member_json : res["members"])
+                {
+                    ShaderModule::PushConstantMember member;
+                    if (member_json.contains("name")) member_json.at("name").get_to(member.name);
+                    if (member_json.contains("type")) member_json.at("type").get_to(member.type_name);
+                    if (member_json.contains("offset")) member_json.at("offset").get_to(member.offset);
+                    if (member_json.contains("size")) member_json.at("size").get_to(member.size);
+                    member.data_type = parse_data_type(member.type_name);
+                    resource.members.push_back(member);
+                }
+            }
+
             resources[res["name"]] = resource;
         }
     }
@@ -119,12 +134,14 @@ namespace boza::rhi
 
     bool ShaderModule::get_meta_data()
     {
-        const fs::path meta_path =
-                AssetPaths::shaders_dir() /
-                desc.filename /
-                (fs::path(desc.filename).stem().string() + ".meta.json");
+        const fs::path shader_dir = AssetPaths::shaders_dir();
+        const fs::path shader_subdir = shader_dir / desc.filename;
 
-        const std::vector<uint8_t> meta_file_data = read_file<uint8_t>(meta_path);
+        // Extract shader name without extension for the .meta.json file
+        const fs::path shader_name = fs::path(desc.filename).stem();
+        const fs::path meta_path = shader_subdir / (shader_name.string() + ".meta.json");
+
+        const std::vector<std::uint8_t> meta_file_data = read_file<std::uint8_t>(meta_path);
 
         if (meta_file_data.empty()) return false;
 
@@ -144,6 +161,14 @@ namespace boza::rhi
         parse_resources(meta_json, "sampled_images", meta_data_.sampled_images);
         parse_resources(meta_json, "storage_images", meta_data_.storage_images);
         parse_push_constants(meta_json, meta_data_.push_constants);
+
+        if (meta_json.contains("work_group_size"))
+        {
+            const auto& wg = meta_json["work_group_size"];
+            meta_data_.work_group_size.x = wg.value("x", 1);
+            meta_data_.work_group_size.y = wg.value("y", 1);
+            meta_data_.work_group_size.z = wg.value("z", 1);
+        }
 
         return true;
     }

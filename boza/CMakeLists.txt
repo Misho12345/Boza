@@ -20,6 +20,8 @@ target_compile_definitions(boza_engine
         GLM_FORCE_INLINE
         GLM_FORCE_CTOR_INIT
         GLM_FORCE_LEFT_HANDED
+
+        ENTT_STANDARD_CPP
 )
 
 target_include_directories(boza_engine

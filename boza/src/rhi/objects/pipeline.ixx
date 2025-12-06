@@ -170,6 +170,26 @@ export namespace boza::rhi
         std::array<float, 4>              blend_constants{ 0.0f, 0.0f, 0.0f, 0.0f };
     };
 
+    enum class SampleCount : std::uint8_t
+    {
+        Count1  = 1,
+        Count2  = 2,
+        Count4  = 4,
+        Count8  = 8,
+        Count16 = 16,
+        Count32 = 32,
+        Count64 = 64
+    };
+
+    struct MultisampleState
+    {
+        SampleCount sample_count{ SampleCount::Count1 };
+        bool        sample_shading_enable{ false };
+        float       min_sample_shading{ 1.0f };
+        bool        alpha_to_coverage_enable{ false };
+        bool        alpha_to_one_enable{ false };
+    };
+
     struct GraphicsPipelineDesc
     {
         Device* device;
@@ -184,15 +204,19 @@ export namespace boza::rhi
         RasterizationState rasterization;
         DepthStencilState  depth_stencil;
         ColorBlendState    color_blend;
+        MultisampleState   multisample;
 
         // Dynamic rendering format info
         std::vector<std::uint32_t> color_attachment_formats; // VkFormat values
-        std::uint32_t              depth_attachment_format{ 0 };
+        DepthFormat                depth_attachment_format{ DepthFormat::None };
         std::uint32_t              stencil_attachment_format{ 0 };
     };
 
     class GraphicsPipeline : public GraphicsObject<GraphicsPipeline, GraphicsPipelineDesc>
     {
+    public:
+        [[nodiscard]] PipelineLayout* get_layout() const { return desc.layout; }
+
     protected:
         explicit GraphicsPipeline(const GraphicsPipelineDesc& desc) : GraphicsObject(desc) {}
     };
@@ -210,6 +234,9 @@ export namespace boza::rhi
 
     class ComputePipeline : public GraphicsObject<ComputePipeline, ComputePipelineDesc>
     {
+    public:
+        [[nodiscard]] PipelineLayout* get_layout() const { return desc.layout; }
+
     protected:
         explicit ComputePipeline(const ComputePipelineDesc& desc) : GraphicsObject(desc) {}
     };

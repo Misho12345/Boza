@@ -30,13 +30,15 @@ export namespace boza::rhi::vk
         bool init() override;
         void destroy() override;
 
-        rhi::DescriptorSet*              allocate_descriptor_set(rhi::DescriptorSetLayout* layout) override;
-        std::vector<rhi::DescriptorSet*> allocate_descriptor_sets(
+        DescriptorSet*              allocate_descriptor_set(rhi::DescriptorSetLayout* layout) override;
+        std::vector<DescriptorSet*> allocate_descriptor_sets(
             uint32_t                                      count,
             const std::vector<rhi::DescriptorSetLayout*>& layouts) override;
 
-        void free_descriptor_set(rhi::DescriptorSet* set) override;
-        void free_descriptor_sets(const std::vector<rhi::DescriptorSet*>& sets) override;
+        void free_descriptor_set(DescriptorSet* set) override;
+        void free_descriptor_sets(const std::vector<DescriptorSet*>& sets) override;
+
+        void recycle_descriptor_set(DescriptorSet* set) override;
 
         bool reset() override;
 
@@ -53,6 +55,8 @@ export namespace boza::rhi::vk
     class DescriptorSet final : public rhi::DescriptorSet
     {
     public:
+        ~DescriptorSet() override { destroy(); }
+
         bool init() override;
         void destroy() override;
 

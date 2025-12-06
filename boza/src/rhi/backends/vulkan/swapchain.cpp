@@ -236,8 +236,17 @@ namespace boza::rhi::vk
 
         image_layouts_[image_idx] = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-        constexpr VkClearValue clear_color{ .color = { 0.1f, 0.2f, 0.3f, 1.0f } };
-        constexpr VkClearValue clear_depth{ .depthStencil = { 1.0f, 0 } };
+        const VkClearValue clear_color
+        {
+            .color = {
+                desc.clear_color[0],
+                desc.clear_color[1],
+                desc.clear_color[2],
+                desc.clear_color[3]
+            }
+        };
+
+        const VkClearValue clear_depth{ .depthStencil = { desc.clear_depth, desc.clear_stencil } };
 
         const VkRenderingAttachmentInfo color_attachment
         {
@@ -375,6 +384,9 @@ namespace boza::rhi::vk
         image_views_.clear();
         images_.clear();
         image_layouts_.clear();
+
+        // Destroy old depth resources before creating new ones
+        destroy_depth_resources();
 
         // std::vector<VkCommandBuffer> command_buffers;
         // command_buffers.reserve(desc.max_frames_in_flight);
@@ -700,15 +712,45 @@ namespace boza::rhi::vk
         // If depth is not enabled, skip depth resource creation
         if (!desc.enable_depth)
         {
-            depth_format_ = 0;
+            depth_format_ = DepthFormat::None;
+            vk_depth_format_ = VK_FORMAT_UNDEFINED;
             return true;
         }
 
         const Device* device = reinterpret_cast<Device*>(desc.device);
         const VkDevice vk_device = device->logical_device();
 
+        // Convert DepthFormat to VkFormat
+        auto depth_format_to_vk = [](DepthFormat fmt) -> VkFormat
+        {
+            switch (fmt)
+            {
+                case DepthFormat::D16:    return VK_FORMAT_D16_UNORM;
+                case DepthFormat::D24:    return VK_FORMAT_X8_D24_UNORM_PACK32;
+                case DepthFormat::D32F:   return VK_FORMAT_D32_SFLOAT;
+                case DepthFormat::D16S8:  return VK_FORMAT_D16_UNORM_S8_UINT;
+                case DepthFormat::D24S8:  return VK_FORMAT_D24_UNORM_S8_UINT;
+                case DepthFormat::D32FS8: return VK_FORMAT_D32_SFLOAT_S8_UINT;
+                default:                  return VK_FORMAT_UNDEFINED;
+            }
+        };
+
+        auto vk_format_to_depth = [](VkFormat fmt) -> DepthFormat
+        {
+            switch (fmt)
+            {
+                case VK_FORMAT_D16_UNORM:          return DepthFormat::D16;
+                case VK_FORMAT_X8_D24_UNORM_PACK32:return DepthFormat::D24;
+                case VK_FORMAT_D32_SFLOAT:         return DepthFormat::D32F;
+                case VK_FORMAT_D16_UNORM_S8_UINT:  return DepthFormat::D16S8;
+                case VK_FORMAT_D24_UNORM_S8_UINT:  return DepthFormat::D24S8;
+                case VK_FORMAT_D32_SFLOAT_S8_UINT: return DepthFormat::D32FS8;
+                default:                           return DepthFormat::None;
+            }
+        };
+
         // Choose depth format (auto-select if not specified)
-        if (desc.depth_format == 0)
+        if (desc.depth_format == DepthFormat::Auto || desc.depth_format == DepthFormat::None)
         {
             // Try to find a supported depth format
             const std::array candidates = { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT };
@@ -720,18 +762,23 @@ namespace boza::rhi::vk
 
                 if (props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
                 {
-                    depth_format_ = format;
+                    vk_depth_format_ = format;
+                    depth_format_ = vk_format_to_depth(format);
                     break;
                 }
             }
 
-            if (depth_format_ == 0)
+            if (vk_depth_format_ == VK_FORMAT_UNDEFINED)
             {
                 Log::error("Failed to find supported depth format");
                 return false;
             }
         }
-        else depth_format_ = desc.depth_format;
+        else
+        {
+            vk_depth_format_ = depth_format_to_vk(desc.depth_format);
+            depth_format_ = desc.depth_format;
+        }
 
         // Create depth image
         const VkImageCreateInfo image_info
@@ -740,7 +787,7 @@ namespace boza::rhi::vk
             .pNext = nullptr,
             .flags = 0,
             .imageType = VK_IMAGE_TYPE_2D,
-            .format = static_cast<VkFormat>(depth_format_),
+            .format = vk_depth_format_,
             .extent = { extent_.width, extent_.height, 1 },
             .mipLevels = 1,
             .arrayLayers = 1,
@@ -778,7 +825,7 @@ namespace boza::rhi::vk
             .flags = 0,
             .image = depth_image_,
             .viewType = VK_IMAGE_VIEW_TYPE_2D,
-            .format = static_cast<VkFormat>(depth_format_),
+            .format = vk_depth_format_,
             .components = {},
             .subresourceRange = {
                 .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
@@ -824,6 +871,7 @@ namespace boza::rhi::vk
             depth_allocation_ = nullptr;
         }
 
-        depth_format_ = 0;
+        depth_format_ = DepthFormat::None;
+        vk_depth_format_ = VK_FORMAT_UNDEFINED;
     }
 }

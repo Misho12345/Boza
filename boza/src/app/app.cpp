@@ -42,9 +42,7 @@ namespace boza
 
     bool App::init()
     {
-        const std::string settings_path = AssetPaths::resolve_asset("game_settings.json").string();
-
-        if (!GameSettings::load_from_file(settings_path))
+        if (!GameSettings::load_from_file(AssetPaths::resolve_asset("game_settings.json").string()))
         {
             Log::warn("Could not load game settings from file, using defaults");
         }
@@ -64,7 +62,7 @@ namespace boza
 
         on_setup_scene();
 
-        if (!impl_->active_scene) active_scene = create_scene("Default Scene");
+        if (!impl_->active_scene) impl_->active_scene = create_scene("Default Scene");
 
         impl_->rendering_system = std::make_unique<RenderingSystem>();
         if (!impl_->rendering_system->init(*impl_->window, impl_->active_scene))
@@ -72,8 +70,6 @@ namespace boza
             Log::error("Failed to initialize rendering system");
             return false;
         }
-
-        // if (impl_->active_scene) impl_->active_scene->set_system_provider(impl_->rendering_system.get());
 
         GameLoopConfig loop_config
         {
@@ -84,21 +80,27 @@ namespace boza
 
         impl_->game_loop = std::make_unique<GameLoop>(loop_config);
 
-        if (impl_->active_scene) { impl_->game_loop->active_scene = impl_->active_scene; }
+        if (impl_->active_scene) { impl_->game_loop->set_active_scene(impl_->active_scene); }
 
-        impl_->game_loop->on_render    = [this] { impl_->rendering_system->run(); };
-        impl_->game_loop->should_close = [this] { return impl_->window->should_close(); };
+        impl_->game_loop->set_on_render([this] { impl_->rendering_system->run(); });
+        impl_->game_loop->set_should_close([this] { return impl_->window->should_close(); });
 
         return true;
     }
 
     void App::run() const
     {
+        if (!impl_->game_loop)
+        {
+            Log::critical("App::run() called before App::init(). Please call init() first.");
+            return;
+        }
+
         Log::trace("Starting application...");
 
         impl_->game_loop->start();
 
-        while (!impl_->window->should_close() && impl_->game_loop->running)
+        while (!impl_->window->should_close() && impl_->game_loop->is_running())
         {
             using namespace std::chrono_literals;
             impl_->window->poll_events();
@@ -119,7 +121,7 @@ namespace boza
     void App::set_active_scene(const std::shared_ptr<Scene>& scene)
     {
         impl_->active_scene = scene;
-        if (impl_->game_loop) impl_->game_loop->active_scene = scene;
+        if (impl_->game_loop) impl_->game_loop->set_active_scene(scene);
 
         if (impl_->rendering_system)
         {
@@ -132,17 +134,16 @@ namespace boza
     std::shared_ptr<Scene> App::create_scene(const std::string& name)
     {
         auto scene = std::make_shared<Scene>(name);
-        // if (impl_->rendering_system) scene->set_system_provider(impl_->rendering_system.get());
         return scene;
     }
 
     void App::set_target_fps(const float fps)
     {
-        if (impl_->game_loop) impl_->game_loop->target_fps = fps;
+        if (impl_->game_loop) impl_->game_loop->set_target_fps(fps);
     }
 
     void App::set_fixed_timestep(const float timestep)
     {
-        if (impl_->game_loop) impl_->game_loop->fixed_timestep = timestep;
+        if (impl_->game_loop) impl_->game_loop->set_fixed_timestep(timestep);
     }
 }

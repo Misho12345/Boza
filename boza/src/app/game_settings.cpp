@@ -1,26 +1,25 @@
 module boza.app;
+
 import :game_settings;
 
+import std;
+import boza.common;
 import boza.core;
 import boza.detail;
-
-import <nlohmann/json.hpp>;
 
 namespace boza::app
 {
     using detail::TagManager;
     using detail::LayerManager;
 
-    using nlohmann::json;
-
-    bool GameSettings::load_from_file(const std::string& filepath)
+    bool GameSettings::load_from_file(const fs::path& filepath)
     {
         try
         {
             std::ifstream file(filepath);
             if (!file.is_open())
             {
-                Log::error("Failed to open game settings file: {}", filepath);
+                Log::error("Failed to open game settings file: {}", filepath.string());
                 load_defaults();
                 return false;
             }

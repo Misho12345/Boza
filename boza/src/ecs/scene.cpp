@@ -7,11 +7,11 @@ import :behaviour;
 
 namespace boza
 {
-    Scene::Scene(const std::string& name) : name_(name) {}
+    Scene::Scene(const std::string& scene_name) : name_(scene_name) {}
 
     Scene::~Scene() { on_destroy(); }
 
-    GameObject& Scene::create_game_object(const std::string& name)
+    GameObject& Scene::create_game_object(const std::string& object_name)
     {
         entt::entity entity = registry_.create();
 
@@ -23,7 +23,7 @@ namespace boza
         GameObject& game_object = it->second;
 
         game_object.transform_ = &game_object.add_component<Transform>();
-        game_object.name = name;
+        game_object.name = object_name;
 
         return game_object;
     }
@@ -43,7 +43,7 @@ namespace boza
         for (auto& [entity, behaviour] : behaviours_)
         {
             if (is_entity_valid(entity) && behaviour->enabled)
-                behaviour-> awake();
+                behaviour->awake();
         }
     }
 
@@ -86,7 +86,8 @@ namespace boza
     {
         for (auto& [entity, behaviour] : behaviours_)
         {
-            if (is_entity_valid(entity) && behaviour->enabled) behaviour->late_update(dt);
+            if (is_entity_valid(entity) && behaviour->enabled)
+                behaviour->late_update(dt);
         }
     }
 
@@ -113,11 +114,11 @@ namespace boza
         game_objects_.clear();
     }
 
-    GameObject* Scene::find_game_object_by_name(const std::string& name) const
+    GameObject* Scene::find_game_object_by_name(const std::string& object_name) const
     {
         for (const auto& game_object : game_objects_ | std::views::values)
         {
-            if (game_object.is_valid() && game_object.name == name)
+            if (game_object.is_valid() && game_object.name == object_name)
                 return const_cast<GameObject*>(&game_object);
         }
 
@@ -137,7 +138,25 @@ namespace boza
         return game_objects;
     }
 
-    const std::string& Scene::name() const { return name_; }
+    std::vector<GameObject*> Scene::get_all_game_objects() const
+    {
+        std::vector<GameObject*> game_objects;
+        game_objects.reserve(game_objects_.size());
+
+        for (const auto& game_object : game_objects_ | std::views::values)
+        {
+            if (game_object.is_valid())
+                game_objects.push_back(const_cast<GameObject*>(&game_object));
+        }
+
+        return game_objects;
+    }
+
+    void Scene::set_primary_camera(GameObject* game_object)
+    {
+        primary_camera_ = game_object;
+    }
+
 
     entt::registry& Scene::get_world() { return registry_; }
 

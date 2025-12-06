@@ -3,13 +3,10 @@ module boza.rhi;
 import boza.core;
 import boza.detail;
 import :pipeline_builder;
-import <nlohmann/json.hpp>;
 
 namespace boza::rhi
 {
-    using nlohmann::json;
     using detail::AssetPaths;
-    namespace fs = std::filesystem;
 
      /// ----------------------------
     /// ===== Pipeline Builder =====
@@ -193,7 +190,7 @@ namespace boza::rhi
 
     GraphicsPipeline* PipelineBuilder::build_graphics_pipeline(
         const std::vector<std::uint32_t>& color_attachment_formats,
-        const std::uint32_t               depth_attachment_format,
+        const DepthFormat                 depth_attachment_format,
         const RasterizationState&    rasterization,
         const DepthStencilState&     depth_stencil,
         const ColorBlendState&       color_blend,
@@ -203,6 +200,18 @@ namespace boza::rhi
         {
             Log::error("Pipeline layout not created. Call build_pipeline_layout() first.");
             return nullptr;
+        }
+
+        ColorBlendState adjusted_color_blend = color_blend;
+        if (adjusted_color_blend.attachments.empty() && !color_attachment_formats.empty())
+        {
+            adjusted_color_blend.attachments.resize(color_attachment_formats.size());
+        }
+        else if (adjusted_color_blend.attachments.size() != color_attachment_formats.size())
+        {
+            Log::warn("Color blend attachment count ({}) doesn't match color attachment format count ({}). Adjusting...",
+                adjusted_color_blend.attachments.size(), color_attachment_formats.size());
+            adjusted_color_blend.attachments.resize(color_attachment_formats.size());
         }
 
         std::vector<VertexInputBinding>   bindings;
@@ -256,7 +265,7 @@ namespace boza::rhi
                 .attributes = attributes,
                 .rasterization = rasterization,
                 .depth_stencil = depth_stencil,
-                .color_blend = color_blend,
+                .color_blend = adjusted_color_blend,
                 .color_attachment_formats = color_attachment_formats,
                 .depth_attachment_format = depth_attachment_format,
                 .stencil_attachment_format = 0
@@ -274,7 +283,7 @@ namespace boza::rhi
 
     GraphicsPipeline* PipelineBuilder::build_graphics_pipeline(
         const Swapchain*          swapchain,
-        const std::uint32_t            depth_attachment_format,
+        const DepthFormat         depth_attachment_format,
         const RasterizationState& rasterization,
         const DepthStencilState&  depth_stencil,
         const ColorBlendState&    color_blend,
@@ -611,355 +620,5 @@ namespace boza::rhi
             case ShaderDataType::Mat4: return 64;
             default: return 0;
         }
-    }
-
-    // -------------------------------
-    // ===== Compute Dispatcher ======
-    // -------------------------------
-
-    ComputeDispatcher::ComputeDispatcher(
-        ShaderModule*                      shader,
-        PipelineLayout*                    layout,
-        const std::vector<DescriptorSet*>& descriptor_sets)
-        : shader_(shader),
-          layout_(layout),
-          descriptor_sets_(descriptor_sets)
-    {
-        build_resource_maps();
-    }
-
-    void ComputeDispatcher::build_resource_maps()
-    {
-        const auto& metadata = shader_->meta_data();
-
-        const fs::path shader_dir = AssetPaths::shaders_dir();
-        const fs::path shader_filename = shader_->filename();
-        const fs::path shader_stem = shader_filename.stem();
-        const fs::path meta_file = shader_dir / shader_filename / (shader_stem.string() + ".meta.json");
-
-        if (fs::exists(meta_file))
-        {
-            std::ifstream file(meta_file);
-            if (file.is_open())
-            {
-                json meta_json;
-                file >> meta_json;
-
-                if (meta_json.contains("work_group_size"))
-                {
-                    const auto& wg = meta_json["work_group_size"];
-                    work_group_size_.x = wg.value("x", 1);
-                    work_group_size_.y = wg.value("y", 1);
-                    work_group_size_.z = wg.value("z", 1);
-                }
-            }
-        }
-
-        // Build resource maps
-        for (const auto& [name, pc] : metadata.push_constants)
-        {
-            push_constant_map_[name] = pc;
-        }
-
-        for (const auto& [name, resource] : metadata.uniform_buffers)
-        {
-            resource_map_[name] = {
-                .set = resource.set,
-                .binding = resource.binding,
-                .type = DescriptorType::UniformBuffer,
-                .data_type = resource.data_type
-            };
-        }
-
-        for (const auto& [name, resource] : metadata.storage_buffers)
-        {
-            resource_map_[name] = {
-                .set = resource.set,
-                .binding = resource.binding,
-                .type = DescriptorType::StorageBuffer,
-                .data_type = resource.data_type
-            };
-        }
-
-        for (const auto& [name, resource] : metadata.sampled_images)
-        {
-            resource_map_[name] = {
-                .set = resource.set,
-                .binding = resource.binding,
-                .type = DescriptorType::CombinedImageSampler,
-                .data_type = resource.data_type
-            };
-        }
-
-        for (const auto& [name, resource] : metadata.storage_images)
-        {
-            // Extract format and access from the metadata JSON file
-            std::string format = "unknown";
-            std::string access = "readwrite";
-
-            if (fs::exists(meta_file))
-            {
-                std::ifstream file(meta_file);
-                if (file.is_open())
-                {
-                    json meta_json;
-                    file >> meta_json;
-
-                    if (meta_json.contains("storage_images"))
-                    {
-                        for (const auto& img : meta_json["storage_images"])
-                        {
-                            if (img.value("name", "") == name)
-                            {
-                                format = img.value("format", "unknown");
-                                access = img.value("access", "readwrite");
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-            resource_map_[name] = {
-                .set = resource.set,
-                .binding = resource.binding,
-                .type = DescriptorType::StorageImage,
-                .data_type = resource.data_type,
-                .format = format,
-                .access = access
-            };
-        }
-    }
-
-    ComputeDispatcher::ResourceBinding& ComputeDispatcher::ResourceBinding::operator=(Texture* texture)
-    {
-        if (!dispatcher_->resource_map_.contains(name_))
-        {
-            Log::error("Resource '{}' not found in compute shader", name_);
-            return *this;
-        }
-
-        const auto& info = dispatcher_->resource_map_[name_];
-
-        if (info.type == DescriptorType::StorageImage) dispatcher_->update_storage_image(name_, texture);
-        else Log::error("Resource '{}' is not a storage image", name_);
-
-        return *this;
-    }
-
-    ComputeDispatcher::ResourceBinding& ComputeDispatcher::ResourceBinding::operator=(Buffer* buffer)
-    {
-        if (!dispatcher_->resource_map_.contains(name_))
-        {
-            Log::error("Resource '{}' not found in compute shader", name_);
-            return *this;
-        }
-
-        const auto& info = dispatcher_->resource_map_[name_];
-
-        if (info.type == DescriptorType::UniformBuffer) dispatcher_->update_uniform_buffer(name_, buffer);
-        else if (info.type == DescriptorType::StorageBuffer)  dispatcher_->update_storage_buffer(name_, buffer);
-        else Log::error("Resource '{}' is not a buffer", name_);
-
-        return *this;
-    }
-
-    ComputeDispatcher::ResourceBinding& ComputeDispatcher::ResourceBinding::operator=(std::pair<Texture*, Sampler*> texture_sampler)
-    {
-        if (!dispatcher_->resource_map_.contains(name_))
-        {
-            Log::error("Resource '{}' not found in compute shader", name_);
-            return *this;
-        }
-
-        const auto& info = dispatcher_->resource_map_[name_];
-
-        if (info.type == DescriptorType::CombinedImageSampler)
-        {
-            dispatcher_->update_sampler(name_, texture_sampler.first, texture_sampler.second);
-        }
-        else Log::error("Resource '{}' is not a combined image sampler", name_);
-
-        return *this;
-    }
-
-    bool ComputeDispatcher::update_storage_image(const std::string& name, Texture* texture)
-    {
-        if (!resource_map_.contains(name))
-        {
-            Log::error("Storage image '{}' not found in shader", name);
-            return false;
-        }
-
-        const auto& info = resource_map_[name];
-        if (info.type != DescriptorType::StorageImage)
-        {
-            Log::error("Resource '{}' is not a storage image", name);
-            return false;
-        }
-
-        if (info.set >= descriptor_sets_.size())
-        {
-            Log::error("Descriptor set {} not allocated for resource '{}'", info.set, name);
-            return false;
-        }
-
-        descriptor_sets_[info.set]->update({
-            DescriptorWrite{
-                .binding = info.binding,
-                .array_element = 0,
-                .type = DescriptorType::StorageImage,
-                .info = StorageImage{ texture }
-            }
-        });
-
-        return true;
-    }
-
-    bool ComputeDispatcher::update_storage_buffer(const std::string& name, Buffer* buffer)
-    {
-        if (!resource_map_.contains(name))
-        {
-            Log::error("Storage buffer '{}' not found in shader", name);
-            return false;
-        }
-
-        const auto& info = resource_map_[name];
-        if (info.type != DescriptorType::StorageBuffer)
-        {
-            Log::error("Resource '{}' is not a storage buffer", name);
-            return false;
-        }
-
-        if (info.set >= descriptor_sets_.size())
-        {
-            Log::error("Descriptor set {} not allocated for resource '{}'", info.set, name);
-            return false;
-        }
-
-        descriptor_sets_[info.set]->update({
-            DescriptorWrite{
-                .binding = info.binding,
-                .array_element = 0,
-                .type = DescriptorType::StorageBuffer,
-                .info = StorageBuffer{ buffer, 0, static_cast<uint32_t>(buffer->size()) }
-            }
-        });
-
-        return true;
-    }
-
-    bool ComputeDispatcher::update_uniform_buffer(const std::string& name, Buffer* buffer)
-    {
-        if (!resource_map_.contains(name))
-        {
-            Log::error("Uniform buffer '{}' not found in shader", name);
-            return false;
-        }
-
-        const auto& info = resource_map_[name];
-        if (info.type != DescriptorType::UniformBuffer)
-        {
-            Log::error("Resource '{}' is not a uniform buffer", name);
-            return false;
-        }
-
-        if (info.set >= descriptor_sets_.size())
-        {
-            Log::error("Descriptor set {} not allocated for resource '{}'", info.set, name);
-            return false;
-        }
-
-        descriptor_sets_[info.set]->update({
-            DescriptorWrite{
-                .binding = info.binding,
-                .array_element = 0,
-                .type = DescriptorType::UniformBuffer,
-                .info = UniformBuffer{ buffer, 0, static_cast<uint32_t>(buffer->size()) }
-            }
-        });
-
-        return true;
-    }
-
-    bool ComputeDispatcher::update_sampler(const std::string& name, Texture* texture, Sampler* sampler)
-    {
-        if (!resource_map_.contains(name))
-        {
-            Log::error("Sampler '{}' not found in shader", name);
-            return false;
-        }
-
-        const auto& info = resource_map_[name];
-        if (info.type != DescriptorType::CombinedImageSampler)
-        {
-            Log::error("Resource '{}' is not a combined image sampler", name);
-            return false;
-        }
-
-        if (info.set >= descriptor_sets_.size())
-        {
-            Log::error("Descriptor set {} not allocated for resource '{}'", info.set, name);
-            return false;
-        }
-
-        descriptor_sets_[info.set]->update({
-            DescriptorWrite{
-                .binding = info.binding,
-                .array_element = 0,
-                .type = DescriptorType::CombinedImageSampler,
-                .info = CombinedImageSampler{ sampler, texture }
-            }
-        });
-
-        return true;
-    }
-
-    template<typename T>
-    bool ComputeDispatcher::set_push_constant(CommandBuffer* cmd, const std::string& name, const T& value)
-    {
-        for (const auto& pc : push_constant_map_ | std::views::values)
-        {
-            for (const auto& member : pc.members)
-            {
-                if (member.name == name)
-                {
-                    if (sizeof(T) != member.size)
-                    {
-                        Log::error("Push constant '{}' size mismatch: expected {}, got {}", name, member.size, sizeof(T));
-                        return false;
-                    }
-
-                    cmd->push_constants(layout_, pc.stage, member.offset, sizeof(T), &value);
-                    return true;
-                }
-            }
-        }
-
-        Log::error("Push constant '{}' not found in compute shader", name);
-        return false;
-    }
-
-    template bool ComputeDispatcher::set_push_constant<float>(CommandBuffer*, const std::string&, const float&);
-    template bool ComputeDispatcher::set_push_constant<int>(CommandBuffer*, const std::string&, const int&);
-    template bool ComputeDispatcher::set_push_constant<uint32_t>(CommandBuffer*, const std::string&, const uint32_t&);
-    template bool ComputeDispatcher::set_push_constant<glm::vec2>(CommandBuffer*, const std::string&, const glm::vec2&);
-    template bool ComputeDispatcher::set_push_constant<glm::vec3>(CommandBuffer*, const std::string&, const glm::vec3&);
-    template bool ComputeDispatcher::set_push_constant<glm::vec4>(CommandBuffer*, const std::string&, const glm::vec4&);
-    template bool ComputeDispatcher::set_push_constant<glm::mat4>(CommandBuffer*, const std::string&, const glm::mat4&);
-
-    void ComputeDispatcher::bind_and_dispatch(CommandBuffer* cmd, const uint32_t group_count_x, const uint32_t group_count_y, const uint32_t group_count_z) const
-    {
-        if (!descriptor_sets_.empty()) cmd->bind_descriptor_sets(layout_, descriptor_sets_, 0);
-        cmd->dispatch(group_count_x, group_count_y, group_count_z);
-    }
-
-    void ComputeDispatcher::dispatch_by_size(CommandBuffer* cmd, const uint32_t width, const uint32_t height, const uint32_t depth) const
-    {
-        const uint32_t group_count_x = (width + work_group_size_.x - 1) / work_group_size_.x;
-        const uint32_t group_count_y = (height + work_group_size_.y - 1) / work_group_size_.y;
-        const uint32_t group_count_z = (depth + work_group_size_.z - 1) / work_group_size_.z;
-
-        bind_and_dispatch(cmd, group_count_x, group_count_y, group_count_z);
     }
 }

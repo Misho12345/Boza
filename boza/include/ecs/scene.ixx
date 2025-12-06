@@ -1,10 +1,12 @@
 module;
 
+#include <cstddef>
 #include "api.hpp"
 
 export module boza.ecs:scene;
 
 import std;
+import boza.common;
 import <entt/entt.hpp>;
 
 export namespace boza
@@ -12,13 +14,18 @@ export namespace boza
     class GameObject;
     class Behaviour;
 
+    namespace app
+    {
+        class RenderingSystem;
+    }
+
     class BOZA_API Scene final
     {
     public:
-        explicit Scene(const std::string& name = "Untitled Scene");
+        explicit Scene(const std::string& scene_name = "Untitled Scene");
         ~Scene();
 
-        GameObject& create_game_object(const std::string& name = "GameObject");
+        GameObject& create_game_object(const std::string& object_name = "GameObject");
         void        destroy_game_object(const GameObject& game_object);
 
         void on_awake();
@@ -30,10 +37,24 @@ export namespace boza
 
         void on_destroy();
 
-        [[nodiscard]] GameObject*              find_game_object_by_name(const std::string& name) const;
+        [[nodiscard]] GameObject*              find_game_object_by_name(const std::string& object_name) const;
         [[nodiscard]] std::vector<GameObject*> find_game_objects_by_tag(const std::string& tag) const;
+        [[nodiscard]] std::vector<GameObject*> get_all_game_objects() const;
 
-        [[nodiscard]] const std::string& name() const;
+        void set_primary_camera(GameObject* game_object);
+        [[nodiscard]] GameObject* get_primary_camera() const { return primary_camera_; }
+
+        PropertyGet<Scene, const std::string&> name{ &Scene::get_name, offsetof(Scene, name) };
+
+        template<typename T>
+        void reserve_component(std::size_t capacity)
+        {
+            if (capacity > 0)
+            {
+                auto& storage = registry_.storage<T>();
+                storage.reserve(capacity);
+            }
+        }
 
     private:
         void cleanup_destroyed_behaviours();
@@ -44,6 +65,8 @@ export namespace boza
         entt::registry& get_world();
         bool            is_entity_valid(entt::entity entity) const;
 
+        [[nodiscard]] const std::string& get_name() const { return name_; }
+
         std::string    name_;
         entt::registry registry_{};
 
@@ -51,9 +74,11 @@ export namespace boza
         std::vector<std::pair<entt::entity, Behaviour*>> behaviours_{};
         std::vector<std::pair<entt::entity, Behaviour*>> behaviours_to_start_{};
 
+        GameObject* primary_camera_{ nullptr };
+
         bool started_{ false };
 
         friend class GameObject;
-        friend class RenderingSystem;
+        friend class app::RenderingSystem;
     };
 }

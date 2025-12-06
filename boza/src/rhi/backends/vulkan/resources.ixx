@@ -6,9 +6,13 @@ import <vk_all.h>;
 
 export namespace boza::rhi::vk
 {
+    class Texture;
+
     class Buffer final : public rhi::Buffer
     {
     public:
+        ~Buffer() override { destroy(); }
+
         [[nodiscard]]
         bool init() override;
         void destroy() override;
@@ -32,26 +36,24 @@ export namespace boza::rhi::vk
         VmaAllocationInfo allocation_info_{};
 
         friend GraphicsObject;
+        friend Texture;
     };
 
     class Texture final : public rhi::Texture
     {
     public:
+        ~Texture() override { destroy(); }
+
         [[nodiscard]]
         bool init() override;
         void destroy() override;
 
         void upload(const void* data, size_t size) override;
-        bool load_from_file(const std::string& filepath) override;
+        void download(void* data, size_t size) override;
+        void transition_layout(TextureLayout old_layout, TextureLayout new_layout) override;
 
-        bool save_to_file(const std::string& filepath) override;
-        void transition_layout_external() override;
-
-        [[nodiscard]]
-        VkImage vk_image() const;
-
-        [[nodiscard]]
-        VkImageView vk_image_view() const;
+        [[nodiscard]] VkImage vk_image() const;
+        [[nodiscard]] VkImageView vk_image_view() const;
 
     private:
         explicit Texture(const TextureDesc& desc) : rhi::Texture(desc) {}
@@ -61,7 +63,7 @@ export namespace boza::rhi::vk
         VmaAllocation     allocation_{ nullptr };
         VmaAllocationInfo allocation_info_{};
 
-        void transition_layout(VkImageLayout old_layout, VkImageLayout new_layout) const;
+        void transition_layout_internal(VkImageLayout old_layout, VkImageLayout new_layout) const;
 
         friend GraphicsObject;
     };
@@ -69,6 +71,8 @@ export namespace boza::rhi::vk
     class Sampler final : public rhi::Sampler
     {
     public:
+        ~Sampler() override { destroy(); }
+
         [[nodiscard]]
         bool init() override;
         void destroy() override;
