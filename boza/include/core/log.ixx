@@ -6,7 +6,7 @@ module;
 export module boza.core:log;
 
 import std;
-import glm;
+import boza.common;
 
 export namespace boza
 {
@@ -89,8 +89,8 @@ namespace std
 
             if (presentation == 'a')
             {
-                T                 angle = glm::gtc::angle(q);
-                glm::vec<3, T, Q> axis  = glm::gtc::axis(q);
+                T                 angle = glm::angle(q);
+                glm::vec<3, T, Q> axis  = glm::axis(q);
                 return std::format_to(out, "quat(axis: ({}, {}, {}), angle: {}°)",
                                       axis.x, axis.y, axis.z, glm::degrees(angle));
             }

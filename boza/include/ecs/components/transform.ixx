@@ -55,7 +55,7 @@ export namespace boza
         void look_at(const glm::vec3& target, const glm::vec3& world_up = glm::vec3(0.0f, 1.0f, 0.0f))
         {
             const glm::vec3 direction = glm::normalize(target - position_);
-            rotation_ = glm::gtx::quatLookAt(direction, world_up);
+            rotation_ = glm::quatLookAt(direction, world_up);
         }
 
     private:
@@ -68,7 +68,7 @@ export namespace boza
         void set_rotation(const glm::quat& value) { rotation_ = value; }
 
         [[nodiscard]]
-        glm::vec3 get_eulers() const { return glm::gtx::eulerAngles(rotation_); }
+        glm::vec3 get_eulers() const { return glm::eulerAngles(rotation_); }
         void set_eulers(const glm::vec3& value) { rotation_ = glm::quat(value); }
 
         [[nodiscard]]
@@ -76,13 +76,13 @@ export namespace boza
         void set_scale(const glm::vec3& value) { scale_ = value; }
 
         [[nodiscard]]
-        glm::vec3 get_forward() const { return glm::gtx::rotate(rotation_, glm::vec3(0.0f, 0.0f, -1.0f)); }
+        glm::vec3 get_forward() const { return glm::rotate(rotation_, glm::vec3(0.0f, 0.0f, -1.0f)); }
 
-        [[nodiscard]] glm::vec3 get_right() const { return glm::gtx::rotate(rotation_, glm::vec3(1.0f, 0.0f, 0.0f)); }
-        [[nodiscard]] glm::vec3 get_up() const { return glm::gtx::rotate(rotation_, glm::vec3(0.0f, 1.0f, 0.0f)); }
+        [[nodiscard]] glm::vec3 get_right() const { return glm::rotate(rotation_, glm::vec3(1.0f, 0.0f, 0.0f)); }
+        [[nodiscard]] glm::vec3 get_up() const { return glm::rotate(rotation_, glm::vec3(0.0f, 1.0f, 0.0f)); }
 
         glm::vec3 position_{ 0.0f, 0.0f, 0.0f };
-        glm::quat rotation_{ glm::gtc::identity<glm::quat>() };
+        glm::quat rotation_{ glm::identity<glm::quat>() };
         glm::vec3 scale_{ 1.0f, 1.0f, 1.0f };
     };
 }

@@ -10,7 +10,7 @@ public:
     {
         auto& t = transform();
         const glm::quat current_rot = t.rotation;
-        const glm::quat delta_rot = glm::gtc::angleAxis(rotation_speed * dt, glm::normalize(rotation_axis));
+        const glm::quat delta_rot = glm::angleAxis(rotation_speed * dt, glm::normalize(rotation_axis));
         t.rotation = delta_rot * current_rot;
     }
 };

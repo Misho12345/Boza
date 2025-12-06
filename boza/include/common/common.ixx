@@ -4,6 +4,11 @@ export import :property;
 export import :flags;
 
 export import glm;
+export namespace glm
+{
+    using namespace gtc;
+    using namespace gtx;
+}
 
 export namespace fs = std::filesystem;
 

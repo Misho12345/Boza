@@ -6,7 +6,7 @@ class RotatorBehaviour : public boza::Behaviour
 public:
     void update(const float dt) override
     {
-        auto euler = glm::gtc::eulerAngles(transform().rotation());
+        auto euler = glm::eulerAngles(transform().rotation());
         euler.y += glm::radians(90.0f) * dt;
         transform().rotation(glm::quat(euler));
     }
