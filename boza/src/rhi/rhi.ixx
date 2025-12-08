@@ -6,3 +6,4 @@ export import boza.rhi.factory;
 export import :pipeline_builder;
 export import :resource_cache;
 export import :descriptor_reflection;
+export import :buffer_layout;

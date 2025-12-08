@@ -1,4 +1,6 @@
-add_library(boza_engine SHARED)
+# Changed from SHARED to STATIC to workaround some EnTT type erasure issues
+# TODO: Change to SHARED or when I figure out how to fix the issues
+add_library(boza_engine STATIC)
 add_library(Boza::Engine ALIAS boza_engine)
 boza_enable_warnings(boza_engine)
 
@@ -20,8 +22,6 @@ target_compile_definitions(boza_engine
         GLM_FORCE_INLINE
         GLM_FORCE_CTOR_INIT
         GLM_FORCE_LEFT_HANDED
-
-        ENTT_STANDARD_CPP
 )
 
 target_include_directories(boza_engine

@@ -13,6 +13,17 @@ export namespace boza
     class Texture;
     class Buffer;
 
+    struct BindingInfo
+    {
+        std::uint32_t set{ 0 };
+        std::uint32_t binding{ 0 };
+        std::uint32_t offset{ 0 };
+        std::uint32_t size{ 0 };
+        std::uint32_t descriptor_type{ 0 };
+        std::uint32_t data_type{ 0 };
+        bool is_push_constant{ false };
+    };
+
     class BOZA_API PropertyBinder
     {
     public:
@@ -43,13 +54,21 @@ export namespace boza
         void bind();
 
         template<typename T>
-        void push_constants(const std::string& name, const T& value);
+        void push_constants(const std::string& name, const T& value)
+        {
+            push_constants_impl(name, &value, sizeof(T));
+        }
 
         template<typename T>
-        void update_property(const std::string& name, const T& value);
+        void update_property(const std::string& name, const T& value)
+        {
+            update_property_impl(name, &value, sizeof(T));
+        }
 
         void update_texture(const std::string& name, Texture* texture);
         void update_buffer(const std::string& name, Buffer* buffer);
+
+        [[nodiscard]] std::optional<BindingInfo> lookup_binding(const std::string& name) const;
 
         [[nodiscard]] void* rhi_pipeline_handle() const;
         [[nodiscard]] void* rhi_pipeline_layout_handle() const;
@@ -64,6 +83,8 @@ export namespace boza
         std::unique_ptr<Impl> impl_;
 
         void mark_set_dirty(std::uint32_t set);
+        void push_constants_impl(const std::string& name, const void* data, std::size_t size);
+        void update_property_impl(const std::string& name, const void* data, std::size_t size);
 
         friend class PropertyBinder;
     };

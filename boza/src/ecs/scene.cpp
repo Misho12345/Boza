@@ -11,21 +11,21 @@ namespace boza
 
     Scene::~Scene() { on_destroy(); }
 
+    Scene::Scene(Scene&&) noexcept = default;
+    Scene& Scene::operator=(Scene&&) noexcept = default;
+
     GameObject& Scene::create_game_object(const std::string& object_name)
     {
         entt::entity entity = registry_.create();
 
-        auto [it, success] = game_objects_.emplace(
-            std::piecewise_construct,
-            std::forward_as_tuple(entt::to_integral(entity)),
-            std::forward_as_tuple(entity, this)
-        );
-        GameObject& game_object = it->second;
+        auto* game_object = new GameObject(entity, this);
 
-        game_object.transform_ = &game_object.add_component<Transform>();
-        game_object.name = object_name;
+        game_objects_.emplace(entt::to_integral(entity), game_object);
 
-        return game_object;
+        game_object->transform_ = &game_object->add_component<Transform>();
+        game_object->name = object_name;
+
+        return *game_object;
     }
 
     void Scene::destroy_game_object(const GameObject& game_object)
@@ -33,8 +33,16 @@ namespace boza
         if (!game_object.is_valid()) return;
 
         const entt::entity entity = game_object.entity_;
+        const auto id = entt::to_integral(entity);
+
+        auto it = game_objects_.find(id);
+        if (it != game_objects_.end())
+        {
+            delete it->second;
+            game_objects_.erase(it);
+        }
+
         registry_.destroy(entity);
-        game_objects_.erase(entt::to_integral(entity));
         cleanup_destroyed_behaviours();
     }
 
@@ -111,15 +119,20 @@ namespace boza
         registry_.clear();
         behaviours_.clear();
         behaviours_to_start_.clear();
+
+        for (auto& [id, game_object] : game_objects_)
+        {
+            delete game_object;
+        }
         game_objects_.clear();
     }
 
     GameObject* Scene::find_game_object_by_name(const std::string& object_name) const
     {
-        for (const auto& game_object : game_objects_ | std::views::values)
+        for (const auto& [id, game_object] : game_objects_)
         {
-            if (game_object.is_valid() && game_object.name == object_name)
-                return const_cast<GameObject*>(&game_object);
+            if (game_object && game_object->is_valid() && game_object->name == object_name)
+                return game_object;
         }
 
         return nullptr;
@@ -129,10 +142,10 @@ namespace boza
     {
         std::vector<GameObject*> game_objects;
 
-        for (const auto& game_object : game_objects_ | std::views::values)
+        for (const auto& [id, game_object] : game_objects_)
         {
-            if (game_object.is_valid() && game_object.tag == tag)
-                game_objects.push_back(const_cast<GameObject*>(&game_object));
+            if (game_object && game_object->is_valid() && game_object->tag == tag)
+                game_objects.push_back(game_object);
         }
 
         return game_objects;
@@ -143,10 +156,10 @@ namespace boza
         std::vector<GameObject*> game_objects;
         game_objects.reserve(game_objects_.size());
 
-        for (const auto& game_object : game_objects_ | std::views::values)
+        for (const auto& [id, game_object] : game_objects_)
         {
-            if (game_object.is_valid())
-                game_objects.push_back(const_cast<GameObject*>(&game_object));
+            if (game_object && game_object->is_valid())
+                game_objects.push_back(game_object);
         }
 
         return game_objects;
@@ -171,7 +184,7 @@ namespace boza
     GameObject* Scene::get_game_object(const entt::entity entity) const
     {
         const auto it = game_objects_.find(entt::to_integral(entity));
-        return it != game_objects_.end() ? const_cast<GameObject*>(&it->second) : nullptr;
+        return it != game_objects_.end() ? it->second : nullptr;
     }
 
     void Scene::cleanup_destroyed_behaviours()

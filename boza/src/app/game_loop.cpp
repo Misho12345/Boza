@@ -122,9 +122,9 @@ namespace boza::app
                     active_scene_->on_update(Time::delta_time());
                     active_scene_->on_late_update(Time::delta_time());
                 }
-            }
 
-            if (on_render_) on_render_();
+                if (on_render_) on_render_();
+            }
 
             if (config_.target_fps > 0)
             {

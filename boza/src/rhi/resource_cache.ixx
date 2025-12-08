@@ -10,7 +10,7 @@ export namespace boza::rhi
     {
     public:
         ResourceCache() = default;
-        ~ResourceCache() = default;
+        ~ResourceCache() { clear(); }
 
         ResourceCache(const ResourceCache&) = delete;
         ResourceCache& operator=(const ResourceCache&) = delete;
@@ -24,6 +24,34 @@ export namespace boza::rhi
         std::shared_ptr<Texture> get_or_create_texture(
             const std::string& path,
             const std::function<Texture*(const std::string&)>& factory);
+
+        struct PipelineKey
+        {
+            std::string vertex_shader;
+            std::string fragment_shader;
+
+            bool operator==(const PipelineKey&) const = default;
+        };
+
+        struct PipelineKeyHash
+        {
+            std::size_t operator()(const PipelineKey& key) const noexcept
+            {
+                const std::size_t h1 = std::hash<std::string>{}(key.vertex_shader);
+                const std::size_t h2 = std::hash<std::string>{}(key.fragment_shader);
+                return h1 ^ (h2 << 1);
+            }
+        };
+
+        struct CachedPipeline
+        {
+            GraphicsPipeline* pipeline{ nullptr };
+            PipelineLayout* layout{ nullptr };
+            std::vector<DescriptorSetLayout*> descriptor_set_layouts;
+        };
+
+        CachedPipeline* get_cached_pipeline(const std::string& vert, const std::string& frag);
+        void cache_pipeline(const std::string& vert, const std::string& frag, const CachedPipeline& cached);
 
         void clear();
 
@@ -48,9 +76,11 @@ export namespace boza::rhi
 
         std::unordered_map<ShaderKey, std::weak_ptr<ShaderModule>, ShaderKeyHash> shader_cache_;
         std::unordered_map<std::string, std::weak_ptr<Texture>> texture_cache_;
+        std::unordered_map<PipelineKey, CachedPipeline, PipelineKeyHash> pipeline_cache_;
 
         mutable std::mutex shader_mutex_;
         mutable std::mutex texture_mutex_;
+        mutable std::mutex pipeline_mutex_;
 
         template<typename T, typename KeyType, typename Hash = std::hash<KeyType>, typename Equal = std::equal_to<KeyType>, typename Alloc = std::allocator<std::pair<const KeyType, std::weak_ptr<T>>>>
         std::shared_ptr<T> get_or_create(

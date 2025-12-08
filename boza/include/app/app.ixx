@@ -8,6 +8,7 @@ export module boza.app;
 import std;
 import boza.ecs;
 import boza.common;
+import boza.gfx;
 
 export namespace boza
 {
@@ -35,9 +36,11 @@ export namespace boza
         App& operator=(App&&) = delete;
 
         bool init();
-        void run() const;
+        void run();
 
         std::shared_ptr<Scene> create_scene(const std::string& name = "New Scene");
+
+        void register_custom_material(const std::string& name, Material* material);
 
         PropertyGetSet<App, std::shared_ptr<Scene>> active_scene
         {
@@ -60,6 +63,8 @@ export namespace boza
 
     protected:
         virtual void on_setup_scene() = 0;
+        virtual void on_graphics_ready() {}
+        virtual void on_shutdown() {}
 
     private:
         void                   set_active_scene(const std::shared_ptr<Scene>& scene);

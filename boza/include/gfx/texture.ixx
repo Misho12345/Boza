@@ -91,6 +91,7 @@ export namespace boza
 
         static Texture* load_from_file(
             const std::string& filepath,
+            TextureFormat      texture_format = TextureFormat::RGBA8,
             TextureAccessMode  texture_access_mode = TextureAccessMode::Static);
 
         void upload(const void* data, std::size_t data_size, std::uint32_t frame_index = 0);

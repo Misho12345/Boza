@@ -219,10 +219,24 @@ namespace boza
             return;
         }
 
-        auto* cmd = static_cast<rhi::CommandBuffer*>(detail::RenderContext::current_command_buffer());
+        const auto* device = static_cast<rhi::Device*>(detail::RenderContext::device());
+        if (!device)
+        {
+            Log::error("Cannot dispatch compute: device is null");
+            return;
+        }
+
+        auto* cmd_pool = device->command_pool(device->queue_family_indices().compute_family);
+        if (!cmd_pool)
+        {
+            Log::error("Cannot dispatch compute: compute command pool is null");
+            return;
+        }
+
+        auto* cmd = cmd_pool->begin_single_time_commands();
         if (!cmd)
         {
-            Log::error("Cannot dispatch compute: no active command buffer.");
+            Log::error("Cannot dispatch compute: failed to begin command buffer");
             return;
         }
 
@@ -233,8 +247,9 @@ namespace boza
             cmd->bind_descriptor_sets(impl_->pipeline->get_layout(), impl_->descriptor_sets, 0);
         }
 
-
         cmd->dispatch(x, y, z);
+
+        cmd_pool->end_single_time_commands(cmd);
 
         impl_->dirty_sets.clear();
     }

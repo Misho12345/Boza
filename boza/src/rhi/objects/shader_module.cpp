@@ -137,21 +137,18 @@ namespace boza::rhi
         const fs::path shader_dir = AssetPaths::shaders_dir();
         const fs::path shader_subdir = shader_dir / desc.filename;
 
-        // Extract shader name without extension for the .meta.json file
         const fs::path shader_name = fs::path(desc.filename).stem();
         const fs::path meta_path = shader_subdir / (shader_name.string() + ".meta.json");
 
-        const std::vector<std::uint8_t> meta_file_data = read_file<std::uint8_t>(meta_path);
+        const auto meta_json_opt = detail::FileIO::load_json(meta_path);
 
-        if (meta_file_data.empty()) return false;
-
-        const json meta_json = json::parse(meta_file_data, nullptr, false);
-
-        if (meta_json.is_discarded())
+        if (!meta_json_opt.has_value())
         {
-            Log::error("Failed to parse shader metadata json for {}", desc.filename);
+            Log::error("Failed to load shader metadata for {}", desc.filename);
             return false;
         }
+
+        const auto& meta_json = meta_json_opt.value();
 
         parse_resources(meta_json, "uniform_buffers", meta_data_.uniform_buffers);
         parse_resources(meta_json, "storage_buffers", meta_data_.storage_buffers);

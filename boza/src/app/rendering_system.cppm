@@ -7,6 +7,8 @@ import boza.rhi;
 import boza.platform;
 import boza.common;
 
+import :material_loader;
+
 using boza::platform::Window;
 
 namespace boza::app
@@ -24,12 +26,6 @@ namespace boza::app
         glm::mat4 proj;
     };
 
-    struct MaterialUBO
-    {
-        glm::vec4 albedo_color;
-        glm::vec4 properties;
-    };
-
     struct LightUBO
     {
         glm::vec4 light_position;
@@ -43,9 +39,12 @@ namespace boza::app
         bool init(Window& window, std::shared_ptr<Scene> scene);
         void run();
         void destroy();
+        void wait_idle() const;
+
+        [[nodiscard]] MaterialLoader& material_loader() { return material_loader_; }
 
     private:
-        void setup_test_resources();
+        void setup_resources();
         GpuMesh* get_or_create_gpu_mesh(Mesh* mesh);
         void update_camera_uniforms();
 
@@ -60,16 +59,8 @@ namespace boza::app
         std::unique_ptr<rhi::ResourceCache> resource_cache_{ nullptr };
 
         std::unordered_map<Mesh*, std::unique_ptr<GpuMesh>> gpu_meshes_;
-        std::unordered_map<std::string, Material*> materials_;
 
-        std::unique_ptr<rhi::Buffer> camera_ubo_;
-        std::unique_ptr<rhi::Buffer> light_ubo_;
-        std::unique_ptr<rhi::Buffer> material_ubo_;
-        std::unique_ptr<rhi::Sampler> default_sampler_;
-        Texture* default_texture_{ nullptr };
-
+        MaterialLoader material_loader_;
         bool resources_initialized_{ false };
-        bool compute_texture_pending_{ false };
-        ComputeDispatcher* pending_compute_delete_{ nullptr };
     };
 }

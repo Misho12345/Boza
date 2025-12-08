@@ -66,20 +66,22 @@ export namespace boza::detail
     public:
         ImageIO() = delete;
 
-        static ImageData read(const fs::path& path)
+        static ImageData read(const fs::path& path, const int desired_channels = 0)
         {
             if (!fs::exists(path)) return {};
 
             int w, h, c;
 
-            std::uint8_t* data = stbi_load(path.string().c_str(), &w, &h, &c, 4);
+            std::uint8_t* data = stbi_load(path.string().c_str(), &w, &h, &c, desired_channels);
             if (!data) return {};
+
+            const int actual_channels = desired_channels == 0 ? c : desired_channels;
 
             return ImageData
             {
                 static_cast<std::uint32_t>(w),
                 static_cast<std::uint32_t>(h),
-                static_cast<std::uint8_t>(c),
+                static_cast<std::uint8_t>(actual_channels),
                 data
             };
         }

@@ -2,6 +2,7 @@ module boza.app;
 
 import boza.platform;
 import boza.core;
+import boza.gfx;
 
 import boza.detail;
 import boza.rhi.api;
@@ -71,6 +72,8 @@ namespace boza
             return false;
         }
 
+        on_graphics_ready();
+
         GameLoopConfig loop_config
         {
             .target_fps = impl_->config.target_fps,
@@ -88,7 +91,7 @@ namespace boza
         return true;
     }
 
-    void App::run() const
+    void App::run()
     {
         if (!impl_->game_loop)
         {
@@ -110,6 +113,11 @@ namespace boza
         Log::trace("Stopping application...");
 
         if (impl_->game_loop) impl_->game_loop->stop();
+
+        if (impl_->rendering_system) impl_->rendering_system->wait_idle();
+
+        on_shutdown();
+
         if (impl_->rendering_system) impl_->rendering_system->destroy();
         if (impl_->window) impl_->window->destroy();
 
@@ -145,5 +153,13 @@ namespace boza
     void App::set_fixed_timestep(const float timestep)
     {
         if (impl_->game_loop) impl_->game_loop->set_fixed_timestep(timestep);
+    }
+
+    void App::register_custom_material(const std::string& name, Material* material)
+    {
+        if (impl_->rendering_system)
+        {
+            impl_->rendering_system->material_loader().register_material(name, material);
+        }
     }
 }

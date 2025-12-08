@@ -11,68 +11,43 @@ namespace boza::app
 {
     using detail::TagManager;
     using detail::LayerManager;
+    using detail::FileIO;
 
     bool GameSettings::load_from_file(const fs::path& filepath)
     {
-        try
+        const auto data_opt = FileIO::load_json(filepath);
+        if (!data_opt.has_value())
         {
-            std::ifstream file(filepath);
-            if (!file.is_open())
-            {
-                Log::error("Failed to open game settings file: {}", filepath.string());
-                load_defaults();
-                return false;
-            }
-
-            json data;
-            file >> data;
-
-            if (data.contains("tags") && data["tags"].is_object())
-            {
-                auto& tag_manager = TagManager::instance();
-                tag_manager.clear();
-
-                for (auto& [name, id] : data["tags"].items())
-                {
-                    if (id.is_number_unsigned())
-                    {
-                        tag_manager.register_tag(name, id.get<std::uint32_t>());
-                        // Log::trace("Registered tag: {} = {}", name, id.get<uint32_t>());
-                    }
-                }
-            }
-
-            if (data.contains("layers") && data["layers"].is_object())
-            {
-                auto& layer_manager = LayerManager::instance();
-                layer_manager.clear();
-
-                for (auto& [name, shift] : data["layers"].items())
-                {
-                    if (shift.is_number_unsigned())
-                    {
-                        layer_manager.register_layer(name, shift.get<std::uint32_t>());
-                        // Log::trace("Registered layer: {} = {} (mask: {})",
-                        //             name, shift.get<std::uint32_t>(), 1u << shift.get<uint32_t>());
-                    }
-                }
-            }
-
-            // Log::tr("Game settings loaded from: {}", filepath);
-            return true;
-        }
-        catch (const json::parse_error& e)
-        {
-            Log::error("Failed to parse game settings JSON: {}", e.what());
+            Log::error("Failed to load game settings file: {}", filepath.string());
             load_defaults();
             return false;
         }
-        catch (const std::exception& e)
+
+        const auto& data = data_opt.value();
+
+        if (data.contains("tags") && data["tags"].is_object())
         {
-            Log::error("Failed to load game settings: {}", e.what());
-            load_defaults();
-            return false;
+            auto& tag_manager = TagManager::instance();
+            tag_manager.clear();
+
+            for (auto& [name, id] : data["tags"].items())
+            {
+                if (id.is_number_unsigned()) tag_manager.register_tag(name, id.get<std::uint32_t>());
+            }
         }
+
+        if (data.contains("layers") && data["layers"].is_object())
+        {
+            auto& layer_manager = LayerManager::instance();
+            layer_manager.clear();
+
+            for (auto& [name, shift] : data["layers"].items())
+            {
+                if (shift.is_number_unsigned()) layer_manager.register_layer(name, shift.get<std::uint32_t>());
+            }
+        }
+
+        return true;
     }
 
     void GameSettings::load_defaults()

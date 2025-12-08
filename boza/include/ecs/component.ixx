@@ -1,7 +1,7 @@
 module;
 
-#include <cstddef>
 #include "api.hpp"
+#include <cstddef>
 
 export module boza.ecs:component;
 

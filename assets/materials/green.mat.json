@@ -2,9 +2,11 @@
   "vertex_shader": "default",
   "fragment_shader": "default",
   "load_strategy": "on_demand",
-  "textures": {},
-  "material_properties": {
-    "albedo_color": [0.2, 0.8, 0.2, 1.0],
-    "properties": [0.0, 0.5, 0.5, 1.0]
+  "textures": {
+    "albedo_map": "default.png"
+  },
+  "properties": {
+    "material.albedo_color": [0.2, 0.8, 0.2, 1.0],
+    "material.properties": [0.0, 0.5, 0.5, 1.0]
   }
 }

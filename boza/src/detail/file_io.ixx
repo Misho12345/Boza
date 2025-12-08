@@ -24,6 +24,32 @@ export namespace boza::detail
             return buffer;
         }
 
+        static std::string read_text(const fs::path& path)
+        {
+            if (!fs::exists(path)) return {};
+            const std::ifstream file{ path };
+            if (!file.is_open()) return {};
+
+            std::stringstream buffer;
+            buffer << file.rdbuf();
+            return buffer.str();
+        }
+
+        static std::optional<json> load_json(const fs::path& path)
+        {
+            const auto text = read_text(path);
+            if (text.empty()) return std::nullopt;
+
+            try
+            {
+                return json::parse(text);
+            }
+            catch (const json::parse_error&)
+            {
+                return std::nullopt;
+            }
+        }
+
         static void write(const fs::path& path, const std::span<std::uint8_t>& data)
         {
             if (!fs::exists(path.parent_path())) fs::create_directories(path.parent_path());

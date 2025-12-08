@@ -203,8 +203,35 @@ namespace boza
         return *this;
     }
 
+    constexpr int channels_for_format(const TextureFormat format)
+    {
+        switch (format)
+        {
+            case TextureFormat::R8:
+            case TextureFormat::R16F:
+            case TextureFormat::R32F:
+                return 1;
+            case TextureFormat::RG8:
+            case TextureFormat::RG16F:
+            case TextureFormat::RG32F:
+                return 2;
+            case TextureFormat::RGB8:
+            case TextureFormat::RGB16F:
+            case TextureFormat::RGB32F:
+                return 3;
+            case TextureFormat::RGBA8:
+            case TextureFormat::BGRA8:
+            case TextureFormat::RGBA16F:
+            case TextureFormat::RGBA32F:
+                return 4;
+            default:
+                return 4;
+        }
+    }
+
     Texture* Texture::load_from_file(
         const std::string&      filepath,
+        const TextureFormat     texture_format,
         const TextureAccessMode texture_access_mode)
     {
         if (!detail::RenderContext::initialized())
@@ -213,7 +240,8 @@ namespace boza
             return nullptr;
         }
 
-        const ImageData image_data = ImageIO::read(filepath);
+        const int desired_channels = channels_for_format(texture_format);
+        const ImageData image_data = ImageIO::read(filepath, desired_channels);
         if (!image_data.data)
         {
             Log::error("Failed to load image from file: {}", filepath);
@@ -227,7 +255,7 @@ namespace boza
         auto* texture = new Texture(
             image_data.width,
             image_data.height,
-            TextureFormat::RGBA8,
+            texture_format,
             usage_flags,
             texture_access_mode);
 

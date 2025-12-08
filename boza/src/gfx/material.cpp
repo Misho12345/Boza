@@ -67,31 +67,45 @@ namespace boza
 
     Material::~Material()
     {
-        if (impl_)
+        if (!impl_) return;
+
+        const auto ptr_value = reinterpret_cast<std::uintptr_t>(impl_.get());
+        if (ptr_value == 0xDDDDDDDDDDDDDDDD || ptr_value == 0xCDCDCDCDCDCDCDCD ||
+            ptr_value == 0xFDFDFDFDFDFDFDFD || ptr_value == 0xFEEEFEEEFEEEFEEE)
         {
-            if (impl_->pipeline)
+            Log::warn("Material destructor called on already-freed memory (impl_ = 0x{:X})", ptr_value);
+            impl_.release();
+            return;
+        }
+
+        if (!impl_->uniform_buffers.empty())
+        {
+            std::vector<rhi::Buffer*> buffers_to_delete;
+            buffers_to_delete.reserve(impl_->uniform_buffers.size());
+
+            for (auto& buffer : impl_->uniform_buffers | std::views::values)
             {
-                impl_->pipeline->destroy();
-                impl_->pipeline = nullptr;
+                if (buffer)
+                {
+                    buffers_to_delete.push_back(buffer);
+                }
             }
 
-            if (impl_->pipeline_layout)
+            impl_->uniform_buffers.clear();
+
+            for (auto* buffer : buffers_to_delete)
             {
-                impl_->pipeline_layout->destroy();
-                impl_->pipeline_layout = nullptr;
+                buffer->destroy();
+                delete buffer;
             }
+        }
 
-            for (auto* layout : impl_->descriptor_set_layouts) { if (layout) { layout->destroy(); } }
-            impl_->descriptor_set_layouts.clear();
+        impl_->descriptor_sets.clear();
 
-            for (auto* desc_set : impl_->descriptor_sets) { if (desc_set) { desc_set->destroy(); } }
-            impl_->descriptor_sets.clear();
-
-            if (impl_->reflection)
-            {
-                delete impl_->reflection;
-                impl_->reflection = nullptr;
-            }
+        if (impl_->reflection)
+        {
+            delete impl_->reflection;
+            impl_->reflection = nullptr;
         }
     }
 
@@ -155,44 +169,65 @@ namespace boza
         rhi::ShaderModule* vert_shader = vert_shader_shared.get();
         rhi::ShaderModule* frag_shader = frag_shader_shared.get();
 
-        rhi::PipelineBuilder builder(api, device, { vert_shader, frag_shader });
+        rhi::GraphicsPipeline* pipeline = nullptr;
+        rhi::PipelineLayout* pipeline_layout = nullptr;
+        std::vector<rhi::DescriptorSetLayout*> descriptor_set_layouts;
 
-        if (!builder.build_descriptor_set_layouts())
+        const auto* cached = resource_cache->get_cached_pipeline(vertex_shader_name, fragment_shader_name);
+        if (cached)
         {
-            Log::error("Failed to build descriptor set layouts for material");
-            return nullptr;
+            pipeline = cached->pipeline;
+            pipeline_layout = cached->layout;
+            descriptor_set_layouts = cached->descriptor_set_layouts;
+        }
+        else
+        {
+            rhi::PipelineBuilder builder(api, device, { vert_shader, frag_shader });
+
+            if (!builder.build_descriptor_set_layouts())
+            {
+                Log::error("Failed to build descriptor set layouts for material");
+                return nullptr;
+            }
+
+            pipeline_layout = builder.build_pipeline_layout();
+            if (!pipeline_layout)
+            {
+                Log::error("Failed to create pipeline layout for material");
+                const auto& layouts = builder.get_descriptor_set_layouts();
+                for (auto* layout : layouts) { if (layout) layout->destroy(); }
+                return nullptr;
+            }
+
+            const auto* swapchain = static_cast<rhi::Swapchain*>(detail::RenderContext::swapchain());
+            if (!swapchain)
+            {
+                Log::error("Swapchain not available in graphics context. Cannot create material.");
+                if (pipeline_layout) pipeline_layout->destroy();
+                const auto& layouts = builder.get_descriptor_set_layouts();
+                for (auto* layout : layouts) { if (layout) layout->destroy(); }
+                return nullptr;
+            }
+
+            pipeline = builder.build_graphics_pipeline(swapchain, swapchain->depth_format());
+            if (!pipeline)
+            {
+                Log::error("Failed to create graphics pipeline for material");
+                if (pipeline_layout) pipeline_layout->destroy();
+                const auto& layouts = builder.get_descriptor_set_layouts();
+                for (auto* layout : layouts) { if (layout) layout->destroy(); }
+                return nullptr;
+            }
+
+            descriptor_set_layouts = builder.get_descriptor_set_layouts();
+
+            resource_cache->cache_pipeline(vertex_shader_name, fragment_shader_name, {
+                .pipeline = pipeline,
+                .layout = pipeline_layout,
+                .descriptor_set_layouts = descriptor_set_layouts
+            });
         }
 
-        rhi::PipelineLayout* pipeline_layout = builder.build_pipeline_layout();
-        if (!pipeline_layout)
-        {
-            Log::error("Failed to create pipeline layout for material");
-            const auto& layouts = builder.get_descriptor_set_layouts();
-            for (auto* layout : layouts) { if (layout) layout->destroy(); }
-            return nullptr;
-        }
-
-        const auto* swapchain = static_cast<rhi::Swapchain*>(detail::RenderContext::swapchain());
-        if (!swapchain)
-        {
-            Log::error("Swapchain not available in graphics context. Cannot create material.");
-            if (pipeline_layout) pipeline_layout->destroy();
-            const auto& layouts = builder.get_descriptor_set_layouts();
-            for (auto* layout : layouts) { if (layout) layout->destroy(); }
-            return nullptr;
-        }
-
-        rhi::GraphicsPipeline* pipeline = builder.build_graphics_pipeline(swapchain, swapchain->depth_format());
-        if (!pipeline)
-        {
-            Log::error("Failed to create graphics pipeline for material");
-            if (pipeline_layout) pipeline_layout->destroy();
-            const auto& layouts = builder.get_descriptor_set_layouts();
-            for (auto* layout : layouts) { if (layout) layout->destroy(); }
-            return nullptr;
-        }
-
-        const auto&                      descriptor_set_layouts = builder.get_descriptor_set_layouts();
         std::vector<rhi::DescriptorSet*> descriptor_sets;
         descriptor_sets.reserve(descriptor_set_layouts.size());
 
@@ -202,11 +237,6 @@ namespace boza
             if (!desc_set)
             {
                 Log::error("Failed to allocate descriptor set for material");
-
-                for (auto* set : descriptor_sets) { if (set) set->destroy(); }
-                if (pipeline) pipeline->destroy();
-                if (pipeline_layout) pipeline_layout->destroy();
-                for (auto* l : descriptor_set_layouts) { if (l) l->destroy(); }
                 return nullptr;
             }
             descriptor_sets.push_back(desc_set);
@@ -251,8 +281,7 @@ namespace boza
         }
     }
 
-    template<typename T>
-    void Material::push_constants(const std::string& name, const T& value)
+    void Material::push_constants_impl(const std::string& name, const void* data, std::size_t size)
     {
         if (!impl_->reflection)
         {
@@ -285,14 +314,13 @@ namespace boza
             impl_->pipeline_layout,
             rhi::ShaderStage::Vertex,
             info.offset,
-            sizeof(T),
-            &value);
+            static_cast<std::uint32_t>(size),
+            data);
     }
 
     void Material::mark_set_dirty(const std::uint32_t set) { impl_->dirty_sets[set] = true; }
 
-    template<typename T>
-    void Material::update_property(const std::string& name, const T& value)
+    void Material::update_property_impl(const std::string& name, const void* data, std::size_t size)
     {
         if (!impl_->reflection)
         {
@@ -309,37 +337,86 @@ namespace boza
 
         const auto& info = binding_info.value();
 
-        #ifdef BOZA_DEBUG
-        validate_property_type<T>(name, info.data_type);
-        #endif
-
         if (info.is_push_constant)
         {
-            if (info.offset + sizeof(T) <= impl_->push_constant_staging.size())
+            if (info.offset + size <= impl_->push_constant_staging.size())
             {
-                std::memcpy(impl_->push_constant_staging.data() + info.offset, &value, sizeof(T));
+                std::memcpy(impl_->push_constant_staging.data() + info.offset, data, size);
             }
             else
             {
                 Log::error("Push constant '{}' offset {} + size {} exceeds staging buffer size {}",
-                           name, info.offset, sizeof(T), impl_->push_constant_staging.size());
+                           name, info.offset, size, impl_->push_constant_staging.size());
+            }
+            return;
+        }
+
+        if (info.descriptor_type != rhi::DescriptorType::UniformBuffer)
+        {
+            Log::warn("Material property '{}' is not a uniform buffer member", name);
+            return;
+        }
+
+        const std::uint32_t binding_key = (info.set << 16) | info.binding;
+
+        if (!impl_->uniform_buffers.contains(binding_key))
+        {
+            auto* device = static_cast<rhi::Device*>(detail::RenderContext::device());
+            const auto api = static_cast<rhi::GraphicsApi>(detail::RenderContext::api());
+
+            const auto parent_info = impl_->reflection->lookup(name.substr(0, name.find('.')));
+            const std::size_t buffer_size = parent_info.has_value() ? parent_info->size : 256;
+
+            auto* buffer = rhi::create_buffer(api, {
+                .device = device,
+                .size = buffer_size,
+                .usage = rhi::BufferUsage::Uniform,
+                .memory_type = rhi::BufferMemoryType::HostVisible,
+                .access_mode = rhi::ResourceAccessMode::Dynamic
+            });
+
+            if (buffer)
+            {
+                impl_->uniform_buffers[binding_key] = buffer;
+                impl_->uniform_buffer_staging[binding_key].resize(buffer_size, std::byte{0});
+
+                if (info.set < impl_->descriptor_sets.size())
+                {
+                    rhi::DescriptorWrite write{
+                        .binding = info.binding,
+                        .array_element = 0,
+                        .type = rhi::DescriptorType::UniformBuffer,
+                        .info = rhi::UniformBuffer{
+                            .buffer = buffer,
+                            .offset = 0,
+                            .range = static_cast<std::uint32_t>(buffer_size)
+                        }
+                    };
+                    impl_->descriptor_sets[info.set]->update({ write });
+                }
+            }
+            else
+            {
+                Log::error("Failed to create uniform buffer for property '{}'", name);
+                return;
+            }
+        }
+
+        auto& staging = impl_->uniform_buffer_staging[binding_key];
+        if (info.offset + size <= staging.size())
+        {
+            std::memcpy(staging.data() + info.offset, data, size);
+
+            auto* buffer = impl_->uniform_buffers[binding_key];
+            if (buffer)
+            {
+                buffer->upload(staging.data(), staging.size(), 0);
             }
         }
         else
         {
-            auto& staging = impl_->uniform_buffer_staging[info.set];
-            if (staging.empty()) { staging.resize(4096); }
-
-            if (info.offset + sizeof(T) <= staging.size())
-            {
-                std::memcpy(staging.data() + info.offset, &value, sizeof(T));
-                mark_set_dirty(info.set);
-            }
-            else
-            {
-                Log::error("Uniform buffer property '{}' offset {} + size {} exceeds staging buffer size {}",
-                           name, info.offset, sizeof(T), staging.size());
-            }
+            Log::error("Uniform buffer property '{}' offset {} + size {} exceeds buffer size {}",
+                       name, info.offset, size, staging.size());
         }
     }
 
@@ -441,6 +518,40 @@ namespace boza
         return impl_->descriptor_sets[index];
     }
 
+    std::optional<BindingInfo> Material::lookup_binding(const std::string& name) const
+    {
+        if (!impl_->reflection)
+        {
+            // Log::trace("lookup_binding('{}') - reflection is null", name);
+            return std::nullopt;
+        }
+
+        auto rhi_info = impl_->reflection->lookup(name);
+        if (!rhi_info.has_value())
+        {
+            // Log::trace("lookup_binding('{}') - not found in reflection", name);
+            return std::nullopt;
+        }
+
+        const auto& [
+            set, binding, offset, size,
+            descriptor_type, data_type, is_push_constant
+        ] = rhi_info.value();
+
+        // Log::trace("lookup_binding('{}') - found: set={}, binding={}, type={}",
+        //            name, set, binding, static_cast<int>(descriptor_type));
+
+        return BindingInfo{
+            .set = set,
+            .binding = binding,
+            .offset = offset,
+            .size = size,
+            .descriptor_type = static_cast<std::uint32_t>(descriptor_type),
+            .data_type = static_cast<std::uint32_t>(data_type),
+            .is_push_constant = is_push_constant
+        };
+    }
+
 
     PropertyBinder& PropertyBinder::operator=(Texture* texture)
     {
@@ -453,40 +564,4 @@ namespace boza
         material_->update_buffer(name_, buffer);
         return *this;
     }
-
-    template BOZA_API void Material::update_property(const std::string&, const float&);
-    template BOZA_API void Material::update_property(const std::string&, const double&);
-    template BOZA_API void Material::update_property(const std::string&, const std::int32_t&);
-    template BOZA_API void Material::update_property(const std::string&, const std::uint32_t&);
-    template BOZA_API void Material::update_property(const std::string&, const bool&);
-    template BOZA_API void Material::update_property(const std::string&, const glm::vec2&);
-    template BOZA_API void Material::update_property(const std::string&, const glm::vec3&);
-    template BOZA_API void Material::update_property(const std::string&, const glm::vec4&);
-    template BOZA_API void Material::update_property(const std::string&, const glm::ivec2&);
-    template BOZA_API void Material::update_property(const std::string&, const glm::ivec3&);
-    template BOZA_API void Material::update_property(const std::string&, const glm::ivec4&);
-    template BOZA_API void Material::update_property(const std::string&, const glm::uvec2&);
-    template BOZA_API void Material::update_property(const std::string&, const glm::uvec3&);
-    template BOZA_API void Material::update_property(const std::string&, const glm::uvec4&);
-    template BOZA_API void Material::update_property(const std::string&, const glm::mat2&);
-    template BOZA_API void Material::update_property(const std::string&, const glm::mat3&);
-    template BOZA_API void Material::update_property(const std::string&, const glm::mat4&);
-
-    template BOZA_API void Material::push_constants(const std::string&, const float&);
-    template BOZA_API void Material::push_constants(const std::string&, const double&);
-    template BOZA_API void Material::push_constants(const std::string&, const std::int32_t&);
-    template BOZA_API void Material::push_constants(const std::string&, const std::uint32_t&);
-    template BOZA_API void Material::push_constants(const std::string&, const bool&);
-    template BOZA_API void Material::push_constants(const std::string&, const glm::vec2&);
-    template BOZA_API void Material::push_constants(const std::string&, const glm::vec3&);
-    template BOZA_API void Material::push_constants(const std::string&, const glm::vec4&);
-    template BOZA_API void Material::push_constants(const std::string&, const glm::ivec2&);
-    template BOZA_API void Material::push_constants(const std::string&, const glm::ivec3&);
-    template BOZA_API void Material::push_constants(const std::string&, const glm::ivec4&);
-    template BOZA_API void Material::push_constants(const std::string&, const glm::uvec2&);
-    template BOZA_API void Material::push_constants(const std::string&, const glm::uvec3&);
-    template BOZA_API void Material::push_constants(const std::string&, const glm::uvec4&);
-    template BOZA_API void Material::push_constants(const std::string&, const glm::mat2&);
-    template BOZA_API void Material::push_constants(const std::string&, const glm::mat3&);
-    template BOZA_API void Material::push_constants(const std::string&, const glm::mat4&);
 }
