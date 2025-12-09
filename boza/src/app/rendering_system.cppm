@@ -46,7 +46,7 @@ namespace boza::app
     private:
         void setup_resources();
         GpuMesh* get_or_create_gpu_mesh(Mesh* mesh);
-        void update_camera_uniforms();
+        void update_camera_uniforms() const;
 
         std::shared_ptr<Scene> active_scene_{ nullptr };
         rhi::GraphicsApi api_{};

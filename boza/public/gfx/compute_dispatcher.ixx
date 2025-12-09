@@ -41,7 +41,7 @@ export namespace boza
         ComputePropertyBinder operator[](std::string_view property_name);
 
         void dispatch(std::uint32_t width, std::uint32_t height = 1, std::uint32_t depth = 1);
-        void dispatch_groups(std::uint32_t x, std::uint32_t y, std::uint32_t z);
+        void dispatch_groups(std::uint32_t x, std::uint32_t y, std::uint32_t z) const;
 
         PropertyGet<ComputeDispatcher, glm::uvec3> work_group_size{
             &ComputeDispatcher::get_work_group_size,
@@ -63,7 +63,7 @@ export namespace boza
         std::unique_ptr<Impl> impl_;
         glm::uvec3 work_group_size_{ 1, 1, 1 };
 
-        void mark_set_dirty(std::uint32_t set);
+        void mark_set_dirty(std::uint32_t set) const;
 
         friend class ComputePropertyBinder;
     };

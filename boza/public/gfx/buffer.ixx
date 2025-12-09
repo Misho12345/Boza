@@ -58,8 +58,8 @@ export namespace boza
         PropertyGet<Buffer, std::size_t> size{ &Buffer::get_size, offsetof(Buffer, size) };
         PropertyGet<Buffer, BufferAccessMode> access_mode{ &Buffer::get_access_mode, offsetof(Buffer, access_mode) };
 
-        void* map(std::uint32_t frame_index = 0);
-        void unmap(std::uint32_t frame_index = 0);
+        void* map(std::uint32_t frame_index = 0) const;
+        void  unmap(std::uint32_t frame_index = 0) const;
 
         void* rhi_handle(std::uint32_t frame_index = 0) const;
 

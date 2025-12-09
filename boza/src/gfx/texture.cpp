@@ -274,7 +274,7 @@ namespace boza
         return texture;
     }
 
-    void Texture::upload(const void* data, const std::size_t data_size, const std::uint32_t frame_index)
+    void Texture::upload(const void* data, const std::size_t data_size, const std::uint32_t frame_index) const
     {
         if (rhi_textures_.empty())
         {
@@ -294,7 +294,7 @@ namespace boza
         static_cast<rhi::Texture*>(rhi_textures_[texture_index])->upload(data, data_size);
     }
 
-    bool Texture::save_to_file(const std::string& filepath, const std::uint32_t frame_index)
+    bool Texture::save_to_file(const std::string& filepath, const std::uint32_t frame_index) const
     {
         if (rhi_textures_.empty())
         {
@@ -411,7 +411,7 @@ namespace boza
     void Texture::transition_layout(
         const TextureLayout old_layout,
         const TextureLayout new_layout,
-        const std::uint32_t frame_index)
+        const std::uint32_t frame_index) const
     {
         if (rhi_textures_.empty())
         {

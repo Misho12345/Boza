@@ -1,4 +1,20 @@
 {
+  "window": {
+    "width": 1280,
+    "height": 720,
+    "title": "Boza Engine - Material & Shader Showcase",
+    "fullscreen": false
+  },
+  "graphics": {
+    "target_fps": 60.0,
+    "vsync": true
+  },
+  "physics": {
+    "fixed_update_rate": 60.0
+  },
+  "input": {
+    "poll_rate": 100.0
+  },
   "tags": {
     "None": 0,
     "Player": 1,

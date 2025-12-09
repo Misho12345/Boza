@@ -57,7 +57,7 @@ namespace boza::app
         Material* get_material(const std::string& name) const;
 
         void register_material(const std::string& name, Material* material);
-        void bind_engine_resources(Material* material);
+        void bind_engine_resources(Material* material) const;
 
         [[nodiscard]] Texture* error_texture() const { return error_texture_; }
         [[nodiscard]] rhi::Sampler* default_sampler() const { return default_sampler_.get(); }
@@ -66,7 +66,7 @@ namespace boza::app
         [[nodiscard]] rhi::Buffer* light_ubo() const { return light_ubo_.get(); }
         [[nodiscard]] rhi::Buffer* time_ubo() const { return time_ubo_.get(); }
 
-        void update_time_ubo(float time, float delta_time);
+        void update_time_ubo(float time, float delta_time) const;
 
     private:
         std::optional<MaterialDefinition> load_material_definition(const fs::path& path);

@@ -10,7 +10,8 @@ namespace boza::app
     struct GameLoopConfig
     {
         float target_fps{ 0.0f };
-        float fixed_timestep{ 1.0f / 60.0f };
+        float fixed_update_rate{ 60.0f };
+        float input_poll_rate{ 240.0f };
         bool  vsync{ true };
     };
 
@@ -31,21 +32,22 @@ namespace boza::app
         [[nodiscard]] float get_target_fps() const;
         void set_target_fps(float fps);
 
-        [[nodiscard]] float get_fixed_timestep() const;
-        void set_fixed_timestep(float timestep);
+        [[nodiscard]] float get_fixed_update_rate() const;
+        void set_fixed_update_rate(float rate);
 
         void set_on_render(std::function<void()> func);
+        void set_poll_events(std::function<void()> func);
         void set_should_close(std::function<bool()> func);
 
-    private:
+        void wait_for_window_close();
 
+    private:
         void rendering_loop();
         void physics_loop();
 
         GameLoopConfig config_;
 
-        std::atomic<bool> running_{ false };
-        std::atomic<bool> physics_running_{ false };
+        std::atomic_bool running_{ false };
 
         std::shared_ptr<Scene> active_scene_;
 
@@ -55,6 +57,7 @@ namespace boza::app
         std::mutex scene_mutex_;
 
         std::function<void()> on_render_;
+        std::function<void()> poll_events_;
         std::function<bool()> should_close_;
     };
 }

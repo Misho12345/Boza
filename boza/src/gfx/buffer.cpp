@@ -171,7 +171,7 @@ namespace boza
         static_cast<rhi::Buffer*>(rhi_buffers_[buffer_index])->read_back(data, data_size, offset);
     }
 
-    void* Buffer::map(const std::uint32_t frame_index)
+    void* Buffer::map(const std::uint32_t frame_index) const
     {
         if (rhi_buffers_.empty())
         {
@@ -191,7 +191,7 @@ namespace boza
         return static_cast<rhi::Buffer*>(rhi_buffers_[buffer_index])->map();
     }
 
-    void Buffer::unmap(const std::uint32_t frame_index)
+    void Buffer::unmap(const std::uint32_t frame_index) const
     {
         if (rhi_buffers_.empty())
         {

@@ -1,0 +1,96 @@
+module boza.input:state;
+
+import std;
+import :keys;
+
+namespace boza::input
+{
+    constexpr double double_click_timeout = 0.3;
+
+    struct KeyState
+    {
+        bool is_pressed() const { return data_ & 0x01; }
+        bool is_held() const { return data_ & 0x02; }
+
+        void set_pressed(const bool value)
+        {
+            if (value) data_ |= 0x01;
+            else data_ &= ~0x01;
+        }
+
+        void set_held(const bool value)
+        {
+            if (value) data_ |= 0x02;
+            else data_ &= ~0x02;
+        }
+
+        double last_press_time{ 0.0 };
+
+    private:
+        std::uint8_t data_{ 0 };
+    };
+
+    struct BindingEvent
+    {
+        KeyBinding binding;
+        std::function<void()> callback;
+    };
+
+    class CallbackExecutor
+    {
+    public:
+        static CallbackExecutor& instance();
+
+        void execute(std::function<void()> func);
+
+        void execute(std::function<void(double, double)> func, double x, double y);
+
+        ~CallbackExecutor();
+
+    private:
+        CallbackExecutor();
+
+        std::vector<std::thread> workers_;
+        std::queue<std::function<void()>> tasks_;
+        std::mutex queue_mutex_;
+        std::condition_variable condition_;
+        bool stop_{ false };
+    };
+
+    inline void async_execute(std::function<void()> func) { CallbackExecutor::instance().execute(std::move(func)); }
+    inline void async_execute(std::function<void(double, double)> func, double x, double y)
+    {
+        CallbackExecutor::instance().execute(std::move(func), x, y);
+    }
+
+    struct InputState
+    {
+        std::mutex mutex;
+
+        std::unordered_map<Key, std::function<void()>> press_events;
+        std::unordered_map<Key, std::function<void()>> release_events;
+        std::unordered_map<Key, std::function<void()>> hold_events;
+        std::unordered_map<Key, std::function<void()>> double_click_events;
+
+        std::vector<BindingEvent> press_bindings;
+        std::vector<BindingEvent> release_bindings;
+        std::vector<BindingEvent> hold_bindings;
+        std::vector<BindingEvent> double_click_bindings;
+
+        std::vector<std::function<void(double, double)>> mouse_move_callbacks;
+        std::vector<std::function<void(double, double)>> mouse_scroll_callbacks;
+
+        std::unordered_map<Key, KeyState> key_states;
+
+        static InputState& instance()
+        {
+            static InputState state;
+            return state;
+        }
+
+        void clear();
+
+    private:
+        InputState();
+    };
+}

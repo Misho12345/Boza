@@ -13,6 +13,11 @@ namespace boza::app
     using detail::LayerManager;
     using detail::FileIO;
 
+    WindowSettings GameSettings::window{};
+    GraphicsSettings GameSettings::graphics{};
+    PhysicsSettings GameSettings::physics{};
+    InputSettings GameSettings::input{};
+
     bool GameSettings::load_from_file(const fs::path& filepath)
     {
         const auto data_opt = FileIO::load_json(filepath);
@@ -24,6 +29,36 @@ namespace boza::app
         }
 
         const auto& data = data_opt.value();
+
+        if (data.contains("window") && data["window"].is_object())
+        {
+            const auto& w = data["window"];
+            if (w.contains("width") && w["width"].is_number_unsigned()) window.width = w["width"].get<std::uint32_t>();
+            if (w.contains("height") && w["height"].is_number_unsigned()) window.height = w["height"].get<std::uint32_t>();
+            if (w.contains("title") && w["title"].is_string()) window.title = w["title"].get<std::string>();
+            if (w.contains("fullscreen") && w["fullscreen"].is_boolean()) window.fullscreen = w["fullscreen"].get<bool>();
+        }
+
+        if (data.contains("graphics") && data["graphics"].is_object())
+        {
+            const auto& g = data["graphics"];
+            if (g.contains("target_fps") && g["target_fps"].is_number()) graphics.target_fps = g["target_fps"].get<float>();
+            if (g.contains("vsync") && g["vsync"].is_boolean()) graphics.vsync = g["vsync"].get<bool>();
+        }
+
+        if (data.contains("physics") && data["physics"].is_object())
+        {
+            const auto& p = data["physics"];
+            if (p.contains("fixed_update_rate") && p["fixed_update_rate"].is_number())
+                physics.fixed_update_rate = p["fixed_update_rate"].get<float>();
+        }
+
+        if (data.contains("input") && data["input"].is_object())
+        {
+            const auto& i = data["input"];
+            if (i.contains("poll_rate") && i["poll_rate"].is_number())
+                input.poll_rate = i["poll_rate"].get<float>();
+        }
 
         if (data.contains("tags") && data["tags"].is_object())
         {
@@ -53,6 +88,11 @@ namespace boza::app
     void GameSettings::load_defaults()
     {
         Log::info("Loading default game settings");
+
+        window = WindowSettings{};
+        graphics = GraphicsSettings{};
+        physics = PhysicsSettings{};
+        input = InputSettings{};
 
         auto& tag_manager = TagManager::instance();
         tag_manager.clear();

@@ -51,6 +51,7 @@ namespace boza
         rhi::PipelineLayout*                    pipeline_layout{ nullptr };
         rhi::ShaderModule*                      shader{ nullptr };
         rhi::DescriptorReflection*              reflection{ nullptr };
+        rhi::DescriptorPool*                    descriptor_pool{ nullptr };
         std::vector<rhi::DescriptorSetLayout*>  descriptor_set_layouts;
         std::vector<rhi::DescriptorSet*>        descriptor_sets;
         std::vector<std::byte>                  push_constant_staging;
@@ -78,7 +79,10 @@ namespace boza
                 impl_->pipeline_layout = nullptr;
             }
 
-            for (auto* desc_set : impl_->descriptor_sets) { if (desc_set) desc_set->destroy(); }
+            if (impl_->descriptor_pool && !impl_->descriptor_sets.empty())
+            {
+                impl_->descriptor_pool->free_descriptor_sets(impl_->descriptor_sets);
+            }
 
             impl_->descriptor_sets.clear();
 
@@ -186,6 +190,7 @@ namespace boza
         dispatcher->impl_->shader                 = shader;
         dispatcher->impl_->descriptor_set_layouts = descriptor_set_layouts;
         dispatcher->impl_->descriptor_sets        = std::move(descriptor_sets);
+        dispatcher->impl_->descriptor_pool        = descriptor_pool;
 
         auto* reflection = new rhi::DescriptorReflection();
         reflection->build_from_shaders({ shader });
@@ -211,7 +216,7 @@ namespace boza
         dispatch_groups(group_x, group_y, group_z);
     }
 
-    void ComputeDispatcher::dispatch_groups(const std::uint32_t x, const std::uint32_t y, const std::uint32_t z)
+    void ComputeDispatcher::dispatch_groups(const std::uint32_t x, const std::uint32_t y, const std::uint32_t z) const
     {
         if (!impl_->pipeline)
         {
@@ -254,7 +259,7 @@ namespace boza
         impl_->dirty_sets.clear();
     }
 
-    void ComputeDispatcher::mark_set_dirty(const std::uint32_t set) { impl_->dirty_sets[set] = true; }
+    void ComputeDispatcher::mark_set_dirty(const std::uint32_t set) const { impl_->dirty_sets[set] = true; }
 
     template<typename T>
     void ComputeDispatcher::update_property(const std::string& name, const T& value)

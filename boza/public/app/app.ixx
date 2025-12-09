@@ -12,23 +12,11 @@ import boza.gfx;
 
 export namespace boza
 {
-    struct AppConfig
-    {
-        std::uint32_t window_width{ 800 };
-        std::uint32_t window_height{ 600 };
-        std::string window_title{ "Boza Engine" };
-        bool fullscreen{ false };
-
-        float target_fps{ 0.0f };
-        float fixed_timestep{ 1.0f / 60.0f };
-        bool vsync{ true };
-    };
-
     class BOZA_API App
     {
     public:
-        explicit App(const AppConfig& config = {});
-        virtual  ~App();
+        App();
+        virtual ~App();
 
         App(const App&) = delete;
         App& operator=(const App&) = delete;
@@ -38,9 +26,11 @@ export namespace boza
         bool init();
         void run();
 
+        void toggle_fullscreen() const;
+
         std::shared_ptr<Scene> create_scene(const std::string& name = "New Scene");
 
-        void register_custom_material(const std::string& name, Material* material);
+        void register_custom_material(const std::string& name, Material* material) const;
 
         PropertyGetSet<App, std::shared_ptr<Scene>> active_scene
         {
@@ -55,10 +45,10 @@ export namespace boza
             offsetof(App, target_fps)
         };
 
-        PropertySet<App, float> fixed_timestep
+        PropertySet<App, float> fixed_update_rate
         {
-            &App::set_fixed_timestep,
-            offsetof(App, fixed_timestep)
+            &App::set_fixed_update_rate,
+            offsetof(App, fixed_update_rate)
         };
 
     protected:
@@ -71,7 +61,9 @@ export namespace boza
         std::shared_ptr<Scene> get_active_scene() const;
 
         void set_target_fps(float fps);
-        void set_fixed_timestep(float timestep);
+        void set_fixed_update_rate(float rate);
+
+        void shutdown();
 
         struct Impl;
         std::unique_ptr<Impl> impl_;

@@ -45,7 +45,7 @@ namespace boza::rhi::vk
 
     void Device::destroy()
     {
-        Log::trace("Destroying vulkan device");
+        // Log::trace("Destroying vulkan device");
 
         if (allocator_)
         {

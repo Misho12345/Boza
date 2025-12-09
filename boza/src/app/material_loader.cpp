@@ -327,7 +327,7 @@ namespace boza::app
         return Material::create(def.vertex_shader, def.fragment_shader);
     }
 
-    void MaterialLoader::bind_engine_resources(Material* material)
+    void MaterialLoader::bind_engine_resources(Material* material) const
     {
         if (material->descriptor_set_count() == 0) return;
 
@@ -398,7 +398,7 @@ namespace boza::app
 
             if (!loaded_textures_.contains(cache_key))
             {
-                const fs::path tex_path = AssetPaths::resolve_texture(tex_info.file);
+                const fs::path tex_path = AssetPaths::texture(tex_info.file);
                 auto* loaded = Texture::load_from_file(tex_path.string(), tex_info.format, TextureAccessMode::Static);
                 if (loaded)
                 {
@@ -480,7 +480,7 @@ namespace boza::app
         Log::trace("Registered custom material: {}", name);
     }
 
-    void MaterialLoader::update_time_ubo(float time, float delta_time)
+    void MaterialLoader::update_time_ubo(float time, float delta_time) const
     {
         if (!time_ubo_) return;
 

@@ -74,8 +74,6 @@ namespace boza::rhi::vk
 
         if (vma_allocator_)
         {
-            // if vmaDestroyAllocator's assert check fails, uncomment to check if some data hasn't been freed properly
-
             // char* statsString = nullptr;
             // vmaBuildStatsString(vma_allocator_, &statsString, true);
             //

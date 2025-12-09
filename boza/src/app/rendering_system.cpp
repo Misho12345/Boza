@@ -171,7 +171,7 @@ namespace boza::app
         return result;
     }
 
-    void RenderingSystem::update_camera_uniforms()
+    void RenderingSystem::update_camera_uniforms() const
     {
         auto* camera_ubo = material_loader_.camera_ubo();
         if (!camera_ubo) return;
@@ -278,8 +278,6 @@ namespace boza::app
     {
         wait_idle();
 
-        detail::RenderContext::shutdown();
-
         material_loader_.shutdown();
         gpu_meshes_.clear();
 
@@ -290,5 +288,8 @@ namespace boza::app
         if (instance_) instance_->destroy();
     }
 
-    void RenderingSystem::wait_idle() const { if (device_) device_->wait_idle(); }
+    void RenderingSystem::wait_idle() const
+    {
+        if (device_) device_->wait_idle();
+    }
 }

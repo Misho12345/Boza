@@ -94,10 +94,10 @@ export namespace boza
             TextureFormat      texture_format = TextureFormat::RGBA8,
             TextureAccessMode  texture_access_mode = TextureAccessMode::Static);
 
-        void upload(const void* data, std::size_t data_size, std::uint32_t frame_index = 0);
-        bool save_to_file(const std::string& filepath, std::uint32_t frame_index = 0);
+        void upload(const void* data, std::size_t data_size, std::uint32_t frame_index = 0) const;
+        bool save_to_file(const std::string& filepath, std::uint32_t frame_index = 0) const;
 
-        void transition_layout(TextureLayout old_layout, TextureLayout new_layout, std::uint32_t frame_index = 0);
+        void transition_layout(TextureLayout old_layout, TextureLayout new_layout, std::uint32_t frame_index = 0) const;
 
         void set_sampler_filter(SamplerFilter filter);
         void set_sampler_wrap(SamplerWrap wrap_u, SamplerWrap wrap_v, SamplerWrap wrap_w);

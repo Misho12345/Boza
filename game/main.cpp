@@ -82,17 +82,6 @@ private:
 
 class MaterialShowcase final : public boza::App
 {
-public:
-    MaterialShowcase()
-        : App({
-            .window_width = 1280,
-            .window_height = 720,
-            .window_title = "Boza Engine - Material & Shader Showcase",
-            .target_fps = 60.0f,
-            .fixed_timestep = 1.0f / 60.0f,
-            .vsync = true,
-        }) {}
-
 protected:
     void on_shutdown() override
     {
@@ -111,6 +100,9 @@ protected:
         setup_floor();
         setup_material_cubes();
         setup_dynamic_objects();
+
+        using boza::Input, boza::Key, boza::Action;
+        Input::on<Action::Press>(Key::F11, [this] { toggle_fullscreen(); });
 
         boza::Log::info("Scene setup complete!");
     }
@@ -338,7 +330,7 @@ private:
         boza::Log::info("Compute texture generated");
     }
 
-    void create_dynamic_materials()
+    void create_dynamic_materials() const
     {
         {
             auto* mat = boza::Material::create("default", "default");

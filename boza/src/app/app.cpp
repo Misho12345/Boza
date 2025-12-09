@@ -3,6 +3,7 @@ module boza.app;
 import boza.platform;
 import boza.core;
 import boza.gfx;
+import boza.input;
 
 import boza.detail;
 import boza.rhi.api;
@@ -25,34 +26,28 @@ namespace boza
 
     struct App::Impl
     {
-        AppConfig config;
-
         std::unique_ptr<Window>          window;
         std::unique_ptr<RenderingSystem> rendering_system;
         std::unique_ptr<GameLoop>        game_loop;
         std::shared_ptr<Scene>           active_scene;
+        bool initialized{ false };
     };
 
-    App::App(const AppConfig& config) : impl_(std::make_unique<Impl>())
-    {
-        impl_->config = config;
-        Log::init();
-    }
-
+    App::App() : impl_(std::make_unique<Impl>()) { Log::init(); }
     App::~App() = default;
 
     bool App::init()
     {
-        if (!GameSettings::load_from_file(AssetPaths::resolve_asset("game_settings.json").string()))
+        if (!GameSettings::load_from_file(AssetPaths::asset("game_settings.json").string()))
         {
             Log::warn("Could not load game settings from file, using defaults");
         }
 
         impl_->window = std::make_unique<Window>(
-            impl_->config.window_width,
-            impl_->config.window_height,
-            impl_->config.window_title,
-            impl_->config.fullscreen
+            GameSettings::window.width,
+            GameSettings::window.height,
+            GameSettings::window.title,
+            GameSettings::window.fullscreen
         );
 
         if (!Window::init())
@@ -76,9 +71,10 @@ namespace boza
 
         GameLoopConfig loop_config
         {
-            .target_fps = impl_->config.target_fps,
-            .fixed_timestep = impl_->config.fixed_timestep,
-            .vsync = impl_->config.vsync
+            .target_fps = GameSettings::graphics.target_fps,
+            .fixed_update_rate = GameSettings::physics.fixed_update_rate,
+            .input_poll_rate = GameSettings::input.poll_rate,
+            .vsync = GameSettings::graphics.vsync
         };
 
         impl_->game_loop = std::make_unique<GameLoop>(loop_config);
@@ -86,14 +82,18 @@ namespace boza
         if (impl_->active_scene) { impl_->game_loop->set_active_scene(impl_->active_scene); }
 
         impl_->game_loop->set_on_render([this] { impl_->rendering_system->run(); });
+        impl_->game_loop->set_poll_events([this] { impl_->window->poll_events(); });
         impl_->game_loop->set_should_close([this] { return impl_->window->should_close(); });
 
+        Input::init(impl_->window->native_handle());
+
+        impl_->initialized = true;
         return true;
     }
 
     void App::run()
     {
-        if (!impl_->game_loop)
+        if (!impl_->game_loop || !impl_->initialized)
         {
             Log::critical("App::run() called before App::init(). Please call init() first.");
             return;
@@ -102,39 +102,39 @@ namespace boza
         Log::trace("Starting application...");
 
         impl_->game_loop->start();
+        impl_->game_loop->wait_for_window_close();
 
-        while (!impl_->window->should_close() && impl_->game_loop->is_running())
-        {
-            using namespace std::chrono_literals;
-            impl_->window->poll_events();
-            std::this_thread::sleep_for(16ms); // checking ~60 times ps
-        }
+        Log::trace("Application stopping");
+        shutdown();
+        Log::trace("Application stopped");
+    }
 
-        Log::trace("Stopping application...");
-
-        if (impl_->game_loop) impl_->game_loop->stop();
+    void App::shutdown()
+    {
+        if (!impl_->initialized) return;
 
         if (impl_->rendering_system) impl_->rendering_system->wait_idle();
-
         on_shutdown();
-
         if (impl_->rendering_system) impl_->rendering_system->destroy();
-        if (impl_->window) impl_->window->destroy();
 
+        Input::shutdown();
+
+        if (impl_->window) impl_->window->destroy();
         Window::terminate();
 
-        Log::trace("App stopped");
+        impl_->initialized = false;
+        Log::trace("App shutdown complete");
+    }
+
+    void App::toggle_fullscreen() const
+    {
+        if (impl_->window) impl_->window->toggle_fullscreen();
     }
 
     void App::set_active_scene(const std::shared_ptr<Scene>& scene)
     {
         impl_->active_scene = scene;
         if (impl_->game_loop) impl_->game_loop->set_active_scene(scene);
-
-        if (impl_->rendering_system)
-        {
-            // impl_->rendering_system->set_active_scene(scene); // A function like this would be needed
-        }
     }
 
     std::shared_ptr<Scene> App::get_active_scene() const { return impl_->active_scene; }
@@ -150,12 +150,12 @@ namespace boza
         if (impl_->game_loop) impl_->game_loop->set_target_fps(fps);
     }
 
-    void App::set_fixed_timestep(const float timestep)
+    void App::set_fixed_update_rate(const float rate)
     {
-        if (impl_->game_loop) impl_->game_loop->set_fixed_timestep(timestep);
+        if (impl_->game_loop) impl_->game_loop->set_fixed_update_rate(rate);
     }
 
-    void App::register_custom_material(const std::string& name, Material* material)
+    void App::register_custom_material(const std::string& name, Material* material) const
     {
         if (impl_->rendering_system)
         {

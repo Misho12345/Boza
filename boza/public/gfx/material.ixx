@@ -51,7 +51,7 @@ export namespace boza
 
         PropertyBinder operator[](std::string_view name);
 
-        void bind();
+        void bind() const;
 
         template<typename T>
         void push_constants(const std::string& name, const T& value)
@@ -82,9 +82,9 @@ export namespace boza
         struct Impl;
         std::unique_ptr<Impl> impl_;
 
-        void mark_set_dirty(std::uint32_t set);
-        void push_constants_impl(const std::string& name, const void* data, std::size_t size);
-        void update_property_impl(const std::string& name, const void* data, std::size_t size);
+        void mark_set_dirty(std::uint32_t set) const;
+        void push_constants_impl(const std::string& name, const void* data, std::size_t size) const;
+        void update_property_impl(const std::string& name, const void* data, std::size_t size) const;
 
         friend class PropertyBinder;
     };

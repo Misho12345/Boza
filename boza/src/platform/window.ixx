@@ -52,6 +52,8 @@ export namespace boza::platform
         [[nodiscard]] bool has_resized();
         [[nodiscard]] bool is_minimized() const;
 
+        [[nodiscard]] void* native_handle() const { return window_; }
+
         [[nodiscard]]
         std::vector<const char*> get_required_extensions() const;
 

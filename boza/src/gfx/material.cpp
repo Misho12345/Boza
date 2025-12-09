@@ -1,7 +1,3 @@
-module;
-
-#include "api.hpp"
-
 module boza.gfx;
 
 import :material;
@@ -61,6 +57,8 @@ namespace boza
 
         std::unordered_map<std::uint32_t, std::vector<std::byte>> uniform_buffer_staging;
         std::unordered_map<std::uint32_t, rhi::Buffer*>           uniform_buffers;
+
+        rhi::DescriptorPool* descriptor_pool{ nullptr };
     };
 
     Material::Material() : impl_(std::make_unique<Impl>()) { impl_->push_constant_staging.resize(128); }
@@ -68,15 +66,6 @@ namespace boza
     Material::~Material()
     {
         if (!impl_) return;
-
-        const auto ptr_value = reinterpret_cast<std::uintptr_t>(impl_.get());
-        if (ptr_value == 0xDDDDDDDDDDDDDDDD || ptr_value == 0xCDCDCDCDCDCDCDCD ||
-            ptr_value == 0xFDFDFDFDFDFDFDFD || ptr_value == 0xFEEEFEEEFEEEFEEE)
-        {
-            Log::warn("Material destructor called on already-freed memory (impl_ = 0x{:X})", ptr_value);
-            impl_.release();
-            return;
-        }
 
         if (!impl_->uniform_buffers.empty())
         {
@@ -100,6 +89,10 @@ namespace boza
             }
         }
 
+        if (impl_->descriptor_pool && !impl_->descriptor_sets.empty())
+        {
+            impl_->descriptor_pool->free_descriptor_sets(impl_->descriptor_sets);
+        }
         impl_->descriptor_sets.clear();
 
         if (impl_->reflection)
@@ -247,6 +240,7 @@ namespace boza
         material->impl_->pipeline_layout        = pipeline_layout;
         material->impl_->descriptor_set_layouts = descriptor_set_layouts;
         material->impl_->descriptor_sets        = std::move(descriptor_sets);
+        material->impl_->descriptor_pool        = descriptor_pool;
 
         auto* reflection = new rhi::DescriptorReflection();
         reflection->build_from_shaders({ vert_shader, frag_shader });
@@ -258,7 +252,7 @@ namespace boza
 
     PropertyBinder Material::operator[](const std::string_view name) { return PropertyBinder(this, std::string(name)); }
 
-    void Material::bind()
+    void Material::bind() const
     {
         if (!impl_->pipeline)
         {
@@ -281,7 +275,7 @@ namespace boza
         }
     }
 
-    void Material::push_constants_impl(const std::string& name, const void* data, std::size_t size)
+    void Material::push_constants_impl(const std::string& name, const void* data, std::size_t size) const
     {
         if (!impl_->reflection)
         {
@@ -318,9 +312,9 @@ namespace boza
             data);
     }
 
-    void Material::mark_set_dirty(const std::uint32_t set) { impl_->dirty_sets[set] = true; }
+    void Material::mark_set_dirty(const std::uint32_t set) const { impl_->dirty_sets[set] = true; }
 
-    void Material::update_property_impl(const std::string& name, const void* data, std::size_t size)
+    void Material::update_property_impl(const std::string& name, const void* data, std::size_t size) const
     {
         if (!impl_->reflection)
         {
