@@ -156,7 +156,7 @@ private:
         auto& floor = scene_->create_game_object("Floor");
         auto& mr = floor.add_component<boza::MeshRenderer>();
         mr.mesh = plane_mesh_;
-        mr.material_name = "default";
+        mr.material_name = "dancho";
         mr.color = glm::vec4(0.3f, 0.3f, 0.35f, 1.0f);
 
         floor.transform->position = glm::vec3(0.0f, -1.5f, 0.0f);
