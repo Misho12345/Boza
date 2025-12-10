@@ -84,6 +84,7 @@ namespace boza
         impl_->game_loop->set_on_render([this] { impl_->rendering_system->run(); });
         impl_->game_loop->set_poll_events([this] { impl_->window->poll_events(); });
         impl_->game_loop->set_should_close([this] { return impl_->window->should_close(); });
+        impl_->game_loop->set_apply_cursor_state([this] { impl_->window->apply_cursor_state_if_needed(); });
 
         Input::init(impl_->window->native_handle());
 
@@ -129,6 +130,26 @@ namespace boza
     void App::toggle_fullscreen() const
     {
         if (impl_->window) impl_->window->toggle_fullscreen();
+    }
+
+    void App::set_cursor_state(const CursorState state) const
+    {
+        if (!impl_->window) return;
+
+        const platform::CursorState plat_state = [&state] -> platform::CursorState
+        {
+            switch (state)
+            {
+                case CursorState::Normal: return platform::CursorState::Normal;
+                case CursorState::Hidden: return platform::CursorState::Hidden;
+                case CursorState::Locked: return platform::CursorState::Locked;
+                case CursorState::HiddenLocked: return platform::CursorState::HiddenLocked;
+            }
+
+            std::unreachable();
+        }();
+
+        impl_->window->set_cursor_state(plat_state);
     }
 
     void App::set_active_scene(const std::shared_ptr<Scene>& scene)

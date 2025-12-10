@@ -38,6 +38,7 @@ namespace boza::app
         void set_on_render(std::function<void()> func);
         void set_poll_events(std::function<void()> func);
         void set_should_close(std::function<bool()> func);
+        void set_apply_cursor_state(std::function<void()> func);
 
         void wait_for_window_close();
 
@@ -59,6 +60,7 @@ namespace boza::app
         std::function<void()> on_render_;
         std::function<void()> poll_events_;
         std::function<bool()> should_close_;
+        std::function<void()> apply_cursor_state_;
     };
 }
 

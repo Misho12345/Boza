@@ -8,16 +8,6 @@ import std;
 
 export namespace boza
 {
-    enum class Action
-    {
-        Press,
-        Release,
-        Hold,
-        DoubleClick,
-        MouseMove,
-        MouseScroll
-    };
-
     enum class Key : std::int32_t
     {
         A = GLFW_KEY_A,
@@ -82,6 +72,16 @@ export namespace boza
         MouseLeft   = GLFW_MOUSE_BUTTON_LEFT,
         MouseRight  = GLFW_MOUSE_BUTTON_RIGHT,
         MouseMiddle = GLFW_MOUSE_BUTTON_MIDDLE
+    };
+
+    enum class Action
+    {
+        Press,
+        Release,
+        Hold,
+        DoubleClick,
+        MouseMove,
+        MouseScroll
     };
 
     struct KeyCombo

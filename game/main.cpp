@@ -1,4 +1,7 @@
+import std;
 import boza;
+
+using boza::Input, boza::Key, boza::Action, boza::CursorState;
 
 class Rotator final : public boza::Behaviour
 {
@@ -58,26 +61,82 @@ public:
 class CameraController final : public boza::Behaviour
 {
 public:
-    float orbit_speed{ 0.3f };
-    float orbit_radius{ 12.0f };
-    float orbit_height{ 4.0f };
-    glm::vec3 look_target{ 0.0f, 0.0f, 0.0f };
+    std::mutex mutex_rot;
+
+    float move_speed{ 1.0f };
+    float sensitivity{ 0.001f };
+    float smoothing{ 0.1f };
+
+    glm::vec2 delta_rot{};
+    glm::vec2 smoothed_delta{};
+
+    void awake() override
+    {
+        Input::on<Action::MouseMove>([this](const glm::vec2 move)
+        {
+            std::lock_guard lock{ mutex_rot };
+            delta_rot += move * sensitivity;
+        });
+    }
 
     void update(const float dt) override
     {
-        angle_ += orbit_speed * dt;
+        glm::vec3 move{};
 
-        auto& t = transform();
-        t.position = glm::vec3(
-            std::cosf(angle_) * orbit_radius,
-            orbit_height,
-            std::sinf(angle_) * orbit_radius
-        );
-        t.look_at(look_target);
+        if (Input::is_held(Key::W)) --move.z;
+        if (Input::is_held(Key::S)) ++move.z;
+        if (Input::is_held(Key::A)) --move.x;
+        if (Input::is_held(Key::D)) ++move.x;
+        if (Input::is_held(Key::Space)) ++move.y;
+        if (Input::is_held(Key::LShift)) --move.y;
+
+        if (glm::length2(move) > 0.0f)
+        {
+            glm::vec3 world_move{ 0.0f, move.y, 0.0f };
+
+            if (move.x != 0.0f || move.z != 0.0f)
+            {
+                const glm::vec3 forward_xz = glm::normalize(glm::vec3{ transform->forward().x, 0.0f, transform->forward().z });
+                const glm::vec3 right_xz = glm::normalize(glm::vec3{ transform->right().x,   0.0f, transform->right().z });
+
+                const glm::vec3 horizontal = move.x * right_xz + move.z * forward_xz;
+                world_move.x = horizontal.x;
+                world_move.z = horizontal.z;
+            }
+
+            transform->position += glm::normalize(world_move) * move_speed * dt;
+        }
+
+        glm::vec2 frame_delta{};
+
+        {
+            std::lock_guard lock{ mutex_rot };
+            frame_delta = delta_rot;
+            delta_rot = { 0.0f, 0.0f };
+        }
+
+        smoothed_delta = glm::mix(smoothed_delta, frame_delta, 1.0f - smoothing);
+
+        if (glm::length2(smoothed_delta) > 0.0001f)
+        {
+            yaw_   += smoothed_delta.x;
+
+            pitch_ += smoothed_delta.y;
+            pitch_ = glm::clamp(pitch_, pitch_min, pitch_max);
+
+            const glm::quat q_yaw   = glm::angleAxis(yaw_,   glm::vec3{ 0.0f, 1.0f, 0.0f });
+            const glm::quat q_pitch = glm::angleAxis(pitch_, glm::vec3{ 1.0f, 0.0f, 0.0f });
+
+            transform->rotation = glm::normalize(q_yaw * q_pitch);
+        }
     }
 
 private:
-    float angle_{ 0.0f };
+    static constexpr float pitch_min{ glm::radians(-89.0f) };
+    static constexpr float pitch_max{ glm::radians(89.0f) };
+
+    float yaw_{ 0.0f };
+    float pitch_{ 0.0f };
 };
 
 class MaterialShowcase final : public boza::App
@@ -101,8 +160,9 @@ protected:
         setup_material_cubes();
         setup_dynamic_objects();
 
-        using boza::Input, boza::Key, boza::Action;
         Input::on<Action::Press>(Key::F11, [this] { toggle_fullscreen(); });
+        Input::on<Action::Press>(Key::MouseLeft, [this] { set_cursor_state(CursorState::Locked); });
+        Input::on<Action::Press>(Key::Esc, [this] { set_cursor_state(CursorState::Normal); });
 
         boza::Log::info("Scene setup complete!");
     }
@@ -130,13 +190,10 @@ private:
         camera.primary = true;
 
         auto& controller = camera_obj.add_component<CameraController>();
-        controller.orbit_radius = 10.0f;
-        controller.orbit_height = 5.0f;
-        controller.orbit_speed = 0.2f;
-        controller.look_target = glm::vec3(0.0f, 0.0f, 0.0f);
+        controller.move_speed = 10.0f;
 
-        camera_obj.transform->position = glm::vec3(0.0f, 5.0f, 10.0f);
-        camera_obj.transform->look_at(glm::vec3(0.0f, 0.0f, 0.0f));
+        camera_obj.transform->position = glm::vec3{ 0.0f, 5.0f, 10.0f };
+        camera_obj.transform->look_at(glm::vec3{ 0.0f, 0.0f, 0.0f });
 
         boza::Log::info("Camera with orbit controller created");
     }
@@ -149,9 +206,9 @@ private:
         auto& mr = floor.add_component<boza::MeshRenderer>();
         mr.mesh = plane_mesh_;
         mr.material_name = "dancho";
-        mr.color = glm::vec4(0.3f, 0.3f, 0.35f, 1.0f);
+        mr.color = glm::vec4{ 0.3f, 0.3f, 0.35f, 1.0f };
 
-        floor.transform->position = glm::vec3(0.0f, -1.5f, 0.0f);
+        floor.transform->position = glm::vec3{ 0.0f, -1.5f, 0.0f };
 
         boza::Log::info("Floor created");
     }
@@ -188,7 +245,7 @@ private:
             auto& mr = cube.add_component<boza::MeshRenderer>();
             mr.mesh = cube_mesh_;
             mr.material_name = cfg.material;
-            mr.color = glm::vec4(1.0f);
+            mr.color = glm::vec4{ 1.0f };
 
 
             cube.transform->position = cfg.position;
@@ -203,20 +260,20 @@ private:
             auto& cube = scene_->create_game_object("OscillatingCube");
 
             auto& oscillator = cube.add_component<Oscillator>();
-            oscillator.start_pos = glm::vec3(-3.0f, 2.0f, 3.0f);
-            oscillator.end_pos = glm::vec3(3.0f, 2.0f, 3.0f);
+            oscillator.start_pos = glm::vec3{ -3.0f, 2.0f, 3.0f };
+            oscillator.end_pos = glm::vec3{ 3.0f, 2.0f, 3.0f };
             oscillator.speed = 1.5f;
 
             auto& rotator = cube.add_component<Rotator>();
             rotator.rotation_speed = 2.0f;
-            rotator.rotation_axis = glm::vec3(1.0f, 1.0f, 1.0f);
+            rotator.rotation_axis = glm::vec3{ 1.0f, 1.0f, 1.0f };
 
             auto& mr = cube.add_component<boza::MeshRenderer>();
             mr.mesh = cube_mesh_;
             mr.material_name = "custom_compute";
-            mr.color = glm::vec4(1.0f);
+            mr.color = glm::vec4{ 1.0f };
 
-            cube.transform->position = glm::vec3(-3.0f, 2.0f, 3.0f);
+            cube.transform->position = glm::vec3{ -3.0f, 2.0f, 3.0f };
 
             boza::Log::info("Created oscillating cube with compute texture");
         }
@@ -226,15 +283,15 @@ private:
 
             auto& rotator = cube.add_component<Rotator>();
             rotator.rotation_speed = 0.8f;
-            rotator.rotation_axis = glm::vec3(0.0f, 1.0f, 0.0f);
+            rotator.rotation_axis = glm::vec3{ 0.0f, 1.0f, 0.0f };
 
             auto& mr = cube.add_component<boza::MeshRenderer>();
             mr.mesh = cube_mesh_;
             mr.material_name = "pulsing";
-            mr.color = glm::vec4(1.0f);
+            mr.color = glm::vec4{ 1.0f };
 
-            cube.transform->position = glm::vec3(0.0f, 2.0f, -3.0f);
-            cube.transform->scale = glm::vec3(1.5f);
+            cube.transform->position = glm::vec3{ 0.0f, 2.0f, -3.0f };
+            cube.transform->scale = glm::vec3{ 1.5f };
 
             boza::Log::info("Created pulsing color cube");
         }
@@ -244,14 +301,14 @@ private:
 
             auto& rotator = cube.add_component<Rotator>();
             rotator.rotation_speed = 1.2f;
-            rotator.rotation_axis = glm::vec3(0.0f, 1.0f, 0.0f);
+            rotator.rotation_axis = glm::vec3{ 0.0f, 1.0f, 0.0f };
 
-            auto& mr = cube.add_component<boza::MeshRenderer>();
-            mr.mesh = cube_mesh_;
+            auto& mr         = cube.add_component<boza::MeshRenderer>();
+            mr.mesh          = cube_mesh_;
             mr.material_name = "unlit_orange";
-            mr.color = glm::vec4(1.0f);
+            mr.color         = glm::vec4{ 1.0f };
 
-            cube.transform->position = glm::vec3(-2.0f, 1.0f, -4.0f);
+            cube.transform->position = glm::vec3{ -2.0f, 1.0f, -4.0f };
 
             boza::Log::info("Created unlit orange cube");
         }
@@ -261,15 +318,15 @@ private:
 
             auto& rotator = cube.add_component<Rotator>();
             rotator.rotation_speed = -1.0f;
-            rotator.rotation_axis = glm::vec3(1.0f, 0.0f, 0.0f);
+            rotator.rotation_axis = glm::vec3{ 1.0f, 0.0f, 0.0f };
 
             auto& mr = cube.add_component<boza::MeshRenderer>();
             mr.mesh = cube_mesh_;
             mr.material_name = "unlit_cyan";
-            mr.color = glm::vec4(1.0f);
+            mr.color = glm::vec4{ 1.0f };
 
 
-            cube.transform->position = glm::vec3(2.0f, 1.0f, -4.0f);
+            cube.transform->position = glm::vec3{ 2.0f, 1.0f, -4.0f };
 
             boza::Log::info("Created unlit cyan cube");
         }
@@ -338,8 +395,8 @@ private:
             {
                 register_custom_material("custom_compute", mat);
                 (*mat)["albedo_map"] = compute_texture_;
-                (*mat)["material.albedo_color"] = glm::vec4(1.0f);
-                (*mat)["material.properties"] = glm::vec4(0.0f, 0.5f, 0.5f, 0.0f);
+                (*mat)["material.albedo_color"] = glm::vec4{ 1.0f };
+                (*mat)["material.properties"] = glm::vec4{ 0.0f, 0.5f, 0.5f, 0.0f };
                 boza::Log::info("Created custom_compute material");
             }
         }
@@ -349,16 +406,16 @@ private:
             if (pulsing_mat)
             {
                 register_custom_material("pulsing", pulsing_mat);
-                (*pulsing_mat)["material.albedo_color"] = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
-                (*pulsing_mat)["material.properties"] = glm::vec4(0.0f, 0.8f, 0.2f, 0.0f);
+                (*pulsing_mat)["material.albedo_color"] = glm::vec4{ 1.0f, 0.0f, 0.0f, 1.0f };
+                (*pulsing_mat)["material.properties"] = glm::vec4{ 0.0f, 0.8f, 0.2f, 0.0f };
 
                 auto* pulsing_obj = scene_->find_game_object_by_name("PulsingCube");
                 if (pulsing_obj)
                 {
                     auto& pulser = pulsing_obj->add_component<ColorPulser>();
                     pulser.material = pulsing_mat;
-                    pulser.color_a = glm::vec4(1.0f, 0.2f, 0.2f, 1.0f);
-                    pulser.color_b = glm::vec4(0.2f, 0.2f, 1.0f, 1.0f);
+                    pulser.color_a = glm::vec4{ 1.0f, 0.2f, 0.2f, 1.0f };
+                    pulser.color_b = glm::vec4{ 0.2f, 0.2f, 1.0f, 1.0f };
                     pulser.speed = 2.0f;
                 }
 

@@ -1,7 +1,9 @@
 module boza.input:state;
 
-import std;
 import :keys;
+
+import std;
+import boza.common;
 
 namespace boza::input
 {
@@ -42,8 +44,7 @@ namespace boza::input
         static CallbackExecutor& instance();
 
         void execute(std::function<void()> func);
-
-        void execute(std::function<void(double, double)> func, double x, double y);
+        void execute(std::function<void(glm::vec2)> func, glm::vec2 xy);
 
         ~CallbackExecutor();
 
@@ -58,9 +59,9 @@ namespace boza::input
     };
 
     inline void async_execute(std::function<void()> func) { CallbackExecutor::instance().execute(std::move(func)); }
-    inline void async_execute(std::function<void(double, double)> func, double x, double y)
+    inline void async_execute(std::function<void(glm::vec2)> func, const glm::vec2 xy)
     {
-        CallbackExecutor::instance().execute(std::move(func), x, y);
+        CallbackExecutor::instance().execute(std::move(func), xy);
     }
 
     struct InputState
@@ -77,10 +78,13 @@ namespace boza::input
         std::vector<BindingEvent> hold_bindings;
         std::vector<BindingEvent> double_click_bindings;
 
-        std::vector<std::function<void(double, double)>> mouse_move_callbacks;
-        std::vector<std::function<void(double, double)>> mouse_scroll_callbacks;
+        std::vector<std::function<void(glm::vec2)>> mouse_move_callbacks;
+        std::vector<std::function<void(glm::vec2)>> mouse_scroll_callbacks;
 
         std::unordered_map<Key, KeyState> key_states;
+
+        glm::vec2 last_cursor_pos{ 0.0f, 0.0f };
+        bool first_cursor_move{ true };
 
         static InputState& instance()
         {

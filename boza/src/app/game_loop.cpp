@@ -102,6 +102,7 @@ namespace boza::app
     void GameLoop::set_on_render(std::function<void()> func) { on_render_ = std::move(func); }
     void GameLoop::set_poll_events(std::function<void()> func) { poll_events_ = std::move(func); }
     void GameLoop::set_should_close(std::function<bool()> func) { should_close_ = std::move(func); }
+    void GameLoop::set_apply_cursor_state(std::function<void()> func) { apply_cursor_state_ = std::move(func); }
 
     bool GameLoop::is_running() const { return running_; }
 
@@ -180,6 +181,7 @@ namespace boza::app
             }
 
             if (poll_events_) poll_events_();
+            if (apply_cursor_state_) apply_cursor_state_();
 
             Input::update();
 

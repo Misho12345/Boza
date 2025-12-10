@@ -8,6 +8,7 @@ export module boza.app;
 import std;
 import boza.ecs;
 import boza.common;
+import boza.input;
 import boza.gfx;
 
 export namespace boza
@@ -27,6 +28,7 @@ export namespace boza
         void run();
 
         void toggle_fullscreen() const;
+        void set_cursor_state(CursorState state) const;
 
         std::shared_ptr<Scene> create_scene(const std::string& name = "New Scene");
 

@@ -20,9 +20,9 @@ namespace boza::input
         condition_.notify_one();
     }
 
-    void CallbackExecutor::execute(std::function<void(double, double)> func, double x, double y)
+    void CallbackExecutor::execute(std::function<void(glm::vec2)> func, glm::vec2 xy)
     {
-        execute([f = std::move(func), x, y] { f(x, y); });
+        execute([f = std::move(func), xy] { f(xy); });
     }
 
     CallbackExecutor::~CallbackExecutor()
@@ -89,6 +89,9 @@ namespace boza::input
         mouse_scroll_callbacks.clear();
 
         key_states.clear();
+
+        last_cursor_pos = glm::vec2{ 0.0f, 0.0f };
+        first_cursor_move = true;
     }
 
     InputState::InputState()

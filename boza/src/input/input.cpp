@@ -6,7 +6,6 @@ module;
 module boza.input;
 
 import :state;
-import std;
 
 namespace boza
 {
@@ -95,16 +94,29 @@ namespace boza
         const auto& state = InputState::instance();
         for (const auto& callback : state.mouse_scroll_callbacks)
         {
-            async_execute(callback, x, y);
+            async_execute(callback, { x, y });
         }
     }
 
     void on_cursor_pos_callback(GLFWwindow*, const double x, const double y)
     {
-        const auto& state = InputState::instance();
+        auto& state = InputState::instance();
+
+        const glm::vec2 current_pos{ static_cast<float>(x), static_cast<float>(y) };
+
+        if (state.first_cursor_move)
+        {
+            state.last_cursor_pos = current_pos;
+            state.first_cursor_move = false;
+            return;
+        }
+
+        const glm::vec2 delta = current_pos - state.last_cursor_pos;
+        state.last_cursor_pos = current_pos;
+
         for (const auto& callback : state.mouse_move_callbacks)
         {
-            async_execute(callback, x, y);
+            async_execute(callback, delta);
         }
     }
 
@@ -141,7 +153,7 @@ namespace boza
     }
 
     template<Action A> requires (A == Action::MouseMove || A == Action::MouseScroll)
-    void Input::on(std::function<void(double, double)> callback)
+    void Input::on(std::function<void(glm::vec2)> callback)
     {
         auto&           state = InputState::instance();
         std::lock_guard lock{ state.mutex };
@@ -209,6 +221,8 @@ namespace boza
         window_handle_ = nullptr;
     }
 
+    void Input::reset_cursor_tracking() { InputState::instance().first_cursor_move = true; }
+
     template BOZA_API void Input::on<Action::Press>(KeyBinding, std::function<void()>);
     template BOZA_API void Input::on<Action::Release>(KeyBinding, std::function<void()>);
     template BOZA_API void Input::on<Action::Hold>(KeyBinding, std::function<void()>);
@@ -224,6 +238,6 @@ namespace boza
     template BOZA_API void Input::on<Action::Hold>(Key, std::function<void()>);
     template BOZA_API void Input::on<Action::DoubleClick>(Key, std::function<void()>);
 
-    template BOZA_API void Input::on<Action::MouseMove>(std::function<void(double, double)>);
-    template BOZA_API void Input::on<Action::MouseScroll>(std::function<void(double, double)>);
+    template BOZA_API void Input::on<Action::MouseMove>(std::function<void(glm::vec2)>);
+    template BOZA_API void Input::on<Action::MouseScroll>(std::function<void(glm::vec2)>);
 }

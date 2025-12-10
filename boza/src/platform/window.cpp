@@ -5,6 +5,8 @@ module;
 module boza.platform;
 
 import boza.core;
+import boza.input;
+
 import :window;
 
 #ifdef BOZA_VULKAN_ENABLED
@@ -186,6 +188,47 @@ namespace boza::platform
 
     void Window::show() const { glfwShowWindow(window_); }
     void Window::hide() const { glfwHideWindow(window_); }
+
+    void Window::set_cursor_state(const CursorState state)
+    {
+        desired_cursor_state_.store(state);
+    }
+
+    void Window::apply_cursor_state_if_needed()
+    {
+        const CursorState desired = desired_cursor_state_.load();
+        if (desired == current_cursor_state_) return;
+
+        if (current_cursor_state_ == CursorState::Normal || desired == CursorState::Normal)
+        {
+            Input::reset_cursor_tracking();
+        }
+
+        switch (desired)
+        {
+        case CursorState::Normal:
+            glfwSetInputMode(window_, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            if (glfwRawMouseMotionSupported()) glfwSetInputMode(window_, GLFW_RAW_MOUSE_MOTION, GLFW_FALSE);
+            break;
+
+        case CursorState::Hidden:
+            glfwSetInputMode(window_, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+            if (glfwRawMouseMotionSupported()) glfwSetInputMode(window_, GLFW_RAW_MOUSE_MOTION, GLFW_FALSE);
+            break;
+
+        case CursorState::Locked:
+            glfwSetInputMode(window_, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            if (glfwRawMouseMotionSupported()) glfwSetInputMode(window_, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+            break;
+
+        case CursorState::HiddenLocked:
+            glfwSetInputMode(window_, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            if (glfwRawMouseMotionSupported()) glfwSetInputMode(window_, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+            break;
+        }
+
+        current_cursor_state_ = desired;
+    }
 
     bool Window::has_resized()
     {

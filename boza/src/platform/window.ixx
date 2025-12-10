@@ -14,6 +14,14 @@ import <vulkan/vulkan.h>;
 
 export namespace boza::platform
 {
+    enum class CursorState : std::uint8_t
+    {
+        Normal,
+        Hidden,
+        Locked,
+        HiddenLocked
+    };
+
     class Window final
     {
     public:
@@ -49,6 +57,9 @@ export namespace boza::platform
         void show() const;
         void hide() const;
 
+        void set_cursor_state(CursorState state);
+        void apply_cursor_state_if_needed();
+
         [[nodiscard]] bool has_resized();
         [[nodiscard]] bool is_minimized() const;
 
@@ -74,6 +85,9 @@ export namespace boza::platform
 
         uint32_t last_pos_x_{};
         uint32_t last_pos_y_{};
+
+        CursorState current_cursor_state_{ CursorState::Normal };
+        std::atomic<CursorState> desired_cursor_state_{ CursorState::Normal };
 
         std::atomic_bool resized_{ false };
         GLFWwindow*      window_{ nullptr };
