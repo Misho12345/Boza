@@ -31,7 +31,6 @@ export namespace game
             Input::on<Action::Press>(Key::F11, [this] { toggle_fullscreen(); });
             Input::on<Action::Press>(Key::MouseLeft, [this] { set_cursor_state(CursorState::Locked); });
             Input::on<Action::Press>(Key::Esc | (Key::Num1 & Key::Num2), [this] { set_cursor_state(CursorState::Normal); });
-            // TODO: fix ^ (works with Esc + Num1, and Esc + Num2 (and shouldn't) but not with just Esc and with Num1 + Num2 (as it should)
 
             Log::info("Scene setup complete!");
         }

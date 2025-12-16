@@ -60,6 +60,8 @@ namespace boza
                 if (!state.double_click_bindings.empty()) trigger_bindings(state.double_click_bindings, state.key_states);
             }
 
+            key_state.set_held(true);
+
             if (!was_held)
             {
                 key_state.set_pressed(true);
@@ -70,8 +72,6 @@ namespace boza
                 if (!state.press_bindings.empty()) trigger_bindings(state.press_bindings, state.key_states);
             }
             else key_state.set_pressed(false);
-
-            key_state.set_held(true);
         }
         else if (action == GLFW_RELEASE)
         {
