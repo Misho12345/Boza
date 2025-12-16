@@ -6,8 +6,8 @@
     "fullscreen": false
   },
   "graphics": {
-    "target_fps": 60.0,
-    "vsync": true
+    "target_fps": 150.0,
+    "vsync": false
   },
   "physics": {
     "fixed_update_rate": 60.0

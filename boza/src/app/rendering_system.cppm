@@ -49,8 +49,8 @@ namespace boza::app
         void update_camera_uniforms() const;
 
         std::shared_ptr<Scene> active_scene_{ nullptr };
-        rhi::GraphicsApi api_{};
-        Window* window_ = nullptr;
+        rhi::GraphicsApi       api_{};
+        Window*                window_{ nullptr };
 
         std::unique_ptr<rhi::Instance> instance_{ nullptr };
         std::unique_ptr<rhi::Device> device_{ nullptr };

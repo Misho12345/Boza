@@ -125,7 +125,7 @@ namespace boza::app
                 if (on_render_) on_render_();
             }
 
-            if (config_.target_fps > 0)
+            if (!config_.vsync && config_.target_fps > 0)
             {
                 const float frame_time = 1.0f / config_.target_fps;
                 const float elapsed    = Time::unscaled_delta_time();

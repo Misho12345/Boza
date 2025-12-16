@@ -5,6 +5,7 @@ import boza.detail;
 import boza.gfx;
 import :rendering_system;
 import :material_loader;
+import :game_settings;
 
 import <entt/entt.hpp>;
 
@@ -52,7 +53,7 @@ namespace boza::app
                 api, {
                     .device = device_.get(),
                     .window = window_,
-                    .preferred_present_mode = rhi::PresentMode::Mailbox,
+                    .preferred_present_mode = GameSettings::graphics.vsync ? rhi::PresentMode::Fifo : rhi::PresentMode::Mailbox,
                     .preferred_image_count = 3,
                     .max_frames_in_flight = 2,
                     .enable_depth = true,
@@ -226,10 +227,7 @@ namespace boza::app
             auto& transform = view.get<Transform>(entity);
             auto& mesh_renderer = view.get<MeshRenderer>(entity);
 
-            if (!mesh_renderer.mesh)
-            {
-                continue;
-            }
+            if (!mesh_renderer.mesh) continue;
 
             const auto mesh_ptr_value = reinterpret_cast<std::uintptr_t>(mesh_renderer.mesh.get());
             if (mesh_ptr_value < 0x10000 || (mesh_ptr_value & 0xFFFF) == 0)

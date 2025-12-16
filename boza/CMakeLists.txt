@@ -4,10 +4,10 @@ add_library(boza_engine STATIC)
 add_library(Boza::Engine ALIAS boza_engine)
 boza_enable_warnings(boza_engine)
 
-file(GLOB_RECURSE public_module_interfaces CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/public/*.ixx")
-file(GLOB_RECURSE private_module_interfaces CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.ixx")
-file(GLOB_RECURSE private_module_partitions CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cppm")
-file(GLOB_RECURSE module_implementations CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+file(GLOB_RECURSE boza_public_module_interfaces CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/public/*.ixx")
+file(GLOB_RECURSE boza_private_module_interfaces CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.ixx")
+file(GLOB_RECURSE boza_private_module_partitions CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cppm")
+file(GLOB_RECURSE boza_module_implementations CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
 target_include_directories(boza_engine
         PRIVATE
@@ -20,15 +20,15 @@ target_sources(boza_engine
         FILE_SET boza_modules_public
         TYPE CXX_MODULES
         BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/public
-        FILES ${public_module_interfaces}
+        FILES ${boza_public_module_interfaces}
 
         PRIVATE
         FILE_SET boza_modules_private
         TYPE CXX_MODULES
         BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/src
-        FILES ${private_module_interfaces} ${private_module_partitions}
+        FILES ${boza_private_module_interfaces} ${boza_private_module_partitions}
 
-        PRIVATE ${module_implementations}
+        PRIVATE ${boza_module_implementations}
 )
 
 target_compile_definitions(boza_engine
