@@ -5,6 +5,7 @@ import boza.rhi;
 import boza.common;
 import boza.core;
 import boza.detail;
+import boza.gfx.texture_loader;
 
 namespace boza
 {
@@ -56,26 +57,26 @@ namespace boza
         return rhi::SamplerAddressMode::Repeat;
     }
 
-    Flags<rhi::TextureUsage> to_rhi_usage(const std::uint32_t usage_flags)
+    Flags<rhi::TextureUsage> to_rhi_usage(const Flags<TextureUsage> usage_flags)
     {
         Flags<rhi::TextureUsage> flags;
-        if (usage_flags & static_cast<std::uint32_t>(TextureUsage::Sampled)) flags |= rhi::TextureUsage::Sampled;
-        if (usage_flags & static_cast<std::uint32_t>(TextureUsage::Storage)) flags |= rhi::TextureUsage::Storage;
-        if (usage_flags & static_cast<std::uint32_t>(TextureUsage::ColorAttachment)) flags |= rhi::TextureUsage::ColorAttachment;
-        if (usage_flags & static_cast<std::uint32_t>(TextureUsage::DepthStencilAttachment)) flags |= rhi::TextureUsage::DepthStencilAttachment;
-        if (usage_flags & static_cast<std::uint32_t>(TextureUsage::TransferSrc)) flags |= rhi::TextureUsage::TransferSrc;
-        if (usage_flags & static_cast<std::uint32_t>(TextureUsage::TransferDst)) flags |= rhi::TextureUsage::TransferDst;
-        if (usage_flags & static_cast<std::uint32_t>(TextureUsage::InputAttachment)) flags |= rhi::TextureUsage::InputAttachment;
+        if (usage_flags.has(TextureUsage::Sampled)) flags |= rhi::TextureUsage::Sampled;
+        if (usage_flags.has(TextureUsage::Storage)) flags |= rhi::TextureUsage::Storage;
+        if (usage_flags.has(TextureUsage::ColorAttachment)) flags |= rhi::TextureUsage::ColorAttachment;
+        if (usage_flags.has(TextureUsage::DepthStencilAttachment)) flags |= rhi::TextureUsage::DepthStencilAttachment;
+        if (usage_flags.has(TextureUsage::TransferSrc)) flags |= rhi::TextureUsage::TransferSrc;
+        if (usage_flags.has(TextureUsage::TransferDst)) flags |= rhi::TextureUsage::TransferDst;
+        if (usage_flags.has(TextureUsage::InputAttachment)) flags |= rhi::TextureUsage::InputAttachment;
         return flags;
     }
 
 
     Texture::Texture(
-        const std::uint32_t     texture_width,
-        const std::uint32_t     texture_height,
-        const TextureFormat     texture_format,
-        const std::uint32_t     usage_flags,
-        const TextureAccessMode texture_access_mode)
+        const std::uint32_t       texture_width,
+        const std::uint32_t       texture_height,
+        const TextureFormat       texture_format,
+        const Flags<TextureUsage> usage_flags,
+        const TextureAccessMode   texture_access_mode)
         : rhi_sampler_(nullptr),
           width_(texture_width),
           height_(texture_height),
@@ -209,23 +210,18 @@ namespace boza
         {
             case TextureFormat::R8:
             case TextureFormat::R16F:
-            case TextureFormat::R32F:
-                return 1;
+            case TextureFormat::R32F: return 1;
             case TextureFormat::RG8:
             case TextureFormat::RG16F:
-            case TextureFormat::RG32F:
-                return 2;
+            case TextureFormat::RG32F: return 2;
             case TextureFormat::RGB8:
             case TextureFormat::RGB16F:
-            case TextureFormat::RGB32F:
-                return 3;
+            case TextureFormat::RGB32F: return 3;
             case TextureFormat::RGBA8:
             case TextureFormat::BGRA8:
             case TextureFormat::RGBA16F:
-            case TextureFormat::RGBA32F:
-                return 4;
-            default:
-                return 4;
+            case TextureFormat::RGBA32F: return 4;
+            default: return 4;
         }
     }
 
@@ -240,17 +236,15 @@ namespace boza
             return nullptr;
         }
 
-        const int desired_channels = channels_for_format(texture_format);
-        const ImageData image_data = ImageIO::read(filepath, desired_channels);
+        const int       desired_channels = channels_for_format(texture_format);
+        const ImageData image_data       = ImageIO::read(filepath, desired_channels);
         if (!image_data.data)
         {
             Log::error("Failed to load image from file: {}", filepath);
             return nullptr;
         }
 
-        constexpr std::uint32_t usage_flags =
-                static_cast<std::uint32_t>(TextureUsage::Sampled) |
-                static_cast<std::uint32_t>(TextureUsage::TransferDst);
+        constexpr auto usage_flags = TextureUsage::Sampled | TextureUsage::TransferDst;
 
         auto* texture = new Texture(
             image_data.width,
@@ -432,28 +426,59 @@ namespace boza
 
         switch (old_layout)
         {
-            case TextureLayout::Undefined: rhi_old_layout = rhi::TextureLayout::Undefined; break;
-            case TextureLayout::General: rhi_old_layout = rhi::TextureLayout::General; break;
-            case TextureLayout::ColorAttachment: rhi_old_layout = rhi::TextureLayout::ColorAttachment; break;
-            case TextureLayout::DepthStencilAttachment: rhi_old_layout = rhi::TextureLayout::DepthStencilAttachment; break;
-            case TextureLayout::ShaderReadOnly: rhi_old_layout = rhi::TextureLayout::ShaderReadOnly; break;
-            case TextureLayout::TransferSrc: rhi_old_layout = rhi::TextureLayout::TransferSrc; break;
-            case TextureLayout::TransferDst: rhi_old_layout = rhi::TextureLayout::TransferDst; break;
-            case TextureLayout::Present: rhi_old_layout = rhi::TextureLayout::Present; break;
+            case TextureLayout::Undefined: rhi_old_layout = rhi::TextureLayout::Undefined;
+                break;
+            case TextureLayout::General: rhi_old_layout = rhi::TextureLayout::General;
+                break;
+            case TextureLayout::ColorAttachment: rhi_old_layout = rhi::TextureLayout::ColorAttachment;
+                break;
+            case TextureLayout::DepthStencilAttachment: rhi_old_layout = rhi::TextureLayout::DepthStencilAttachment;
+                break;
+            case TextureLayout::ShaderReadOnly: rhi_old_layout = rhi::TextureLayout::ShaderReadOnly;
+                break;
+            case TextureLayout::TransferSrc: rhi_old_layout = rhi::TextureLayout::TransferSrc;
+                break;
+            case TextureLayout::TransferDst: rhi_old_layout = rhi::TextureLayout::TransferDst;
+                break;
+            case TextureLayout::Present: rhi_old_layout = rhi::TextureLayout::Present;
+                break;
         }
 
         switch (new_layout)
         {
-            case TextureLayout::Undefined: rhi_new_layout = rhi::TextureLayout::Undefined; break;
-            case TextureLayout::General: rhi_new_layout = rhi::TextureLayout::General; break;
-            case TextureLayout::ColorAttachment: rhi_new_layout = rhi::TextureLayout::ColorAttachment; break;
-            case TextureLayout::DepthStencilAttachment: rhi_new_layout = rhi::TextureLayout::DepthStencilAttachment; break;
-            case TextureLayout::ShaderReadOnly: rhi_new_layout = rhi::TextureLayout::ShaderReadOnly; break;
-            case TextureLayout::TransferSrc: rhi_new_layout = rhi::TextureLayout::TransferSrc; break;
-            case TextureLayout::TransferDst: rhi_new_layout = rhi::TextureLayout::TransferDst; break;
-            case TextureLayout::Present: rhi_new_layout = rhi::TextureLayout::Present; break;
+            case TextureLayout::Undefined: rhi_new_layout = rhi::TextureLayout::Undefined;
+                break;
+            case TextureLayout::General: rhi_new_layout = rhi::TextureLayout::General;
+                break;
+            case TextureLayout::ColorAttachment: rhi_new_layout = rhi::TextureLayout::ColorAttachment;
+                break;
+            case TextureLayout::DepthStencilAttachment: rhi_new_layout = rhi::TextureLayout::DepthStencilAttachment;
+                break;
+            case TextureLayout::ShaderReadOnly: rhi_new_layout = rhi::TextureLayout::ShaderReadOnly;
+                break;
+            case TextureLayout::TransferSrc: rhi_new_layout = rhi::TextureLayout::TransferSrc;
+                break;
+            case TextureLayout::TransferDst: rhi_new_layout = rhi::TextureLayout::TransferDst;
+                break;
+            case TextureLayout::Present: rhi_new_layout = rhi::TextureLayout::Present;
+                break;
         }
 
         static_cast<rhi::Texture*>(rhi_textures_[texture_index])->transition_layout(rhi_old_layout, rhi_new_layout);
+    }
+
+    Texture* Texture::load(
+        const std::string&      filepath,
+        const TextureFormat     texture_format,
+        const TextureAccessMode texture_access_mode)
+    {
+        return gfx::TextureLoader::instance().load_or_get_texture(filepath, texture_format, texture_access_mode);
+    }
+
+    Texture* Texture::get(const std::string& name) { return gfx::TextureLoader::instance().get_texture(name); }
+
+    void Texture::register_texture(const std::string& name, Texture* texture)
+    {
+        gfx::TextureLoader::instance().register_texture(name, texture, true);
     }
 }

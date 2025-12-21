@@ -7,22 +7,22 @@ import boza.input;
 
 import boza.detail;
 import boza.rhi.api;
+import boza.gfx.rendering_system;
 
 import :game_loop;
-import :rendering_system;
-import :game_settings;
 
 namespace boza
 {
     using app::GameLoop;
     using app::GameLoopConfig;
-    using app::GameSettings;
-    using app::RenderingSystem;
+
+    using gfx::RenderingSystem;
 
     using platform::Window;
 
     using detail::AudioApi;
     using detail::AssetPaths;
+    using detail::GameSettings;
 
     struct App::Impl
     {

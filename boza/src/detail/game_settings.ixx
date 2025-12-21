@@ -1,9 +1,9 @@
-module boza.app:game_settings;
+export module boza.detail:game_settings;
 
 import std;
 import boza.common;
 
-namespace boza::app
+export namespace boza::detail
 {
     struct WindowSettings
     {
@@ -34,7 +34,7 @@ namespace boza::app
     public:
         GameSettings() = delete;
 
-        static bool load_from_file(const fs::path& filepath);
+        static bool load_from_file(const std::filesystem::path& filepath);
         static void load_defaults();
 
         static WindowSettings window;
@@ -43,3 +43,4 @@ namespace boza::app
         static InputSettings input;
     };
 }
+

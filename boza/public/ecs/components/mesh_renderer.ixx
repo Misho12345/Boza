@@ -7,6 +7,8 @@ export module boza.ecs:mesh_renderer;
 
 import std;
 import boza.common;
+import boza.gfx;
+
 import :component;
 
 export namespace boza
@@ -31,6 +33,16 @@ export namespace boza
         ~MeshRenderer() override = default;
 
         std::shared_ptr<Mesh> mesh;
-        std::string material_name{ "default" };
+
+        std::string material_name{ "default "};
+
+        PropertyGet<MeshRenderer, Material*> material
+        {
+            &MeshRenderer::get_material,
+            offsetof(MeshRenderer, material)
+        };
+
+    private:
+        [[nodiscard]] Material* get_material() const;
     };
 }

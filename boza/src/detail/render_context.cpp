@@ -30,6 +30,20 @@ namespace boza::detail
         Log::info("Render context initialized with API: {}", api);
     }
 
+    void RenderContext::shutdown()
+    {
+        auto& ctx = instance();
+        ctx.device_ = nullptr;
+        ctx.swapchain_ = nullptr;
+        ctx.api_ = 0;
+        ctx.resource_cache_ = nullptr;
+        ctx.descriptor_pool_ = nullptr;
+        ctx.command_buffer_ = nullptr;
+        ctx.initialized_ = false;
+
+        Log::trace("Render context shutdown");
+    }
+
     void RenderContext::set_current_command_buffer(void* command_buffer)
     {
         instance().command_buffer_ = command_buffer;

@@ -58,6 +58,23 @@ export namespace boza
         InputAttachment        = 1 << 6
     };
 
+    constexpr Flags<TextureUsage> operator|(const TextureUsage left, const TextureUsage right) noexcept
+    {
+        return Flags(left) | Flags(right);
+    }
+
+    constexpr Flags<TextureUsage> operator&(const TextureUsage left, const TextureUsage right) noexcept
+    {
+        return Flags(left) & Flags(right);
+    }
+
+    constexpr Flags<TextureUsage> operator^(const TextureUsage left, const TextureUsage right) noexcept
+    {
+        return Flags(left) ^ Flags(right);
+    }
+
+    constexpr Flags<TextureUsage> operator~(const TextureUsage value) noexcept { return ~Flags(value); }
+
     enum class SamplerFilter
     {
         Nearest,
@@ -79,7 +96,7 @@ export namespace boza
             std::uint32_t     texture_width,
             std::uint32_t     texture_height,
             TextureFormat     texture_format,
-            std::uint32_t     usage_flags,
+            Flags<TextureUsage> usage_flags,
             TextureAccessMode texture_access_mode = TextureAccessMode::Static);
 
         ~Texture();
@@ -93,6 +110,14 @@ export namespace boza
             const std::string& filepath,
             TextureFormat      texture_format = TextureFormat::RGBA8,
             TextureAccessMode  texture_access_mode = TextureAccessMode::Static);
+
+        static Texture* load(
+            const std::string& filepath,
+            TextureFormat      texture_format = TextureFormat::RGBA8,
+            TextureAccessMode  texture_access_mode = TextureAccessMode::Static);
+
+        static Texture* get(const std::string& name);
+        static void register_texture(const std::string& name, Texture* texture);
 
         void upload(const void* data, std::size_t data_size, std::uint32_t frame_index = 0) const;
         bool save_to_file(const std::string& filepath, std::uint32_t frame_index = 0) const;

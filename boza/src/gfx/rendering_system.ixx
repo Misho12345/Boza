@@ -1,17 +1,56 @@
-module boza.app;
+export module boza.gfx.rendering_system;
 
+import std;
+import boza.common;
 import boza.core;
-import boza.detail;
+import boza.ecs;
 import boza.gfx;
-import :rendering_system;
-import :material_loader;
-import :game_settings;
+import boza.rhi;
+import boza.platform;
+import boza.detail;
+import boza.gfx.material_loader;
+import boza.gfx.texture_loader;
 
-import <entt/entt.hpp>;
-
-namespace boza::app
+export namespace boza::gfx
 {
     using platform::Window;
+
+    struct GpuMesh
+    {
+        std::unique_ptr<rhi::Buffer> vertex_buffer;
+        std::unique_ptr<rhi::Buffer> index_buffer;
+        std::uint32_t index_count;
+    };
+
+    class RenderingSystem final
+    {
+    public:
+        bool init(Window& window, std::shared_ptr<Scene> scene);
+        void run();
+        void destroy();
+        void wait_idle() const;
+
+        [[nodiscard]] MaterialLoader& material_loader() { return MaterialLoader::instance(); }
+
+    private:
+        void setup_resources();
+        GpuMesh* get_or_create_gpu_mesh(Mesh* mesh);
+        void update_camera_uniforms() const;
+
+        std::shared_ptr<Scene> active_scene_{ nullptr };
+        rhi::GraphicsApi       api_{};
+        Window*                window_{ nullptr };
+
+        std::unique_ptr<rhi::Instance> instance_{ nullptr };
+        std::unique_ptr<rhi::Device> device_{ nullptr };
+        std::unique_ptr<rhi::Swapchain> swapchain_{ nullptr };
+        std::unique_ptr<rhi::DescriptorPool> descriptor_pool_{ nullptr };
+        std::unique_ptr<rhi::ResourceCache> resource_cache_{ nullptr };
+
+        std::unordered_map<Mesh*, std::unique_ptr<GpuMesh>> gpu_meshes_;
+
+        bool resources_initialized_{ false };
+    };
 
     bool RenderingSystem::init(Window& window, std::shared_ptr<Scene> scene)
     {
@@ -53,7 +92,7 @@ namespace boza::app
                 api, {
                     .device = device_.get(),
                     .window = window_,
-                    .preferred_present_mode = GameSettings::graphics.vsync ? rhi::PresentMode::Fifo : rhi::PresentMode::Mailbox,
+                    .preferred_present_mode = detail::GameSettings::graphics.vsync ? rhi::PresentMode::Fifo : rhi::PresentMode::Mailbox,
                     .preferred_image_count = 3,
                     .max_frames_in_flight = 2,
                     .enable_depth = true,
@@ -106,15 +145,18 @@ namespace boza::app
         if (resources_initialized_) return;
         resources_initialized_ = true;
 
-        material_loader_.initialize(
+        TextureLoader::instance().initialize();
+
+        MaterialLoader::instance().initialize(
             device_.get(),
             swapchain_.get(),
             descriptor_pool_.get(),
             resource_cache_.get(),
+            &TextureLoader::instance(),
             api_);
 
-        material_loader_.load_all_material_definitions();
-        material_loader_.create_game_load_materials();
+        MaterialLoader::instance().load_all_material_definitions();
+        MaterialLoader::instance().create_game_load_materials();
     }
 
     GpuMesh* RenderingSystem::get_or_create_gpu_mesh(Mesh* mesh)
@@ -151,8 +193,6 @@ namespace boza::app
                 .access_mode = rhi::ResourceAccessMode::Static
             }));
 
-        if (gpu_mesh->vertex_buffer) gpu_mesh->vertex_buffer->upload(mesh->vertices.data(), vertex_buffer_size, 0);
-
         gpu_mesh->index_buffer.reset(rhi::create_buffer(
             api_,
             {
@@ -163,40 +203,50 @@ namespace boza::app
                 .access_mode = rhi::ResourceAccessMode::Static
             }));
 
-        if (gpu_mesh->index_buffer) gpu_mesh->index_buffer->upload(mesh->indices.data(), index_buffer_size, 0);
-
         gpu_mesh->index_count = static_cast<std::uint32_t>(mesh->indices.size());
 
-        auto* result      = gpu_mesh.get();
+        if (!gpu_mesh->vertex_buffer || !gpu_mesh->index_buffer)
+        {
+            Log::error("Failed to create GPU buffers for mesh");
+            return nullptr;
+        }
+
+        gpu_mesh->vertex_buffer->upload(mesh->vertices.data(), vertex_buffer_size, 0);
+        gpu_mesh->index_buffer->upload(mesh->indices.data(), index_buffer_size, 0);
+
+        auto* result = gpu_mesh.get();
         gpu_meshes_[mesh] = std::move(gpu_mesh);
+
         return result;
     }
 
     void RenderingSystem::update_camera_uniforms() const
     {
-        auto* camera_ubo = material_loader_.camera_ubo();
+        if (!active_scene_) return;
+
+        auto* camera_ubo = MaterialLoader::instance().camera_ubo();
         if (!camera_ubo) return;
 
-        GameObject* camera_obj = active_scene_->get_primary_camera();
-        if (!camera_obj || !camera_obj->has_component<Camera>())
+        auto& registry = active_scene_->get_world();
+        auto  view     = registry.view<Camera, Transform>();
+
+        for (auto entity : view)
         {
-            Log::warn("No primary camera found in scene");
-            return;
+            auto& camera    = view.get<Camera>(entity);
+            auto& transform = view.get<Transform>(entity);
+
+            if (!camera.primary) continue;
+
+            const float aspect_ratio = static_cast<float>(swapchain_->width()) / static_cast<float>(swapchain_->height());
+
+            CameraUBO ubo_data{
+                .view = transform.view_matrix(),
+                .proj = camera.projection_matrix(aspect_ratio)
+            };
+
+            camera_ubo->upload(&ubo_data, sizeof(CameraUBO), 0);
+            break;
         }
-
-        const auto& camera           = camera_obj->get_component<Camera>();
-        const auto& camera_transform = camera_obj->transform();
-
-        const float     aspect = window_->aspect_ratio();
-        const glm::mat4 view   = camera_transform.view_matrix();
-        const glm::mat4 proj   = camera.projection_matrix(aspect);
-
-        const CameraUBO camera_data{
-            .view = view,
-            .proj = proj
-        };
-
-        camera_ubo->upload(&camera_data, sizeof(CameraUBO), 0);
     }
 
     void RenderingSystem::run()
@@ -212,7 +262,7 @@ namespace boza::app
         detail::RenderContext::set_current_command_buffer(cmd);
 
         update_camera_uniforms();
-        material_loader_.update_time_ubo(Time::time(), Time::delta_time());
+        MaterialLoader::instance().update_time_ubo(Time::time(), Time::delta_time());
 
         swapchain_->begin_render_pass(image_idx);
 
@@ -240,11 +290,11 @@ namespace boza::app
             if (!gpu_mesh || !gpu_mesh->vertex_buffer || !gpu_mesh->index_buffer) continue;
 
             const std::string& mat_name = mesh_renderer.material_name;
-            Material*          material = material_loader_.get_or_create_material(mat_name);
+            Material*          material = MaterialLoader::instance().get_or_create_material(mat_name);
 
             if (!material)
             {
-                material = material_loader_.get_material("default");
+                material = MaterialLoader::instance().get_material("default");
                 if (!material) return;
             }
 
@@ -276,11 +326,15 @@ namespace boza::app
     {
         wait_idle();
 
-        material_loader_.shutdown();
+        MaterialLoader::instance().shutdown();
+        TextureLoader::instance().shutdown();
         gpu_meshes_.clear();
 
         if (resource_cache_) resource_cache_.reset();
         if (descriptor_pool_) descriptor_pool_->destroy();
+
+        detail::RenderContext::shutdown();
+
         if (swapchain_) swapchain_->destroy();
         if (device_) device_->destroy();
         if (instance_) instance_->destroy();
@@ -291,3 +345,4 @@ namespace boza::app
         if (device_) device_->wait_idle();
     }
 }
+

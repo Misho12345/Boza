@@ -51,6 +51,11 @@ function(boza_add_executable target)
     endif ()
 
     # === Link Dependencies ===
+    # Link mimalloc FIRST to ensure proper initialization order on Windows
+    if (BOZA_USE_MIMALLOC AND TARGET mimalloc_runtime)
+        target_link_libraries(${target} PRIVATE mimalloc_runtime)
+    endif ()
+
     target_link_libraries(${target} PRIVATE Boza::Engine)
 
     if (ARG_LINK_LIBRARIES)
@@ -58,10 +63,6 @@ function(boza_add_executable target)
     endif ()
 
     # === Standard Setup ===
-    if (BOZA_USE_MIMALLOC AND TARGET mimalloc_runtime)
-        target_link_libraries(${target} PRIVATE mimalloc_runtime)
-    endif ()
-
     if (TARGET boza_engine_header_units)
         target_link_header_units(${target} boza_engine_header_units)
     endif ()

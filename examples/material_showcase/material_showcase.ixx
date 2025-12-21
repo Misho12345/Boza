@@ -9,12 +9,6 @@ using namespace boza;
 export class MaterialShowcase final : public App
 {
 protected:
-    void on_shutdown() override
-    {
-        delete compute_texture_;
-        compute_texture_ = nullptr;
-    }
-
     void on_setup_scene() override
     {
         scene_       = create_scene("Showcase Scene");
@@ -162,6 +156,8 @@ private:
             mr.mesh          = cube_mesh_;
             mr.material_name = "pulsing";
 
+            cube.add_component<ColorPulser>();
+
             cube.transform->position = glm::vec3{ 0.0f, 2.0f, -3.0f };
             cube.transform->scale    = glm::vec3{ 1.5f };
 
@@ -210,9 +206,7 @@ private:
         compute_texture_ = new Texture(
             tex_size, tex_size,
             TextureFormat::RGBA8,
-            static_cast<std::uint32_t>(TextureUsage::Sampled) |
-            static_cast<std::uint32_t>(TextureUsage::Storage) |
-            static_cast<std::uint32_t>(TextureUsage::TransferDst),
+            TextureUsage::Sampled | TextureUsage::Storage | TextureUsage::TransferDst,
             TextureAccessMode::Static);
 
         if (!compute_texture_)
@@ -259,14 +253,23 @@ private:
 
     void create_dynamic_materials() const
     {
+        // Register the compute texture for easy access
+        if (compute_texture_)
+        {
+            Texture::register_texture("compute_output", compute_texture_);
+        }
+
+        Texture* default_tex = Texture::load("default.png");
+
         {
             auto* mat = Material::create("default", "default");
             if (mat)
             {
                 register_custom_material("test", mat);
+                (*mat)["albedo_map"] = default_tex;
                 (*mat)["material.albedo_color"] = glm::vec4{ 1.0f };
                 (*mat)["material.properties"]   = glm::vec4{ 0.0f, 0.0f, 0.0f, 0.0f };
-                Log::info("Created test material");
+                Log::info("Created test material with default texture");
             }
         }
 
@@ -275,10 +278,10 @@ private:
             if (mat)
             {
                 register_custom_material("custom_compute", mat);
-                (*mat)["albedo_map"]            = compute_texture_;
+                (*mat)["albedo_map"]            = Texture::get("compute_output");
                 (*mat)["material.albedo_color"] = glm::vec4{ 1.0f };
                 (*mat)["material.properties"]   = glm::vec4{ 0.0f, 0.8f, 0.0f, 0.0f };
-                Log::info("Created custom_compute material");
+                Log::info("Created custom_compute material with procedural texture");
             }
         }
 
@@ -287,18 +290,9 @@ private:
             if (pulsing_mat)
             {
                 register_custom_material("pulsing", pulsing_mat);
+                (*pulsing_mat)["albedo_map"] = Texture::get("default.png");
                 (*pulsing_mat)["material.albedo_color"] = glm::vec4{ 1.0f, 0.0f, 0.0f, 1.0f };
                 (*pulsing_mat)["material.properties"]   = glm::vec4{ 0.0f, 0.8f, 0.2f, 0.0f };
-
-                auto* pulsing_obj = scene_->find_game_object_by_name("PulsingCube");
-                if (pulsing_obj)
-                {
-                    auto& pulser    = pulsing_obj->add_component<ColorPulser>();
-                    pulser.material = pulsing_mat;
-                    pulser.color_a  = glm::vec4{ 1.0f, 0.2f, 0.2f, 1.0f };
-                    pulser.color_b  = glm::vec4{ 0.2f, 0.2f, 1.0f, 1.0f };
-                    pulser.speed    = 2.0f;
-                }
 
                 Log::info("Created pulsing material with color animation");
             }

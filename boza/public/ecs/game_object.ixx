@@ -38,8 +38,8 @@ export namespace boza
         template<ConcreteComponent T, typename... Args>
         T& add_component(Args&&... args);
 
-        template<ConcreteComponent T> [[nodiscard]] T&       get_component();
-        template<ConcreteComponent T> [[nodiscard]] const T& get_component() const;
+        template<ConcreteComponent T, class Self> [[nodiscard]] auto try_get_component(this Self&& self);
+        template<ConcreteComponent T, class Self> [[nodiscard]] decltype(auto) get_component(this Self&& self);
 
         template<ConcreteComponent T> [[nodiscard]] bool has_component() const;
         template<ConcreteComponent T> void               remove_component() const;
@@ -131,51 +131,28 @@ export namespace boza
         return *component;
     }
 
-    template<ConcreteComponent T>
-    T& GameObject::get_component()
+    template<ConcreteComponent T, class Self>
+    auto GameObject::try_get_component(this Self&& self)
     {
-        assert(is_valid() && "Cannot get component from invalid GameObject");
-        if constexpr (std::is_same_v<T, Transform>)
-        {
-            assert(transform_ != nullptr && "Transform component does not exist on GameObject");
-            return *transform_;
-        }
-        else if constexpr (std::is_same_v<T, Camera>)
-        {
-            assert(camera_ != nullptr && "Camera component does not exist on GameObject");
-            return *camera_;
-        }
+        assert(self.is_valid() && "Cannot get component from invalid GameObject");
+
+        if constexpr (std::is_same_v<T, Transform>) return self.transform_;
+        else if constexpr (std::is_same_v<T, Camera>) return self.camera_;
         else
         {
-            auto& registry = scene_->get_world();
-            T*    component = registry.try_get<T>(entity_);
-            assert(component != nullptr && "Component does not exist on GameObject");
-            return *component;
+            auto& registry = self.scene_->get_world();
+            return registry.template try_get<T>(self.entity_);
         }
     }
 
-    template<ConcreteComponent T>
-    const T& GameObject::get_component() const
+    template<ConcreteComponent T, class Self>
+    decltype(auto) GameObject::get_component(this Self&& self)
     {
-        assert(is_valid() && "Cannot get component from invalid GameObject");
-        if constexpr (std::is_same_v<T, Transform>)
-        {
-            assert(transform_ != nullptr && "Transform component does not exist on GameObject");
-            return *transform_;
-        }
-        else if constexpr (std::is_same_v<T, Camera>)
-        {
-            assert(camera_ != nullptr && "Camera component does not exist on GameObject");
-            return *camera_;
-        }
-        else
-        {
-            auto&      registry = scene_->get_world();
-            const T*   component = registry.try_get<T>(entity_);
-            assert(component != nullptr && "Component does not exist on GameObject");
-            return *component;
-        }
+        auto* p = std::forward<Self>(self).template try_get_component<T>();
+        assert(p != nullptr && "Component not found on GameObject");
+        return std::forward_like<Self>(*p);
     }
+
 
     template<ConcreteComponent T>
     bool GameObject::has_component() const

@@ -8,7 +8,7 @@ import std;
 import boza.common;
 import <entt/entt.hpp>;
 
-namespace boza::app
+namespace boza::gfx
 {
     class RenderingSystem;
 }
@@ -73,6 +73,6 @@ export namespace boza
         bool started_{ false };
 
         friend class GameObject;
-        friend class app::RenderingSystem;
+        friend class gfx::RenderingSystem;
     };
 }

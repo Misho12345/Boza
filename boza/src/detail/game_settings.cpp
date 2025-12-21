@@ -1,16 +1,13 @@
-module boza.app;
+module boza.detail;
 
 import :game_settings;
 
 import std;
 import boza.common;
 import boza.core;
-import boza.detail;
 
-namespace boza::app
+namespace boza::detail
 {
-    using detail::TagManager;
-    using detail::LayerManager;
     using detail::FileIO;
 
     WindowSettings GameSettings::window{};
@@ -18,7 +15,7 @@ namespace boza::app
     PhysicsSettings GameSettings::physics{};
     InputSettings GameSettings::input{};
 
-    bool GameSettings::load_from_file(const fs::path& filepath)
+    bool GameSettings::load_from_file(const std::filesystem::path& filepath)
     {
         const auto data_opt = FileIO::load_json(filepath);
         if (!data_opt.has_value())
@@ -99,13 +96,13 @@ namespace boza::app
         tag_manager.register_tag("None", 0);
         tag_manager.register_tag("Player", 1);
         tag_manager.register_tag("Enemy", 2);
-        tag_manager.register_tag("Bullet", 3);
 
         auto& layer_manager = LayerManager::instance();
         layer_manager.clear();
         layer_manager.register_layer("Default", 0);
         layer_manager.register_layer("Ground", 1);
-        layer_manager.register_layer("Wall", 2);
-        layer_manager.register_layer("Player", 3);
+        layer_manager.register_layer("Player", 2);
+        layer_manager.register_layer("Enemy", 3);
     }
 }
+

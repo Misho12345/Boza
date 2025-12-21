@@ -159,12 +159,9 @@ if (BOZA_USE_MIMALLOC)
     target_link_libraries(mimalloc_runtime PUBLIC mimalloc)
 
     set(BOZA_MIMALLOC_GLOBAL_CPP "${CMAKE_CURRENT_BINARY_DIR}/boza_mimalloc_global.cpp")
-    file(WRITE "${BOZA_MIMALLOC_GLOBAL_CPP}"
-            "#include <mimalloc-new-delete.h>
-            #define MI_OVERRIDE 1
-            #include <mimalloc-override.h>
-            #include <mimalloc.h>
-            static int g_mimalloc_force_link = mi_version();")
+    file(WRITE "${BOZA_MIMALLOC_GLOBAL_CPP}" "#include <mimalloc-new-delete.h>\n")
 
     target_sources(mimalloc_runtime PRIVATE "${BOZA_MIMALLOC_GLOBAL_CPP}")
+
+    message(STATUS "Mimalloc enabled (static linking)")
 endif ()

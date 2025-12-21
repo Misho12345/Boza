@@ -1,47 +1,22 @@
-module boza.app;
+module boza.gfx.material_loader;
 
-import :material_loader;
-
-import std;
-import boza.common;
-import boza.core;
-import boza.detail;
-import boza.gfx;
-import boza.rhi;
-
-namespace boza::app
+namespace boza::gfx
 {
-    using detail::AssetPaths;
-    using detail::FileIO;
-
-    struct CameraUBO
+    MaterialLoader& MaterialLoader::instance()
     {
-        glm::mat4 view;
-        glm::mat4 proj;
-    };
-
-    struct LightUBO
-    {
-        glm::vec4 light_position;
-        glm::vec4 light_color;
-        glm::vec4 view_pos;
-    };
-
-    struct TimeUBO
-    {
-        float time;
-        float delta_time;
-        float padding[2];
-    };
+        static MaterialLoader instance;
+        return instance;
+    }
 
     MaterialLoader::~MaterialLoader() { shutdown(); }
 
     bool MaterialLoader::initialize(
-        rhi::Device*         device,
-        rhi::Swapchain*      swapchain,
-        rhi::DescriptorPool* descriptor_pool,
-        rhi::ResourceCache*  resource_cache,
-        const rhi::GraphicsApi     api)
+        rhi::Device*           device,
+        rhi::Swapchain*        swapchain,
+        rhi::DescriptorPool*   descriptor_pool,
+        rhi::ResourceCache*    resource_cache,
+        TextureLoader*         texture_loader,
+        const rhi::GraphicsApi api)
     {
         if (initialized_) return true;
 
@@ -49,6 +24,7 @@ namespace boza::app
         swapchain_       = swapchain;
         descriptor_pool_ = descriptor_pool;
         resource_cache_  = resource_cache;
+        texture_loader_  = texture_loader;
         api_             = api;
 
         camera_ubo_.reset(rhi::create_buffer(
@@ -94,20 +70,6 @@ namespace boza::app
                 .address_mode_w = rhi::SamplerAddressMode::Repeat
             }));
 
-        error_texture_ = new Texture(
-            1, 1,
-            TextureFormat::RGBA8,
-            static_cast<std::uint32_t>(TextureUsage::Sampled) |
-            static_cast<std::uint32_t>(TextureUsage::TransferDst),
-            TextureAccessMode::Static);
-
-        if (error_texture_)
-        {
-            static constexpr std::array<std::uint8_t, 4> magenta{ 255, 0, 255, 255 };
-            error_texture_->upload(magenta.data(), magenta.size());
-            Log::trace("Created error texture (1x1 magenta)");
-        }
-
         initialized_ = true;
         return true;
     }
@@ -128,22 +90,6 @@ namespace boza::app
         }
         materials_.clear();
 
-        for (auto& texture : loaded_textures_ | std::views::values)
-        {
-            if (texture)
-            {
-                delete texture;
-                texture = nullptr;
-            }
-        }
-        loaded_textures_.clear();
-
-        if (error_texture_)
-        {
-            delete error_texture_;
-            error_texture_ = nullptr;
-        }
-
         default_sampler_.reset();
         time_ubo_.reset();
         light_ubo_.reset();
@@ -155,11 +101,11 @@ namespace boza::app
 
     bool MaterialLoader::load_all_material_definitions()
     {
-        const auto material_files = AssetPaths::all_material_files();
+        const auto material_files = detail::AssetPaths::all_material_files();
 
         if (material_files.empty())
         {
-            Log::warn("No material files found in {}", AssetPaths::materials_dir().string());
+            Log::warn("No material files found in {}", detail::AssetPaths::materials_dir().string());
             return true;
         }
 
@@ -168,11 +114,11 @@ namespace boza::app
             auto def_opt = load_material_definition(path);
             if (def_opt.has_value())
             {
-                const auto& def = def_opt.value();
+                const auto& def        = def_opt.value();
                 definitions_[def.name] = def;
                 Log::trace("Loaded material definition: {} ({})",
-                    def.name,
-                    def.load_strategy == LoadStrategy::GameLoad ? "game_load" : "on_demand");
+                           def.name,
+                           def.load_strategy == LoadStrategy::GameLoad ? "game_load" : "on_demand");
             }
         }
 
@@ -200,9 +146,9 @@ namespace boza::app
         return true;
     }
 
-    std::optional<MaterialDefinition> MaterialLoader::load_material_definition(const fs::path& path)
+    std::optional<MaterialDefinition> MaterialLoader::load_material_definition(const std::filesystem::path& path)
     {
-        auto json_opt = FileIO::load_json(path);
+        auto json_opt = detail::FileIO::load_json(path);
         if (!json_opt.has_value())
         {
             Log::error("Failed to load material file: {}", path.string());
@@ -261,21 +207,13 @@ namespace boza::app
         {
             for (const auto& [key, val] : j["textures"].items())
             {
-                if (val.is_string())
-                {
-                    def.textures[key] = TextureInfo{ .file = val.get<std::string>() };
-                }
+                if (val.is_string()) { def.textures[key] = TextureInfo{ .file = val.get<std::string>() }; }
                 else if (val.is_object())
                 {
                     TextureInfo info;
-                    if (val.contains("file") && val["file"].is_string())
-                    {
-                        info.file = val["file"].get<std::string>();
-                    }
-                    if (val.contains("format") && val["format"].is_string())
-                    {
-                        info.format = parse_texture_format(val["format"].get<std::string>());
-                    }
+                    if (val.contains("file") && val["file"].is_string()) info.file = val["file"].get<std::string>();
+                    if (val.contains("format") && val["format"].is_string()) info.format = parse_texture_format(
+                        val["format"].get<std::string>());
                     def.textures[key] = info;
                 }
             }
@@ -288,10 +226,7 @@ namespace boza::app
                 if (val.is_array() && val.size() == 4)
                 {
                     glm::vec4 v;
-                    for (int i = 0; i < 4; ++i)
-                    {
-                        v[i] = val[i].is_number() ? val[i].get<float>() : 0.0f;
-                    }
+                    for (int i = 0; i < 4; ++i) { v[i] = val[i].is_number() ? val[i].get<float>() : 0.0f; }
                     def.vec4_properties[key] = v;
                 }
             }
@@ -315,8 +250,10 @@ namespace boza::app
         std::vector<rhi::DescriptorWrite> writes;
 
         auto try_bind_ubo = [&](const std::string& ubo_name, rhi::Buffer* buffer, std::size_t size)
-        { const auto info = material->lookup_binding(ubo_name);
-            if (info.has_value() && info->descriptor_type == static_cast<std::uint32_t>(rhi::DescriptorType::UniformBuffer))
+        {
+            const auto info = material->lookup_binding(ubo_name);
+            if (info.has_value() && info->descriptor_type == static_cast<std::uint32_t>(
+                rhi::DescriptorType::UniformBuffer))
             {
                 writes.push_back({
                     .binding = info->binding,
@@ -337,10 +274,11 @@ namespace boza::app
         try_bind_ubo("lightUBO", light_ubo_.get(), sizeof(LightUBO));
         try_bind_ubo("timeData", time_ubo_.get(), sizeof(TimeUBO));
 
-        auto try_bind_sampler = [&](const std::string& sampler_name, const Texture* texture)
+        auto try_bind_sampler = [&](const std::string& sampler_name, Texture* texture)
         {
             const auto info = material->lookup_binding(sampler_name);
-            if (info.has_value() && info->descriptor_type == static_cast<std::uint32_t>(rhi::DescriptorType::CombinedImageSampler))
+            if (info.has_value() && info->descriptor_type == static_cast<std::uint32_t>(
+                rhi::DescriptorType::CombinedImageSampler))
             {
                 writes.push_back({
                     .binding = info->binding,
@@ -348,8 +286,8 @@ namespace boza::app
                     .type = rhi::DescriptorType::CombinedImageSampler,
                     .info = rhi::CombinedImageSampler{
                         .sampler = texture->rhi_sampler_handle()
-                            ? static_cast<rhi::Sampler*>(texture->rhi_sampler_handle())
-                            : default_sampler_.get(),
+                                       ? static_cast<rhi::Sampler*>(texture->rhi_sampler_handle())
+                                       : default_sampler_.get(),
                         .texture = static_cast<rhi::Texture*>(texture->rhi_handle())
                     }
                 });
@@ -358,62 +296,36 @@ namespace boza::app
             return false;
         };
 
-        try_bind_sampler("albedo_map", error_texture_);
+        if (texture_loader_) { try_bind_sampler("albedo_map", texture_loader_->error_texture()); }
 
-        if (!writes.empty())
-        {
-            desc_set->update(writes);
-        }
+        if (!writes.empty()) { desc_set->update(writes); }
     }
 
     void MaterialLoader::setup_material_from_definition(Material* material, const MaterialDefinition& def)
     {
+        if (!texture_loader_) return;
+
         for (const auto& [prop_name, tex_info] : def.textures)
         {
-            Texture* texture = error_texture_;
+            Texture* texture = texture_loader_->load_or_get_texture(
+                tex_info.file,
+                tex_info.format,
+                TextureAccessMode::Static);
 
-            const std::string cache_key = tex_info.file + "_" + std::to_string(static_cast<int>(tex_info.format));
-
-            if (!loaded_textures_.contains(cache_key))
-            {
-                const fs::path tex_path = AssetPaths::texture(tex_info.file);
-                auto* loaded = Texture::load_from_file(tex_path.string(), tex_info.format, TextureAccessMode::Static);
-                if (loaded)
-                {
-                    loaded_textures_[cache_key] = loaded;
-                    Log::trace("Loaded texture: {} (format: {})", tex_info.file, static_cast<int>(tex_info.format));
-                }
-                else
-                {
-                    Log::warn("Failed to load texture: {}, using error texture", tex_info.file);
-                }
-            }
-
-            if (loaded_textures_.contains(cache_key))
-            {
-                texture = loaded_textures_[cache_key];
-            }
-
-            material->update_texture(prop_name, texture);
+            if (texture) { material->update_texture(prop_name, texture); }
         }
 
-        for (const auto& [prop_name, value] : def.vec4_properties)
-        {
-            material->update_property(prop_name, value);
-        }
+        for (const auto& [prop_name, value] : def.vec4_properties) { material->update_property(prop_name, value); }
     }
 
     Material* MaterialLoader::get_or_create_material(const std::string& name)
     {
-        if (materials_.contains(name))
-        {
-            return materials_[name];
-        }
+        if (materials_.contains(name)) { return materials_[name]; }
 
         if (definitions_.contains(name))
         {
-            const auto& def = definitions_[name];
-            auto* material = create_material_from_definition(def);
+            const auto& def      = definitions_[name];
+            auto*       material = create_material_from_definition(def);
             if (material)
             {
                 materials_[name] = material;
@@ -431,10 +343,7 @@ namespace boza::app
     Material* MaterialLoader::get_material(const std::string& name) const
     {
         const auto it = materials_.find(name);
-        if (it != materials_.end())
-        {
-            return it->second;
-        }
+        if (it != materials_.end()) { return it->second; }
         return nullptr;
     }
 
@@ -470,4 +379,3 @@ namespace boza::app
         time_ubo_->upload(&time_data, sizeof(TimeUBO), 0);
     }
 }
-

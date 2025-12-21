@@ -21,6 +21,8 @@ export namespace boza::detail
             void* resource_cache,
             void* descriptor_pool);
 
+        static void shutdown();
+
         static void set_current_command_buffer(void* command_buffer);
 
         [[nodiscard]] static void* device();
