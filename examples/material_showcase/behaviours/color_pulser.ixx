@@ -4,12 +4,10 @@ import std;
 import boza;
 using namespace boza;
 
-export class ColorPulser final : public Behaviour
+export class RandomColorPulser final : public Behaviour
 {
 public:
-    glm::vec4 color_a{ 1.0f, 0.0f, 0.0f, 1.0f };
-    glm::vec4 color_b{ 0.0f, 0.0f, 1.0f, 1.0f };
-    float     speed{ 1.0f };
+    float speed{ 0.1f };
 
     void awake() override
     {
@@ -31,14 +29,37 @@ public:
             return;
         }
 
-        phase_ += dt * speed;
-        const float     t     = (std::sinf(phase_) + 1.0f) * 0.5f;
-        const glm::vec4 color = glm::mix(color_a, color_b, t);
+        cooldown_ += dt * speed;
+        if (cooldown_ > 1.0f)
+        {
+            cooldown_ = 0.0f;
+            color_a = color_b;
+            color_b = glm::vec3{
+                Random::real<float>(),
+                Random::real<float>(),
+                Random::real<float>()
+            };
+        }
+        const glm::vec3 color = glm::mix(color_a, color_b, cooldown_);
 
-        (*material)["material.albedo_color"] = color;
+        (*material)["material.albedo_color"] = glm::vec4{ color, 1.0f };
     }
 
 private:
+    glm::vec3 color_a
+    {
+        Random::real<float>(),
+        Random::real<float>(),
+        Random::real<float>()
+    };
+
+    glm::vec3 color_b
+    {
+        Random::real<float>(),
+        Random::real<float>(),
+        Random::real<float>()
+    };
+
     MeshRenderer* mesh_renderer_{ nullptr };
-    float phase_{ 0.0f };
+    float cooldown_{ 0.0f };
 };

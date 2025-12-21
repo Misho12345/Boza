@@ -156,7 +156,7 @@ private:
             mr.mesh          = cube_mesh_;
             mr.material_name = "pulsing";
 
-            cube.add_component<ColorPulser>();
+            cube.add_component<RandomColorPulser>();
 
             cube.transform->position = glm::vec3{ 0.0f, 2.0f, -3.0f };
             cube.transform->scale    = glm::vec3{ 1.5f };
