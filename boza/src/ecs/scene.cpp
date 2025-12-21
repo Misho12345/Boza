@@ -16,7 +16,7 @@ namespace boza
 
     GameObject& Scene::create_game_object(const std::string& object_name)
     {
-        entt::entity entity = registry_.create();
+        const entt::entity entity = registry_.create();
 
         auto* game_object = new GameObject(entity, this);
 

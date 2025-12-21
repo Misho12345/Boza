@@ -1,8 +1,8 @@
-import game;
+import material_showcase;
 
 int main()
 {
-    game::MaterialShowcase app;
+    MaterialShowcase app;
     if (!app.init()) return -1;
     app.run();
 }

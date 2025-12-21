@@ -1,118 +1,71 @@
-# Gets all source files from the specified directories and their subdirectories.
-function(get_source_files out_sources)
-    if (NOT out_sources)
-        message(FATAL_ERROR "Output variable name must be specified")
-    endif ()
+include_guard(GLOBAL)
 
-    list(LENGTH ARGN arg_count)
-    if (arg_count EQUAL 0)
-        message(FATAL_ERROR "At least base directory must be specified")
-    endif ()
-
-    set(collected_sources_list "")
-
-    foreach (arg IN LISTS ARGN)
-        if (IS_DIRECTORY "${arg}")
-            file(GLOB_RECURSE dir_sources
-                    CONFIGURE_DEPENDS
-                    "${arg}/*.hpp"
-                    "${arg}/*.hh"
-                    "${arg}/*.h"
-                    "${arg}/*.inl"
-                    "${arg}/*.ipp"
-                    "${arg}/*.cpp"
-                    "${arg}/*.cc"
-                    "${arg}/*.cxx"
-                    "${arg}/*.c"
+# Collect source files from directories
+function(boza_get_sources out_var)
+    set(sources "")
+    foreach (dir IN LISTS ARGN)
+        if (IS_DIRECTORY "${dir}")
+            file(GLOB_RECURSE dir_sources CONFIGURE_DEPENDS
+                    "${dir}/*.hpp" "${dir}/*.hh" "${dir}/*.h"
+                    "${dir}/*.inl" "${dir}/*.ipp"
+                    "${dir}/*.cpp" "${dir}/*.cc" "${dir}/*.cxx"
             )
-
-            list(APPEND collected_sources_list ${dir_sources})
+            list(APPEND sources ${dir_sources})
         else ()
-            message(WARNING "Skipping '${arg}': Not a valid directory")
+            message(WARNING "Skipping '${dir}': not a valid directory")
         endif ()
     endforeach ()
-
-    set(${out_sources} ${collected_sources_list} PARENT_SCOPE)
+    set(${out_var} ${sources} PARENT_SCOPE)
 endfunction()
 
-# Sets up include directories for a target with a standard structure for the engine.
-function(set_default_include_dirs target dir)
-    if (NOT target)
-        message(FATAL_ERROR "Target name must be specified")
-    endif ()
-
-    if (NOT dir)
-        message(FATAL_ERROR "Directory must be specified")
-    endif ()
-
-    target_include_directories(${target}
-            PUBLIC
-            $<BUILD_INTERFACE:${dir}/include>
-            $<INSTALL_INTERFACE:include>
-            PRIVATE
-            $<BUILD_INTERFACE:${dir}/src>
-    )
+# Collect module interface files
+function(boza_get_modules out_var)
+    set(modules "")
+    foreach (dir IN LISTS ARGN)
+        if (IS_DIRECTORY "${dir}")
+            file(GLOB_RECURSE dir_modules CONFIGURE_DEPENDS
+                    "${dir}/*.ixx" "${dir}/*.cppm"
+            )
+            list(APPEND modules ${dir_modules})
+        endif ()
+    endforeach ()
+    set(${out_var} ${modules} PARENT_SCOPE)
 endfunction()
 
-# Creates a test executable target with GoogleTest and links it to the tested target.
-function(create_tests test_target tested_target test_source_dir)
-    if (NOT test_target)
-        message(FATAL_ERROR "Test target name must be specified")
-    endif ()
+# Generate implementation file for header-only libraries
+function(boza_generate_impl target header_content out_file)
+    set(impl_file "${CMAKE_CURRENT_BINARY_DIR}/${out_file}")
+    file(WRITE "${impl_file}" "${header_content}")
+    target_sources(${target} PRIVATE "${impl_file}")
+endfunction()
 
-    if (NOT tested_target)
-        message(FATAL_ERROR "Tested target name must be specified")
-    endif ()
+# Setup module target with common configuration
+function(boza_setup_module_target target base_dir)
+    cmake_parse_arguments(ARG "" "" "PUBLIC_MODULES;PRIVATE_MODULES;SOURCES" ${ARGN})
 
-    if (NOT test_source_dir)
-        message(FATAL_ERROR "Test source directory must be specified")
-    endif ()
-
-    find_package(GTest CONFIG REQUIRED)
-
-    get_source_files(${test_target}_SOURCES ${test_source_dir})
-    add_executable(${test_target} ${${test_target}_SOURCES})
-
-    target_link_libraries(${test_target}
-            PRIVATE
-            ${tested_target}
-            GTest::gmock_main
+    target_include_directories(${target} PRIVATE
+            $<BUILD_INTERFACE:${base_dir}>
     )
 
-    boza_enable_warnings(${test_target})
-
-    include(GoogleTest)
-    gtest_discover_tests(${test_target} DISCOVERY_TIMEOUT 60)
-endfunction()
-
-# for RHI and AHI backends
-function(setup_backend backend_name interface_target final_target source_dir)
-    if (NOT backend_name)
-        message(FATAL_ERROR "Backend name is required")
+    if (ARG_PUBLIC_MODULES)
+        target_sources(${target}
+                PUBLIC FILE_SET CXX_MODULES
+                TYPE CXX_MODULES
+                BASE_DIRS ${base_dir}
+                FILES ${ARG_PUBLIC_MODULES}
+        )
     endif ()
 
-    if (NOT interface_target)
-        message(FATAL_ERROR "Interface target name is required")
+    if (ARG_PRIVATE_MODULES)
+        target_sources(${target}
+                PRIVATE FILE_SET private_modules
+                TYPE CXX_MODULES
+                BASE_DIRS ${base_dir}
+                FILES ${ARG_PRIVATE_MODULES}
+        )
     endif ()
 
-    if (NOT final_target)
-        message(FATAL_ERROR "Final target name is required")
+    if (ARG_SOURCES)
+        target_sources(${target} PRIVATE ${ARG_SOURCES})
     endif ()
-
-    if (NOT source_dir OR NOT IS_DIRECTORY ${source_dir})
-        message(FATAL_ERROR "Source directory is required to be a valid directory")
-    endif ()
-
-    add_library(${backend_name} STATIC)
-
-    get_source_files(${backend_name}_SOURCES ${source_dir})
-    target_sources(${backend_name} PRIVATE ${${backend_name}_SOURCES})
-    target_include_directories(${backend_name} PRIVATE ${source_dir})
-
-    target_link_libraries(${backend_name} PRIVATE ${interface_target})
-    target_precompile_headers(${backend_name} PRIVATE ${source_dir}/pch.hpp)
-
-    boza_enable_warnings(${backend_name})
-
-    target_link_libraries(${final_target} PUBLIC ${backend_name})
 endfunction()

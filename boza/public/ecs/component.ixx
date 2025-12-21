@@ -38,12 +38,7 @@ export namespace boza
             offsetof(Component, game_object)
         };
 
-        PropertyGetSet<Component, bool> enabled
-        {
-            &Component::get_enabled,
-            &Component::set_enabled,
-            offsetof(Component, enabled)
-        };
+        bool enabled{ true };
 
     protected:
         Component() = default;
@@ -53,15 +48,10 @@ export namespace boza
         [[nodiscard]] Scene&      get_scene() const { return *scene_; }
         [[nodiscard]] GameObject& get_game_object() const { return *game_object_; }
 
-        [[nodiscard]]
-        bool get_enabled() const;
-        void set_enabled(bool value);
-
         Transform*   transform_{ nullptr };
         GameObject*  game_object_{ nullptr };
         entt::entity entity_{ entt::null };
         Scene*       scene_{ nullptr };
-        bool         enabled_{ true };
 
         friend class GameObject;
         friend class Scene;

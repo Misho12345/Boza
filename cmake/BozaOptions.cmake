@@ -1,63 +1,67 @@
-option(BOZA_BUILD_TESTS "Build Boza unit tests" OFF)
+include_guard(GLOBAL)
 
+# === Build Options ===
+option(BOZA_BUILD_TESTS "Build Boza unit tests" OFF)
+option(BOZA_USE_MIMALLOC "Use mimalloc for memory allocation" ON)
+option(BOZA_ENABLE_LTO "Enable Link Time Optimization" OFF)
+option(BOZA_ENABLE_PROFILING "Enable profiling support" OFF)
+
+# === Graphics Backends ===
 option(BOZA_ENABLE_OPENGL "Enable OpenGL backend" OFF)
 option(BOZA_ENABLE_VULKAN "Enable Vulkan backend" ON)
 option(BOZA_ENABLE_METAL "Enable Metal backend (Apple)" OFF)
 option(BOZA_ENABLE_DIRECTX11 "Enable DirectX 11 backend (Windows)" OFF)
 option(BOZA_ENABLE_DIRECTX12 "Enable DirectX 12 backend (Windows)" OFF)
 
+# === Audio Backends ===
 option(BOZA_ENABLE_OPENAL "Enable OpenAL audio backend" OFF)
 option(BOZA_ENABLE_XAUDIO2 "Enable XAudio2 audio backend (Windows)" OFF)
 option(BOZA_ENABLE_COREAUDIO "Enable Core Audio backend (macOS)" OFF)
 
+# === Sanitizers ===
 option(BOZA_ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(BOZA_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
 option(BOZA_ENABLE_TSAN "Enable ThreadSanitizer" OFF)
 
+# === Validation ===
+function(_validate_backends)
+    # Graphics validation
+    if (NOT (BOZA_ENABLE_OPENGL OR BOZA_ENABLE_VULKAN OR BOZA_ENABLE_METAL OR
+            BOZA_ENABLE_DIRECTX11 OR BOZA_ENABLE_DIRECTX12))
+        message(FATAL_ERROR "At least one graphics backend must be enabled!")
+    endif ()
 
+    # Platform-specific backend validation
+    if (NOT WIN32)
+        foreach (backend DIRECTX11 DIRECTX12 XAUDIO2)
+            if (BOZA_ENABLE_${backend})
+                message(WARNING "${backend} is Windows-only, disabling...")
+                set(BOZA_ENABLE_${backend} OFF CACHE BOOL "" FORCE)
+            endif ()
+        endforeach ()
+    endif ()
 
-if (NOT (BOZA_ENABLE_OPENGL OR BOZA_ENABLE_VULKAN OR BOZA_ENABLE_METAL OR
-        BOZA_ENABLE_DIRECTX11 OR BOZA_ENABLE_DIRECTX12))
-    message(FATAL_ERROR "At least one graphics backend must be enabled!")
-endif ()
+    if (NOT APPLE)
+        foreach (backend METAL COREAUDIO)
+            if (BOZA_ENABLE_${backend})
+                message(WARNING "${backend} is Apple-only, disabling...")
+                set(BOZA_ENABLE_${backend} OFF CACHE BOOL "" FORCE)
+            endif ()
+        endforeach ()
+    endif ()
 
-if (NOT WIN32 AND BOZA_ENABLE_DIRECTX11)
-    message(WARNING "DirectX 11 is only available on Windows, disabling...")
-    set(BOZA_ENABLE_DIRECTX11 OFF CACHE BOOL "" FORCE)
-endif ()
+    # Audio validation
+    if (NOT (BOZA_ENABLE_OPENAL OR BOZA_ENABLE_XAUDIO2 OR BOZA_ENABLE_COREAUDIO))
+        message(STATUS "No audio backend enabled")
+        set(BOZA_AUDIO_ENABLED OFF PARENT_SCOPE)
+    else ()
+        set(BOZA_AUDIO_ENABLED ON PARENT_SCOPE)
+    endif ()
+endfunction()
 
-if (NOT WIN32 AND BOZA_ENABLE_DIRECTX12)
-    message(WARNING "DirectX 12 is only available on Windows, disabling...")
-    set(BOZA_ENABLE_DIRECTX12 OFF CACHE BOOL "" FORCE)
-endif ()
+_validate_backends()
 
-if (NOT APPLE AND (BOZA_ENABLE_METAL))
-    message(WARNING "Metal is only available on Apple platforms, disabling...")
-    set(BOZA_ENABLE_METAL OFF CACHE BOOL "" FORCE)
-endif ()
-
-
-
-
-if (NOT WIN32 AND BOZA_ENABLE_XAUDIO2)
-    message(WARNING "XAudio2 is only available on Windows, disabling...")
-    set(BOZA_ENABLE_XAUDIO2 OFF CACHE BOOL "" FORCE)
-endif ()
-
-if (NOT APPLE AND BOZA_ENABLE_COREAUDIO)
-    message(WARNING "Core Audio is only available on Apple platforms, disabling...")
-    set(BOZA_ENABLE_COREAUDIO OFF CACHE BOOL "" FORCE)
-endif ()
-
-if(NOT (BOZA_ENABLE_OPENAL OR BOZA_ENABLE_XAUDIO2 OR BOZA_ENABLE_COREAUDIO))
-    message("No audio backend enabled, audio will be disabled")
-    set(BOZA_AUDIO_ENABLED OFF)
-else()
-    set(BOZA_AUDIO_ENABLED ON)
-endif()
-
-
-
+# === Compile Definitions ===
 add_compile_definitions(
         $<$<CONFIG:Debug>:_DEBUG>
         $<$<CONFIG:Debug>:BOZA_DEBUG>
@@ -76,71 +80,91 @@ add_compile_definitions(
         $<$<BOOL:${BOZA_ENABLE_COREAUDIO}>:BOZA_COREAUDIO_ENABLED>
 )
 
-
-
-if (NOT MSVC)
-    if (BOZA_ENABLE_ASAN)
-        message(STATUS "AddressSanitizer enabled")
-        add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
-        add_link_options(-fsanitize=address)
-    endif ()
-
-    if (BOZA_ENABLE_UBSAN)
-        message(STATUS "UndefinedBehaviorSanitizer enabled")
-        add_compile_options(-fsanitize=undefined)
-        add_link_options(-fsanitize=undefined)
-    endif ()
-
-    if (BOZA_ENABLE_TSAN)
-        message(STATUS "ThreadSanitizer enabled")
-        add_compile_options(-fsanitize=thread)
-        add_link_options(-fsanitize=thread)
-    endif ()
-
+# === Sanitizers ===
+function(_apply_sanitizers)
     if (BOZA_ENABLE_ASAN AND BOZA_ENABLE_TSAN)
-        message(FATAL_ERROR "Cannot enable both AddressSanitizer and ThreadSanitizer simultaneously")
+        message(FATAL_ERROR "Cannot enable both ASAN and TSAN simultaneously")
     endif ()
-else ()
-    if (BOZA_ENABLE_ASAN AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "19.29")
-        message(STATUS "AddressSanitizer enabled (MSVC)")
-        add_compile_options(/fsanitize=address)
-    elseif (BOZA_ENABLE_ASAN)
-        message(WARNING "AddressSanitizer requires VS 2019 16.9+ on Windows")
-    endif ()
-endif ()
 
+    if (MSVC)
+        if (BOZA_ENABLE_ASAN AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "19.29")
+            message(STATUS "AddressSanitizer enabled")
+            add_compile_options(/fsanitize=address)
+        elseif (BOZA_ENABLE_ASAN)
+            message(WARNING "ASAN requires VS 2019 16.9+ on Windows")
+        endif ()
+    else ()
+        set(sanitizers "")
+        if (BOZA_ENABLE_ASAN)
+            list(APPEND sanitizers "address")
+        endif ()
+        if (BOZA_ENABLE_UBSAN)
+            list(APPEND sanitizers "undefined")
+        endif ()
+        if (BOZA_ENABLE_TSAN)
+            list(APPEND sanitizers "thread")
+        endif ()
+
+        if (sanitizers)
+            list(JOIN sanitizers "," sanitizer_flags)
+            message(STATUS "Sanitizers enabled: ${sanitizer_flags}")
+            add_compile_options(-fsanitize=${sanitizer_flags} -fno-omit-frame-pointer)
+            add_link_options(-fsanitize=${sanitizer_flags})
+        endif ()
+    endif ()
+endfunction()
+
+_apply_sanitizers()
+
+# === MSVC-Specific ===
 if (MSVC)
-    add_compile_options(/Zc:preprocessor)
-
     add_compile_options(
+            /Zc:preprocessor
             /Zc:__cplusplus
             /Zc:externConstexpr
             /utf-8
     )
-
     add_compile_definitions(
             _CRT_SECURE_NO_WARNINGS
             _SCL_SECURE_NO_WARNINGS
     )
 endif ()
 
-option(BOZA_ENABLE_LTO "Enable Link Time Optimization" OFF)
+# === Link Time Optimization ===
 if (BOZA_ENABLE_LTO)
     include(CheckIPOSupported)
     check_ipo_supported(RESULT lto_supported OUTPUT lto_error)
     if (lto_supported)
-        message(STATUS "Link Time Optimization enabled")
+        message(STATUS "LTO enabled")
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
     else ()
         message(WARNING "LTO not supported: ${lto_error}")
     endif ()
 endif ()
 
-option(BOZA_ENABLE_PROFILING "Enable profiling support" OFF)
+# === Profiling ===
 if (BOZA_ENABLE_PROFILING)
     add_compile_definitions(BOZA_PROFILING_ENABLED)
     if (NOT MSVC)
         add_compile_options(-pg)
         add_link_options(-pg)
     endif ()
+endif ()
+
+# === Mimalloc Setup ===
+if (BOZA_USE_MIMALLOC)
+    find_package(mimalloc CONFIG REQUIRED)
+
+    add_library(mimalloc_runtime OBJECT)
+    target_link_libraries(mimalloc_runtime PUBLIC mimalloc)
+
+    set(BOZA_MIMALLOC_GLOBAL_CPP "${CMAKE_CURRENT_BINARY_DIR}/boza_mimalloc_global.cpp")
+    file(WRITE "${BOZA_MIMALLOC_GLOBAL_CPP}"
+            "#include <mimalloc-new-delete.h>
+            #define MI_OVERRIDE 1
+            #include <mimalloc-override.h>
+            #include <mimalloc.h>
+            static int g_mimalloc_force_link = mi_version();")
+
+    target_sources(mimalloc_runtime PRIVATE "${BOZA_MIMALLOC_GLOBAL_CPP}")
 endif ()

@@ -1,210 +1,200 @@
+include_guard(GLOBAL)
+
 set(HEADER_UNITS_DIR "${CMAKE_BINARY_DIR}/header_units")
 file(MAKE_DIRECTORY "${HEADER_UNITS_DIR}")
 
-function(make_name_safe out_var input_path)
+# === Helper Functions ===
+function(_make_name_safe out_var input_path)
     string(REPLACE "/" "_" tmp "${input_path}")
-    string(REPLACE "\\" "_" tmp2 "${tmp}")
-    set(${out_var} "${tmp2}" PARENT_SCOPE)
+    string(REPLACE "\\" "_" result "${tmp}")
+    set(${out_var} "${result}" PARENT_SCOPE)
 endfunction()
 
-function(create_header_unit header_include_dir header_rel_path)
-    set(options "")
-    set(oneValueArgs "")
-    set(multiValueArgs COMPILE_DEFINITIONS INCLUDE_DIRECTORIES)
-    cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+function(_build_compile_flags out_var definitions include_dirs)
+    set(flags "")
 
+    # Add definitions
+    foreach (def IN LISTS definitions)
+        if (MSVC)
+            list(APPEND flags "/D${def}")
+        else ()
+            list(APPEND flags "-D${def}")
+        endif ()
+    endforeach ()
+
+    # Add include directories
+    foreach (inc_dir IN LISTS include_dirs)
+        if (MSVC)
+            list(APPEND flags "/external:I${inc_dir}")
+        else ()
+            list(APPEND flags "-I${inc_dir}")
+        endif ()
+    endforeach ()
+
+    set(${out_var} ${flags} PARENT_SCOPE)
+endfunction()
+
+# === Create Header Unit Library ===
+function(add_header_unit_library library_name)
+    if (TARGET ${library_name})
+        return()
+    endif ()
+
+    add_custom_target(${library_name})
+    set_target_properties(${library_name} PROPERTIES
+            BOZA_HEADER_UNIT_LIBRARY TRUE
+            BOZA_HEADER_UNITS ""
+    )
+endfunction()
+
+# === Add Header Unit to Library ===
+function(target_add_header_unit library_name header_include_dir header_rel_path)
+    cmake_parse_arguments(ARG "" "" "COMPILE_DEFINITIONS;INCLUDE_DIRECTORIES" ${ARGN})
+
+    # Validate target
+    if (NOT TARGET ${library_name})
+        message(FATAL_ERROR "target_add_header_unit: '${library_name}' is not a target. Call add_header_unit_library() first.")
+    endif ()
+
+    get_target_property(is_hu_lib ${library_name} BOZA_HEADER_UNIT_LIBRARY)
+    if (NOT is_hu_lib)
+        message(FATAL_ERROR "target_add_header_unit: '${library_name}' is not a header unit library.")
+    endif ()
+
+    # Setup paths
     set(header_abs_path "${header_include_dir}/${header_rel_path}")
+    get_filename_component(hu_subdir "${header_rel_path}" DIRECTORY)
+    if (hu_subdir)
+        file(MAKE_DIRECTORY "${HEADER_UNITS_DIR}/${hu_subdir}")
+    endif ()
 
-    get_filename_component(_hu_subdir "${header_rel_path}" DIRECTORY)
-    if (_hu_subdir)
-        file(MAKE_DIRECTORY "${HEADER_UNITS_DIR}/${_hu_subdir}")
-    endif()
-
-    make_name_safe(target_suffix "${header_rel_path}")
+    _make_name_safe(target_suffix "${header_rel_path}")
     set(target_name "header_unit_${target_suffix}")
 
-    set(compile_defs_flags "")
-    if (ARG_COMPILE_DEFINITIONS)
-        foreach(def IN LISTS ARG_COMPILE_DEFINITIONS)
-            if (MSVC)
-                list(APPEND compile_defs_flags "/D${def}")
-            else()
-                list(APPEND compile_defs_flags "-D${def}")
-            endif()
-        endforeach()
-    endif()
+    # Build compiler flags
+    _build_compile_flags(compile_flags "${ARG_COMPILE_DEFINITIONS}" "${ARG_INCLUDE_DIRECTORIES}")
 
-    set(include_flags "")
-    if (ARG_INCLUDE_DIRECTORIES)
-        foreach(inc_dir IN LISTS ARG_INCLUDE_DIRECTORIES)
-            if (MSVC)
-                list(APPEND include_flags "/external:I${inc_dir}")
-            else()
-                list(APPEND include_flags "-I${inc_dir}")
-            endif()
-        endforeach()
-    endif()
-
+    # Compiler-specific compilation
     if (MSVC)
-        set(ifc_file "${HEADER_UNITS_DIR}/${header_rel_path}.ifc")
+        set(out_file "${HEADER_UNITS_DIR}/${header_rel_path}.ifc")
         set(obj_file "${HEADER_UNITS_DIR}/${header_rel_path}.obj")
-
-        if (CMAKE_BUILD_TYPE STREQUAL "Release")
-            set(RUNTIME_FLAG "/MD")
-        else ()
-            set(RUNTIME_FLAG "/MDd")
-        endif ()
+        set(runtime_flag "$<IF:$<CONFIG:Debug>,/MDd,/MD>")
 
         add_custom_command(
-                OUTPUT "${ifc_file}"
+                OUTPUT "${out_file}"
                 COMMAND ${CMAKE_CXX_COMPILER}
-                /nologo /c /EHsc /std:c++latest
-                ${RUNTIME_FLAG}
-                "/external:I${header_include_dir}"
-                /external:W0
-                ${include_flags}
-                ${compile_defs_flags}
-                /ifcOutput "${ifc_file}"
+                /nologo /c /EHsc /std:c++latest ${runtime_flag}
+                "/external:I${header_include_dir}" /external:W0
+                ${compile_flags}
+                /ifcOutput "${out_file}"
                 "/Fo${obj_file}"
                 /exportHeader "${header_abs_path}"
                 DEPENDS "${header_abs_path}"
                 VERBATIM
         )
-
-        set(out_file "${ifc_file}")
-
     elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-        set(pcm_file "${HEADER_UNITS_DIR}/${header_rel_path}.pcm")
+        set(out_file "${HEADER_UNITS_DIR}/${header_rel_path}.pcm")
 
         add_custom_command(
-                OUTPUT "${pcm_file}"
+                OUTPUT "${out_file}"
                 COMMAND ${CMAKE_CXX_COMPILER}
-                -std=c++23
-                -fmodule-header=user
-                -xc++-header
-                ${include_flags}
-                ${compile_defs_flags}
+                -std=c++23 -fmodule-header=user -xc++-header
+                ${compile_flags}
                 "${header_abs_path}"
-                -o "${pcm_file}"
+                -o "${out_file}"
                 DEPENDS "${header_abs_path}"
                 VERBATIM
         )
-
-        set(out_file "${pcm_file}")
-
     elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        set(gcm_file "${HEADER_UNITS_DIR}/${header_rel_path}.gcm")
+        set(out_file "${HEADER_UNITS_DIR}/${header_rel_path}.gcm")
 
         add_custom_command(
-                OUTPUT "${gcm_file}"
+                OUTPUT "${out_file}"
                 COMMAND ${CMAKE_CXX_COMPILER}
-                -std=c++23
-                -x c++-header
-                -fmodules-ts
-                ${include_flags}
-                ${compile_defs_flags}
+                -std=c++23 -x c++-header -fmodules-ts
+                ${compile_flags}
                 "${header_abs_path}"
-                -o "${gcm_file}"
+                -o "${out_file}"
                 DEPENDS "${header_abs_path}"
                 VERBATIM
         )
-
-        set(out_file "${gcm_file}")
     endif ()
 
     add_custom_target(${target_name} ALL DEPENDS "${out_file}")
 
-    get_property(_boza_header_units GLOBAL PROPERTY BOZA_HEADER_UNITS)
-    if (NOT _boza_header_units OR _boza_header_units STREQUAL "_boza_header_units-NOTFOUND")
-        set(_boza_header_units "")
+    # Store header unit info
+    get_target_property(hu_list ${library_name} BOZA_HEADER_UNITS)
+    if (NOT hu_list OR hu_list STREQUAL "hu_list-NOTFOUND")
+        set(hu_list "")
     endif ()
 
-    # Format: header_include_dir|header_rel_path|def1;def2;def3
-    set(defs_str "")
-    if (ARG_COMPILE_DEFINITIONS)
-        string(REPLACE ";" "," defs_str "${ARG_COMPILE_DEFINITIONS}")
-    endif()
-
-    list(APPEND _boza_header_units "${header_include_dir}|${header_rel_path}|${defs_str}")
-    set_property(GLOBAL PROPERTY BOZA_HEADER_UNITS "${_boza_header_units}")
+    string(REPLACE ";" "," defs_str "${ARG_COMPILE_DEFINITIONS}")
+    list(APPEND hu_list "${header_include_dir}|${header_rel_path}|${target_name}|${defs_str}")
+    set_target_properties(${library_name} PROPERTIES BOZA_HEADER_UNITS "${hu_list}")
 endfunction()
 
-function(import_header_unit target header_include_dir header_rel_path)
-    set(options APPLY_DEFINITIONS)
-    set(oneValueArgs "")
-    set(multiValueArgs COMPILE_DEFINITIONS)
-    cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
-
-    set(HEADER_UNITS_DIR "${CMAKE_BINARY_DIR}/header_units")
-
+# === Enable Header Unit for Target ===
+function(_enable_header_unit target header_include_dir header_rel_path header_unit_target definitions)
     if (MSVC)
         set(ifc_file "${HEADER_UNITS_DIR}/${header_rel_path}.ifc")
-
-        file(TO_CMAKE_PATH "${header_include_dir}/${header_rel_path}" header_unit_header)
-        file(TO_CMAKE_PATH "${ifc_file}" header_unit_ifc)
-
-        set(mapping "${header_unit_header}=${header_unit_ifc}")
-        target_compile_options(${target} PRIVATE "/headerUnit${mapping}")
+        file(TO_CMAKE_PATH "${header_include_dir}/${header_rel_path}" header_path)
+        file(TO_CMAKE_PATH "${ifc_file}" ifc_path)
+        target_compile_options(${target} PRIVATE "/headerUnit${header_path}=${ifc_path}")
 
     elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         set(pcm_file "${HEADER_UNITS_DIR}/${header_rel_path}.pcm")
-
-        target_compile_options(${target} PRIVATE
-                -fmodule-file=${pcm_file}
-        )
-
-        set_property(TARGET ${target} APPEND PROPERTY
-                CXX_SCANDEP_FLAGS
-                -fmodule-file=${pcm_file}
-        )
+        target_compile_options(${target} PRIVATE -fmodule-file=${pcm_file})
+        set_property(TARGET ${target} APPEND PROPERTY CXX_SCANDEP_FLAGS -fmodule-file=${pcm_file})
 
     elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         set(gcm_file "${HEADER_UNITS_DIR}/${header_rel_path}.gcm")
-        target_compile_options(${target} PRIVATE
-                -fmodule-header=${header_rel_path}=${gcm_file}
-        )
+        target_compile_options(${target} PRIVATE -fmodule-header=${header_rel_path}=${gcm_file})
     endif ()
 
-    if (ARG_APPLY_DEFINITIONS AND ARG_COMPILE_DEFINITIONS)
-        target_compile_definitions(${target} PRIVATE ${ARG_COMPILE_DEFINITIONS})
-    endif()
+    if (definitions)
+        string(REPLACE "," ";" defs_list "${definitions}")
+        target_compile_definitions(${target} PRIVATE ${defs_list})
+    endif ()
 
-    make_name_safe(target_suffix "${header_rel_path}")
-    add_dependencies(${target} header_unit_${target_suffix})
+    add_dependencies(${target} ${header_unit_target})
 endfunction()
 
-
-function(import_header_units target)
-    set(options APPLY_DEFINITIONS)
-    set(oneValueArgs "")
-    set(multiValueArgs "")
-    cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
-
-    get_property(_boza_header_units GLOBAL PROPERTY BOZA_HEADER_UNITS)
-
-    if (NOT _boza_header_units OR _boza_header_units STREQUAL "_boza_header_units-NOTFOUND")
-        message(FATAL_ERROR
-                "import_header_units(${target}): no header units registered. "
-                "Call create_header_unit(...) before import_header_units()."
-        )
+# === Link Header Units to Target ===
+function(target_link_header_units target library_name)
+    # Validate targets
+    if (NOT TARGET ${target})
+        message(FATAL_ERROR "target_link_header_units: '${target}' is not a valid target.")
     endif ()
 
-    foreach(_entry IN LISTS _boza_header_units)
-        string(REPLACE "|" ";" _parts "${_entry}")
-        list(GET _parts 0 _header_include_dir)
-        list(GET _parts 1 _header_rel_path)
-        list(GET _parts 2 _defs_str)
+    if (NOT TARGET ${library_name})
+        message(FATAL_ERROR "target_link_header_units: '${library_name}' is not a valid target.")
+    endif ()
 
-        set(_compile_defs "")
-        if (_defs_str)
-            string(REPLACE "," ";" _compile_defs "${_defs_str}")
-        endif()
+    get_target_property(is_hu_lib ${library_name} BOZA_HEADER_UNIT_LIBRARY)
+    if (NOT is_hu_lib)
+        message(FATAL_ERROR "target_link_header_units: '${library_name}' is not a header unit library.")
+    endif ()
 
-        if (ARG_APPLY_DEFINITIONS AND _compile_defs)
-            import_header_unit(${target} "${_header_include_dir}" "${_header_rel_path}"
-                    APPLY_DEFINITIONS COMPILE_DEFINITIONS ${_compile_defs})
-        else()
-            import_header_unit(${target} "${_header_include_dir}" "${_header_rel_path}")
-        endif()
-    endforeach()
+    # Get header unit list
+    get_target_property(hu_list ${library_name} BOZA_HEADER_UNITS)
+    if (NOT hu_list OR hu_list STREQUAL "hu_list-NOTFOUND")
+        message(WARNING "target_link_header_units: '${library_name}' has no header units.")
+        return()
+    endif ()
+
+    # Enable each header unit
+    foreach (entry IN LISTS hu_list)
+        string(REPLACE "|" ";" parts "${entry}")
+        list(GET parts 0 header_include_dir)
+        list(GET parts 1 header_rel_path)
+        list(GET parts 2 header_unit_target)
+        list(GET parts 3 defs_str)
+
+        _enable_header_unit(${target}
+                "${header_include_dir}"
+                "${header_rel_path}"
+                "${header_unit_target}"
+                "${defs_str}"
+        )
+    endforeach ()
 endfunction()

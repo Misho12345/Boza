@@ -1,15 +1,21 @@
-# Function to create a symlink/junction for asset directories
-function(boza_link_assets TARGET_NAME)
-    set(ASSET_OUTPUT_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/assets)
+include_guard(GLOBAL)
 
-    if (NOT EXISTS ${ASSET_OUTPUT_DIR} AND EXISTS ${CMAKE_SOURCE_DIR}/assets)
-        add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
-                COMMAND ${CMAKE_COMMAND} -E create_symlink
-                ${CMAKE_SOURCE_DIR}/assets
-                ${ASSET_OUTPUT_DIR}
-                COMMENT "Linking assets directory"
-                VERBATIM
-        )
+# Create symlink/junction for asset directories
+function(boza_link_assets target)
+    set(asset_output_dir ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/assets)
+    set(asset_source_dir ${CMAKE_SOURCE_DIR}/assets)
+
+    if (EXISTS ${asset_output_dir} OR NOT EXISTS ${asset_source_dir})
+        return()
     endif ()
+
+    add_custom_command(TARGET ${target} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+            ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+            COMMAND ${CMAKE_COMMAND} -E create_symlink
+            ${asset_source_dir}
+            ${asset_output_dir}
+            COMMENT "Linking assets directory"
+            VERBATIM
+    )
 endfunction()

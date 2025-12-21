@@ -31,31 +31,6 @@ export namespace boza
         ~MeshRenderer() override = default;
 
         std::shared_ptr<Mesh> mesh;
-
-        PropertyGetSet<MeshRenderer, const std::string&> material_name
-        {
-            &MeshRenderer::get_material_name,
-            &MeshRenderer::set_material_name,
-            offsetof(MeshRenderer, material_name)
-        };
-
-        PropertyGetSet<MeshRenderer, const glm::vec4&> color
-        {
-            &MeshRenderer::get_color,
-            &MeshRenderer::set_color,
-            offsetof(MeshRenderer, color)
-        };
-
-    private:
-        [[nodiscard]]
-        const std::string& get_material_name() const { return material_name_; }
-        void set_material_name(const std::string& value) { material_name_ = value; }
-
-        [[nodiscard]]
-        const glm::vec4& get_color() const { return color_; }
-        void set_color(const glm::vec4& value) { color_ = value; }
-
-        std::string material_name_{ "default" };
-        glm::vec4   color_{ 1.0f, 1.0f, 1.0f, 1.0f };
+        std::string material_name{ "default" };
     };
 }

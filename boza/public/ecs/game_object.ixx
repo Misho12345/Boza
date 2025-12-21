@@ -110,7 +110,7 @@ export namespace boza
             component->entity_      = entity_;
             component->scene_       = scene_;
             component->game_object_ = this;
-            component->enabled_     = true;
+            component->enabled      = true;
 
             if constexpr (!std::is_same_v<T, Transform>)
             {

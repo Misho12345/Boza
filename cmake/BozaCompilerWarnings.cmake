@@ -1,25 +1,28 @@
+include_guard(GLOBAL)
+
 function(boza_enable_warnings target)
     if (MSVC)
         target_compile_options(${target} PRIVATE
                 /W4
+                /WX
                 /permissive-
-                /wd4702 # unreachable code
-                /wd4065 # switch statement contains 'default' but no 'case' labels
-                /wd4251 # DLL-interface warning
-                /wd5050 # something about modules
-                /wd4127 # conditional expression is constant
+                /wd4702  # unreachable code
+                /wd4065  # switch with 'default' but no 'case'
+                /wd4251  # DLL-interface warning
+                /wd5050  # modules compatibility
+                /wd4127  # conditional expression is constant
         )
 
         if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "19.30")
             target_compile_options(${target} PRIVATE /wd5105)
         endif ()
-
-        target_compile_options(${target} PRIVATE /WX)
     else ()
+        # Common GCC/Clang warnings
         target_compile_options(${target} PRIVATE
                 -Wall
                 -Wextra
                 -Wpedantic
+                -Werror
                 -Wconversion
                 -Wsign-conversion
                 -Wno-missing-field-initializers
@@ -28,6 +31,7 @@ function(boza_enable_warnings target)
                 -Wold-style-cast
         )
 
+        # GCC-specific warnings
         if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
             target_compile_options(${target} PRIVATE
                     -Wlogical-op
@@ -38,6 +42,7 @@ function(boza_enable_warnings target)
             )
         endif ()
 
+        # Clang-specific warnings
         if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
             target_compile_options(${target} PRIVATE
                     -Wmost
@@ -46,7 +51,5 @@ function(boza_enable_warnings target)
                     -Wnon-virtual-dtor
             )
         endif ()
-
-        target_compile_options(${target} PRIVATE -Werror)
     endif ()
 endfunction()

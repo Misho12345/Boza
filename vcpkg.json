@@ -21,6 +21,10 @@
     "boost-pfr",
     "boost-preprocessor",
     "tracy",
+    {
+      "name": "mimalloc",
+      "features": ["override"]
+    },
     "gtest"
   ]
 }

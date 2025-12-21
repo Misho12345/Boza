@@ -34,10 +34,7 @@ namespace boza::app
         float padding[2];
     };
 
-    MaterialLoader::~MaterialLoader()
-    {
-        shutdown();
-    }
+    MaterialLoader::~MaterialLoader() { shutdown(); }
 
     bool MaterialLoader::initialize(
         rhi::Device*         device,
@@ -72,7 +69,7 @@ namespace boza::app
                 .access_mode = rhi::ResourceAccessMode::Dynamic
             }));
 
-        const LightUBO light_data{
+        static constexpr LightUBO light_data{
             .light_position = glm::vec4(5.0f, 5.0f, 5.0f, 1.0f),
             .light_color = glm::vec4(1.0f, 1.0f, 1.0f, 2.0f),
             .view_pos = glm::vec4(0.0f, 0.0f, 5.0f, 1.0f)
@@ -106,7 +103,7 @@ namespace boza::app
 
         if (error_texture_)
         {
-            const std::array<std::uint8_t, 4> magenta{ 255, 0, 255, 255 };
+            static constexpr std::array<std::uint8_t, 4> magenta{ 255, 0, 255, 255 };
             error_texture_->upload(magenta.data(), magenta.size());
             Log::trace("Created error texture (1x1 magenta)");
         }
@@ -197,10 +194,7 @@ namespace boza::app
                     setup_material_from_definition(material, def);
                     Log::trace("Created material: {}", name);
                 }
-                else
-                {
-                    Log::error("Failed to create material: {}", name);
-                }
+                else Log::error("Failed to create material: {}", name);
             }
         }
         return true;
@@ -220,14 +214,8 @@ namespace boza::app
         MaterialDefinition def;
 
         const std::string filename = path.stem().string();
-        if (filename.ends_with(".mat"))
-        {
-            def.name = filename.substr(0, filename.size() - 4);
-        }
-        else
-        {
-            def.name = filename;
-        }
+
+        def.name = filename.ends_with(".mat") ? filename.substr(0, filename.size() - 4) : filename;
 
         if (!j.contains("vertex_shader") || !j["vertex_shader"].is_string())
         {
@@ -246,19 +234,9 @@ namespace boza::app
         if (j.contains("load_strategy") && j["load_strategy"].is_string())
         {
             const std::string strategy = j["load_strategy"].get<std::string>();
-            if (strategy == "game_load")
-            {
-                def.load_strategy = LoadStrategy::GameLoad;
-            }
-            else if (strategy == "on_demand")
-            {
-                def.load_strategy = LoadStrategy::OnDemand;
-            }
-            else
-            {
-                Log::warn("Material {} has unknown load_strategy '{}', defaulting to game_load",
-                    def.name, strategy);
-            }
+            if (strategy == "game_load") def.load_strategy = LoadStrategy::GameLoad;
+            else if (strategy == "on_demand") def.load_strategy = LoadStrategy::OnDemand;
+            else Log::warn("Material {} has unknown load_strategy '{}', defaulting to game_load", def.name, strategy);
         }
 
         auto parse_texture_format = [](const std::string& format_str) -> TextureFormat
@@ -327,7 +305,7 @@ namespace boza::app
         return Material::create(def.vertex_shader, def.fragment_shader);
     }
 
-    void MaterialLoader::bind_engine_resources(Material* material) const
+    void MaterialLoader::bind_engine_resources(const Material* material) const
     {
         if (material->descriptor_set_count() == 0) return;
 

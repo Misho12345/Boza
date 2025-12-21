@@ -57,7 +57,7 @@ namespace boza::app
         Material* get_material(const std::string& name) const;
 
         void register_material(const std::string& name, Material* material);
-        void bind_engine_resources(Material* material) const;
+        void bind_engine_resources(const Material* material) const;
 
         [[nodiscard]] Texture* error_texture() const { return error_texture_; }
         [[nodiscard]] rhi::Sampler* default_sampler() const { return default_sampler_.get(); }
