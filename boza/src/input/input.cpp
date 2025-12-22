@@ -13,7 +13,7 @@ namespace boza
 
     GLFWwindow* window_handle_{ nullptr };
 
-    bool all_keys_held(const KeyCombo& combo, const std::unordered_map<Key, KeyState>& key_states)
+    bool all_keys_held(const KeyCombo& combo, const flat_map<Key, KeyState>& key_states)
     {
         for (const Key k : combo.keys)
         {
@@ -24,7 +24,7 @@ namespace boza
         return true;
     }
 
-    bool any_combo_held(const KeyBinding& binding, const std::unordered_map<Key, KeyState>& key_states)
+    bool any_combo_held(const KeyBinding& binding, const flat_map<Key, KeyState>& key_states)
     {
         for (const KeyCombo& combo : binding.combos)
         {
@@ -34,7 +34,7 @@ namespace boza
         return false;
     }
 
-    void trigger_bindings(const std::vector<BindingEvent>& bindings, const std::unordered_map<Key, KeyState>& key_states)
+    void trigger_bindings(const std::vector<BindingEvent>& bindings, const flat_map<Key, KeyState>& key_states)
     {
         for (const auto& [binding, callback] : bindings)
         {

@@ -109,7 +109,24 @@ namespace boza::gfx
 
         if (take_ownership) { owned_textures_.insert(texture); }
 
-        Log::trace("Registered texture: {}{}", name, take_ownership ? " (owned)" : " (not owned)");
+        Log::trace("Registered texture: {} (owned: {})", name, take_ownership);
+    }
+
+    void TextureLoader::unregister_texture(Texture* texture)
+    {
+        if (!texture) return;
+
+        for (auto it = textures_.begin(); it != textures_.end();)
+        {
+            if (it->second == texture)
+            {
+                Log::trace("Unregistered texture: {}", it->first);
+                it = textures_.erase(it);
+            }
+            else ++it;
+        }
+
+        owned_textures_.erase(texture);
     }
 
     Texture* TextureLoader::get_texture(const std::string& name) const

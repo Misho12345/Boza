@@ -1,5 +1,7 @@
 export module boza.detail:tag_manager;
+
 import std;
+import boza.common;
 
 export namespace boza::detail
 {
@@ -19,7 +21,7 @@ export namespace boza::detail
     private:
         TagManager() = default;
 
-        std::unordered_map<std::string, std::uint32_t> name_to_id_{};
-        std::unordered_map<std::uint32_t, std::string> id_to_name_{};
+        flat_map<std::string, std::uint32_t> name_to_id_{};
+        flat_map<std::uint32_t, std::string> id_to_name_{};
     };
 }

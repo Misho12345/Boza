@@ -1,7 +1,7 @@
 export module boza.rhi.vulkan:shader_module;
 
 import boza.rhi.objects;
-import <vk_all.h>;
+import <vk_all>;
 
 export namespace boza::rhi::vk
 {

@@ -50,9 +50,9 @@ namespace boza::rhi
     }
 
     void parse_resources(
-        const json&                                                    j,
-        const std::string&                                             type,
-        std::unordered_map<std::string, ShaderModule::ShaderResource>& resources)
+        const json&                                          j,
+        const std::string&                                   type,
+        flat_map<std::string, ShaderModule::ShaderResource>& resources)
     {
         if (!j.contains(type)) return;
 
@@ -92,7 +92,7 @@ namespace boza::rhi
 
     void parse_push_constants(
         const json&                                                  j,
-        std::unordered_map<std::string, ShaderModule::PushConstant>& push_constants)
+        flat_map<std::string, ShaderModule::PushConstant>& push_constants)
     {
         if (!j.contains("push_constants")) return;
 
@@ -104,8 +104,8 @@ namespace boza::rhi
             ShaderModule::PushConstant range
             {
                 .stage = shader_stage_from_string(stage_str),
-                .offset = static_cast<uint32_t>(pc_json.value("offset", 0)),
-                .size = static_cast<uint32_t>(pc_json.value("size", 0))
+                .offset = static_cast<std::uint32_t>(pc_json.value("offset", 0)),
+                .size = static_cast<std::uint32_t>(pc_json.value("size", 0))
             };
 
             // Parse members

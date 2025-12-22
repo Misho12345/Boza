@@ -51,7 +51,7 @@ export namespace boza::rhi
 
         QueueFamilyIndices queue_family_indices_{};
 
-        std::unordered_map<std::uint32_t, std::unique_ptr<CommandQueue>> queues_{};
-        std::unordered_map<std::uint32_t, std::unique_ptr<CommandPool>> command_pools_{};
+        flat_map<std::uint32_t, std::unique_ptr<CommandQueue>> queues_{};
+        flat_map<std::uint32_t, std::unique_ptr<CommandPool>> command_pools_{};
     };
 }

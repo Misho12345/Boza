@@ -1,6 +1,7 @@
 export module boza.rhi:resource_cache;
 
 import std;
+import boza.common;
 import boza.rhi.api;
 import boza.rhi.objects;
 
@@ -31,16 +32,16 @@ export namespace boza::rhi
             std::string fragment_shader;
 
             bool operator==(const PipelineKey&) const = default;
-        };
 
-        struct PipelineKeyHash
-        {
-            std::size_t operator()(const PipelineKey& key) const noexcept
+            struct Hash
             {
-                const std::size_t h1 = std::hash<std::string>{}(key.vertex_shader);
-                const std::size_t h2 = std::hash<std::string>{}(key.fragment_shader);
-                return h1 ^ (h2 << 1);
-            }
+                size_t operator()(const PipelineKey& key) const noexcept
+                {
+                    const size_t h1 = std::hash<std::string>{}(key.vertex_shader);
+                    const size_t h2 = std::hash<std::string>{}(key.fragment_shader);
+                    return h1 ^ h2 << 1;
+                }
+            };
         };
 
         struct CachedPipeline
@@ -62,31 +63,31 @@ export namespace boza::rhi
             ShaderStage stage;
 
             bool operator==(const ShaderKey&) const = default;
-        };
 
-        struct ShaderKeyHash
-        {
-            std::size_t operator()(const ShaderKey& key) const noexcept
+            struct Hash
             {
-                const std::size_t h1 = std::hash<std::string>{}(key.path);
-                const std::size_t h2 = std::hash<std::uint8_t>{}(static_cast<std::uint8_t>(key.stage));
-                return h1 ^ (h2 << 1);
-            }
+                size_t operator()(const ShaderKey& key) const noexcept
+                {
+                    const size_t h1 = std::hash<std::string>{}(key.path);
+                    const size_t h2 = std::hash<int>{}(static_cast<int>(key.stage));
+                    return h1 ^ (h2 << 1);
+                }
+            };
         };
 
-        std::unordered_map<ShaderKey, std::weak_ptr<ShaderModule>, ShaderKeyHash> shader_cache_;
-        std::unordered_map<std::string, std::weak_ptr<Texture>> texture_cache_;
-        std::unordered_map<PipelineKey, CachedPipeline, PipelineKeyHash> pipeline_cache_;
+        flat_map<ShaderKey, std::weak_ptr<ShaderModule>, ShaderKey::Hash> shader_cache_;
+        flat_map<std::string, std::weak_ptr<Texture>> texture_cache_;
+        flat_map<PipelineKey, CachedPipeline, PipelineKey::Hash> pipeline_cache_;
 
         mutable std::mutex shader_mutex_;
         mutable std::mutex texture_mutex_;
         mutable std::mutex pipeline_mutex_;
 
-        template<typename T, typename KeyType, typename Hash = std::hash<KeyType>, typename Equal = std::equal_to<KeyType>, typename Alloc = std::allocator<std::pair<const KeyType, std::weak_ptr<T>>>>
+        template<typename T, typename KeyType, typename MapType>
         std::shared_ptr<T> get_or_create(
-            const KeyType& key,
-            std::unordered_map<KeyType, std::weak_ptr<T>, Hash, Equal, Alloc>& cache,
-            std::mutex& mutex,
+            const KeyType&             key,
+            MapType&                   cache,
+            std::mutex&                mutex,
             const std::function<T*()>& factory)
         {
             std::lock_guard lock{ mutex };
@@ -114,4 +115,3 @@ export namespace boza::rhi
         }
     };
 }
-

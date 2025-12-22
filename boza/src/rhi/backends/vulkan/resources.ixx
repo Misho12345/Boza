@@ -2,7 +2,7 @@ export module boza.rhi.vulkan:resources;
 
 import std;
 import boza.rhi.objects;
-import <vk_all.h>;
+import <vk_all>;
 
 export namespace boza::rhi::vk
 {

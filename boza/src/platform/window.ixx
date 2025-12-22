@@ -9,7 +9,7 @@ import boza.common;
 import boza.rhi.api;
 
 #ifdef BOZA_VULKAN_ENABLED
-import <vulkan/vulkan.h>;
+import <vk_all>;
 #endif
 
 export namespace boza::platform

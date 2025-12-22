@@ -1,6 +1,5 @@
 module;
 
-#include <cstddef>
 #include "api.hpp"
 
 export module boza.ecs:mesh_renderer;
@@ -24,6 +23,9 @@ export namespace boza
     {
         std::vector<Vertex>        vertices;
         std::vector<std::uint32_t> indices;
+
+        static void register_mesh(const std::string& name, std::shared_ptr<Mesh> mesh);
+        static std::shared_ptr<Mesh> get(const std::string& name);
     };
 
     class BOZA_API MeshRenderer final : public Component
@@ -32,17 +34,7 @@ export namespace boza
         MeshRenderer()           = default;
         ~MeshRenderer() override = default;
 
-        std::shared_ptr<Mesh> mesh;
-
-        std::string material_name{ "default "};
-
-        PropertyGet<MeshRenderer, Material*> material
-        {
-            &MeshRenderer::get_material,
-            offsetof(MeshRenderer, material)
-        };
-
-    private:
-        [[nodiscard]] Material* get_material() const;
+        std::shared_ptr<Mesh> mesh{ nullptr };
+        Material* material{ nullptr };
     };
 }

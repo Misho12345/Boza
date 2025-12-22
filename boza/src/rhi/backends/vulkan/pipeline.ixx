@@ -1,9 +1,10 @@
 export module boza.rhi.vulkan:pipeline;
 
 import std;
+import boza.common;
 import boza.rhi.objects;
 
-import <vk_all.h>;
+import <vk_all>;
 
 export namespace boza::rhi::vk
 {
@@ -26,7 +27,7 @@ export namespace boza::rhi::vk
     private:
         explicit PipelineLayout(const PipelineLayoutDesc& desc) : rhi::PipelineLayout(desc) {}
         VkPipelineLayout vk_pipeline_layout_{ nullptr };
-        std::unordered_map<std::string, ShaderModule::PushConstant> push_constants_;
+        flat_map<std::string, ShaderModule::PushConstant> push_constants_;
 
         friend GraphicsObject;
     };

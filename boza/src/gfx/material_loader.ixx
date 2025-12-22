@@ -29,8 +29,8 @@ export namespace boza::gfx
         std::string   fragment_shader;
         LoadStrategy  load_strategy{ LoadStrategy::GameLoad };
 
-        std::unordered_map<std::string, TextureInfo> textures;
-        std::unordered_map<std::string, glm::vec4> vec4_properties;
+        flat_map<std::string, TextureInfo> textures;
+        flat_map<std::string, glm::vec4> vec4_properties;
     };
 
     struct CameraUBO
@@ -105,8 +105,8 @@ export namespace boza::gfx
         TextureLoader*       texture_loader_{ nullptr };
         rhi::GraphicsApi     api_{};
 
-        std::unordered_map<std::string, MaterialDefinition> definitions_;
-        std::unordered_map<std::string, Material*> materials_;
+        flat_map<std::string, MaterialDefinition> definitions_;
+        flat_map<std::string, Material*> materials_;
 
         std::unique_ptr<rhi::Sampler> default_sampler_;
 

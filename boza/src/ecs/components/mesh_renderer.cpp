@@ -1,13 +1,21 @@
 module boza.ecs;
 
 import :mesh_renderer;
-import boza.gfx.material_loader;
 
 namespace boza
 {
-    Material* MeshRenderer::get_material() const
+    static flat_map<std::string, std::shared_ptr<Mesh>> mesh_registry;
+
+    void Mesh::register_mesh(const std::string& name, std::shared_ptr<Mesh> mesh)
     {
-        return gfx::MaterialLoader::instance().get_or_create_material(material_name);
+        mesh_registry[name] = std::move(mesh);
+    }
+
+    std::shared_ptr<Mesh> Mesh::get(const std::string& name)
+    {
+        const auto it = mesh_registry.find(name);
+        if (it != mesh_registry.end()) return it->second;
+        return nullptr;
     }
 }
 

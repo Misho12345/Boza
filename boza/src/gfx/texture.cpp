@@ -475,10 +475,44 @@ namespace boza
         return gfx::TextureLoader::instance().load_or_get_texture(filepath, texture_format, texture_access_mode);
     }
 
+    Texture* Texture::create(
+        const std::string&        name,
+        const std::uint32_t       texture_width,
+        const std::uint32_t       texture_height,
+        const TextureFormat       texture_format,
+        const Flags<TextureUsage> usage_flags,
+        const TextureAccessMode   texture_access_mode)
+    {
+        auto* texture = new Texture(
+            texture_width,
+            texture_height,
+            texture_format,
+            usage_flags,
+            texture_access_mode);
+
+        if (!texture || texture->rhi_textures_.empty())
+        {
+            delete texture;
+            return nullptr;
+        }
+
+        register_texture(name, texture);
+        return texture;
+    }
+
     Texture* Texture::get(const std::string& name) { return gfx::TextureLoader::instance().get_texture(name); }
 
     void Texture::register_texture(const std::string& name, Texture* texture)
     {
         gfx::TextureLoader::instance().register_texture(name, texture, true);
+    }
+
+    void Texture::destroy(Texture* texture)
+    {
+        if (texture)
+        {
+            gfx::TextureLoader::instance().unregister_texture(texture);
+            delete texture;
+        }
     }
 }

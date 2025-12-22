@@ -64,7 +64,7 @@ export namespace boza
         std::string    name_;
         entt::registry registry_{};
 
-        std::unordered_map<entt::id_type, GameObject*>       game_objects_{};
+        flat_map<entt::id_type, GameObject*>       game_objects_{};
         std::vector<std::pair<entt::entity, Behaviour*>>     behaviours_{};
         std::vector<std::pair<entt::entity, Behaviour*>>     behaviours_to_start_{};
 

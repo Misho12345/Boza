@@ -3,7 +3,7 @@ include_guard(GLOBAL)
 # === Build Options ===
 option(BOZA_BUILD_TESTS "Build Boza unit tests" OFF)
 option(BOZA_USE_MIMALLOC "Use mimalloc for memory allocation" ON)
-option(BOZA_ENABLE_LTO "Enable Link Time Optimization" ON)
+option(BOZA_ENABLE_LTO "Enable Link Time Optimization" OFF)
 option(BOZA_ENABLE_PROFILING "Enable profiling support" OFF)
 
 # === Graphics Backends ===

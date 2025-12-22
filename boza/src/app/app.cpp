@@ -8,6 +8,7 @@ import boza.input;
 import boza.detail;
 import boza.rhi.api;
 import boza.gfx.rendering_system;
+import boza.gfx.material_loader;
 
 import :game_loop;
 
@@ -178,9 +179,6 @@ namespace boza
 
     void App::register_custom_material(const std::string& name, Material* material) const
     {
-        if (impl_->rendering_system)
-        {
-            impl_->rendering_system->material_loader().register_material(name, material);
-        }
+        gfx::MaterialLoader::instance().register_material(name, material);
     }
 }

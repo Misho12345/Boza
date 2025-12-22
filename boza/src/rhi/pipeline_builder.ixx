@@ -52,7 +52,7 @@ export namespace boza::rhi
             std::uint32_t      count;
         };
 
-        std::unordered_map<std::uint32_t, std::vector<DescriptorBinding>> merge_descriptor_bindings() const;
+        flat_map<std::uint32_t, std::vector<DescriptorBinding>> merge_descriptor_bindings() const;
     };
 
     class PipelineResourceBinder
@@ -91,7 +91,7 @@ export namespace boza::rhi
         struct PushConstantInfo
         {
             ShaderModule::PushConstant                                        pc;
-            std::unordered_map<std::string, ShaderModule::PushConstantMember> members;
+            flat_map<std::string, ShaderModule::PushConstantMember> members;
         };
 
         struct ResourceInfo
@@ -107,9 +107,9 @@ export namespace boza::rhi
         PipelineLayout*             layout_;
         std::vector<DescriptorSet*> descriptor_sets_;
 
-        std::unordered_map<std::string, PushConstantInfo>             push_constant_map_;
-        std::unordered_map<std::string, ResourceInfo>                 resource_map_;
-        std::unordered_map<std::string, ShaderModule::ShaderResource> vertex_inputs_;
+        flat_map<std::string, PushConstantInfo>             push_constant_map_;
+        flat_map<std::string, ResourceInfo>                 resource_map_;
+        flat_map<std::string, ShaderModule::ShaderResource> vertex_inputs_;
 
         void                        build_resource_maps();
         [[nodiscard]] static size_t get_type_size(ShaderDataType type);

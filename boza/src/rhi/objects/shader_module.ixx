@@ -90,14 +90,14 @@ export namespace boza::rhi
 
         struct MetaData
         {
-            std::unordered_map<std::string, ShaderResource> uniform_buffers;
-            std::unordered_map<std::string, ShaderResource> storage_buffers;
-            std::unordered_map<std::string, ShaderResource> stage_inputs;
-            std::unordered_map<std::string, ShaderResource> stage_outputs;
-            std::unordered_map<std::string, ShaderResource> subpass_inputs;
-            std::unordered_map<std::string, ShaderResource> sampled_images;
-            std::unordered_map<std::string, ShaderResource> storage_images;
-            std::unordered_map<std::string, PushConstant> push_constants;
+            flat_map<std::string, ShaderResource> uniform_buffers;
+            flat_map<std::string, ShaderResource> storage_buffers;
+            flat_map<std::string, ShaderResource> stage_inputs;
+            flat_map<std::string, ShaderResource> stage_outputs;
+            flat_map<std::string, ShaderResource> subpass_inputs;
+            flat_map<std::string, ShaderResource> sampled_images;
+            flat_map<std::string, ShaderResource> storage_images;
+            flat_map<std::string, PushConstant> push_constants;
             glm::uvec3 work_group_size{ 1, 1, 1 };
         };
 

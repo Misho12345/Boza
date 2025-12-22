@@ -3,6 +3,7 @@ module boza.detail;
 import :render_context;
 import boza.rhi;
 import boza.core;
+import boza.gfx;
 
 namespace boza::detail
 {

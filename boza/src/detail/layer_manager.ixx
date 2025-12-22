@@ -1,5 +1,7 @@
 export module boza.detail:layer_manager;
+
 import std;
+import boza.common;
 
 export namespace boza::detail
 {
@@ -19,7 +21,7 @@ export namespace boza::detail
     private:
         LayerManager() = default;
 
-        std::unordered_map<std::string, std::uint32_t> name_to_mask_{};
-        std::unordered_map<std::uint32_t, std::string> mask_to_name_{};
+        flat_map<std::string, std::uint32_t> name_to_mask_{};
+        flat_map<std::uint32_t, std::string> mask_to_name_{};
     };
 }

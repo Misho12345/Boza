@@ -1,7 +1,7 @@
 module boza.rhi.vulkan:allocator;
 
 import boza.rhi.objects;
-import <vk_all.h>;
+import <vk_all>;
 
 namespace boza::rhi::vk
 {

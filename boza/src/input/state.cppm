@@ -68,10 +68,10 @@ namespace boza::input
     {
         std::mutex mutex;
 
-        std::unordered_map<Key, std::function<void()>> press_events;
-        std::unordered_map<Key, std::function<void()>> release_events;
-        std::unordered_map<Key, std::function<void()>> hold_events;
-        std::unordered_map<Key, std::function<void()>> double_click_events;
+        flat_map<Key, std::function<void()>> press_events;
+        flat_map<Key, std::function<void()>> release_events;
+        flat_map<Key, std::function<void()>> hold_events;
+        flat_map<Key, std::function<void()>> double_click_events;
 
         std::vector<BindingEvent> press_bindings;
         std::vector<BindingEvent> release_bindings;
@@ -81,7 +81,7 @@ namespace boza::input
         std::vector<std::function<void(glm::vec2)>> mouse_move_callbacks;
         std::vector<std::function<void(glm::vec2)>> mouse_scroll_callbacks;
 
-        std::unordered_map<Key, KeyState> key_states;
+        flat_map<Key, KeyState> key_states;
 
         glm::vec2 last_cursor_pos{ 0.0f, 0.0f };
         bool first_cursor_move{ true };

@@ -24,6 +24,7 @@ boza_setup_module_target(boza_engine ${CMAKE_CURRENT_SOURCE_DIR}
 target_include_directories(boza_engine PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/public
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_BINARY_DIR}/include
 )
 
 # === Engine Definitions ===
@@ -63,10 +64,8 @@ target_link_libraries(boza_engine PUBLIC
 set(include_dir ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include)
 add_header_unit_library(boza_engine_header_units)
 
-target_add_header_unit(boza_engine_header_units ${include_dir}
-        entt/entt.hpp
-        COMPILE_DEFINITIONS ${ENTT_STANDARD_CPP}
-)
+target_add_header_unit(boza_engine_header_units ${include_dir} entt/entt.hpp COMPILE_DEFINITIONS ${ENTT_STANDARD_CPP})
+target_add_header_unit(boza_engine_header_units ${include_dir} gtl/phmap.hpp)
 target_add_header_unit(boza_engine_header_units ${include_dir} nlohmann/json.hpp)
 target_add_header_unit(boza_engine_header_units ${include_dir} stb_image.h)
 target_add_header_unit(boza_engine_header_units ${include_dir} stb_image_write.h)
@@ -100,7 +99,7 @@ if (BOZA_ENABLE_VULKAN)
             "vma_impl.cpp")
 
     # Unified Vulkan header
-    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/include/vk_all.h
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/include/vk_all
             "#if __has_include(<vma/vk_mem_alloc.h>)
             #include <vma/vk_mem_alloc.h>
             #elif __has_include(<vk_mem_alloc.h>)
@@ -109,10 +108,6 @@ if (BOZA_ENABLE_VULKAN)
             #error \"Cannot find vk_mem_alloc.h\"
             #endif
             #include <volk.h>")
-
-    target_include_directories(boza_engine PRIVATE
-            ${CMAKE_CURRENT_BINARY_DIR}/include
-    )
 
     target_link_libraries(boza_engine PUBLIC
             Vulkan::Headers
@@ -129,13 +124,9 @@ if (BOZA_ENABLE_VULKAN)
     )
 
     target_add_header_unit(boza_engine_header_units
-            ${CMAKE_CURRENT_BINARY_DIR}/include vk_all.h
+            ${CMAKE_CURRENT_BINARY_DIR}/include vk_all
             COMPILE_DEFINITIONS ${vk_defs}
             INCLUDE_DIRECTORIES ${include_dir}
-    )
-    target_add_header_unit(boza_engine_header_units
-            ${include_dir} vulkan/vulkan.h
-            COMPILE_DEFINITIONS ${vk_defs}
     )
 endif ()
 

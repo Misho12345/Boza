@@ -3,7 +3,7 @@ module boza.rhi.vulkan;
 import :resources;
 import :util;
 
-import <vk_all.h>;
+import <vk_all>;
 
 namespace boza::rhi::vk
 {

@@ -26,7 +26,7 @@ namespace boza::rhi
             path,
             texture_cache_,
             texture_mutex_,
-            [&]() { return factory(path); });
+            [&] { return factory(path); });
     }
 
     ResourceCache::CachedPipeline* ResourceCache::get_cached_pipeline(const std::string& vert, const std::string& frag)

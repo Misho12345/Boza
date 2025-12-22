@@ -29,13 +29,6 @@ export namespace boza::rhi
 
     class PipelineLayout : public GraphicsObject<PipelineLayout, PipelineLayoutDesc>
     {
-    public:
-        // template<typename T>
-        // void set_push_constant(CommandBuffer* cmd_buffer, const std::string& name, const T& data);
-        //
-        // template<typename T>
-        // void set_push_constant(CommandBuffer* cmd_buffer, const T& data);
-
     protected:
         explicit PipelineLayout(const PipelineLayoutDesc& desc) : GraphicsObject(desc) {}
     };

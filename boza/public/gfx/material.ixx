@@ -46,6 +46,7 @@ export namespace boza
     {
     public:
         static Material* create(const std::string& vertex_shader_name, const std::string& fragment_shader_name);
+        static Material* get(const std::string& name);
 
         ~Material();
 

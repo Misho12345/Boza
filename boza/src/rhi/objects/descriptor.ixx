@@ -87,7 +87,7 @@ export namespace boza::rhi
     protected:
         explicit DescriptorPool(const DescriptorPoolDesc& desc) : GraphicsObject(desc) {}
 
-        std::unordered_map<std::size_t, std::vector<DescriptorSet*>> free_sets_by_layout_;
+        flat_map<std::size_t, std::vector<DescriptorSet*>> free_sets_by_layout_;
         std::uint64_t current_generation_{ 0 };
     };
 

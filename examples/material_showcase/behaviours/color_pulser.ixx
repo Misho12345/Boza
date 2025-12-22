@@ -22,7 +22,7 @@ public:
             if (!mesh_renderer_) return;
         }
 
-        auto* material = mesh_renderer_->material();
+        auto* material = mesh_renderer_->material;
         if (!material)
         {
             Log::warn("material is nullptr");

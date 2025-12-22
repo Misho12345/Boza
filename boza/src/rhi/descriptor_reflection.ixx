@@ -1,6 +1,7 @@
 export module boza.rhi:descriptor_reflection;
 
 import std;
+import boza.common;
 import boza.rhi.objects;
 
 export namespace boza::rhi
@@ -27,10 +28,10 @@ export namespace boza::rhi
         std::optional<BindingInfo> lookup(std::string_view name) const;
 
         [[nodiscard]]
-        const std::unordered_map<std::string, BindingInfo>& bindings() const { return bindings_; }
+        const flat_map<std::string, BindingInfo>& bindings() const { return bindings_; }
 
     private:
-        std::unordered_map<std::string, BindingInfo> bindings_;
+        flat_map<std::string, BindingInfo> bindings_;
 
         void add_uniform_buffer_members(
             const std::string& buffer_name,

@@ -26,6 +26,7 @@ export namespace boza::gfx
             TextureAccessMode access_mode = TextureAccessMode::Static);
 
         void register_texture(const std::string& name, Texture* texture, bool take_ownership = true);
+        void unregister_texture(Texture* texture);
         Texture* get_texture(const std::string& name) const;
 
         [[nodiscard]] Texture* error_texture() const { return error_texture_; }
@@ -39,10 +40,9 @@ export namespace boza::gfx
             TextureFormat format,
             TextureAccessMode access_mode) const;
 
-        std::unordered_map<std::string, Texture*> textures_;
+        flat_map<std::string, Texture*> textures_;
         std::unordered_set<Texture*> owned_textures_;
         Texture* error_texture_{ nullptr };
         bool initialized_{ false };
     };
 }
-

@@ -16,10 +16,8 @@
     "entt",
     "stb",
     "spdlog",
+    "gtl",
     "nlohmann-json",
-    "magic-enum",
-    "boost-pfr",
-    "boost-preprocessor",
     "tracy",
     {
       "name": "mimalloc",

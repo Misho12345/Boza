@@ -49,7 +49,7 @@ namespace boza::rhi::vk
         attribute_descriptions.reserve(desc.attributes.size());
 
         // Build a map from location to shader input for quick lookup
-        std::unordered_map<uint32_t, const rhi::ShaderModule::ShaderResource*> location_to_input;
+        flat_map<uint32_t, const rhi::ShaderModule::ShaderResource*> location_to_input;
         for (const auto* shader : desc.shaders)
         {
             if (shader->stage() == ShaderStage::Vertex)

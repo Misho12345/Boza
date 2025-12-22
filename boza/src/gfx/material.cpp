@@ -6,6 +6,7 @@ import :buffer;
 import boza.rhi;
 import boza.core;
 import boza.detail;
+import boza.gfx.material_loader;
 
 namespace boza
 {
@@ -53,10 +54,11 @@ namespace boza
         rhi::DescriptorReflection*              reflection{ nullptr };
         std::vector<rhi::DescriptorSet*>        descriptor_sets;
         std::vector<std::byte>                  push_constant_staging;
-        std::unordered_map<std::uint32_t, bool> dirty_sets;
 
-        std::unordered_map<std::uint32_t, std::vector<std::byte>> uniform_buffer_staging;
-        std::unordered_map<std::uint32_t, rhi::Buffer*>           uniform_buffers;
+        flat_map<std::uint32_t, bool> dirty_sets;
+
+        flat_map<std::uint32_t, std::vector<std::byte>> uniform_buffer_staging;
+        flat_map<std::uint32_t, rhi::Buffer*>           uniform_buffers;
 
         rhi::DescriptorPool* descriptor_pool{ nullptr };
     };
@@ -248,6 +250,11 @@ namespace boza
 
         Log::trace("Material created with shaders: {} and {}", vertex_shader_name, fragment_shader_name);
         return material;
+    }
+
+    Material* Material::get(const std::string& name)
+    {
+        return gfx::MaterialLoader::instance().get_or_create_material(name);
     }
 
     PropertyBinder Material::operator[](const std::string_view name) { return PropertyBinder(this, std::string(name)); }

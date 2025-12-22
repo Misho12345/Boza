@@ -11,6 +11,7 @@ function(boza_enable_warnings target)
                 /wd4251  # DLL-interface warning
                 /wd5050  # modules compatibility
                 /wd4127  # conditional expression is constant
+                /wd4324  # structure was padded due to alignment specifier
         )
 
         if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "19.30")

@@ -17,10 +17,10 @@ namespace boza::rhi
           device_(device),
           shaders_(shaders) {}
 
-    std::unordered_map<std::uint32_t, std::vector<PipelineBuilder::DescriptorBinding>>
+    flat_map<std::uint32_t, std::vector<PipelineBuilder::DescriptorBinding>>
     PipelineBuilder::merge_descriptor_bindings() const
     {
-        std::unordered_map<std::uint32_t, std::vector<DescriptorBinding>> bindings_by_set;
+        flat_map<std::uint32_t, std::vector<DescriptorBinding>> bindings_by_set;
 
         for (const auto* shader : shaders_)
         {

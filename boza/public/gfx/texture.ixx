@@ -116,8 +116,17 @@ export namespace boza
             TextureFormat      texture_format = TextureFormat::RGBA8,
             TextureAccessMode  texture_access_mode = TextureAccessMode::Static);
 
+        static Texture* create(
+            const std::string&  name,
+            std::uint32_t       texture_width,
+            std::uint32_t       texture_height,
+            TextureFormat       texture_format,
+            Flags<TextureUsage> usage_flags,
+            TextureAccessMode   texture_access_mode = TextureAccessMode::Static);
+
         static Texture* get(const std::string& name);
         static void register_texture(const std::string& name, Texture* texture);
+        static void destroy(Texture* texture);
 
         void upload(const void* data, std::size_t data_size, std::uint32_t frame_index = 0) const;
         bool save_to_file(const std::string& filepath, std::uint32_t frame_index = 0) const;
