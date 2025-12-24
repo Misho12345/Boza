@@ -7,15 +7,10 @@ export module boza.gfx:texture;
 
 import std;
 import boza.common;
+import :common;
 
 export namespace boza
 {
-    enum class TextureAccessMode
-    {
-        Static,
-        Dynamic
-    };
-
     enum class TextureLayout
     {
         Undefined,
@@ -86,6 +81,7 @@ export namespace boza
     {
         Repeat,
         ClampToEdge,
+        ClampToBorder,
         Mirror
     };
 
@@ -93,11 +89,13 @@ export namespace boza
     {
     public:
         Texture(
-            std::uint32_t     texture_width,
-            std::uint32_t     texture_height,
-            TextureFormat     texture_format,
+            std::uint32_t       width,
+            std::uint32_t       height,
+            TextureFormat       format,
             Flags<TextureUsage> usage_flags,
-            TextureAccessMode texture_access_mode = TextureAccessMode::Static);
+            ResourceAccessMode  access_mode = ResourceAccessMode::Static,
+            SamplerFilter       filter      = SamplerFilter::Linear,
+            SamplerWrap         wrap        = SamplerWrap::Repeat);
 
         ~Texture();
 
@@ -106,15 +104,18 @@ export namespace boza
         Texture(Texture&&) noexcept;
         Texture& operator=(Texture&&) noexcept;
 
-        static Texture* load_from_file(
+        static Texture* get_or_load(
             const std::string& filepath,
             TextureFormat      texture_format = TextureFormat::RGBA8,
-            TextureAccessMode  texture_access_mode = TextureAccessMode::Static);
+            SamplerFilter      filter         = SamplerFilter::Linear,
+            SamplerWrap        wrap           = SamplerWrap::Repeat);
 
-        static Texture* load(
+        static Texture* load_copy(
             const std::string& filepath,
-            TextureFormat      texture_format = TextureFormat::RGBA8,
-            TextureAccessMode  texture_access_mode = TextureAccessMode::Static);
+            TextureFormat      texture_format      = TextureFormat::RGBA8,
+            ResourceAccessMode texture_access_mode = ResourceAccessMode::Static,
+            SamplerFilter      filter              = SamplerFilter::Linear,
+            SamplerWrap        wrap                = SamplerWrap::Repeat);
 
         static Texture* create(
             const std::string&  name,
@@ -122,25 +123,27 @@ export namespace boza
             std::uint32_t       texture_height,
             TextureFormat       texture_format,
             Flags<TextureUsage> usage_flags,
-            TextureAccessMode   texture_access_mode = TextureAccessMode::Static);
+            ResourceAccessMode  texture_access_mode = ResourceAccessMode::Static,
+            SamplerFilter       filter              = SamplerFilter::Linear,
+            SamplerWrap         wrap                = SamplerWrap::Repeat);
 
         static Texture* get(const std::string& name);
-        static void register_texture(const std::string& name, Texture* texture);
-        static void destroy(Texture* texture);
+        static void     destroy(Texture* texture);
 
         void upload(const void* data, std::size_t data_size, std::uint32_t frame_index = 0) const;
         bool save_to_file(const std::string& filepath, std::uint32_t frame_index = 0) const;
 
         void transition_layout(TextureLayout old_layout, TextureLayout new_layout, std::uint32_t frame_index = 0) const;
 
-        void set_sampler_filter(SamplerFilter filter);
-        void set_sampler_wrap(SamplerWrap wrap_u, SamplerWrap wrap_v, SamplerWrap wrap_w);
+        void change_sampler(const SamplerFilter filter) { change_sampler(filter, wrap_); }
+        void change_sampler(const SamplerWrap wrap) { change_sampler(filter_, wrap); }
+        void change_sampler(SamplerFilter filter, SamplerWrap wrap);
 
         PropertyGet<Texture, std::uint32_t> width{ &Texture::get_width, offsetof(Texture, width) };
         PropertyGet<Texture, std::uint32_t> height{ &Texture::get_height, offsetof(Texture, height) };
         PropertyGet<Texture, TextureFormat> format{ &Texture::get_format, offsetof(Texture, format) };
 
-        PropertyGet<Texture, TextureAccessMode> access_mode
+        PropertyGet<Texture, ResourceAccessMode> access_mode
         {
             &Texture::get_access_mode,
             offsetof(Texture, access_mode)
@@ -148,18 +151,30 @@ export namespace boza
 
         [[nodiscard]] void* rhi_handle(std::uint32_t frame_index = 0) const;
         [[nodiscard]] void* rhi_sampler_handle() const { return rhi_sampler_; }
+        [[nodiscard]] bool  is_valid() const { return !rhi_textures_.empty() && rhi_sampler_; }
 
     private:
-        [[nodiscard]] std::uint32_t     get_width() const { return width_; }
-        [[nodiscard]] std::uint32_t     get_height() const { return height_; }
-        [[nodiscard]] TextureFormat     get_format() const { return format_; }
-        [[nodiscard]] TextureAccessMode get_access_mode() const { return access_mode_; }
+        [[nodiscard]] std::uint32_t      get_width() const { return width_; }
+        [[nodiscard]] std::uint32_t      get_height() const { return height_; }
+        [[nodiscard]] TextureFormat      get_format() const { return format_; }
+        [[nodiscard]] ResourceAccessMode get_access_mode() const { return access_mode_; }
 
-        std::vector<void*> rhi_textures_;
-        void*              rhi_sampler_;
-        std::uint32_t      width_;
-        std::uint32_t      height_;
-        TextureFormat      format_;
-        TextureAccessMode  access_mode_;
+        [[nodiscard]] std::uint32_t resolve_texture_index(std::uint32_t frame_index) const;
+
+        static void* create_rhi_sampler(SamplerFilter filter, SamplerWrap wrap);
+        void         cleanup_textures();
+        void         cleanup_sampler();
+
+        std::vector<void*> rhi_textures_{};
+        void*              rhi_sampler_{ nullptr };
+
+        std::uint32_t width_;
+        std::uint32_t height_;
+        TextureFormat format_;
+
+        SamplerFilter filter_;
+        SamplerWrap   wrap_;
+
+        ResourceAccessMode access_mode_;
     };
 }

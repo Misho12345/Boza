@@ -5,17 +5,13 @@ module;
 
 export module boza.gfx:buffer;
 
+import :common;
+
 import std;
 import boza.common;
 
 export namespace boza
 {
-    enum class BufferAccessMode
-    {
-        Static,
-        Dynamic
-    };
-
     enum class BufferUsage
     {
         Vertex,
@@ -31,7 +27,7 @@ export namespace boza
         Buffer(
             std::size_t buffer_size,
             BufferUsage usage,
-            BufferAccessMode buffer_access_mode = BufferAccessMode::Static);
+            ResourceAccessMode buffer_access_mode = ResourceAccessMode::Static);
 
         ~Buffer();
 
@@ -56,7 +52,7 @@ export namespace boza
         }
 
         PropertyGet<Buffer, std::size_t> size{ &Buffer::get_size, offsetof(Buffer, size) };
-        PropertyGet<Buffer, BufferAccessMode> access_mode{ &Buffer::get_access_mode, offsetof(Buffer, access_mode) };
+        PropertyGet<Buffer, ResourceAccessMode> access_mode{ &Buffer::get_access_mode, offsetof(Buffer, access_mode) };
 
         void* map(std::uint32_t frame_index = 0) const;
         void  unmap(std::uint32_t frame_index = 0) const;
@@ -65,10 +61,10 @@ export namespace boza
 
     private:
         [[nodiscard]] std::size_t get_size() const { return size_; }
-        [[nodiscard]] BufferAccessMode get_access_mode() const { return access_mode_; }
+        [[nodiscard]] ResourceAccessMode get_access_mode() const { return access_mode_; }
 
         std::vector<void*> rhi_buffers_;
         std::size_t size_;
-        BufferAccessMode access_mode_;
+        ResourceAccessMode access_mode_;
     };
 }

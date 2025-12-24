@@ -1,0 +1,12 @@
+{
+  "vertex_shader": "wave",
+  "fragment_shader": "wave",
+  "load_strategy": "on_demand",
+  "textures": {
+    "albedo_map": "default.png"
+  },
+  "properties": {
+    "material.albedo_color": [1.0, 0.5, 0.0, 1.0],
+    "material.properties": [0.0, 0.0, 0.0, 0.0]
+  }
+}

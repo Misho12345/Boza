@@ -3,9 +3,34 @@ module boza.gfx;
 import boza.core;
 import boza.gfx.texture_loader;
 import boza.detail;
+import boza.rhi;
 
 namespace boza::gfx
 {
+    using detail::ImageIO;
+    using detail::ImageData;
+
+    constexpr int channels_for_format(const TextureFormat format)
+    {
+        switch (format)
+        {
+            case TextureFormat::R8:
+            case TextureFormat::R16F:
+            case TextureFormat::R32F: return 1;
+            case TextureFormat::RG8:
+            case TextureFormat::RG16F:
+            case TextureFormat::RG32F: return 2;
+            case TextureFormat::RGB8:
+            case TextureFormat::RGB16F:
+            case TextureFormat::RGB32F: return 3;
+            case TextureFormat::RGBA8:
+            case TextureFormat::BGRA8:
+            case TextureFormat::RGBA16F:
+            case TextureFormat::RGBA32F: return 4;
+            default: return 4;
+        }
+    }
+
     TextureLoader& TextureLoader::instance()
     {
         static TextureLoader instance;
@@ -22,14 +47,20 @@ namespace boza::gfx
             1, 1,
             TextureFormat::RGBA8,
             TextureUsage::Sampled | TextureUsage::TransferDst,
-            TextureAccessMode::Static);
+            ResourceAccessMode::Static);
 
-        if (error_texture_)
+        if (error_texture_ && error_texture_->is_valid())
         {
             static constexpr std::array<std::uint8_t, 4> magenta{ 255, 0, 255, 255 };
             error_texture_->upload(magenta.data(), magenta.size());
             owned_textures_.insert(error_texture_);
             Log::trace("Created error texture (1x1 magenta)");
+        }
+        else
+        {
+            delete error_texture_;
+            error_texture_ = nullptr;
+            Log::error("Failed to create error texture");
         }
 
         initialized_ = true;
@@ -41,47 +72,67 @@ namespace boza::gfx
 
         textures_.clear();
 
-        for (const auto* texture : owned_textures_) { if (texture) delete texture; }
+        for (const auto* texture : owned_textures_)
+        {
+            if (texture) delete texture;
+        }
         owned_textures_.clear();
 
         error_texture_ = nullptr;
         initialized_   = false;
     }
 
-    Texture* TextureLoader::load_texture(
-        const std::string&      filepath,
-        const TextureFormat     format,
-        const TextureAccessMode access_mode) const
+    Texture* TextureLoader::get_or_load(
+        const std::string&  filepath,
+        const TextureFormat format,
+        const SamplerFilter filter,
+        const SamplerWrap   wrap)
     {
-        const auto tex_path = detail::AssetPaths::texture(filepath);
-        auto*      loaded   = Texture::load_from_file(tex_path.string(), format, access_mode);
-
-        if (loaded)
-        {
-            Log::trace("Loaded texture: {} (format: {})", filepath, static_cast<int>(format));
-            return loaded;
-        }
-
-        Log::warn("Failed to load texture: {}, returning error texture", filepath);
-        return error_texture_;
-    }
-
-    Texture* TextureLoader::load_or_get_texture(
-        const std::string&      filepath,
-        const TextureFormat     format,
-        const TextureAccessMode access_mode)
-    {
-        const std::string key = filepath + "_" + std::to_string(static_cast<int>(format));
+        const std::string key = make_texture_key(filepath, format);
 
         if (textures_.contains(key)) return textures_[key];
 
-        auto* texture = load_texture(filepath, format, access_mode);
-        if (texture && texture != error_texture_)
+        if (!detail::RenderContext::initialized())
         {
-            textures_[key]      = texture;
-            textures_[filepath] = texture;
-            owned_textures_.insert(texture);
+            Log::error("Render context not initialized.");
+            return error_texture_;
         }
+
+        const auto      full_path        = detail::AssetPaths::texture(filepath);
+        const int       desired_channels = channels_for_format(format);
+        const ImageData image_data       = ImageIO::read(full_path.string(), desired_channels);
+
+        if (!image_data.data)
+        {
+            Log::warn("Failed to load texture: {}, returning error texture", filepath);
+            return error_texture_;
+        }
+
+        constexpr auto usage_flags = TextureUsage::Sampled | TextureUsage::TransferDst;
+
+        auto* texture = new Texture(
+            image_data.width,
+            image_data.height,
+            format,
+            usage_flags,
+            ResourceAccessMode::Static,
+            filter,
+            wrap);
+
+        if (!texture->is_valid())
+        {
+            Log::warn("Failed to create texture for: {}, returning error texture", filepath);
+            delete texture;
+            return error_texture_;
+        }
+
+        static_cast<rhi::Texture*>(texture->rhi_handle(0))->upload(image_data.data, image_data.size);
+
+        textures_[key] = texture;
+        if (!textures_.contains(filepath)) textures_[filepath] = texture;
+        owned_textures_.insert(texture);
+
+        Log::trace("Loaded texture: {} (format: {})", filepath, static_cast<int>(format));
 
         return texture;
     }
@@ -100,14 +151,17 @@ namespace boza::gfx
             if (existing != texture && owned_textures_.contains(existing))
             {
                 Log::warn("Texture '{}' already registered, replacing and deleting old texture", name);
-                delete existing;
                 owned_textures_.erase(existing);
+                delete existing;
             }
         }
 
         textures_[name] = texture;
 
-        if (take_ownership) { owned_textures_.insert(texture); }
+        if (take_ownership)
+        {
+            owned_textures_.insert(texture);
+        }
 
         Log::trace("Registered texture: {} (owned: {})", name, take_ownership);
     }
@@ -132,7 +186,11 @@ namespace boza::gfx
     Texture* TextureLoader::get_texture(const std::string& name) const
     {
         const auto it = textures_.find(name);
-        if (it != textures_.end()) return it->second;
-        return nullptr;
+        return it != textures_.end() ? it->second : nullptr;
+    }
+
+    std::string TextureLoader::make_texture_key(const std::string& filepath, const TextureFormat format)
+    {
+        return filepath + "_" + std::to_string(static_cast<int>(format));
     }
 }

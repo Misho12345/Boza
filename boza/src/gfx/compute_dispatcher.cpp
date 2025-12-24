@@ -37,8 +37,8 @@ namespace boza
         const auto expected = get_expected_shader_type<T>();
         if (expected != rhi::ShaderDataType::Unknown && expected != actual_type)
         {
-            Log::warn("Compute property '{}' type mismatch: expected {}, got {}",
-                      name, static_cast<int>(expected), static_cast<int>(actual_type));
+            Log::warn("Compute property '{}' type mismatch: expected {}, got {}", name, static_cast<int>(expected),
+                      static_cast<int>(actual_type));
             return false;
         }
         return true;
@@ -47,102 +47,39 @@ namespace boza
 
     struct ComputeDispatcher::Impl
     {
-        rhi::ComputePipeline*                   pipeline{ nullptr };
-        rhi::PipelineLayout*                    pipeline_layout{ nullptr };
-        rhi::ShaderModule*                      shader{ nullptr };
-        rhi::DescriptorReflection*              reflection{ nullptr };
-        rhi::DescriptorPool*                    descriptor_pool{ nullptr };
-        std::vector<rhi::DescriptorSetLayout*>  descriptor_set_layouts;
-        std::vector<rhi::DescriptorSet*>        descriptor_sets;
-        std::vector<std::byte>                  push_constant_staging;
+        rhi::ComputePipeline* pipeline{ nullptr };
+        rhi::PipelineLayout*  pipeline_layout{ nullptr };
+        rhi::ShaderModule*    shader{ nullptr };
+        rhi::DescriptorPool*  descriptor_pool{ nullptr };
+
+        rhi::DescriptorReflection reflection{};
+
+        std::vector<rhi::DescriptorSetLayout*> descriptor_set_layouts;
+        std::vector<rhi::DescriptorSet*>       descriptor_sets;
+        std::vector<std::byte>                 push_constant_staging;
+
         flat_map<std::uint32_t, bool> dirty_sets;
     };
 
-    ComputeDispatcher::ComputeDispatcher() : impl_(std::make_unique<Impl>())
+
+    ComputeDispatcher::ComputeDispatcher(const std::string& shader_name, bool& failed) : impl_{ std::make_unique<Impl>() }
     {
+        failed      = false;
+        failed_ptr_ = &failed;
+
         impl_->push_constant_staging.resize(128);
-    }
 
-    ComputeDispatcher::~ComputeDispatcher()
-    {
-        if (dispatch_started_ && pending_dispatch_.valid())
-        {
-            pending_dispatch_.wait();
-        }
-
-        if (impl_)
-        {
-            if (impl_->pipeline)
-            {
-                impl_->pipeline->destroy();
-                impl_->pipeline = nullptr;
-            }
-
-            if (impl_->pipeline_layout)
-            {
-                impl_->pipeline_layout->destroy();
-                impl_->pipeline_layout = nullptr;
-            }
-
-            impl_->descriptor_sets.clear();
-
-            for (auto* layout : impl_->descriptor_set_layouts) { if (layout) layout->destroy(); }
-
-            impl_->descriptor_set_layouts.clear();
-
-            if (impl_->reflection)
-            {
-                delete impl_->reflection;
-                impl_->reflection = nullptr;
-            }
-        }
-    }
-
-    ComputeDispatcher& ComputeDispatcher::create(const std::string& shader_name, bool& failed)
-    {
-        static ComputeDispatcher instance;
-
-        failed = false;
-        instance.failed_ptr_ = &failed;
-        instance.dispatch_started_ = false;
-
-        if (instance.pending_dispatch_.valid())
-        {
-            instance.pending_dispatch_.wait();
-        }
-
-        if (instance.impl_)
-        {
-            if (instance.impl_->pipeline) instance.impl_->pipeline->destroy();
-            if (instance.impl_->pipeline_layout) instance.impl_->pipeline_layout->destroy();
-
-            instance.impl_->descriptor_sets.clear();
-
-            for (auto* layout : instance.impl_->descriptor_set_layouts) { if (layout) layout->destroy(); }
-            instance.impl_->descriptor_set_layouts.clear();
-            if (instance.impl_->reflection)
-            {
-                delete instance.impl_->reflection;
-                instance.impl_->reflection = nullptr;
-            }
-        }
-        else
-        {
-            instance.impl_ = std::make_unique<Impl>();
-            instance.impl_->push_constant_staging.resize(128);
-        }
-
-        instance.work_group_size_ = glm::uvec3{ 1, 1, 1 };
+        work_group_size_ = glm::uvec3{ 1, 1, 1 };
 
         if (!detail::RenderContext::initialized() || !detail::RenderContext::device())
         {
             Log::error("Render context not initialized. Cannot create compute dispatcher.");
             failed = true;
-            return instance;
+            return;
         }
 
-        auto* device          = static_cast<rhi::Device*>(detail::RenderContext::device());
         auto  api             = static_cast<rhi::GraphicsApi>(detail::RenderContext::api());
+        auto* device          = static_cast<rhi::Device*>(detail::RenderContext::device());
         auto* resource_cache  = static_cast<rhi::ResourceCache*>(detail::RenderContext::resource_cache());
         auto* descriptor_pool = static_cast<rhi::DescriptorPool*>(detail::RenderContext::descriptor_pool());
 
@@ -150,14 +87,14 @@ namespace boza
         {
             Log::error("ResourceCache not available in graphics context. Cannot create compute dispatcher.");
             failed = true;
-            return instance;
+            return;
         }
 
         if (!descriptor_pool)
         {
             Log::error("DescriptorPool not available in graphics context. Cannot create compute dispatcher.");
             failed = true;
-            return instance;
+            return;
         }
 
         const rhi::ShaderModuleDesc shader_desc
@@ -175,18 +112,17 @@ namespace boza
         {
             Log::error("Failed to load compute shader: {}", shader_name);
             failed = true;
-            return instance;
+            return;
         }
 
-        rhi::ShaderModule* shader = shader_shared.get();
-
-        rhi::PipelineBuilder builder(api, device, { shader });
+        rhi::ShaderModule*   shader = shader_shared.get();
+        rhi::PipelineBuilder builder{ api, device, { shader } };
 
         if (!builder.build_descriptor_set_layouts())
         {
             Log::error("Failed to build descriptor set layouts for compute shader: {}", shader_name);
             failed = true;
-            return instance;
+            return;
         }
 
         rhi::PipelineLayout* pipeline_layout = builder.build_pipeline_layout();
@@ -194,7 +130,7 @@ namespace boza
         {
             Log::error("Failed to create pipeline layout for compute shader: {}", shader_name);
             failed = true;
-            return instance;
+            return;
         }
 
         rhi::ComputePipeline* pipeline = builder.build_compute_pipeline();
@@ -203,7 +139,7 @@ namespace boza
             Log::error("Failed to create compute pipeline for shader: {}", shader_name);
             if (pipeline_layout) pipeline_layout->destroy();
             failed = true;
-            return instance;
+            return;
         }
 
         const auto&                      descriptor_set_layouts = builder.get_descriptor_set_layouts();
@@ -217,41 +153,45 @@ namespace boza
             {
                 Log::error("Failed to allocate descriptor set for compute dispatcher");
 
-                for (auto* set : descriptor_sets) { if (set) set->destroy(); }
                 if (pipeline) pipeline->destroy();
                 if (pipeline_layout) pipeline_layout->destroy();
                 failed = true;
-                return instance;
+                return;
             }
             descriptor_sets.push_back(desc_set);
         }
 
-        instance.impl_->pipeline               = pipeline;
-        instance.impl_->pipeline_layout        = pipeline_layout;
-        instance.impl_->shader                 = shader;
-        instance.impl_->descriptor_set_layouts = descriptor_set_layouts;
-        instance.impl_->descriptor_sets        = std::move(descriptor_sets);
-        instance.impl_->descriptor_pool        = descriptor_pool;
+        impl_->pipeline               = pipeline;
+        impl_->pipeline_layout        = pipeline_layout;
+        impl_->shader                 = shader;
+        impl_->descriptor_set_layouts = descriptor_set_layouts;
+        impl_->descriptor_sets        = std::move(descriptor_sets);
+        impl_->descriptor_pool        = descriptor_pool;
 
-        auto* reflection = new rhi::DescriptorReflection();
-        reflection->build_from_shaders({ shader });
-        instance.impl_->reflection = reflection;
+        impl_->reflection.build_from_shaders({ shader });
 
-        instance.work_group_size_ = shader->meta_data().work_group_size;
+        work_group_size_ = shader->meta_data().work_group_size;
 
         Log::trace("ComputeDispatcher created for shader: {}", shader_name);
-        return instance;
     }
 
-    ComputeDispatcher& ComputeDispatcher::set(const std::string& name, Texture* texture)
+    ComputeDispatcher::~ComputeDispatcher()
     {
-        if (!impl_->reflection)
-        {
-            Log::error("Cannot set texture: reflection is null");
-            return *this;
-        }
+        if (dispatch_started_ && pending_dispatch_.valid()) pending_dispatch_.wait();
 
-        const auto binding_info = impl_->reflection->lookup(name);
+        if (impl_->pipeline) impl_->pipeline->destroy();
+        if (impl_->pipeline_layout) impl_->pipeline_layout->destroy();
+
+        for (auto* layout : impl_->descriptor_set_layouts) { if (layout) layout->destroy(); }
+    }
+
+    ComputeDispatcher& ComputeDispatcher::set(const std::string& name, const Texture* texture)
+    {
+        Log::info("herererererere");
+
+        if (*failed_ptr_) return *this;
+
+        const auto binding_info = impl_->reflection.lookup(name);
         if (!binding_info.has_value())
         {
             Log::warn("Compute texture '{}' not found in shader reflection", name);
@@ -278,7 +218,8 @@ namespace boza
             return *this;
         }
 
-        rhi::DescriptorWrite write{
+        rhi::DescriptorWrite write
+        {
             .binding = info.binding,
             .array_element = 0,
             .type = rhi::DescriptorType::StorageImage,
@@ -292,15 +233,11 @@ namespace boza
         return *this;
     }
 
-    ComputeDispatcher& ComputeDispatcher::set(const std::string& name, Buffer* buffer)
+    ComputeDispatcher& ComputeDispatcher::set(const std::string& name, const Buffer* buffer)
     {
-        if (!impl_->reflection)
-        {
-            Log::error("Cannot set buffer: reflection is null");
-            return *this;
-        }
+        if (*failed_ptr_) return *this;
 
-        const auto binding_info = impl_->reflection->lookup(name);
+        const auto binding_info = impl_->reflection.lookup(name);
         if (!binding_info.has_value())
         {
             Log::warn("Compute buffer '{}' not found in shader reflection", name);
@@ -327,7 +264,8 @@ namespace boza
             return *this;
         }
 
-        rhi::DescriptorWrite write{
+        rhi::DescriptorWrite write
+        {
             .binding = info.binding,
             .array_element = 0,
             .type = rhi::DescriptorType::StorageBuffer,
@@ -343,29 +281,32 @@ namespace boza
         return *this;
     }
 
-    ComputeDispatcher& ComputeDispatcher::dispatch(const std::uint32_t width, const std::uint32_t height, const std::uint32_t depth)
+    ComputeDispatcher& ComputeDispatcher::dispatch(
+        const std::uint32_t width,
+        const std::uint32_t height,
+        const std::uint32_t depth)
     {
-        const std::uint32_t group_x = (width + work_group_size_.x - 1) / work_group_size_.x;
-        const std::uint32_t group_y = (height + work_group_size_.y - 1) / work_group_size_.y;
-        const std::uint32_t group_z = (depth + work_group_size_.z - 1) / work_group_size_.z;
+        if (*failed_ptr_) return *this;
+
+        const std::uint32_t group_x = 1 + (width - 1) / work_group_size_.x;
+        const std::uint32_t group_y = 1 + (height - 1) / work_group_size_.y;
+        const std::uint32_t group_z = 1 + (depth - 1) / work_group_size_.z;
 
         return dispatch_groups(group_x, group_y, group_z);
     }
 
-    ComputeDispatcher& ComputeDispatcher::dispatch_groups(const std::uint32_t x, const std::uint32_t y, const std::uint32_t z)
+    ComputeDispatcher& ComputeDispatcher::dispatch_groups(
+        const std::uint32_t x,
+        const std::uint32_t y,
+        const std::uint32_t z)
     {
-        if (dispatch_started_ && pending_dispatch_.valid())
-        {
-            pending_dispatch_.wait();
-        }
+        if (*failed_ptr_) return *this;
+        if (dispatch_started_ && pending_dispatch_.valid()) pending_dispatch_.wait();
 
         dispatch_started_ = true;
-        pending_dispatch_ = std::async(std::launch::async, [this, x, y, z]()
+        pending_dispatch_ = std::async(std::launch::async, [this, x, y, z]
         {
-            try
-            {
-                dispatch_impl(x, y, z);
-            }
+            try { dispatch_impl(x, y, z); }
             catch (...)
             {
                 if (failed_ptr_) *failed_ptr_ = true;
@@ -378,65 +319,16 @@ namespace boza
 
     ComputeDispatcher& ComputeDispatcher::wait()
     {
-        if (dispatch_started_ && pending_dispatch_.valid())
+        if (*failed_ptr_ || !dispatch_started_ || !pending_dispatch_.valid()) return *this;
+
+        try { pending_dispatch_.wait(); }
+        catch (...)
         {
-            try
-            {
-                pending_dispatch_.wait();
-            }
-            catch (...)
-            {
-                if (failed_ptr_) *failed_ptr_ = true;
-                Log::error("Compute dispatch wait failed with exception");
-            }
+            if (failed_ptr_) *failed_ptr_ = true;
+            Log::error("Compute dispatch wait failed with exception");
         }
+
         return *this;
-    }
-
-    void ComputeDispatcher::cleanup()
-    {
-        bool dummy = false;
-        ComputeDispatcher& instance = create("", dummy);
-
-        if (instance.dispatch_started_ && instance.pending_dispatch_.valid())
-        {
-            instance.pending_dispatch_.wait();
-            instance.dispatch_started_ = false;
-        }
-
-        if (instance.impl_)
-        {
-            if (instance.impl_->pipeline)
-            {
-                instance.impl_->pipeline->destroy();
-                instance.impl_->pipeline = nullptr;
-            }
-
-            if (instance.impl_->pipeline_layout)
-            {
-                instance.impl_->pipeline_layout->destroy();
-                instance.impl_->pipeline_layout = nullptr;
-            }
-
-            instance.impl_->descriptor_sets.clear();
-
-            for (auto* layout : instance.impl_->descriptor_set_layouts)
-            {
-                if (layout) layout->destroy();
-            }
-
-            instance.impl_->descriptor_set_layouts.clear();
-
-            if (instance.impl_->reflection)
-            {
-                delete instance.impl_->reflection;
-                instance.impl_->reflection = nullptr;
-            }
-
-            instance.impl_->descriptor_pool = nullptr;
-        }
-
-        Log::trace("ComputeDispatcher cleaned up");
     }
 
     void ComputeDispatcher::dispatch_impl(const std::uint32_t x, const std::uint32_t y, const std::uint32_t z)
@@ -482,17 +374,14 @@ namespace boza
         impl_->dirty_sets.clear();
     }
 
-    void ComputeDispatcher::mark_set_dirty(const std::uint32_t set) { impl_->dirty_sets[set] = true; }
+    void ComputeDispatcher::mark_set_dirty(const std::uint32_t set) const { impl_->dirty_sets[set] = true; }
 
-    void ComputeDispatcher::update_property_impl(const std::string& name, const void* data, const std::size_t size)
+    void ComputeDispatcher::update_property_impl(
+        const std::string& name,
+        const void*        data,
+        const std::size_t  size) const
     {
-        if (!impl_->reflection)
-        {
-            Log::error("Cannot update property: reflection is null");
-            return;
-        }
-
-        const auto binding_info = impl_->reflection->lookup(name);
+        const auto binding_info = impl_->reflection.lookup(name);
         if (!binding_info.has_value())
         {
             Log::warn("Compute property '{}' not found in shader reflection", name);

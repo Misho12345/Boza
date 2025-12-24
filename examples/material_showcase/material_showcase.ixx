@@ -15,8 +15,6 @@ protected:
         active_scene = scene_;
 
         setup_camera();
-        setup_floor();
-        setup_cubes();
 
         Input::on<Action::Press>(Key::F11, [this] { toggle_fullscreen(); });
         Input::on<Action::Press>(Key::MouseLeft, [this] { set_cursor_state(CursorState::Locked); });
@@ -29,7 +27,9 @@ protected:
     {
         generate_compute_texture();
         create_materials();
-        assign_materials();
+
+        setup_floor();
+        setup_cubes();
     }
 
 private:
@@ -60,8 +60,11 @@ private:
         Mesh::register_mesh("plane", plane_mesh_);
 
         auto& floor = scene_->create_game_object("Floor");
-        floor.add_component<MeshRenderer>().mesh = Mesh::get("plane");
         floor.transform->position = glm::vec3{ 0.0f, -1.5f, 0.0f };
+
+        auto& mr = floor.add_component<MeshRenderer>();
+        mr.mesh = Mesh::get("plane");
+        mr.material = Material::get("dancho");
     }
 
     void setup_cubes()
@@ -71,8 +74,12 @@ private:
 
         {
             auto& cube = scene_->create_game_object("DanchoCube");
-            cube.add_component<MeshRenderer>().mesh = Mesh::get("cube");
             cube.transform->position = glm::vec3{ -4.0f, 0.0f, 0.0f };
+
+            auto& mr = cube.add_component<MeshRenderer>();
+            mr.mesh = Mesh::get("cube");
+            mr.material = Material::get("dancho");
+
             auto& rotator = cube.add_component<Rotator>();
             rotator.rotation_axis = glm::vec3{ 0.0f, 1.0f, 0.0f };
             rotator.rotation_speed = 0.5f;
@@ -80,8 +87,12 @@ private:
 
         {
             auto& cube = scene_->create_game_object("RedCube");
-            cube.add_component<MeshRenderer>().mesh = Mesh::get("cube");
             cube.transform->position = glm::vec3{ -2.0f, 0.0f, 0.0f };
+
+            auto& mr = cube.add_component<MeshRenderer>();
+            mr.mesh = Mesh::get("cube");
+            mr.material = Material::get("red");
+
             auto& rotator = cube.add_component<Rotator>();
             rotator.rotation_axis = glm::vec3{ 1.0f, 0.0f, 0.0f };
             rotator.rotation_speed = 0.7f;
@@ -89,8 +100,12 @@ private:
 
         {
             auto& cube = scene_->create_game_object("GreenCube");
-            cube.add_component<MeshRenderer>().mesh = Mesh::get("cube");
             cube.transform->position = glm::vec3{ 0.0f, 0.0f, 0.0f };
+
+            auto& mr = cube.add_component<MeshRenderer>();
+            mr.mesh = Mesh::get("cube");
+            mr.material = Material::get("green");
+
             auto& rotator = cube.add_component<Rotator>();
             rotator.rotation_axis = glm::vec3{ 0.0f, 1.0f, 1.0f };
             rotator.rotation_speed = 0.4f;
@@ -98,8 +113,12 @@ private:
 
         {
             auto& cube = scene_->create_game_object("BlueCube");
-            cube.add_component<MeshRenderer>().mesh = Mesh::get("cube");
             cube.transform->position = glm::vec3{ 2.0f, 0.0f, 0.0f };
+
+            auto& mr = cube.add_component<MeshRenderer>();
+            mr.mesh = Mesh::get("cube");
+            mr.material = Material::get("blue_metallic");
+
             auto& rotator = cube.add_component<Rotator>();
             rotator.rotation_axis = glm::vec3{ 1.0f, 1.0f, 0.0f };
             rotator.rotation_speed = -0.6f;
@@ -107,8 +126,12 @@ private:
 
         {
             auto& cube = scene_->create_game_object("DefaultCube");
-            cube.add_component<MeshRenderer>().mesh = Mesh::get("cube");
             cube.transform->position = glm::vec3{ 4.0f, 0.0f, 0.0f };
+
+            auto& mr = cube.add_component<MeshRenderer>();
+            mr.mesh = Mesh::get("cube");
+            mr.material = Material::get("default");
+
             auto& rotator = cube.add_component<Rotator>();
             rotator.rotation_axis = glm::vec3{ 1.0f, 0.0f, 1.0f };
             rotator.rotation_speed = 0.3f;
@@ -116,8 +139,11 @@ private:
 
         {
             auto& cube = scene_->create_game_object("OscillatingCube");
-            cube.add_component<MeshRenderer>().mesh = Mesh::get("cube");
             cube.transform->position = glm::vec3{ -3.0f, 2.0f, 3.0f };
+
+            auto& mr = cube.add_component<MeshRenderer>();
+            mr.mesh = Mesh::get("cube");
+            mr.material = Material::get("custom_compute");
 
             auto& rotator = cube.add_component<Rotator>();
             rotator.rotation_axis = glm::vec3{ 1.0f, 1.0f, 1.0f };
@@ -131,9 +157,12 @@ private:
 
         {
             auto& cube = scene_->create_game_object("PulsingCube");
-            cube.add_component<MeshRenderer>().mesh = Mesh::get("cube");
             cube.transform->position = glm::vec3{ 0.0f, 2.0f, -3.0f };
             cube.transform->scale = glm::vec3{ 1.5f };
+
+            auto& mr = cube.add_component<MeshRenderer>();
+            mr.mesh = Mesh::get("cube");
+            mr.material = Material::get("pulsing");
 
             auto& rotator = cube.add_component<Rotator>();
             rotator.rotation_axis = glm::vec3{ 0.0f, 1.0f, 0.0f };
@@ -144,8 +173,12 @@ private:
 
         {
             auto& cube = scene_->create_game_object("UnlitOrangeCube");
-            cube.add_component<MeshRenderer>().mesh = Mesh::get("cube");
             cube.transform->position = glm::vec3{ -2.0f, 1.0f, -4.0f };
+
+            auto& mr = cube.add_component<MeshRenderer>();
+            mr.mesh = Mesh::get("cube");
+            mr.material = Material::get("unlit_orange");
+
             auto& rotator = cube.add_component<Rotator>();
             rotator.rotation_axis = glm::vec3{ 0.0f, 1.0f, 0.0f };
             rotator.rotation_speed = 1.2f;
@@ -153,11 +186,24 @@ private:
 
         {
             auto& cube = scene_->create_game_object("UnlitCyanCube");
-            cube.add_component<MeshRenderer>().mesh = Mesh::get("cube");
             cube.transform->position = glm::vec3{ 2.0f, 1.0f, -4.0f };
+
+            auto& mr = cube.add_component<MeshRenderer>();
+            mr.mesh = Mesh::get("cube");
+            mr.material = Material::get("unlit_cyan");
+
             auto& rotator = cube.add_component<Rotator>();
             rotator.rotation_axis = glm::vec3{ 1.0f, 0.0f, 0.0f };
             rotator.rotation_speed = -1.0f;
+        }
+
+        {
+            auto& cube = scene_->create_game_object("WaveCube");
+            cube.transform->position = glm::vec3{ 0.0f, 4.5f, -4.0f };
+
+            auto& mr = cube.add_component<MeshRenderer>();
+            mr.mesh = Mesh::get("cube");
+            mr.material = Material::get("wave");
         }
 
         Log::info("Created all cubes");
@@ -173,7 +219,7 @@ private:
             tex_size, tex_size,
             TextureFormat::RGBA8,
             TextureUsage::Sampled | TextureUsage::Storage | TextureUsage::TransferDst,
-            TextureAccessMode::Static);
+            ResourceAccessMode::Static);
 
         if (!compute_texture_)
         {
@@ -182,10 +228,14 @@ private:
         }
 
         bool failed = false;
-        ComputeDispatcher::create("uv", failed)
-               .set("outImage", compute_texture_)
-               .dispatch(tex_size, tex_size, 1)
-               .wait();
+
+        {
+            ComputeDispatcher dispatcher{ "uv", failed };
+            dispatcher
+                  .set("outImage", compute_texture_)
+                  .dispatch(tex_size, tex_size, 1)
+                  .wait();
+        }
 
         if (failed)
         {
@@ -201,7 +251,7 @@ private:
 
     void create_materials() const
     {
-        Texture* default_tex = Texture::load("default.png");
+        Texture* default_tex = Texture::get_or_load("default.png");
 
         if (auto* mat = Material::create("default", "default"))
         {
@@ -222,38 +272,6 @@ private:
             m["material.properties"]   = glm::vec4{ 0.0f, 0.8f, 0.2f, 0.0f };
             Log::info("Created pulsing material with color animation");
         }
-    }
-
-    void assign_materials()
-    {
-        if (auto* floor = scene_->find_game_object_by_name("Floor"))
-        {
-            if (auto* mr = floor->try_get_component<MeshRenderer>())
-            {
-                mr->material = Material::get("dancho");
-            }
-        }
-
-        const std::vector<std::pair<std::string, std::string>> cube_materials = {
-            { "DanchoCube", "dancho" },
-            { "RedCube", "red" },
-            { "GreenCube", "green" },
-            { "BlueCube", "blue_metallic" },
-            { "DefaultCube", "default" },
-            { "OscillatingCube", "custom_compute" },
-            { "PulsingCube", "pulsing" },
-            { "UnlitOrangeCube", "unlit_orange" },
-            { "UnlitCyanCube", "unlit_cyan" }
-        };
-
-        for (const auto& [name, mat_name] : cube_materials)
-        {
-            auto* cube = scene_->find_game_object_by_name(name);
-            if (!cube) continue;
-            if (auto* mr = cube->try_get_component<MeshRenderer>()) mr->material = Material::get(mat_name);
-        }
-
-        Log::info("Materials assigned to all scene objects");
     }
 
     static std::shared_ptr<Mesh> create_cube_mesh()

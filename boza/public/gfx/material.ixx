@@ -66,8 +66,8 @@ export namespace boza
             update_property_impl(name, &value, sizeof(T));
         }
 
-        void update_texture(const std::string& name, Texture* texture);
-        void update_buffer(const std::string& name, Buffer* buffer);
+        void update_texture(const std::string& name, const Texture* texture);
+        void update_buffer(const std::string& name, const Buffer* buffer);
 
         [[nodiscard]] std::optional<BindingInfo> lookup_binding(const std::string& name) const;
 

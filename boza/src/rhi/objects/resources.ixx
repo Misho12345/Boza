@@ -2,30 +2,16 @@ export module boza.rhi.objects:resources;
 
 import std;
 import boza.common;
+import boza.gfx;
 import :graphics_object;
 
 export namespace boza::rhi
 {
     class Device;
 
-    enum class ResourceAccessMode : std::uint8_t
-    {
-        Static,
-        Dynamic
-    };
-
     /// ------------------
     /// ===== Buffer =====
     /// ------------------
-
-    enum class BufferUsage : std::uint8_t
-    {
-        Vertex,
-        Index,
-        Uniform,
-        Storage,
-        Staging
-    };
 
     enum class BufferMemoryType : std::uint8_t
     {
@@ -40,7 +26,6 @@ export namespace boza::rhi
         size_t             size;
         BufferUsage        usage;
         BufferMemoryType   memory_type;
-        ResourceAccessMode access_mode = ResourceAccessMode::Static;
     };
 
     class Buffer : public GraphicsObject<Buffer, BufferDesc>
@@ -65,37 +50,6 @@ export namespace boza::rhi
     /// ===== Texture =====
     /// -------------------
 
-    enum class TextureLayout : std::uint8_t
-    {
-        Undefined,
-        General,
-        ColorAttachment,
-        DepthStencilAttachment,
-        ShaderReadOnly,
-        TransferSrc,
-        TransferDst,
-        Present
-    };
-
-    enum class TextureFormat : std::uint8_t
-    {
-        R8,
-        RG8,
-        RGB8,
-        RGBA8,
-        BGRA8,
-        R16F,
-        RG16F,
-        RGB16F,
-        RGBA16F,
-        R32F,
-        RG32F,
-        RGB32F,
-        RGBA32F,
-        DEPTH24STENCIL8,
-        DEPTH32F
-    };
-
     enum class DepthFormat : std::uint8_t
     {
         None = 0,
@@ -106,17 +60,6 @@ export namespace boza::rhi
         D24S8,
         D32FS8,
         Auto
-    };
-
-    enum class TextureUsage : std::uint8_t
-    {
-        Sampled                = 1 << 0,
-        Storage                = 1 << 1,
-        ColorAttachment        = 1 << 2,
-        DepthStencilAttachment = 1 << 3,
-        TransferSrc            = 1 << 4,
-        TransferDst            = 1 << 5,
-        InputAttachment        = 1 << 6
     };
 
     enum class TextureSampleCount : std::uint8_t
@@ -140,7 +83,6 @@ export namespace boza::rhi
 
         TextureFormat       format;
         Flags<TextureUsage> usage;
-        ResourceAccessMode  access_mode{ ResourceAccessMode::Static };
 
         std::uint32_t       mip_levels{ 1 };
         std::uint32_t       array_layers{ 1 };
@@ -169,27 +111,6 @@ export namespace boza::rhi
     /// ===== Sampler =====
     /// -------------------
 
-    enum class SamplerFilter : std::uint8_t
-    {
-        Nearest,
-        Linear,
-        Anisotropic
-    };
-
-    enum class SamplerAddressMode : std::uint8_t
-    {
-        Repeat,
-        ClampToEdge,
-        ClampToBorder,
-        Mirror
-    };
-
-    enum class SamplerMipmapMode : std::uint8_t
-    {
-        Nearest,
-        Linear
-    };
-
     enum class BorderColor : std::uint8_t
     {
         FloatTransparentBlack,
@@ -214,20 +135,20 @@ export namespace boza::rhi
 
     struct SamplerDesc
     {
-        Device*            device;
-        SamplerFilter      filter{ SamplerFilter::Linear };
-        SamplerAddressMode address_mode_u{ SamplerAddressMode::Repeat };
-        SamplerAddressMode address_mode_v{ SamplerAddressMode::Repeat };
-        SamplerAddressMode address_mode_w{ SamplerAddressMode::Repeat };
-        SamplerMipmapMode  mipmap_mode{ SamplerMipmapMode::Linear };
-        float              mip_lod_bias{ 0.0f };
-        float              min_lod{ 0.0f };
-        float              max_lod{ 1000.0f };
-        float              max_anisotropy{ 1.0f };
-        bool               compare_enable{ false };
-        SamplerCompareOp   compare_op{ SamplerCompareOp::Always };
-        BorderColor        border_color{ BorderColor::IntOpaqueBlack };
-        bool               unnormalized_coordinates{ false };
+        Device*          device;
+        SamplerFilter    filter{ SamplerFilter::Linear };
+        SamplerWrap      wrap_u{ SamplerWrap::Repeat };
+        SamplerWrap      wrap_v{ SamplerWrap::Repeat };
+        SamplerWrap      wrap_w{ SamplerWrap::Repeat };
+        SamplerFilter    mipmap_mode{ SamplerFilter::Linear };
+        float            mip_lod_bias{ 0.0f };
+        float            min_lod{ 0.0f };
+        float            max_lod{ 1000.0f };
+        float            max_anisotropy{ 1.0f };
+        bool             compare_enable{ false };
+        SamplerCompareOp compare_op{ SamplerCompareOp::Always };
+        BorderColor      border_color{ BorderColor::IntOpaqueBlack };
+        bool             unnormalized_coordinates{ false };
     };
 
     class Sampler : public GraphicsObject<Sampler, SamplerDesc>

@@ -15,7 +15,7 @@ public:
 
     float move_accel_smooth_time{ 0.08f };
     float move_decel_smooth_time{ 0.03f };
-    float rotation_smooth_time{ 0.003f };
+    float rotation_smooth_time{ 0.01f };
 
     glm::vec2 delta_rot{};
 

@@ -20,10 +20,11 @@ export namespace boza::gfx
         void initialize();
         void shutdown();
 
-        Texture* load_or_get_texture(
+        Texture* get_or_load(
             const std::string& filepath,
             TextureFormat format = TextureFormat::RGBA8,
-            TextureAccessMode access_mode = TextureAccessMode::Static);
+            SamplerFilter filter = SamplerFilter::Linear,
+            SamplerWrap wrap = SamplerWrap::Repeat);
 
         void register_texture(const std::string& name, Texture* texture, bool take_ownership = true);
         void unregister_texture(Texture* texture);
@@ -35,10 +36,7 @@ export namespace boza::gfx
         TextureLoader() = default;
         ~TextureLoader();
 
-        Texture* load_texture(
-            const std::string& filepath,
-            TextureFormat format,
-            TextureAccessMode access_mode) const;
+        static std::string make_texture_key(const std::string& filepath, TextureFormat format);
 
         flat_map<std::string, Texture*> textures_;
         std::unordered_set<Texture*> owned_textures_;

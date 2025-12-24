@@ -18,25 +18,26 @@ namespace boza::rhi::vk
         std::unreachable();
     }
 
-    VkSamplerAddressMode to_vk(const SamplerAddressMode mode)
+    VkSamplerAddressMode to_vk(const SamplerWrap mode)
     {
         switch (mode)
         {
-            case SamplerAddressMode::Repeat: return VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            case SamplerAddressMode::ClampToEdge: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-            case SamplerAddressMode::ClampToBorder: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-            case SamplerAddressMode::Mirror: return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+            case SamplerWrap::Repeat: return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            case SamplerWrap::ClampToEdge: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            case SamplerWrap::ClampToBorder: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+            case SamplerWrap::Mirror: return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
         }
 
         std::unreachable();
     }
 
-    VkSamplerMipmapMode to_vk(const SamplerMipmapMode mode)
+    VkSamplerMipmapMode get_mipmap_mode(const SamplerFilter mode)
     {
         switch (mode)
         {
-            case SamplerMipmapMode::Nearest: return VK_SAMPLER_MIPMAP_MODE_NEAREST;
-            case SamplerMipmapMode::Linear: return VK_SAMPLER_MIPMAP_MODE_LINEAR;
+            case SamplerFilter::Nearest: return VK_SAMPLER_MIPMAP_MODE_NEAREST;
+            case SamplerFilter::Linear: return VK_SAMPLER_MIPMAP_MODE_LINEAR;
+            case SamplerFilter::Anisotropic: return VK_SAMPLER_MIPMAP_MODE_LINEAR;
         }
 
         std::unreachable();
@@ -92,10 +93,10 @@ namespace boza::rhi::vk
             .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
             .magFilter = to_vk(desc.filter),
             .minFilter = to_vk(desc.filter),
-            .mipmapMode = to_vk(desc.mipmap_mode),
-            .addressModeU = to_vk(desc.address_mode_u),
-            .addressModeV = to_vk(desc.address_mode_v),
-            .addressModeW = to_vk(desc.address_mode_w),
+            .mipmapMode = get_mipmap_mode(desc.mipmap_mode),
+            .addressModeU = to_vk(desc.wrap_u),
+            .addressModeV = to_vk(desc.wrap_v),
+            .addressModeW = to_vk(desc.wrap_w),
             .mipLodBias = desc.mip_lod_bias,
             .anisotropyEnable = anisotropy_enabled,
             .maxAnisotropy = max_anisotropy,

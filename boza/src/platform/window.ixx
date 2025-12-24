@@ -7,6 +7,7 @@ export module boza.platform:window;
 import std;
 import boza.common;
 import boza.rhi.api;
+import boza.input;
 
 #ifdef BOZA_VULKAN_ENABLED
 import <vk_all>;
@@ -14,14 +15,6 @@ import <vk_all>;
 
 export namespace boza::platform
 {
-    enum class CursorState : std::uint8_t
-    {
-        Normal,
-        Hidden,
-        Locked,
-        HiddenLocked
-    };
-
     class Window final
     {
     public:

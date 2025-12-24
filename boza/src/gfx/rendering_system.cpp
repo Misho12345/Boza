@@ -145,9 +145,8 @@ namespace boza::gfx
             {
                 .device = device_.get(),
                 .size = vertex_buffer_size,
-                .usage = rhi::BufferUsage::Vertex,
-                .memory_type = rhi::BufferMemoryType::HostVisible,
-                .access_mode = rhi::ResourceAccessMode::Static
+                .usage = BufferUsage::Vertex,
+                .memory_type = rhi::BufferMemoryType::HostVisible
             }));
 
         gpu_mesh->index_buffer.reset(rhi::create_buffer(
@@ -155,9 +154,8 @@ namespace boza::gfx
             {
                 .device = device_.get(),
                 .size = index_buffer_size,
-                .usage = rhi::BufferUsage::Index,
-                .memory_type = rhi::BufferMemoryType::HostVisible,
-                .access_mode = rhi::ResourceAccessMode::Static
+                .usage = BufferUsage::Index,
+                .memory_type = rhi::BufferMemoryType::HostVisible
             }));
 
         gpu_mesh->index_count = static_cast<std::uint32_t>(mesh->indices.size());
@@ -281,7 +279,7 @@ namespace boza::gfx
     {
         wait_idle();
 
-        ComputeDispatcher::cleanup();
+        // ComputeDispatcher::cleanup();
 
         MaterialLoader::instance().shutdown();
         TextureLoader::instance().shutdown();

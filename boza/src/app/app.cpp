@@ -136,21 +136,7 @@ namespace boza
     void App::set_cursor_state(const CursorState state) const
     {
         if (!impl_->window) return;
-
-        const platform::CursorState plat_state = [&state] -> platform::CursorState
-        {
-            switch (state)
-            {
-                case CursorState::Normal: return platform::CursorState::Normal;
-                case CursorState::Hidden: return platform::CursorState::Hidden;
-                case CursorState::Locked: return platform::CursorState::Locked;
-                case CursorState::HiddenLocked: return platform::CursorState::HiddenLocked;
-            }
-
-            std::unreachable();
-        }();
-
-        impl_->window->set_cursor_state(plat_state);
+        impl_->window->set_cursor_state(state);
     }
 
     void App::set_active_scene(const std::shared_ptr<Scene>& scene)

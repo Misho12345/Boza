@@ -38,8 +38,7 @@ namespace boza
         const auto expected = get_expected_shader_type<T>();
         if (expected != rhi::ShaderDataType::Unknown && expected != actual_type)
         {
-            Log::warn("Material property '{}' type mismatch: expected {}, got {}",
-                      name, static_cast<int>(expected), static_cast<int>(actual_type));
+            Log::warn("Material property '{}' type mismatch: expected {}, got {}", name, static_cast<int>(expected), static_cast<int>(actual_type));
             return false;
         }
         return true;
@@ -371,9 +370,8 @@ namespace boza
             auto* buffer = rhi::create_buffer(api, {
                 .device = device,
                 .size = buffer_size,
-                .usage = rhi::BufferUsage::Uniform,
-                .memory_type = rhi::BufferMemoryType::HostVisible,
-                .access_mode = rhi::ResourceAccessMode::Dynamic
+                .usage = BufferUsage::Uniform,
+                .memory_type = rhi::BufferMemoryType::HostVisible
             });
 
             if (buffer)
@@ -421,7 +419,7 @@ namespace boza
         }
     }
 
-    void Material::update_texture(const std::string& name, Texture* texture)
+    void Material::update_texture(const std::string& name, const Texture* texture)
     {
         if (!impl_->reflection)
         {
@@ -461,7 +459,7 @@ namespace boza
         }
     }
 
-    void Material::update_buffer(const std::string& name, Buffer* buffer)
+    void Material::update_buffer(const std::string& name, const Buffer* buffer)
     {
         if (!impl_->reflection)
         {

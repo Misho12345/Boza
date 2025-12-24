@@ -31,18 +31,16 @@ namespace boza::gfx
             api_, {
                 .device = device_,
                 .size = sizeof(CameraUBO),
-                .usage = rhi::BufferUsage::Uniform,
-                .memory_type = rhi::BufferMemoryType::HostVisible,
-                .access_mode = rhi::ResourceAccessMode::Dynamic
+                .usage = BufferUsage::Uniform,
+                .memory_type = rhi::BufferMemoryType::HostVisible
             }));
 
         light_ubo_.reset(rhi::create_buffer(
             api_, {
                 .device = device_,
                 .size = sizeof(LightUBO),
-                .usage = rhi::BufferUsage::Uniform,
-                .memory_type = rhi::BufferMemoryType::HostVisible,
-                .access_mode = rhi::ResourceAccessMode::Dynamic
+                .usage = BufferUsage::Uniform,
+                .memory_type = rhi::BufferMemoryType::HostVisible
             }));
 
         static constexpr LightUBO light_data{
@@ -56,18 +54,17 @@ namespace boza::gfx
             api_, {
                 .device = device_,
                 .size = sizeof(TimeUBO),
-                .usage = rhi::BufferUsage::Uniform,
-                .memory_type = rhi::BufferMemoryType::HostVisible,
-                .access_mode = rhi::ResourceAccessMode::Dynamic
+                .usage = BufferUsage::Uniform,
+                .memory_type = rhi::BufferMemoryType::HostVisible
             }));
 
         default_sampler_.reset(rhi::create_sampler(
             api_, {
                 .device = device_,
-                .filter = rhi::SamplerFilter::Linear,
-                .address_mode_u = rhi::SamplerAddressMode::Repeat,
-                .address_mode_v = rhi::SamplerAddressMode::Repeat,
-                .address_mode_w = rhi::SamplerAddressMode::Repeat
+                .filter = SamplerFilter::Linear,
+                .wrap_u = SamplerWrap::Repeat,
+                .wrap_v = SamplerWrap::Repeat,
+                .wrap_w = SamplerWrap::Repeat
             }));
 
         initialized_ = true;
@@ -274,7 +271,7 @@ namespace boza::gfx
         try_bind_ubo("lightUBO", light_ubo_.get(), sizeof(LightUBO));
         try_bind_ubo("timeData", time_ubo_.get(), sizeof(TimeUBO));
 
-        auto try_bind_sampler = [&](const std::string& sampler_name, Texture* texture)
+        auto try_bind_sampler = [&](const std::string& sampler_name, const Texture* texture)
         {
             const auto info = material->lookup_binding(sampler_name);
             if (info.has_value() && info->descriptor_type == static_cast<std::uint32_t>(
@@ -307,10 +304,9 @@ namespace boza::gfx
 
         for (const auto& [prop_name, tex_info] : def.textures)
         {
-            Texture* texture = texture_loader_->load_or_get_texture(
+            Texture* texture = texture_loader_->get_or_load(
                 tex_info.file,
-                tex_info.format,
-                TextureAccessMode::Static);
+                tex_info.format);
 
             if (texture) { material->update_texture(prop_name, texture); }
         }

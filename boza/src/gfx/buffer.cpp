@@ -7,23 +7,10 @@ import boza.detail;
 
 namespace boza
 {
-    rhi::BufferUsage to_rhi_usage(const BufferUsage usage)
-    {
-        switch (usage)
-        {
-            case BufferUsage::Vertex: return rhi::BufferUsage::Vertex;
-            case BufferUsage::Index: return rhi::BufferUsage::Index;
-            case BufferUsage::Uniform: return rhi::BufferUsage::Uniform;
-            case BufferUsage::Storage: return rhi::BufferUsage::Storage;
-            case BufferUsage::Staging: return rhi::BufferUsage::Staging;
-        }
-        return rhi::BufferUsage::Uniform;
-    }
-
     Buffer::Buffer(
         const std::size_t buffer_size,
         const BufferUsage usage,
-        const BufferAccessMode buffer_access_mode)
+        const ResourceAccessMode buffer_access_mode)
         : size_(buffer_size),
           access_mode_(buffer_access_mode)
     {
@@ -33,16 +20,15 @@ namespace boza
             return;
         }
 
-        const rhi::BufferUsage rhi_usage = to_rhi_usage(usage);
-
         auto memory_type = rhi::BufferMemoryType::HostVisible;
         if (usage == BufferUsage::Vertex || usage == BufferUsage::Index)
         {
             memory_type = rhi::BufferMemoryType::DeviceLocal;
         }
 
-        const std::uint32_t buffer_count =
-            buffer_access_mode == BufferAccessMode::Dynamic ? detail::RenderContext::frames_in_flight() : 1;
+        const std::uint32_t buffer_count = buffer_access_mode == ResourceAccessMode::Dynamic
+                                               ? detail::RenderContext::frames_in_flight()
+                                               : 1;
 
         rhi_buffers_.reserve(buffer_count);
 
@@ -52,9 +38,8 @@ namespace boza
                 static_cast<rhi::GraphicsApi>(detail::RenderContext::api()), {
                     .device = static_cast<rhi::Device*>(detail::RenderContext::device()),
                     .size = buffer_size,
-                    .usage = rhi_usage,
-                    .memory_type = memory_type,
-                    .access_mode = rhi::ResourceAccessMode::Static
+                    .usage = usage,
+                    .memory_type = memory_type
                 });
 
             if (!rhi_buffer)
@@ -133,8 +118,7 @@ namespace boza
             return;
         }
 
-        const std::uint32_t buffer_index =
-            access_mode_ == BufferAccessMode::Dynamic ? frame_index : 0;
+        const std::uint32_t buffer_index = access_mode_ == ResourceAccessMode::Dynamic ? frame_index : 0;
 
         if (buffer_index >= rhi_buffers_.size())
         {
@@ -159,8 +143,7 @@ namespace boza
             return;
         }
 
-        const std::uint32_t buffer_index =
-            access_mode_ == BufferAccessMode::Dynamic ? frame_index : 0;
+        const std::uint32_t buffer_index = access_mode_ == ResourceAccessMode::Dynamic ? frame_index : 0;
 
         if (buffer_index >= rhi_buffers_.size())
         {
@@ -179,8 +162,7 @@ namespace boza
             return nullptr;
         }
 
-        const std::uint32_t buffer_index =
-            access_mode_ == BufferAccessMode::Dynamic ? frame_index : 0;
+        const std::uint32_t buffer_index = access_mode_ == ResourceAccessMode::Dynamic ? frame_index : 0;
 
         if (buffer_index >= rhi_buffers_.size())
         {
@@ -199,8 +181,7 @@ namespace boza
             return;
         }
 
-        const std::uint32_t buffer_index =
-            access_mode_ == BufferAccessMode::Dynamic ? frame_index : 0;
+        const std::uint32_t buffer_index = access_mode_ == ResourceAccessMode::Dynamic ? frame_index : 0;
 
         if (buffer_index >= rhi_buffers_.size())
         {
@@ -218,7 +199,7 @@ namespace boza
             return nullptr;
         }
 
-        const std::uint32_t buffer_index = access_mode_ == BufferAccessMode::Dynamic ? frame_index : 0;
+        const std::uint32_t buffer_index = access_mode_ == ResourceAccessMode::Dynamic ? frame_index : 0;
 
         if (buffer_index >= rhi_buffers_.size())
         {

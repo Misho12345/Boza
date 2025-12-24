@@ -83,7 +83,7 @@ namespace boza::rhi::vk
         // Log::trace("Mapping buffer memory");
 
         void* mapped_data;
-        const auto  allocator = reinterpret_cast<Device*>(desc.device)->allocator()->vma_allocator();
+        const auto allocator = reinterpret_cast<Device*>(desc.device)->allocator()->vma_allocator();
 
         if (!vk_check(
             vmaMapMemory(allocator, allocation_, &mapped_data),
