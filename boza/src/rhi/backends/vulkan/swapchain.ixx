@@ -78,9 +78,9 @@ export namespace boza::rhi::vk
         std::vector<VkImageLayout> image_layouts_;
 
         // Depth buffer resources
-        VkImage        depth_image_{ VK_NULL_HANDLE };
-        VkImageView    depth_image_view_{ VK_NULL_HANDLE };
-        VmaAllocation  depth_allocation_{ VK_NULL_HANDLE };
+        VkImage        depth_image_{ nullptr };
+        VkImageView    depth_image_view_{ nullptr };
+        VmaAllocation  depth_allocation_{ nullptr };
         DepthFormat    depth_format_{ DepthFormat::None };
         VkFormat       vk_depth_format_{ VK_FORMAT_UNDEFINED };
 

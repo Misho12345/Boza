@@ -388,23 +388,28 @@ namespace boza::rhi::vk
         // Destroy old depth resources before creating new ones
         destroy_depth_resources();
 
-        // std::vector<VkCommandBuffer> command_buffers;
-        // command_buffers.reserve(desc.max_frames_in_flight);
-        // for (const auto& [cmd_buffer, in_flight_fence, image_available_semaphore, render_finished_semaphore] : frames)
-        // {
-        //     if (cmd_buffer)
-        //         command_buffers.push_back(reinterpret_cast<CommandBuffer*>(cmd_buffer.get())->get_vk_command_buffer());
-        //
-        //     render_finished_semaphore->destroy();
-        //     image_available_semaphore->destroy();
-        //     in_flight_fence->destroy();
-        // }
-        //
-        // if (!command_buffers.empty())
-        // {
-        //     vkFreeCommandBuffers(vk_device, reinterpret_cast<CommandPool*>(desc.command_pool)->get_vk_command_pool(),
-        //                          static_cast<uint32_t>(command_buffers.size()), command_buffers.data());
-        // }
+        std::vector<VkCommandBuffer> command_buffers;
+        command_buffers.reserve(desc.max_frames_in_flight);
+        for (const auto& [cmd_buffer, in_flight_fence, image_available_semaphore, render_finished_semaphore] : frames_)
+        {
+            if (cmd_buffer)
+            {
+                command_buffers.push_back(reinterpret_cast<CommandBuffer*>(cmd_buffer.get())->vk_command_buffer());
+            }
+
+            render_finished_semaphore->destroy();
+            image_available_semaphore->destroy();
+            in_flight_fence->destroy();
+        }
+
+        if (!command_buffers.empty())
+        {
+            vkFreeCommandBuffers(
+                vk_device,
+                reinterpret_cast<CommandPool*>(desc.device->command_pool(
+                    desc.device->queue_family_indices().compute_family))->vk_command_pool(),
+                static_cast<uint32_t>(command_buffers.size()), command_buffers.data());
+        }
 
         if (!query_swapchain_support()) return false;
 
@@ -416,8 +421,8 @@ namespace boza::rhi::vk
 
         if (!create_image_views()) return false;
         if (!create_depth_resources()) return false;
-        // if (!create_command_buffers()) return false;
-        // if (!create_sync_objects()) return false;
+        if (!create_command_buffers()) return false;
+        if (!create_sync_objects()) return false;
 
         if (old_swapchain) vkDestroySwapchainKHR(vk_device, old_swapchain, nullptr);
 
