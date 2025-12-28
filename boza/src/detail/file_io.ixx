@@ -12,11 +12,12 @@ export namespace boza::detail
 
         static std::vector<std::uint8_t> read(const fs::path& path)
         {
-            if (!fs::exists(path)) return {};
+            if (!exists(path)) return {};
             std::ifstream file{ path, std::ios::ate | std::ios::binary };
             if (!file.is_open()) return {};
 
-            std::vector<std::uint8_t> buffer{
+            std::vector<std::uint8_t> buffer
+            {
                 std::istreambuf_iterator(file),
                 std::istreambuf_iterator<char>()
             };
@@ -26,7 +27,7 @@ export namespace boza::detail
 
         static std::string read_text(const fs::path& path)
         {
-            if (!fs::exists(path)) return {};
+            if (!exists(path)) return {};
             const std::ifstream file{ path };
             if (!file.is_open()) return {};
 
@@ -52,7 +53,7 @@ export namespace boza::detail
 
         static void write(const fs::path& path, const std::span<std::uint8_t>& data)
         {
-            if (!fs::exists(path.parent_path())) fs::create_directories(path.parent_path());
+            if (!exists(path.parent_path())) create_directories(path.parent_path());
             std::ofstream file{ path, std::ios::binary };
             file.write(reinterpret_cast<const char*>(data.data()), data.size());
         }

@@ -45,14 +45,14 @@ namespace boza::rhi::vk
         const VkBufferCreateInfo buffer_create_info
         {
             .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-            .size = desc.size,
-            .usage = to_vk(desc.usage),
+            .size = desc_.size,
+            .usage = to_vk(desc_.usage),
         };
 
         VmaAllocationCreateInfo allocation_create_info{};
-        allocation_create_info.usage = to_vma(desc.memory_type);
+        allocation_create_info.usage = to_vma(desc_.memory_type);
 
-        const auto allocator = reinterpret_cast<Device*>(desc.device)->allocator()->vma_allocator();
+        const auto allocator = reinterpret_cast<Device*>(desc_.device)->allocator()->vma_allocator();
 
         if (!vk_check(
             vmaCreateBuffer(
@@ -70,7 +70,7 @@ namespace boza::rhi::vk
 
         if (buffer_)
         {
-            const auto allocator = reinterpret_cast<Device*>(desc.device)->allocator()->vma_allocator();
+            const auto allocator = reinterpret_cast<Device*>(desc_.device)->allocator()->vma_allocator();
             vmaDestroyBuffer(allocator, buffer_, allocation_);
             buffer_ = nullptr;
             allocation_ = nullptr;
@@ -83,7 +83,7 @@ namespace boza::rhi::vk
         // Log::trace("Mapping buffer memory");
 
         void* mapped_data;
-        const auto allocator = reinterpret_cast<Device*>(desc.device)->allocator()->vma_allocator();
+        const auto allocator = reinterpret_cast<Device*>(desc_.device)->allocator()->vma_allocator();
 
         if (!vk_check(
             vmaMapMemory(allocator, allocation_, &mapped_data),
@@ -97,18 +97,18 @@ namespace boza::rhi::vk
     {
         // Log::trace("Unmapping buffer memory");
 
-        const auto allocator = reinterpret_cast<Device*>(desc.device)->allocator()->vma_allocator();
+        const auto allocator = reinterpret_cast<Device*>(desc_.device)->allocator()->vma_allocator();
         vmaUnmapMemory(allocator, allocation_);
     }
 
-    size_t Buffer::size() const { return desc.size; }
+    size_t Buffer::size() const { return desc_.size; }
 
     void Buffer::upload(const void* data, const size_t size, const size_t offset)
     {
         // Log::trace("Uploading {} bytes to buffer at offset {}", size, offset);
 
-        assert(desc.memory_type != BufferMemoryType::DeviceLocal && "Cannot upload to device local buffer");
-        assert(offset + size <= desc.size && "Upload out of bounds");
+        assert(desc_.memory_type != BufferMemoryType::DeviceLocal && "Cannot upload to device local buffer");
+        assert(offset + size <= desc_.size && "Upload out of bounds");
 
         if (const auto mapped_data = map())
         {
@@ -121,8 +121,8 @@ namespace boza::rhi::vk
     {
         // Log::trace("Reading back {} bytes from buffer at offset {}", size, offset);
 
-        assert(desc.memory_type != BufferMemoryType::DeviceLocal && "Cannot read back from device local buffer");
-        assert(offset + size <= desc.size && "Read back out of bounds");
+        assert(desc_.memory_type != BufferMemoryType::DeviceLocal && "Cannot read back from device local buffer");
+        assert(offset + size <= desc_.size && "Read back out of bounds");
 
         if (const auto mapped_data = map())
         {

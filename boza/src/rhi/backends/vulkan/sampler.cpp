@@ -77,35 +77,35 @@ namespace boza::rhi::vk
 
     bool Sampler::init()
     {
-        const auto vk_device_ptr = reinterpret_cast<Device*>(desc.device);
+        const auto vk_device_ptr = reinterpret_cast<Device*>(desc_.device);
         const auto vk_device = vk_device_ptr->logical_device();
 
         VkPhysicalDeviceProperties properties{};
         vkGetPhysicalDeviceProperties(vk_device_ptr->physical_device(), &properties);
 
-        const bool anisotropy_enabled = desc.filter == SamplerFilter::Anisotropic;
+        const bool anisotropy_enabled = desc_.filter == SamplerFilter::Anisotropic;
         const float max_anisotropy = anisotropy_enabled
-            ? std::min(desc.max_anisotropy, properties.limits.maxSamplerAnisotropy)
+            ? std::min(desc_.max_anisotropy, properties.limits.maxSamplerAnisotropy)
             : 1.0f;
 
         const VkSamplerCreateInfo sampler_create_info
         {
             .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-            .magFilter = to_vk(desc.filter),
-            .minFilter = to_vk(desc.filter),
-            .mipmapMode = get_mipmap_mode(desc.mipmap_mode),
-            .addressModeU = to_vk(desc.wrap_u),
-            .addressModeV = to_vk(desc.wrap_v),
-            .addressModeW = to_vk(desc.wrap_w),
-            .mipLodBias = desc.mip_lod_bias,
+            .magFilter = to_vk(desc_.filter),
+            .minFilter = to_vk(desc_.filter),
+            .mipmapMode = get_mipmap_mode(desc_.mipmap_mode),
+            .addressModeU = to_vk(desc_.wrap_u),
+            .addressModeV = to_vk(desc_.wrap_v),
+            .addressModeW = to_vk(desc_.wrap_w),
+            .mipLodBias = desc_.mip_lod_bias,
             .anisotropyEnable = anisotropy_enabled,
             .maxAnisotropy = max_anisotropy,
-            .compareEnable = desc.compare_enable,
-            .compareOp = to_vk(desc.compare_op),
-            .minLod = desc.min_lod,
-            .maxLod = desc.max_lod,
-            .borderColor = to_vk(desc.border_color),
-            .unnormalizedCoordinates = desc.unnormalized_coordinates,
+            .compareEnable = desc_.compare_enable,
+            .compareOp = to_vk(desc_.compare_op),
+            .minLod = desc_.min_lod,
+            .maxLod = desc_.max_lod,
+            .borderColor = to_vk(desc_.border_color),
+            .unnormalizedCoordinates = desc_.unnormalized_coordinates,
         };
 
         if (!vk_check(
@@ -122,7 +122,7 @@ namespace boza::rhi::vk
 
         if (sampler_)
         {
-            const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
+            const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
             vkDestroySampler(vk_device, sampler_, nullptr);
             sampler_ = nullptr;
         }

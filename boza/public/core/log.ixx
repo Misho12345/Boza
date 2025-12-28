@@ -52,11 +52,11 @@ namespace std
         constexpr auto parse(std::format_parse_context& ctx) -> decltype(ctx.begin()) { return ctx.begin(); }
 
         template<typename FormatContext>
-        auto format(const glm::vec<L, T, Q>& v, FormatContext& ctx) const -> typename FormatContext::iterator
+        FormatContext::iterator format(const glm::vec<L, T, Q>& v, FormatContext& ctx) const
         {
             auto out = ctx.out();
             std::format_to(out, "(");
-            for (typename glm::vec<L, T, Q>::length_type i = 0; i < static_cast<typename glm::vec<L, T, Q>::length_type>(L); ++i)
+            for (typename glm::vec<L, T, Q>::length_type i = 0; i < static_cast<glm::vec<L, T, Q>::length_type>(L); ++i)
             {
                 std::format_to(out, "{}", v[i]);
                 if (i + 1 < L) std::format_to(out, ", ");
@@ -83,7 +83,7 @@ namespace std
         }
 
         template<typename FormatContext>
-        auto format(const glm::qua<T, Q>& q, FormatContext& ctx) const -> typename FormatContext::iterator
+        FormatContext::iterator format(const glm::qua<T, Q>& q, FormatContext& ctx) const
         {
             auto out = ctx.out();
 
@@ -117,17 +117,17 @@ namespace std
         }
 
         template<typename FormatContext>
-        auto format(const glm::mat<C, R, T, Q>& m, FormatContext& ctx) const -> typename FormatContext::iterator
+        FormatContext::iterator format(const glm::mat<C, R, T, Q>& m, FormatContext& ctx) const
         {
             auto out = ctx.out();
 
             if (presentation == 'm')
             {
                 std::format_to(out, "mat{}x{}\n", C, R);
-                for (typename glm::mat<C, R, T, Q>::length_type row = 0; row < static_cast<typename glm::mat<C, R, T, Q>::length_type>(R); ++row)
+                for (typename glm::mat<C, R, T, Q>::length_type row = 0; row < static_cast<glm::mat<C, R, T, Q>::length_type>(R); ++row)
                 {
                     std::format_to(out, "  [");
-                    for (typename glm::mat<C, R, T, Q>::length_type col = 0; col < static_cast<typename glm::mat<C, R, T, Q>::length_type>(C); ++col)
+                    for (typename glm::mat<C, R, T, Q>::length_type col = 0; col < static_cast<glm::mat<C, R, T, Q>::length_type>(C); ++col)
                     {
                         std::format_to(out, "{:8.3f}", static_cast<double>(m[col][row]));
                         if (col + 1 < C) std::format_to(out, " ");
@@ -141,10 +141,10 @@ namespace std
             if (presentation == 'r')
             {
                 std::format_to(out, "mat{}x{}(", C, R);
-                for (typename glm::mat<C, R, T, Q>::length_type row = 0; row < static_cast<typename glm::mat<C, R, T, Q>::length_type>(R); ++row)
+                for (typename glm::mat<C, R, T, Q>::length_type row = 0; row < static_cast<glm::mat<C, R, T, Q>::length_type>(R); ++row)
                 {
                     std::format_to(out, "[");
-                    for (typename glm::mat<C, R, T, Q>::length_type col = 0; col < static_cast<typename glm::mat<C, R, T, Q>::length_type>(C); ++col)
+                    for (typename glm::mat<C, R, T, Q>::length_type col = 0; col < static_cast<glm::mat<C, R, T, Q>::length_type>(C); ++col)
                     {
                         std::format_to(out, "{}", m[col][row]);
                         if (col + 1 < C) std::format_to(out, ", ");
@@ -156,9 +156,9 @@ namespace std
             }
 
             std::format_to(out, "mat{}x{}(", C, R);
-            for (typename glm::mat<C, R, T, Q>::length_type col = 0; col < static_cast<typename glm::mat<C, R, T, Q>::length_type>(C); ++col)
+            for (typename glm::mat<C, R, T, Q>::length_type col = 0; col < static_cast<glm::mat<C, R, T, Q>::length_type>(C); ++col)
             {
-                for (typename glm::mat<C, R, T, Q>::length_type row = 0; row < static_cast<typename glm::mat<C, R, T, Q>::length_type>(R); ++row)
+                for (typename glm::mat<C, R, T, Q>::length_type row = 0; row < static_cast<glm::mat<C, R, T, Q>::length_type>(R); ++row)
                 {
                     std::format_to(out, "{}", m[col][row]);
                     if (col + 1 < C || row + 1 < R) std::format_to(out, ", ");

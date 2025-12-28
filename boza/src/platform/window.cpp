@@ -171,7 +171,7 @@ namespace boza::platform
     bool Window::should_close() const { return glfwWindowShouldClose(window_); }
 
 
-    void Window::poll_events() const { glfwPollEvents(); }
+    void Window::poll_events() { glfwPollEvents(); }
 
     void Window::set_window_resize_callback()
     {
@@ -244,7 +244,7 @@ namespace boza::platform
     bool Window::is_minimized() const { return !(width_ && height_); }
 
 
-    std::vector<const char*> Window::get_required_extensions() const
+    std::vector<const char*> Window::get_required_extensions()
     {
         uint32_t     count = 0;
         const char** ext   = glfwGetRequiredInstanceExtensions(&count);

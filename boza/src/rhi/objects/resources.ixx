@@ -96,8 +96,8 @@ export namespace boza::rhi
         virtual void download(void* data, size_t size) = 0;
         virtual void transition_layout(TextureLayout old_layout, TextureLayout new_layout) = 0;
 
-        [[nodiscard]] std::uint32_t width() const { return desc.width; }
-        [[nodiscard]] std::uint32_t height() const { return desc.height; }
+        [[nodiscard]] std::uint32_t width() const { return desc_.width; }
+        [[nodiscard]] std::uint32_t height() const { return desc_.height; }
 
     protected:
         explicit Texture(const TextureDesc& desc) : GraphicsObject(desc) {}

@@ -20,7 +20,7 @@ namespace boza
 
         auto* game_object = new GameObject(entity, this);
 
-        game_objects_.emplace(entt::to_integral(entity), game_object);
+        game_objects_.emplace(to_integral(entity), game_object);
 
         game_object->transform_ = &game_object->add_component<Transform>();
         game_object->name = object_name;
@@ -33,7 +33,7 @@ namespace boza
         if (!game_object.is_valid()) return;
 
         const entt::entity entity = game_object.entity_;
-        const auto id = entt::to_integral(entity);
+        const auto id = to_integral(entity);
 
         auto it = game_objects_.find(id);
         if (it != game_objects_.end())
@@ -183,7 +183,7 @@ namespace boza
 
     GameObject* Scene::get_game_object(const entt::entity entity) const
     {
-        const auto it = game_objects_.find(entt::to_integral(entity));
+        const auto it = game_objects_.find(to_integral(entity));
         return it != game_objects_.end() ? it->second : nullptr;
     }
 

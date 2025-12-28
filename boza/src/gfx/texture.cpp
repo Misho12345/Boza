@@ -48,7 +48,7 @@ namespace boza
 
     void* Texture::create_rhi_sampler(const SamplerFilter filter, const SamplerWrap wrap)
     {
-        return rhi::create_sampler(
+        return create_sampler(
             static_cast<rhi::GraphicsApi>(detail::RenderContext::api()), {
                 .device = static_cast<rhi::Device*>(detail::RenderContext::device()),
                 .filter = filter,
@@ -112,7 +112,7 @@ namespace boza
 
         for (std::uint32_t i = 0; i < texture_count; ++i)
         {
-            void* rhi_texture = rhi::create_texture(
+            void* rhi_texture = create_texture(
                 static_cast<rhi::GraphicsApi>(detail::RenderContext::api()), {
                     .device = static_cast<rhi::Device*>(detail::RenderContext::device()),
                     .width = width,

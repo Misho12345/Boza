@@ -106,7 +106,7 @@ namespace boza
 
         const auto shader_shared = resource_cache->get_or_create_shader(
             shader_desc,
-            [api](const rhi::ShaderModuleDesc& desc) { return rhi::create_shader_module(api, desc); });
+            [api](const rhi::ShaderModuleDesc& desc) { return create_shader_module(api, desc); });
 
         if (!shader_shared)
         {

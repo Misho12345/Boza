@@ -9,18 +9,18 @@ namespace boza::rhi::vk
     {
         // Log::trace("Creating vulkan command pool ({})", desc.queue_family_index);
 
-        const Device* device = reinterpret_cast<Device*>(desc.device);
+        const Device* device = reinterpret_cast<Device*>(desc_.device);
 
         VkCommandPoolCreateFlags flags = 0;
-        if (desc.flags.has(CommandPoolOption::Transient)) flags |= VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-        if (desc.flags.has(CommandPoolOption::ResetCommandBuffer)) flags |= VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        if (desc_.flags.has(CommandPoolOption::Transient)) flags |= VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+        if (desc_.flags.has(CommandPoolOption::ResetCommandBuffer)) flags |= VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
         const VkCommandPoolCreateInfo pool_info
         {
             .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
             .pNext = nullptr,
             .flags = flags,
-            .queueFamilyIndex = desc.queue_family_index
+            .queueFamilyIndex = desc_.queue_family_index
         };
 
         if (!vk_check(
@@ -35,7 +35,7 @@ namespace boza::rhi::vk
     {
         // Log::trace("Destroying vulkan command pool ({})", desc.queue_family_index);
 
-        const Device* device = reinterpret_cast<Device*>(desc.device);
+        const Device* device = reinterpret_cast<Device*>(desc_.device);
 
         if (vk_command_pool_)
         {
@@ -51,7 +51,7 @@ namespace boza::rhi::vk
 
         const CommandBufferDesc cmd_desc
         {
-            .device = desc.device,
+            .device = desc_.device,
             .pool = this,
             .is_primary = is_primary
         };
@@ -64,7 +64,7 @@ namespace boza::rhi::vk
             return nullptr;
         }
 
-        const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
+        const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
 
         const VkCommandBufferAllocateInfo alloc_info
         {
@@ -106,7 +106,7 @@ namespace boza::rhi::vk
         std::vector<rhi::CommandBuffer*> cmd_buffers;
         cmd_buffers.reserve(count);
 
-        const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
+        const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
 
         const VkCommandBufferAllocateInfo alloc_info
         {
@@ -127,7 +127,7 @@ namespace boza::rhi::vk
         {
             const CommandBufferDesc cmd_desc
             {
-                .device = desc.device,
+                .device = desc_.device,
                 .pool = this,
                 .is_primary = is_primary
             };
@@ -173,7 +173,7 @@ namespace boza::rhi::vk
 
         if (!command_buffer) return;
 
-        const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
+        const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
         const VkCommandBuffer vk_cmd = reinterpret_cast<CommandBuffer*>(command_buffer)->vk_command_buffer();
 
         vkFreeCommandBuffers(vk_device, vk_command_pool_, 1, &vk_cmd);
@@ -187,7 +187,7 @@ namespace boza::rhi::vk
 
         if (command_buffers.empty()) return;
 
-        const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
+        const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
 
         std::vector<VkCommandBuffer> vk_cmd_buffers;
         vk_cmd_buffers.reserve(command_buffers.size());
@@ -215,7 +215,7 @@ namespace boza::rhi::vk
     {
         // Log::trace("Resetting command pool (release_resources: {})", release_resources);
 
-        const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
+        const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
 
         const VkCommandPoolResetFlags flags = release_resources ? VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT : 0;
 
@@ -249,7 +249,7 @@ namespace boza::rhi::vk
 
         if (!command_buffer) return false;
 
-        const Device* device = reinterpret_cast<Device*>(desc.device);
+        const Device* device = reinterpret_cast<Device*>(desc_.device);
 
         if (!command_buffer->end())
         {
@@ -258,7 +258,7 @@ namespace boza::rhi::vk
             return false;
         }
 
-        if (const auto queue = reinterpret_cast<CommandQueue*>(device->queue(desc.queue_family_index));
+        if (const auto queue = reinterpret_cast<CommandQueue*>(device->queue(desc_.queue_family_index));
             !queue->submit({ command_buffer }) || !queue->wait_idle())
         {
             free_command_buffer(command_buffer);

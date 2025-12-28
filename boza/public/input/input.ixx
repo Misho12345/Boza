@@ -39,7 +39,7 @@ namespace boza
         static bool is_held(Key key);
 
     private:
-        static void init(void* window_handle);
+        static void init(void* window);
         static void update();
         static void shutdown();
 

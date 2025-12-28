@@ -20,7 +20,7 @@ import :layer;
 export namespace boza
 {
     template<typename T>
-    concept ConcreteComponent =
+    concept concrete_component =
             std::derived_from<T, Component> &&
             !std::same_as<T, Component> &&
             !std::same_as<T, Behaviour>;
@@ -35,14 +35,14 @@ export namespace boza
         GameObject(GameObject&& other) noexcept            = default;
         GameObject& operator=(GameObject&& other) noexcept = default;
 
-        template<ConcreteComponent T, typename... Args>
+        template<concrete_component T, typename... Args>
         T& add_component(Args&&... args);
 
-        template<ConcreteComponent T, class Self> [[nodiscard]] auto try_get_component(this Self&& self);
-        template<ConcreteComponent T, class Self> [[nodiscard]] decltype(auto) get_component(this Self&& self);
+        template<concrete_component T, class Self> [[nodiscard]] auto try_get_component(this Self&& self);
+        template<concrete_component T, class Self> [[nodiscard]] decltype(auto) get_component(this Self&& self);
 
-        template<ConcreteComponent T> [[nodiscard]] bool has_component() const;
-        template<ConcreteComponent T> void               remove_component() const;
+        template<concrete_component T> [[nodiscard]] bool has_component() const;
+        template<concrete_component T> void               remove_component() const;
 
         PropertyGet<GameObject, Transform&> transform
         {
@@ -80,7 +80,7 @@ export namespace boza
         friend class Scene;
     };
 
-    template<ConcreteComponent T, typename... Args>
+    template<concrete_component T, typename... Args>
     T& GameObject::add_component(Args&&... args)
     {
         assert(is_valid() && "Cannot add component to invalid GameObject");
@@ -131,7 +131,7 @@ export namespace boza
         return *component;
     }
 
-    template<ConcreteComponent T, class Self>
+    template<concrete_component T, class Self>
     auto GameObject::try_get_component(this Self&& self)
     {
         assert(self.is_valid() && "Cannot get component from invalid GameObject");
@@ -145,7 +145,7 @@ export namespace boza
         }
     }
 
-    template<ConcreteComponent T, class Self>
+    template<concrete_component T, class Self>
     decltype(auto) GameObject::get_component(this Self&& self)
     {
         auto* p = std::forward<Self>(self).template try_get_component<T>();
@@ -154,7 +154,7 @@ export namespace boza
     }
 
 
-    template<ConcreteComponent T>
+    template<concrete_component T>
     bool GameObject::has_component() const
     {
         if (!is_valid()) return false;
@@ -167,7 +167,7 @@ export namespace boza
         }
     }
 
-    template<ConcreteComponent T>
+    template<concrete_component T>
     void GameObject::remove_component() const
     {
         assert(is_valid() && "Cannot remove component from invalid GameObject");

@@ -6,17 +6,17 @@ namespace boza
 {
     using detail::LayerManager;
 
-    Layer::Layer(const std::string& name) : mask_(LayerManager::instance().layer_mask(name)) {}
+    Layer::Layer(const std::string& name) : mask_{ LayerManager::instance().layer_mask(name) } {}
 
-    Layer& Layer::operator=(const uint32_t _mask)
+    Layer& Layer::operator=(const uint32_t mask_value)
     {
-        mask_ = _mask;
+        mask_ = mask_value;
         return *this;
     }
 
-    Layer& Layer::operator=(const std::string& _name)
+    Layer& Layer::operator=(const std::string& layer_name)
     {
-        mask_ = LayerManager::instance().layer_mask(_name);
+        mask_ = LayerManager::instance().layer_mask(layer_name);
         return *this;
     }
 
@@ -46,19 +46,19 @@ namespace boza
 
     bool Layer::contains(const Layer& other) const { return (mask_ & other.mask_) != 0; }
 
-    bool Layer::contains(const std::string& _name) const
+    bool Layer::contains(const std::string& layer_name) const
     {
-        const uint32_t layer_mask = LayerManager::instance().layer_mask(_name);
+        const uint32_t layer_mask = LayerManager::instance().layer_mask(layer_name);
         return (mask_ & layer_mask) != 0;
     }
 
     bool Layer::operator==(const Layer& other) const { return mask_ == other.mask_; }
     bool Layer::operator!=(const Layer& other) const { return mask_ != other.mask_; }
-    bool Layer::operator!=(const std::string& _name) const { return !(*this == _name); }
+    bool Layer::operator!=(const std::string& layer_name) const { return !(*this == layer_name); }
 
-    bool Layer::operator==(const std::string& _name) const
+    bool Layer::operator==(const std::string& layer_name) const
     {
-        return mask_ == LayerManager::instance().layer_mask(_name);
+        return mask_ == LayerManager::instance().layer_mask(layer_name);
     }
 
     std::uint32_t Layer::get_mask() const { return mask_; }

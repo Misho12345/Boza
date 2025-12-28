@@ -31,11 +31,15 @@ export namespace boza
             : material_(material),
               name_(std::move(name)) {}
 
-        template<typename T>
+        template<typename T> requires requires
+        {
+            requires !std::is_same_v<std::remove_cvref_t<T>, Texture*>;
+            requires !std::is_same_v<std::remove_cvref_t<T>, Buffer*>;
+        }
         PropertyBinder& operator=(const T& value);
 
-        PropertyBinder& operator=(Texture* texture);
-        PropertyBinder& operator=(Buffer* buffer);
+        PropertyBinder& operator=(const Texture* texture);
+        PropertyBinder& operator=(const Buffer* buffer);
 
     private:
         Material*   material_;
@@ -66,8 +70,8 @@ export namespace boza
             update_property_impl(name, &value, sizeof(T));
         }
 
-        void update_texture(const std::string& name, const Texture* texture);
-        void update_buffer(const std::string& name, const Buffer* buffer);
+        void update_texture(const std::string& name, const Texture* texture) const;
+        void update_buffer(const std::string& name, const Buffer* buffer) const;
 
         [[nodiscard]] std::optional<BindingInfo> lookup_binding(const std::string& name) const;
 
@@ -90,7 +94,11 @@ export namespace boza
         friend class PropertyBinder;
     };
 
-    template<typename T>
+    template<typename T> requires requires
+    {
+        requires !std::is_same_v<std::remove_cvref_t<T>, Texture*>;
+        requires !std::is_same_v<std::remove_cvref_t<T>, Buffer*>;
+    }
     PropertyBinder& PropertyBinder::operator=(const T& value)
     {
         material_->update_property<T>(name_, value);

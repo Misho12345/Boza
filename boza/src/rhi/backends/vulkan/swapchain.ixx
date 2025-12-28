@@ -7,8 +7,8 @@ import <vk_all>;
 export namespace boza::rhi::vk
 {
     using image_idx_t                              = uint32_t;
-    constexpr inline image_idx_t INVALID_IMAGE_IDX = std::numeric_limits<image_idx_t>::max();
-    constexpr inline image_idx_t SKIP_IMAGE_IDX    = std::numeric_limits<image_idx_t>::max() - 1;
+    constexpr inline image_idx_t invalid_image_idx = std::numeric_limits<image_idx_t>::max();
+    constexpr inline image_idx_t skip_image_idx    = std::numeric_limits<image_idx_t>::max() - 1;
 
     class Swapchain final : public rhi::Swapchain
     {
@@ -36,7 +36,7 @@ export namespace boza::rhi::vk
         [[nodiscard]] VkSwapchainKHR vk_swapchain() const;
         [[nodiscard]] uint32_t format() const override { return static_cast<uint32_t>(surface_format_.format); }
         [[nodiscard]] DepthFormat depth_format() const override { return depth_format_; }
-        [[nodiscard]] uint32_t max_frames_in_flight() const override { return desc.max_frames_in_flight; }
+        [[nodiscard]] uint32_t max_frames_in_flight() const override { return desc_.max_frames_in_flight; }
 
         [[nodiscard]] VkFormat vk_depth_format() const { return vk_depth_format_; }
 
@@ -87,7 +87,7 @@ export namespace boza::rhi::vk
         std::vector<FrameData> frames_;
 
         uint32_t current_frame_{ 0 };
-        uint32_t current_image_index_{ INVALID_IMAGE_IDX };
+        uint32_t current_image_index_{ invalid_image_idx };
 
         bool frame_started_{ false };
         bool should_recreate_{ false };

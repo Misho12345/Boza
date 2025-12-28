@@ -18,7 +18,7 @@ namespace sp
         const fs::path&                  file,
         std::unordered_set<std::string>& visited)
     {
-        const fs::path    abs = fs::weakly_canonical(file);
+        const fs::path    abs = weakly_canonical(file);
         const std::string key = abs.string();
         if (visited.contains(key)) return "";
         visited.insert(key);

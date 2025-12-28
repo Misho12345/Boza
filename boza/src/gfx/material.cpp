@@ -142,7 +142,7 @@ namespace boza
 
         const auto vert_shader_shared = resource_cache->get_or_create_shader(
             vert_desc,
-            [api](const rhi::ShaderModuleDesc& desc) { return rhi::create_shader_module(api, desc); });
+            [api](const rhi::ShaderModuleDesc& desc) { return create_shader_module(api, desc); });
 
         if (!vert_shader_shared)
         {
@@ -152,7 +152,7 @@ namespace boza
 
         const auto frag_shader_shared = resource_cache->get_or_create_shader(
             frag_desc,
-            [api](const rhi::ShaderModuleDesc& desc) { return rhi::create_shader_module(api, desc); });
+            [api](const rhi::ShaderModuleDesc& desc) { return create_shader_module(api, desc); });
 
         if (!frag_shader_shared)
         {
@@ -281,7 +281,7 @@ namespace boza
         }
     }
 
-    void Material::push_constants_impl(const std::string& name, const void* data, std::size_t size) const
+    void Material::push_constants_impl(const std::string& name, const void* data, const std::size_t size) const
     {
         if (!impl_->reflection)
         {
@@ -367,7 +367,7 @@ namespace boza
             const auto parent_info = impl_->reflection->lookup(name.substr(0, name.find('.')));
             const std::size_t buffer_size = parent_info.has_value() ? parent_info->size : 256;
 
-            auto* buffer = rhi::create_buffer(api, {
+            auto* buffer = create_buffer(api, {
                 .device = device,
                 .size = buffer_size,
                 .usage = BufferUsage::Uniform,
@@ -407,10 +407,7 @@ namespace boza
             std::memcpy(staging.data() + info.offset, data, size);
 
             auto* buffer = impl_->uniform_buffers[binding_key];
-            if (buffer)
-            {
-                buffer->upload(staging.data(), staging.size(), 0);
-            }
+            if (buffer) buffer->upload(staging.data(), staging.size(), 0);
         }
         else
         {
@@ -419,7 +416,7 @@ namespace boza
         }
     }
 
-    void Material::update_texture(const std::string& name, const Texture* texture)
+    void Material::update_texture(const std::string& name, const Texture* texture) const
     {
         if (!impl_->reflection)
         {
@@ -459,7 +456,7 @@ namespace boza
         }
     }
 
-    void Material::update_buffer(const std::string& name, const Buffer* buffer)
+    void Material::update_buffer(const std::string& name, const Buffer* buffer) const
     {
         if (!impl_->reflection)
         {
@@ -552,13 +549,13 @@ namespace boza
     }
 
 
-    PropertyBinder& PropertyBinder::operator=(Texture* texture)
+    PropertyBinder& PropertyBinder::operator=(const Texture* texture)
     {
         material_->update_texture(name_, texture);
         return *this;
     }
 
-    PropertyBinder& PropertyBinder::operator=(Buffer* buffer)
+    PropertyBinder& PropertyBinder::operator=(const Buffer* buffer)
     {
         material_->update_buffer(name_, buffer);
         return *this;

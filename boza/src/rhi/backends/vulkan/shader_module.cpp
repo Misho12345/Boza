@@ -10,9 +10,9 @@ namespace boza::rhi::vk
     bool ShaderModule::init()
     {
         const fs::path shader_dir = AssetPaths::shaders_dir();
-        const fs::path shader_subdir = shader_dir / desc.filename;
+        const fs::path shader_subdir = shader_dir / desc_.filename;
 
-        const fs::path shader_name = fs::path(desc.filename).stem();
+        const fs::path shader_name = fs::path(desc_.filename).stem();
         const fs::path spv_path = shader_subdir / (shader_name.string() + ".spv");
 
         const std::vector<std::uint32_t> spv_data = read_file<std::uint32_t>(spv_path);
@@ -28,7 +28,7 @@ namespace boza::rhi::vk
             .pCode = spv_data.data()
         };
 
-        const auto vk_device = static_cast<Device*>(desc.device)->logical_device();
+        const auto vk_device = static_cast<Device*>(desc_.device)->logical_device();
         if (!vk_check(
             vkCreateShaderModule(vk_device, &create_info, nullptr, &vk_shader_module_),
             "Failed to create shader module"))
@@ -43,7 +43,7 @@ namespace boza::rhi::vk
     {
         // Log::trace("Destroying vulkan shader module");
 
-        const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
+        const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
         if (vk_shader_module_)
         {
             vkDestroyShaderModule(vk_device, vk_shader_module_, nullptr);

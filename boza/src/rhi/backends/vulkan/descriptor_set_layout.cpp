@@ -10,9 +10,9 @@ namespace boza::rhi::vk
         // Log::trace("Creating vulkan descriptor set layout");
 
         std::vector<VkDescriptorSetLayoutBinding> bindings;
-        bindings.reserve(desc.bindings.size());
+        bindings.reserve(desc_.bindings.size());
 
-        for (const auto& [binding, type, stages, count] : desc.bindings)
+        for (const auto& [binding, type, stages, count] : desc_.bindings)
         {
             bindings.emplace_back(
                 binding,
@@ -32,7 +32,7 @@ namespace boza::rhi::vk
             .pBindings = bindings.data()
         };
 
-        const auto vk_device = static_cast<Device*>(desc.device)->logical_device();
+        const auto vk_device = static_cast<Device*>(desc_.device)->logical_device();
         if (!vk_check(
             vkCreateDescriptorSetLayout(vk_device, &create_info, nullptr, &vk_descriptor_set_layout_),
             "Failed to create descriptor set layout"))
@@ -45,7 +45,7 @@ namespace boza::rhi::vk
     {
         // Log::trace("Destroying vulkan descriptor set layout");
 
-        const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
+        const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
         if (vk_descriptor_set_layout_)
         {
             vkDestroyDescriptorSetLayout(vk_device, vk_descriptor_set_layout_, nullptr);

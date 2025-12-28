@@ -9,16 +9,16 @@ namespace boza::rhi::vk
     {
         // Log::trace("Creating vulkan semaphore");
 
-        const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
+        const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
 
-        if (desc.type == SemaphoreType::Timeline)
+        if (desc_.type == SemaphoreType::Timeline)
         {
             VkSemaphoreTypeCreateInfo type_info
             {
                 .sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
                 .pNext = nullptr,
                 .semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
-                .initialValue = desc.value
+                .initialValue = desc_.value
             };
 
             const VkSemaphoreCreateInfo create_info
@@ -55,7 +55,7 @@ namespace boza::rhi::vk
     {
         // Log::trace("Destroying vulkan semaphore");
 
-        const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
+        const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
         if (vk_semaphore_)
         {
             vkDestroySemaphore(vk_device, vk_semaphore_, nullptr);
@@ -66,13 +66,13 @@ namespace boza::rhi::vk
 
     bool Semaphore::signal(const uint64_t value)
     {
-        if (desc.type != SemaphoreType::Timeline)
+        if (desc_.type != SemaphoreType::Timeline)
         {
             Log::critical("Cannot signal a binary semaphore from host");
             return false;
         }
 
-        const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
+        const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
 
         const VkSemaphoreSignalInfo signal_info
         {
@@ -92,13 +92,13 @@ namespace boza::rhi::vk
 
     bool Semaphore::wait(uint64_t value, const uint64_t timeout)
     {
-        if (desc.type != SemaphoreType::Timeline)
+        if (desc_.type != SemaphoreType::Timeline)
         {
             Log::critical("Cannot wait on a binary semaphore from host");
             return false;
         }
 
-        const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
+        const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
 
         const VkSemaphoreWaitInfo wait_info
         {
@@ -120,13 +120,13 @@ namespace boza::rhi::vk
 
     uint64_t Semaphore::counter_value() const
     {
-        if (desc.type != SemaphoreType::Timeline)
+        if (desc_.type != SemaphoreType::Timeline)
         {
             Log::critical("Cannot get counter value from binary semaphore");
             return 0;
         }
 
-        const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
+        const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
         uint64_t   value     = 0;
 
         if (!vk_check(

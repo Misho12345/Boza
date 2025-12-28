@@ -16,12 +16,6 @@ export namespace boza::rhi::vk
         bool init() override;
         void destroy() override;
 
-        template<typename T>
-        void set_push_constant(CommandBuffer* cmd_buffer, const std::string& name, const T& data);
-
-        template<typename T>
-        void set_push_constant(CommandBuffer* cmd_buffer, const T& data);
-
         [[nodiscard]] VkPipelineLayout vk_pipeline_layout() const;
 
     private:

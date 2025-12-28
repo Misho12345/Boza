@@ -48,14 +48,14 @@ namespace boza::rhi::vk
         {
             .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
             .pNext = nullptr,
-            .pApplicationName = desc.app_name.data(),
-            .applicationVersion = vk_make_version(desc.app_version.x, desc.app_version.y, desc.app_version.z),
-            .pEngineName = desc.engine_name.data(),
-            .engineVersion = vk_make_version(desc.engine_version.x, desc.engine_version.y, desc.engine_version.z),
+            .pApplicationName = desc_.app_name.data(),
+            .applicationVersion = vk_make_version(desc_.app_version.x, desc_.app_version.y, desc_.app_version.z),
+            .pEngineName = desc_.engine_name.data(),
+            .engineVersion = vk_make_version(desc_.engine_version.x, desc_.engine_version.y, desc_.engine_version.z),
             .apiVersion = vk_api_version_1_3
         };
 
-        auto extensions = desc.window->get_required_extensions();
+        auto extensions = desc_.window->get_required_extensions();
 
         #ifdef __APPLE__
         extensions.push_back(vk_khr_portability_enumeration_extension_name);

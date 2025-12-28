@@ -10,7 +10,7 @@ namespace boza::rhi::vk
     {
         // Log::trace("Initializing swapchain with {} max frames in flight", desc.max_frames_in_flight);
 
-        frames_.resize(desc.max_frames_in_flight);
+        frames_.resize(desc_.max_frames_in_flight);
 
         if (!query_swapchain_support() ||
             !create_vk_swapchain() ||
@@ -20,7 +20,7 @@ namespace boza::rhi::vk
             !create_sync_objects())
             return false;
 
-        desc.window->set_window_resize_callback();
+        desc_.window->set_window_resize_callback();
 
         return true;
     }
@@ -29,7 +29,7 @@ namespace boza::rhi::vk
     {
         // Log::trace("Destroying swapchain");
 
-        const Device* device = reinterpret_cast<Device*>(desc.device);
+        const Device* device = reinterpret_cast<Device*>(desc_.device);
         const VkDevice vk_device = device->logical_device();
 
         if (!vk_device) return;
@@ -83,8 +83,8 @@ namespace boza::rhi::vk
 
         current_image_index_ = acquire_next_image();
 
-        if (current_image_index_ == INVALID_IMAGE_IDX ||
-            current_image_index_ == SKIP_IMAGE_IDX) return false;
+        if (current_image_index_ == invalid_image_idx ||
+            current_image_index_ == skip_image_idx) return false;
 
         frame_started_ = true;
 
@@ -105,7 +105,7 @@ namespace boza::rhi::vk
             return false;
         }
 
-        if (current_image_index_ == SKIP_IMAGE_IDX)
+        if (current_image_index_ == skip_image_idx)
         {
             frame_started_ = false;
             return true;
@@ -126,27 +126,27 @@ namespace boza::rhi::vk
         // Log::trace("Acquiring next swapchain image");
 
         // If swapchain is null, it's been destroyed - don't try to acquire
-        if (!vk_swapchain_) return INVALID_IMAGE_IDX;
+        if (!vk_swapchain_) return invalid_image_idx;
 
-        const Device* device = reinterpret_cast<Device*>(desc.device);
+        const Device* device = reinterpret_cast<Device*>(desc_.device);
         const VkDevice vk_device = device->logical_device();
 
-        if (desc.window->is_minimized()) return SKIP_IMAGE_IDX;
+        if (desc_.window->is_minimized()) return skip_image_idx;
 
         if (should_recreate_)
         {
             if (!recreate())
             {
                 Log::critical("Failed to recreate swapchain");
-                return INVALID_IMAGE_IDX;
+                return invalid_image_idx;
             }
-            return SKIP_IMAGE_IDX;
+            return skip_image_idx;
         }
 
         const auto& frame = frames_[current_frame_];
 
-        if (!frame.in_flight_fence->wait(std::numeric_limits<uint64_t>::max())) return INVALID_IMAGE_IDX;
-        if (!frame.in_flight_fence->reset()) return INVALID_IMAGE_IDX;
+        if (!frame.in_flight_fence->wait(std::numeric_limits<uint64_t>::max())) return invalid_image_idx;
+        if (!frame.in_flight_fence->reset()) return invalid_image_idx;
 
         uint32_t image_index;
         const VkSemaphore vk_semaphore = static_cast<Semaphore*>(frame.image_available_semaphore.get())->vk_semaphore();
@@ -163,13 +163,13 @@ namespace boza::rhi::vk
         if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
         {
             should_recreate_ = true;
-            return SKIP_IMAGE_IDX;
+            return skip_image_idx;
         }
 
         if (result != VK_SUCCESS)
         {
             Log::critical("Failed to acquire next swapchain image");
-            return INVALID_IMAGE_IDX;
+            return invalid_image_idx;
         }
 
         return image_index;
@@ -179,7 +179,7 @@ namespace boza::rhi::vk
     {
         // Log::trace("Presenting swapchain image {}", image_index);
 
-        const Device* device = reinterpret_cast<Device*>(desc.device);
+        const Device* device = reinterpret_cast<Device*>(desc_.device);
 
         const auto& [cmd_buffer,
             in_flight_fence,
@@ -239,14 +239,14 @@ namespace boza::rhi::vk
         const VkClearValue clear_color
         {
             .color = {
-                desc.clear_color[0],
-                desc.clear_color[1],
-                desc.clear_color[2],
-                desc.clear_color[3]
+                desc_.clear_color[0],
+                desc_.clear_color[1],
+                desc_.clear_color[2],
+                desc_.clear_color[3]
             }
         };
 
-        const VkClearValue clear_depth{ .depthStencil = { desc.clear_depth, desc.clear_stencil } };
+        const VkClearValue clear_depth{ .depthStencil = { desc_.clear_depth, desc_.clear_stencil } };
 
         const VkRenderingAttachmentInfo color_attachment
         {
@@ -366,15 +366,15 @@ namespace boza::rhi::vk
 
     bool Swapchain::recreate()
     {
-        if (desc.window->is_minimized()) return true;
+        if (desc_.window->is_minimized()) return true;
 
         should_recreate_ = false;
         // Log::trace("Recreating swapchain {} x {}", desc.window->width, desc.window->height);
 
-        const VkDevice vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
+        const VkDevice vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
 
-        desc.device->graphics_queue()->wait_idle();
-        desc.device->present_queue()->wait_idle();
+        desc_.device->graphics_queue()->wait_idle();
+        desc_.device->present_queue()->wait_idle();
 
         const auto old_swapchain = vk_swapchain_;
 
@@ -389,7 +389,7 @@ namespace boza::rhi::vk
         destroy_depth_resources();
 
         std::vector<VkCommandBuffer> command_buffers;
-        command_buffers.reserve(desc.max_frames_in_flight);
+        command_buffers.reserve(desc_.max_frames_in_flight);
         for (const auto& [cmd_buffer, in_flight_fence, image_available_semaphore, render_finished_semaphore] : frames_)
         {
             if (cmd_buffer)
@@ -406,8 +406,8 @@ namespace boza::rhi::vk
         {
             vkFreeCommandBuffers(
                 vk_device,
-                reinterpret_cast<CommandPool*>(desc.device->command_pool(
-                    desc.device->queue_family_indices().graphics_family))->vk_command_pool(),
+                reinterpret_cast<CommandPool*>(desc_.device->command_pool(
+                    desc_.device->queue_family_indices().graphics_family))->vk_command_pool(),
                 static_cast<uint32_t>(command_buffers.size()), command_buffers.data());
         }
 
@@ -434,7 +434,7 @@ namespace boza::rhi::vk
     {
         // Log::trace("Creating vulkan swapchain");
 
-        const Device* device = reinterpret_cast<Device*>(desc.device);
+        const Device* device = reinterpret_cast<Device*>(desc_.device);
 
         choose_surface_format();
         const VkPresentModeKHR present_mode = choose_present_mode();
@@ -446,7 +446,7 @@ namespace boza::rhi::vk
             return false;
         }
 
-        uint32_t image_count = desc.preferred_image_count;
+        uint32_t image_count = desc_.preferred_image_count;
 
         if (image_count < surface_capabilities_.minImageCount)
             image_count = surface_capabilities_.minImageCount;
@@ -457,8 +457,8 @@ namespace boza::rhi::vk
 
         const std::array queue_family_indices =
         {
-            desc.device->queue_family_indices().graphics_family,
-            desc.device->queue_family_indices().present_family
+            desc_.device->queue_family_indices().graphics_family,
+            desc_.device->queue_family_indices().present_family
         };
 
         const bool different = queue_family_indices[0] != queue_family_indices[1];
@@ -499,7 +499,7 @@ namespace boza::rhi::vk
     {
         // Log::trace("Querying swapchain support");
 
-        const Device* device          = reinterpret_cast<Device*>(desc.device);
+        const Device* device          = reinterpret_cast<Device*>(desc_.device);
         const auto    physical_device = device->physical_device();
         const auto    surface         = device->surface();
 
@@ -539,7 +539,7 @@ namespace boza::rhi::vk
     {
         // Log::trace("Creating swapchain image views");
 
-        const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
+        const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
 
         uint32_t image_count;
         if (!vk_check(
@@ -592,7 +592,7 @@ namespace boza::rhi::vk
         for (uint32_t i = 0; i < frames_.size(); ++i)
         {
             frames_[i].in_flight_fence.reset(Fence::create<Fence>({
-                .device = desc.device,
+                .device = desc_.device,
                 .signaled = true
             }));
 
@@ -602,14 +602,14 @@ namespace boza::rhi::vk
                 return false;
             }
 
-            frames_[i].image_available_semaphore.reset(Semaphore::create<Semaphore>({ desc.device }));
+            frames_[i].image_available_semaphore.reset(Semaphore::create<Semaphore>({ desc_.device }));
             if (!frames_[i].image_available_semaphore)
             {
                 Log::critical("Failed to create image available semaphore for frame {}", i);
                 return false;
             }
 
-            frames_[i].render_finished_semaphore.reset(Semaphore::create<Semaphore>({ desc.device }));
+            frames_[i].render_finished_semaphore.reset(Semaphore::create<Semaphore>({ desc_.device }));
             if (!frames_[i].render_finished_semaphore)
             {
                 Log::critical("Failed to create render finished semaphore for frame {}", i);
@@ -624,7 +624,7 @@ namespace boza::rhi::vk
     {
         // Log::trace("Creating swapchain command buffers");
 
-        rhi::CommandPool* graphics_command_pool = desc.device->command_pool(desc.device->queue_family_indices().graphics_family);
+        rhi::CommandPool* graphics_command_pool = desc_.device->command_pool(desc_.device->queue_family_indices().graphics_family);
         const auto command_buffers = graphics_command_pool->allocate_command_buffers(static_cast<uint32_t>(frames_.size()));
 
         if (command_buffers.empty() || command_buffers.size() != frames_.size())
@@ -654,7 +654,7 @@ namespace boza::rhi::vk
 
         const VkPresentModeKHR preferred = [this]
         {
-            switch (desc.preferred_present_mode)
+            switch (desc_.preferred_present_mode)
             {
                 case PresentMode::Immediate: return VK_PRESENT_MODE_IMMEDIATE_KHR;
                 case PresentMode::Mailbox: return VK_PRESENT_MODE_MAILBOX_KHR;
@@ -701,10 +701,10 @@ namespace boza::rhi::vk
 
         extent_ =
         {
-            .width = std::clamp(desc.window->width(),
+            .width = std::clamp(desc_.window->width(),
                                 surface_capabilities_.minImageExtent.width,
                                 surface_capabilities_.maxImageExtent.width),
-            .height = std::clamp(desc.window->height(),
+            .height = std::clamp(desc_.window->height(),
                                  surface_capabilities_.minImageExtent.height,
                                  surface_capabilities_.maxImageExtent.height)
         };
@@ -715,18 +715,18 @@ namespace boza::rhi::vk
         // Log::trace("Creating depth resources");
 
         // If depth is not enabled, skip depth resource creation
-        if (!desc.enable_depth)
+        if (!desc_.enable_depth)
         {
             depth_format_ = DepthFormat::None;
             vk_depth_format_ = VK_FORMAT_UNDEFINED;
             return true;
         }
 
-        const Device* device = reinterpret_cast<Device*>(desc.device);
+        const Device* device = reinterpret_cast<Device*>(desc_.device);
         const VkDevice vk_device = device->logical_device();
 
         // Convert DepthFormat to VkFormat
-        auto depth_format_to_vk = [](DepthFormat fmt) -> VkFormat
+        auto depth_format_to_vk = [](const DepthFormat fmt) -> VkFormat
         {
             switch (fmt)
             {
@@ -740,7 +740,7 @@ namespace boza::rhi::vk
             }
         };
 
-        auto vk_format_to_depth = [](VkFormat fmt) -> DepthFormat
+        auto vk_format_to_depth = [](const VkFormat fmt) -> DepthFormat
         {
             switch (fmt)
             {
@@ -755,10 +755,10 @@ namespace boza::rhi::vk
         };
 
         // Choose depth format (auto-select if not specified)
-        if (desc.depth_format == DepthFormat::Auto || desc.depth_format == DepthFormat::None)
+        if (desc_.depth_format == DepthFormat::Auto || desc_.depth_format == DepthFormat::None)
         {
             // Try to find a supported depth format
-            const std::array candidates = { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT };
+            constexpr std::array candidates = { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT };
 
             for (const auto format : candidates)
             {
@@ -781,8 +781,8 @@ namespace boza::rhi::vk
         }
         else
         {
-            vk_depth_format_ = depth_format_to_vk(desc.depth_format);
-            depth_format_ = desc.depth_format;
+            vk_depth_format_ = depth_format_to_vk(desc_.depth_format);
+            depth_format_ = desc_.depth_format;
         }
 
         // Create depth image
@@ -860,7 +860,7 @@ namespace boza::rhi::vk
         if (depth_image_view_ == nullptr && depth_image_ == nullptr)
             return;
 
-        const Device* device = reinterpret_cast<Device*>(desc.device);
+        const Device* device = reinterpret_cast<Device*>(desc_.device);
         const VkDevice vk_device = device->logical_device();
 
         if (depth_image_view_ != nullptr)

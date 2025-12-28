@@ -249,7 +249,7 @@ private:
         Log::info("Compute texture generated");
     }
 
-    void create_materials() const
+    static void create_materials()
     {
         Texture* default_tex = Texture::get_or_load("default.png");
 

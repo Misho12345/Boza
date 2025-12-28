@@ -84,7 +84,7 @@ export namespace boza::rhi
                 case ShaderValueType::UVec2: return 8;
                 case ShaderValueType::Vec3:
                 case ShaderValueType::IVec3:
-                case ShaderValueType::UVec3: return 16;
+                case ShaderValueType::UVec3:
                 case ShaderValueType::Vec4:
                 case ShaderValueType::IVec4:
                 case ShaderValueType::UVec4: return 16;
@@ -155,7 +155,7 @@ export namespace boza::rhi
                 case ShaderValueType::UVec3: return 12;
                 case ShaderValueType::Vec4:
                 case ShaderValueType::IVec4:
-                case ShaderValueType::UVec4: return 16;
+                case ShaderValueType::UVec4:
                 case ShaderValueType::Mat2: return 16;
                 case ShaderValueType::Mat3: return 48;
                 case ShaderValueType::Mat4: return 64;

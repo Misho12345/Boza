@@ -6,17 +6,17 @@ module boza.core;
 
 namespace boza
 {
-    std::shared_ptr<spdlog::logger> log_{ nullptr };
+    std::shared_ptr<spdlog::logger> s_log{ nullptr };
 
     void Log::init()
     {
-        log_ = spdlog::stdout_color_mt("console");
-        log_->set_pattern("%^[%Y-%m-%d %H:%M:%S.%e] [%l] %v%$");
+        s_log = spdlog::stdout_color_mt("console");
+        s_log->set_pattern("%^[%Y-%m-%d %H:%M:%S.%e] [%l] %v%$");
 
         #ifdef BOZA_DEBUG
-        log_->set_level(spdlog::level::trace);
+        s_log->set_level(spdlog::level::trace);
         #endif
     }
 
-    std::shared_ptr<spdlog::logger> Log::log() { return log_; }
+    std::shared_ptr<spdlog::logger> Log::log() { return s_log; }
 }

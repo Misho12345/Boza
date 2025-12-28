@@ -12,7 +12,7 @@ namespace boza::rhi::vk
     {
         // Log::trace("Updating descriptor set with {} write(s)", writes.size());
 
-        const auto vk_device = static_cast<Device*>(desc.device)->logical_device();
+        const auto vk_device = static_cast<Device*>(desc_.device)->logical_device();
 
         std::vector<VkWriteDescriptorSet> vk_writes;
         vk_writes.reserve(writes.size());
@@ -37,10 +37,10 @@ namespace boza::rhi::vk
             };
 
             std::visit(
-                [&](auto&& arg)
+                [&]<typename T>(T&& arg)
                 {
-                    using T = std::decay_t<decltype(arg)>;
-                    if constexpr (std::is_same_v<T, UniformBuffer>)
+                    using decayed_t = std::decay_t<T>;
+                    if constexpr (std::is_same_v<decayed_t, UniformBuffer>)
                     {
                         buffer_infos.emplace_back(
                             static_cast<Buffer*>(arg.buffer)->vk_buffer(),
@@ -49,7 +49,7 @@ namespace boza::rhi::vk
                         );
                         vk_write.pBufferInfo = &buffer_infos.back();
                     }
-                    else if constexpr (std::is_same_v<T, StorageBuffer>)
+                    else if constexpr (std::is_same_v<decayed_t, StorageBuffer>)
                     {
                         buffer_infos.emplace_back(
                             static_cast<Buffer*>(arg.buffer)->vk_buffer(),
@@ -58,7 +58,7 @@ namespace boza::rhi::vk
                         );
                         vk_write.pBufferInfo = &buffer_infos.back();
                     }
-                    else if constexpr (std::is_same_v<T, CombinedImageSampler>)
+                    else if constexpr (std::is_same_v<decayed_t, CombinedImageSampler>)
                     {
                         image_infos.emplace_back(
                             static_cast<Sampler*>(arg.sampler)->vk_sampler(),
@@ -67,7 +67,7 @@ namespace boza::rhi::vk
                         );
                         vk_write.pImageInfo = &image_infos.back();
                     }
-                    else if constexpr (std::is_same_v<T, StorageImage>)
+                    else if constexpr (std::is_same_v<decayed_t, StorageImage>)
                     {
                         image_infos.emplace_back(
                             nullptr,

@@ -41,9 +41,9 @@ namespace boza::rhi::vk
             .vkGetDeviceImageMemoryRequirements = vkGetDeviceImageMemoryRequirements
         };
 
-        const auto vk_instance     = desc.instance->vk_instance();
-        const auto physical_device = desc.device->physical_device();
-        const auto logical_device  = desc.device->logical_device();
+        const auto vk_instance     = desc_.instance->vk_instance();
+        const auto physical_device = desc_.device->physical_device();
+        const auto logical_device  = desc_.device->logical_device();
 
         const VmaAllocatorCreateInfo allocator_info
         {

@@ -94,9 +94,9 @@ export namespace boza::gfx
     private:
         MaterialLoader() = default;
 
-        std::optional<MaterialDefinition> load_material_definition(const std::filesystem::path& path);
-        Material* create_material_from_definition(const MaterialDefinition& def);
-        void setup_material_from_definition(Material* material, const MaterialDefinition& def);
+        static std::optional<MaterialDefinition> load_material_definition(const std::filesystem::path& path);
+        static Material*                         create_material_from_definition(const MaterialDefinition& def);
+        void                                     setup_material_from_definition(Material* material, const MaterialDefinition& def);
 
         rhi::Device*         device_{ nullptr };
         rhi::Swapchain*      swapchain_{ nullptr };

@@ -43,9 +43,9 @@ export namespace boza::platform
             return static_cast<float>(width_) / static_cast<float>(height_);
         }
 
-        bool should_close() const;
-        void poll_events() const;
-        void set_window_resize_callback();
+        bool        should_close() const;
+        static void poll_events();
+        void        set_window_resize_callback();
 
         void show() const;
         void hide() const;
@@ -59,7 +59,7 @@ export namespace boza::platform
         [[nodiscard]] void* native_handle() const { return window_; }
 
         [[nodiscard]]
-        std::vector<const char*> get_required_extensions() const;
+        static std::vector<const char*> get_required_extensions();
 
         #ifdef BOZA_VULKAN_ENABLED
         [[nodiscard]]

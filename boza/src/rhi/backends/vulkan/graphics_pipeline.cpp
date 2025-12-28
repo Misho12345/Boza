@@ -9,13 +9,13 @@ namespace boza::rhi::vk
     {
         // Log::trace("Creating vulkan graphics pipeline");
 
-        const auto* device = reinterpret_cast<Device*>(desc.device);
-        const auto* layout = reinterpret_cast<PipelineLayout*>(desc.layout);
+        const auto* device = reinterpret_cast<Device*>(desc_.device);
+        const auto* layout = reinterpret_cast<PipelineLayout*>(desc_.layout);
 
         std::vector<VkPipelineShaderStageCreateInfo> shader_stages;
-        shader_stages.reserve(desc.shaders.size());
+        shader_stages.reserve(desc_.shaders.size());
 
-        for (const auto* shader : desc.shaders)
+        for (const auto* shader : desc_.shaders)
         {
             const auto*                     vk_shader = reinterpret_cast<const ShaderModule*>(shader);
             VkPipelineShaderStageCreateInfo stage_info
@@ -32,9 +32,9 @@ namespace boza::rhi::vk
         }
 
         std::vector<VkVertexInputBindingDescription> binding_descriptions;
-        binding_descriptions.reserve(desc.bindings.size());
+        binding_descriptions.reserve(desc_.bindings.size());
 
-        for (const auto& [binding, stride, per_instance] : desc.bindings)
+        for (const auto& [binding, stride, per_instance] : desc_.bindings)
         {
             VkVertexInputBindingDescription binding_desc
             {
@@ -46,11 +46,11 @@ namespace boza::rhi::vk
         }
 
         std::vector<VkVertexInputAttributeDescription> attribute_descriptions;
-        attribute_descriptions.reserve(desc.attributes.size());
+        attribute_descriptions.reserve(desc_.attributes.size());
 
         // Build a map from location to shader input for quick lookup
         flat_map<uint32_t, const rhi::ShaderModule::ShaderResource*> location_to_input;
-        for (const auto* shader : desc.shaders)
+        for (const auto* shader : desc_.shaders)
         {
             if (shader->stage() == ShaderStage::Vertex)
             {
@@ -59,7 +59,7 @@ namespace boza::rhi::vk
             }
         }
 
-        for (const auto& [location, binding, offset] : desc.attributes)
+        for (const auto& [location, binding, offset] : desc_.attributes)
         {
             VkFormat format = VK_FORMAT_R32G32B32_SFLOAT;
 
@@ -93,7 +93,7 @@ namespace boza::rhi::vk
             .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .topology = to_vk(desc.topology),
+            .topology = to_vk(desc_.topology),
             .primitiveRestartEnable = false
         };
 
@@ -113,16 +113,16 @@ namespace boza::rhi::vk
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .depthClampEnable = desc.rasterization.depth_clamp_enable,
+            .depthClampEnable = desc_.rasterization.depth_clamp_enable,
             .rasterizerDiscardEnable = false,
-            .polygonMode = to_vk(desc.rasterization.polygon_mode),
-            .cullMode = to_vk(desc.rasterization.cull_mode),
-            .frontFace = to_vk(desc.rasterization.front_face),
-            .depthBiasEnable = desc.rasterization.depth_bias_enable,
-            .depthBiasConstantFactor = desc.rasterization.depth_bias_constant,
-            .depthBiasClamp = desc.rasterization.depth_bias_clamp,
-            .depthBiasSlopeFactor = desc.rasterization.depth_bias_slope,
-            .lineWidth = desc.rasterization.line_width
+            .polygonMode = to_vk(desc_.rasterization.polygon_mode),
+            .cullMode = to_vk(desc_.rasterization.cull_mode),
+            .frontFace = to_vk(desc_.rasterization.front_face),
+            .depthBiasEnable = desc_.rasterization.depth_bias_enable,
+            .depthBiasConstantFactor = desc_.rasterization.depth_bias_constant,
+            .depthBiasClamp = desc_.rasterization.depth_bias_clamp,
+            .depthBiasSlopeFactor = desc_.rasterization.depth_bias_slope,
+            .lineWidth = desc_.rasterization.line_width
         };
 
         const VkPipelineMultisampleStateCreateInfo multisampling
@@ -130,12 +130,12 @@ namespace boza::rhi::vk
             .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .rasterizationSamples = static_cast<VkSampleCountFlagBits>(desc.multisample.sample_count),
-            .sampleShadingEnable = desc.multisample.sample_shading_enable,
-            .minSampleShading = desc.multisample.min_sample_shading,
+            .rasterizationSamples = static_cast<VkSampleCountFlagBits>(desc_.multisample.sample_count),
+            .sampleShadingEnable = desc_.multisample.sample_shading_enable,
+            .minSampleShading = desc_.multisample.min_sample_shading,
             .pSampleMask = nullptr,
-            .alphaToCoverageEnable = desc.multisample.alpha_to_coverage_enable,
-            .alphaToOneEnable = desc.multisample.alpha_to_one_enable
+            .alphaToCoverageEnable = desc_.multisample.alpha_to_coverage_enable,
+            .alphaToOneEnable = desc_.multisample.alpha_to_one_enable
         };
 
         const VkPipelineDepthStencilStateCreateInfo depth_stencil
@@ -143,23 +143,23 @@ namespace boza::rhi::vk
             .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .depthTestEnable = desc.depth_stencil.depth_test_enable,
-            .depthWriteEnable = desc.depth_stencil.depth_write_enable,
-            .depthCompareOp = to_vk(desc.depth_stencil.depth_compare_op),
-            .depthBoundsTestEnable = desc.depth_stencil.depth_bounds_test_enable,
-            .stencilTestEnable = desc.depth_stencil.stencil_test_enable,
+            .depthTestEnable = desc_.depth_stencil.depth_test_enable,
+            .depthWriteEnable = desc_.depth_stencil.depth_write_enable,
+            .depthCompareOp = to_vk(desc_.depth_stencil.depth_compare_op),
+            .depthBoundsTestEnable = desc_.depth_stencil.depth_bounds_test_enable,
+            .stencilTestEnable = desc_.depth_stencil.stencil_test_enable,
             .front = {},
             .back = {},
-            .minDepthBounds = desc.depth_stencil.min_depth_bounds,
-            .maxDepthBounds = desc.depth_stencil.max_depth_bounds
+            .minDepthBounds = desc_.depth_stencil.min_depth_bounds,
+            .maxDepthBounds = desc_.depth_stencil.max_depth_bounds
         };
 
         std::vector<VkPipelineColorBlendAttachmentState> color_blend_attachments;
-        color_blend_attachments.reserve(desc.color_blend.attachments.size());
+        color_blend_attachments.reserve(desc_.color_blend.attachments.size());
 
         for (const auto& [blend_enable,
                  src_color_blend_factor, dst_color_blend_factor, color_blend_op,
-                 src_alpha_blend_factor, dst_alpha_blend_factor, alpha_blend_op] : desc.color_blend.attachments)
+                 src_alpha_blend_factor, dst_alpha_blend_factor, alpha_blend_op] : desc_.color_blend.attachments)
         {
             VkPipelineColorBlendAttachmentState blend_attachment
             {
@@ -181,15 +181,15 @@ namespace boza::rhi::vk
             .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .logicOpEnable = desc.color_blend.logic_op_enable,
+            .logicOpEnable = desc_.color_blend.logic_op_enable,
             .logicOp = VK_LOGIC_OP_COPY,
             .attachmentCount = static_cast<uint32_t>(color_blend_attachments.size()),
             .pAttachments = color_blend_attachments.empty() ? nullptr : color_blend_attachments.data(),
             .blendConstants = {
-                desc.color_blend.blend_constants[0],
-                desc.color_blend.blend_constants[1],
-                desc.color_blend.blend_constants[2],
-                desc.color_blend.blend_constants[3]
+                desc_.color_blend.blend_constants[0],
+                desc_.color_blend.blend_constants[1],
+                desc_.color_blend.blend_constants[2],
+                desc_.color_blend.blend_constants[3]
             }
         };
 
@@ -209,13 +209,13 @@ namespace boza::rhi::vk
         };
 
         std::vector<VkFormat> color_formats;
-        color_formats.reserve(desc.color_attachment_formats.size());
-        for (const auto format : desc.color_attachment_formats)
+        color_formats.reserve(desc_.color_attachment_formats.size());
+        for (const auto format : desc_.color_attachment_formats)
         {
             color_formats.push_back(static_cast<VkFormat>(format));
         }
 
-        auto depth_format_to_vk = [](DepthFormat fmt) -> VkFormat
+        auto depth_format_to_vk = [](const DepthFormat fmt) -> VkFormat
         {
             switch (fmt)
             {
@@ -236,8 +236,8 @@ namespace boza::rhi::vk
             .viewMask = 0,
             .colorAttachmentCount = static_cast<uint32_t>(color_formats.size()),
             .pColorAttachmentFormats = color_formats.empty() ? nullptr : color_formats.data(),
-            .depthAttachmentFormat = depth_format_to_vk(desc.depth_attachment_format),
-            .stencilAttachmentFormat = static_cast<VkFormat>(desc.stencil_attachment_format)
+            .depthAttachmentFormat = depth_format_to_vk(desc_.depth_attachment_format),
+            .stencilAttachmentFormat = static_cast<VkFormat>(desc_.stencil_attachment_format)
         };
 
         const VkGraphicsPipelineCreateInfo pipeline_info
@@ -276,7 +276,7 @@ namespace boza::rhi::vk
     {
         // Log::trace("Destroying vulkan graphics pipeline");
 
-        const auto* device = reinterpret_cast<Device*>(desc.device);
+        const auto* device = reinterpret_cast<Device*>(desc_.device);
         if (vk_pipeline_)
         {
             vkDestroyPipeline(device->logical_device(), vk_pipeline_, nullptr);

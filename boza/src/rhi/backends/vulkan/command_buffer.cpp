@@ -69,7 +69,7 @@ namespace boza::rhi::vk
     bool CommandBuffer::init() { return true; }
     void CommandBuffer::destroy() { vk_command_buffer_ = nullptr; }
 
-    bool CommandBuffer::begin() { return begin(desc.usage); }
+    bool CommandBuffer::begin() { return begin(desc_.usage); }
 
     bool CommandBuffer::begin(const Flags<CommandBufferUsage> usage_flags)
     {

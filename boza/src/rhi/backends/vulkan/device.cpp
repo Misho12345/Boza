@@ -10,10 +10,10 @@ namespace boza::rhi::vk
     {
         // Log::trace("Creating vulkan device");
 
-        const auto& vk_instance = reinterpret_cast<Instance*>(desc.instance)->vk_instance();
+        const auto& vk_instance = reinterpret_cast<Instance*>(desc_.instance)->vk_instance();
 
         if (!vk_check(
-            desc.window->create_vulkan_surface(vk_instance, surface_),
+            desc_.window->create_vulkan_surface(vk_instance, surface_),
             "Failed to create vulkan surface"))
             return false;
 
@@ -29,7 +29,7 @@ namespace boza::rhi::vk
 
         const AllocatorDesc allocator_desc
         {
-            .instance = reinterpret_cast<Instance*>(desc.instance),
+            .instance = reinterpret_cast<Instance*>(desc_.instance),
             .device = this
         };
 
@@ -53,7 +53,7 @@ namespace boza::rhi::vk
             allocator_ = nullptr;
         }
 
-        const auto& vk_instance = reinterpret_cast<Instance*>(desc.instance)->vk_instance();
+        const auto& vk_instance = reinterpret_cast<Instance*>(desc_.instance)->vk_instance();
 
         for (const auto& command_pool : command_pools_ | std::views::values)
         {
@@ -95,7 +95,7 @@ namespace boza::rhi::vk
     {
         // Log::trace("Choosing physical device");
 
-        const auto& vk_instance = reinterpret_cast<Instance*>(desc.instance)->vk_instance();
+        const auto& vk_instance = reinterpret_cast<Instance*>(desc_.instance)->vk_instance();
 
         uint32_t device_count = 0;
         if (!vk_check(

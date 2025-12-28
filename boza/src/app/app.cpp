@@ -87,7 +87,7 @@ namespace boza
         impl_->game_loop->set_should_close([this] { return impl_->window->should_close(); });
         impl_->game_loop->set_apply_cursor_state([this] { impl_->window->apply_cursor_state_if_needed(); });
 
-        Input::init(impl_->window->native_handle());
+        Input::init(impl_->window.get());
 
         impl_->initialized = true;
         return true;
@@ -139,7 +139,7 @@ namespace boza
         impl_->window->set_cursor_state(state);
     }
 
-    void App::set_active_scene(const std::shared_ptr<Scene>& scene)
+    void App::set_active_scene(const std::shared_ptr<Scene>& scene) const
     {
         impl_->active_scene = scene;
         if (impl_->game_loop) impl_->game_loop->set_active_scene(scene);
@@ -153,17 +153,17 @@ namespace boza
         return scene;
     }
 
-    void App::set_target_fps(const float fps)
+    void App::set_target_fps(const float fps) const
     {
         if (impl_->game_loop) impl_->game_loop->set_target_fps(fps);
     }
 
-    void App::set_fixed_update_rate(const float rate)
+    void App::set_fixed_update_rate(const float rate) const
     {
         if (impl_->game_loop) impl_->game_loop->set_fixed_update_rate(rate);
     }
 
-    void App::register_custom_material(const std::string& name, Material* material) const
+    void App::register_custom_material(const std::string& name, Material* material)
     {
         gfx::MaterialLoader::instance().register_material(name, material);
     }

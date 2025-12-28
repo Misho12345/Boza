@@ -9,9 +9,9 @@ namespace boza::rhi::vk
     {
         // Log::trace("Creating vulkan pipeline layout");
 
-        const auto* device = reinterpret_cast<Device*>(desc.device);
+        const auto* device = reinterpret_cast<Device*>(desc_.device);
 
-        for (const auto* shader : desc.shaders)
+        for (const auto* shader : desc_.shaders)
         {
             const auto& meta_data = shader->meta_data();
             for (const auto& [name, pc] : meta_data.push_constants)
@@ -33,8 +33,8 @@ namespace boza::rhi::vk
         }
 
         std::vector<VkDescriptorSetLayout> vk_set_layouts;
-        vk_set_layouts.reserve(desc.set_layouts.size());
-        for (const auto* layout : desc.set_layouts)
+        vk_set_layouts.reserve(desc_.set_layouts.size());
+        for (const auto* layout : desc_.set_layouts)
         {
             vk_set_layouts.push_back(reinterpret_cast<const DescriptorSetLayout*>(layout)->vk_descriptor_set_layout());
         }
@@ -62,7 +62,7 @@ namespace boza::rhi::vk
     {
         // Log::trace("Destroying vulkan pipeline layout");
 
-        const auto* device = reinterpret_cast<Device*>(desc.device);
+        const auto* device = reinterpret_cast<Device*>(desc_.device);
         if (vk_pipeline_layout_)
         {
             vkDestroyPipelineLayout(device->logical_device(), vk_pipeline_layout_, nullptr);

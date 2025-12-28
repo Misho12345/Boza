@@ -10,8 +10,8 @@ namespace boza::rhi::vk
     {
         // Log::trace("Initializing command queue ({})", desc.family_index);
 
-        const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
-        vkGetDeviceQueue(vk_device, desc.family_index, 0, &vk_queue_);
+        const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
+        vkGetDeviceQueue(vk_device, desc_.family_index, 0, &vk_queue_);
         return vk_queue_;
     }
 

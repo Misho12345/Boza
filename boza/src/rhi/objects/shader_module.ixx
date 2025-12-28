@@ -102,8 +102,8 @@ export namespace boza::rhi
         };
 
         [[nodiscard]] const MetaData& meta_data() const { return meta_data_; }
-        [[nodiscard]] ShaderStage     stage() const { return desc.stage; }
-        [[nodiscard]] std::string     filename() const { return desc.filename; }
+        [[nodiscard]] ShaderStage     stage() const { return desc_.stage; }
+        [[nodiscard]] std::string     filename() const { return desc_.filename; }
 
     protected:
         explicit ShaderModule(const ShaderModuleDesc& desc) : GraphicsObject(desc) {}
@@ -111,7 +111,7 @@ export namespace boza::rhi
         template<typename SegmentType>
         static std::vector<SegmentType> read_file(const fs::path& path)
         {
-            if (!fs::exists(path))
+            if (!exists(path))
             {
                 Log::critical("Shader file {} does not exist", path.string());
                 return {};

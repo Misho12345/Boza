@@ -30,9 +30,8 @@ export namespace boza
         void toggle_fullscreen() const;
         void set_cursor_state(CursorState state) const;
 
-        std::shared_ptr<Scene> create_scene(const std::string& name = "New Scene");
-
-        void register_custom_material(const std::string& name, Material* material) const;
+        static std::shared_ptr<Scene> create_scene(const std::string& name = "New Scene");
+        static void register_custom_material(const std::string& name, Material* material);
 
         PropertyGetSet<App, std::shared_ptr<Scene>> active_scene
         {
@@ -59,11 +58,11 @@ export namespace boza
         virtual void on_shutdown() {}
 
     private:
-        void                   set_active_scene(const std::shared_ptr<Scene>& scene);
+        void                   set_active_scene(const std::shared_ptr<Scene>& scene) const;
         std::shared_ptr<Scene> get_active_scene() const;
 
-        void set_target_fps(float fps);
-        void set_fixed_update_rate(float rate);
+        void set_target_fps(float fps) const;
+        void set_fixed_update_rate(float rate) const;
 
         void shutdown();
 

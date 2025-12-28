@@ -68,7 +68,7 @@ export namespace boza::detail
 
         static ImageData read(const fs::path& path, const int desired_channels = 0)
         {
-            if (!fs::exists(path)) return {};
+            if (!exists(path)) return {};
 
             int w, h, c;
 
@@ -88,8 +88,8 @@ export namespace boza::detail
 
         static bool write(const fs::path& path, const ImageData& image_data)
         {
-            if (!fs::exists(path.parent_path()))
-                fs::create_directories(path.parent_path());
+            if (!exists(path.parent_path()))
+                create_directories(path.parent_path());
 
             if (!image_data.data ||
                 image_data.width <= 0 ||

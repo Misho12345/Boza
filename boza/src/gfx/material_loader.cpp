@@ -27,7 +27,7 @@ namespace boza::gfx
         texture_loader_  = texture_loader;
         api_             = api;
 
-        camera_ubo_.reset(rhi::create_buffer(
+        camera_ubo_.reset(create_buffer(
             api_, {
                 .device = device_,
                 .size = sizeof(CameraUBO),
@@ -35,7 +35,7 @@ namespace boza::gfx
                 .memory_type = rhi::BufferMemoryType::HostVisible
             }));
 
-        light_ubo_.reset(rhi::create_buffer(
+        light_ubo_.reset(create_buffer(
             api_, {
                 .device = device_,
                 .size = sizeof(LightUBO),
@@ -50,7 +50,7 @@ namespace boza::gfx
         };
         light_ubo_->upload(&light_data, sizeof(LightUBO), 0);
 
-        time_ubo_.reset(rhi::create_buffer(
+        time_ubo_.reset(create_buffer(
             api_, {
                 .device = device_,
                 .size = sizeof(TimeUBO),
@@ -58,7 +58,7 @@ namespace boza::gfx
                 .memory_type = rhi::BufferMemoryType::HostVisible
             }));
 
-        default_sampler_.reset(rhi::create_sampler(
+        default_sampler_.reset(create_sampler(
             api_, {
                 .device = device_,
                 .filter = SamplerFilter::Linear,
@@ -246,7 +246,7 @@ namespace boza::gfx
 
         std::vector<rhi::DescriptorWrite> writes;
 
-        auto try_bind_ubo = [&](const std::string& ubo_name, rhi::Buffer* buffer, std::size_t size)
+        auto try_bind_ubo = [&](const std::string& ubo_name, rhi::Buffer* buffer, const std::size_t size)
         {
             const auto info = material->lookup_binding(ubo_name);
             if (info.has_value() && info->descriptor_type == static_cast<std::uint32_t>(
@@ -363,7 +363,7 @@ namespace boza::gfx
         Log::trace("Registered custom material: {}", name);
     }
 
-    void MaterialLoader::update_time_ubo(float time, float delta_time) const
+    void MaterialLoader::update_time_ubo(const float time, const float delta_time) const
     {
         if (!time_ubo_) return;
 

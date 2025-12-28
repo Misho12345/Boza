@@ -37,7 +37,7 @@ export namespace boza
 
         void look_at(const glm::vec3& target, const glm::vec3& world_up = glm::vec3(0.0f, 1.0f, 0.0f))
         {
-            const glm::vec3 direction = glm::normalize(target - position);
+            const glm::vec3 direction = normalize(target - position);
             rotation = glm::quatLookAtLH(direction, world_up);
         }
 

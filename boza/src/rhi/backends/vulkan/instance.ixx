@@ -23,7 +23,7 @@ export namespace boza::rhi::vk
         bool create_instance();
 
         [[nodiscard]]
-        bool check_extensions_and_layers_support(
+        static bool check_extensions_and_layers_support(
             const std::span<const char*>& extensions,
             const std::span<const char*>& layers);
 

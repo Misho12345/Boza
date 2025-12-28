@@ -71,7 +71,7 @@ namespace boza::rhi::vk
 
     bool Texture::init()
     {
-        if (desc.width == 0 || desc.height == 0)
+        if (desc_.width == 0 || desc_.height == 0)
         {
             Log::warn("Texture created with zero dimensions, deferring initialization");
             return true;
@@ -81,13 +81,13 @@ namespace boza::rhi::vk
         {
             .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
             .imageType = VK_IMAGE_TYPE_2D,
-            .format = to_vk(desc.format),
-            .extent = { desc.width, desc.height, desc.depth },
-            .mipLevels = desc.mip_levels,
-            .arrayLayers = desc.array_layers,
-            .samples = static_cast<VkSampleCountFlagBits>(desc.sample_count),
+            .format = to_vk(desc_.format),
+            .extent = { desc_.width, desc_.height, desc_.depth },
+            .mipLevels = desc_.mip_levels,
+            .arrayLayers = desc_.array_layers,
+            .samples = static_cast<VkSampleCountFlagBits>(desc_.sample_count),
             .tiling = VK_IMAGE_TILING_OPTIMAL,
-            .usage = to_vk(desc.usage) | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+            .usage = to_vk(desc_.usage) | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
             .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
         };
@@ -97,7 +97,7 @@ namespace boza::rhi::vk
             .usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
         };
 
-        const auto allocator = reinterpret_cast<Device*>(desc.device)->allocator()->vma_allocator();
+        const auto allocator = reinterpret_cast<Device*>(desc_.device)->allocator()->vma_allocator();
 
         if (!vk_check(
             vmaCreateImage(
@@ -111,23 +111,23 @@ namespace boza::rhi::vk
             .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
             .image = image_,
             .viewType = VK_IMAGE_VIEW_TYPE_2D,
-            .format = to_vk(desc.format),
+            .format = to_vk(desc_.format),
             .subresourceRange = {
-                .aspectMask = get_image_aspect_flags(desc.usage),
+                .aspectMask = get_image_aspect_flags(desc_.usage),
                 .baseMipLevel = 0,
-                .levelCount = desc.mip_levels,
+                .levelCount = desc_.mip_levels,
                 .baseArrayLayer = 0,
-                .layerCount = desc.array_layers,
+                .layerCount = desc_.array_layers,
             },
         };
 
-        const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
+        const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
         if (!vk_check(
             vkCreateImageView(vk_device, &image_view_create_info, nullptr, &image_view_),
             "Failed to create image view"))
             return false;
 
-        if (desc.usage.has(TextureUsage::Storage))
+        if (desc_.usage.has(TextureUsage::Storage))
         {
             transition_layout_internal(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
         }
@@ -141,14 +141,14 @@ namespace boza::rhi::vk
 
         if (image_view_)
         {
-            const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
+            const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
             vkDestroyImageView(vk_device, image_view_, nullptr);
             image_view_ = nullptr;
         }
 
         if (image_)
         {
-            const auto allocator = reinterpret_cast<Device*>(desc.device)->allocator()->vma_allocator();
+            const auto allocator = reinterpret_cast<Device*>(desc_.device)->allocator()->vma_allocator();
             vmaDestroyImage(allocator, image_, allocation_);
             image_ = nullptr;
             allocation_ = nullptr;
@@ -175,7 +175,7 @@ namespace boza::rhi::vk
     {
         // Log::trace("Transitioning texture layout: {} -> {}", static_cast<uint32_t>(old_layout), static_cast<uint32_t>(new_layout));
 
-        const auto* device   = reinterpret_cast<Device*>(desc.device);
+        const auto* device   = reinterpret_cast<Device*>(desc_.device);
         auto*       cmd_pool = device->command_pool(device->queue_family_indices().graphics_family);
 
         auto* cmd_buffer = cmd_pool->begin_single_time_commands();
@@ -437,10 +437,10 @@ namespace boza::rhi::vk
     {
         // Log::trace("Uploading {} bytes to texture", size);
 
-        const auto* device = reinterpret_cast<Device*>(desc.device);
+        const auto* device = reinterpret_cast<Device*>(desc_.device);
 
         Buffer staging_buffer{ BufferDesc{
-            .device = desc.device,
+            .device = desc_.device,
             .size = size,
             .usage = BufferUsage::Staging,
             .memory_type = BufferMemoryType::HostVisible
@@ -455,7 +455,7 @@ namespace boza::rhi::vk
         staging_buffer.upload(data, size, 0);
 
         VkImageLayout current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-        if (desc.usage.has(TextureUsage::Storage)) current_layout = VK_IMAGE_LAYOUT_GENERAL;
+        if (desc_.usage.has(TextureUsage::Storage)) current_layout = VK_IMAGE_LAYOUT_GENERAL;
 
         transition_layout_internal(current_layout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
@@ -473,7 +473,7 @@ namespace boza::rhi::vk
                 .layerCount = 1
             },
             .imageOffset = { 0, 0, 0 },
-            .imageExtent = { desc.width, desc.height, 1 }
+            .imageExtent = { desc_.width, desc_.height, 1 }
         };
 
         vkCmdCopyBufferToImage(
@@ -496,10 +496,10 @@ namespace boza::rhi::vk
     {
         // Log::trace("Downloading {} bytes from texture", size);
 
-        const auto* device = reinterpret_cast<Device*>(desc.device);
+        const auto* device = reinterpret_cast<Device*>(desc_.device);
 
         Buffer staging_buffer{ BufferDesc{
-            .device = desc.device,
+            .device = desc_.device,
             .size = size,
             .usage = BufferUsage::Staging,
             .memory_type = BufferMemoryType::HostVisible
@@ -527,7 +527,7 @@ namespace boza::rhi::vk
                 .layerCount = 1
             },
             .imageOffset = { 0, 0, 0 },
-            .imageExtent = { desc.width, desc.height, 1 }
+            .imageExtent = { desc_.width, desc_.height, 1 }
         };
 
         vkCmdCopyImageToBuffer(

@@ -9,9 +9,9 @@ namespace boza::rhi::vk
     {
         // Log::trace("Creating vulkan compute pipeline");
 
-        const auto* device = reinterpret_cast<Device*>(desc.device);
-        const auto* layout = reinterpret_cast<PipelineLayout*>(desc.layout);
-        const auto* shader = reinterpret_cast<const ShaderModule*>(desc.shader);
+        const auto* device = reinterpret_cast<Device*>(desc_.device);
+        const auto* layout = reinterpret_cast<PipelineLayout*>(desc_.layout);
+        const auto* shader = reinterpret_cast<const ShaderModule*>(desc_.shader);
 
         const VkPipelineShaderStageCreateInfo shader_stage
         {
@@ -47,7 +47,7 @@ namespace boza::rhi::vk
     {
         // Log::trace("Destroying vulkan compute pipeline");
 
-        const auto* device = reinterpret_cast<Device*>(desc.device);
+        const auto* device = reinterpret_cast<Device*>(desc_.device);
         if (vk_pipeline_)
         {
             vkDestroyPipeline(device->logical_device(), vk_pipeline_, nullptr);

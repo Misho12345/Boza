@@ -27,7 +27,7 @@ export namespace boza::detail
         {
             std::vector<fs::path> files;
 
-            if (!fs::exists(materials_dir())) return files;
+            if (!exists(materials_dir())) return files;
 
             for (const auto& entry : fs::directory_iterator(materials_dir()))
             {

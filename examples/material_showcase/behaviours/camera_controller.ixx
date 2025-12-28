@@ -8,7 +8,7 @@ using namespace boza;
 export class CameraController final : public Behaviour
 {
 public:
-    std::mutex mutex_rot;
+    std::mutex mutex_rot{};
 
     float move_speed{ 1.0f };
     float sensitivity{ 0.001f };
@@ -47,12 +47,12 @@ public:
 
             if (input.x != 0.0f || input.z != 0.0f)
             {
-                const glm::vec3 forward_xz = glm::normalize(glm::vec3{
+                const glm::vec3 forward_xz = normalize(glm::vec3{
                     transform->forward().x,
                     0.0f,
                     transform->forward().z
                 });
-                const glm::vec3 right_xz = glm::normalize(glm::vec3{
+                const glm::vec3 right_xz = normalize(glm::vec3{
                     transform->right().x,
                     0.0f,
                     transform->right().z
@@ -63,7 +63,7 @@ public:
                 world_dir.z = horizontal.z;
             }
 
-            world_dir        = glm::normalize(world_dir);
+            world_dir        = normalize(world_dir);
             desired_velocity = world_dir * move_speed;
         }
 
@@ -74,7 +74,9 @@ public:
 
         transform->position += current_velocity_ * dt;
 
-        glm::vec2 frame_delta{}; {
+        glm::vec2 frame_delta{};
+
+        {
             std::lock_guard lock{ mutex_rot };
             frame_delta = delta_rot;
             delta_rot   = { 0.0f, 0.0f };
@@ -90,7 +92,7 @@ public:
         const glm::quat q_yaw   = glm::angleAxis(yaw_, glm::vec3{ 0.0f, 1.0f, 0.0f });
         const glm::quat q_pitch = glm::angleAxis(pitch_, glm::vec3{ 1.0f, 0.0f, 0.0f });
 
-        transform->rotation = glm::normalize(q_yaw * q_pitch);
+        transform->rotation = normalize(q_yaw * q_pitch);
     }
 
 private:

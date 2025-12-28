@@ -9,13 +9,13 @@ namespace boza::rhi::vk
     {
         // Log::trace("Creating vulkan fence");
 
-        const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
+        const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
 
         const VkFenceCreateInfo create_info
         {
             .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
             .pNext = nullptr,
-            .flags = (desc.signaled ? VK_FENCE_CREATE_SIGNALED_BIT : VkFenceCreateFlags{})
+            .flags = (desc_.signaled ? VK_FENCE_CREATE_SIGNALED_BIT : VkFenceCreateFlags{})
         };
 
         if (!vk_check(
@@ -29,7 +29,7 @@ namespace boza::rhi::vk
     void Fence::destroy()
     {
         // Log::trace("Destroying vulkan fence");
-        const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
+        const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
         if (vk_fence_)
         {
             vkDestroyFence(vk_device, vk_fence_, nullptr);
@@ -39,7 +39,7 @@ namespace boza::rhi::vk
 
     bool Fence::wait(const uint64_t timeout)
     {
-        const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
+        const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
 
         if (!vk_check(
             vkWaitForFences(vk_device, 1, &vk_fence_, true, timeout),
@@ -53,7 +53,7 @@ namespace boza::rhi::vk
     {
         // Log::trace("Resetting fence");
 
-        const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
+        const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
 
         if (!vk_check(
             vkResetFences(vk_device, 1, &vk_fence_),
@@ -65,7 +65,7 @@ namespace boza::rhi::vk
 
     bool Fence::is_signaled() const
     {
-        const auto vk_device = reinterpret_cast<Device*>(desc.device)->logical_device();
+        const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
         return vkGetFenceStatus(vk_device, vk_fence_) == VK_SUCCESS;
     }
 

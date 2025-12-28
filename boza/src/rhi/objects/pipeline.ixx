@@ -208,7 +208,7 @@ export namespace boza::rhi
     class GraphicsPipeline : public GraphicsObject<GraphicsPipeline, GraphicsPipelineDesc>
     {
     public:
-        [[nodiscard]] PipelineLayout* get_layout() const { return desc.layout; }
+        [[nodiscard]] PipelineLayout* get_layout() const { return desc_.layout; }
 
     protected:
         explicit GraphicsPipeline(const GraphicsPipelineDesc& desc) : GraphicsObject(desc) {}
@@ -228,7 +228,7 @@ export namespace boza::rhi
     class ComputePipeline : public GraphicsObject<ComputePipeline, ComputePipelineDesc>
     {
     public:
-        [[nodiscard]] PipelineLayout* get_layout() const { return desc.layout; }
+        [[nodiscard]] PipelineLayout* get_layout() const { return desc_.layout; }
 
     protected:
         explicit ComputePipeline(const ComputePipelineDesc& desc) : GraphicsObject(desc) {}

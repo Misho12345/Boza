@@ -33,27 +33,27 @@ public:
         if (cooldown_ > 1.0f)
         {
             cooldown_ = 0.0f;
-            color_a = color_b;
-            color_b = glm::vec3{
+            color_a_ = color_b_;
+            color_b_ = glm::vec3{
                 Random::real<float>(),
                 Random::real<float>(),
                 Random::real<float>()
             };
         }
-        const glm::vec3 color = glm::mix(color_a, color_b, cooldown_);
+        const glm::vec3 color = mix(color_a_, color_b_, cooldown_);
 
         (*material)["material.albedo_color"] = glm::vec4{ color, 1.0f };
     }
 
 private:
-    glm::vec3 color_a
+    glm::vec3 color_a_
     {
         Random::real<float>(),
         Random::real<float>(),
         Random::real<float>()
     };
 
-    glm::vec3 color_b
+    glm::vec3 color_b_
     {
         Random::real<float>(),
         Random::real<float>(),

@@ -151,7 +151,7 @@ export namespace boza::rhi
         std::uint64_t generation{ 0 };
 
     protected:
-        explicit          DescriptorSet(const DescriptorSetDesc& desc) : desc(desc) {}
-        DescriptorSetDesc desc;
+        explicit DescriptorSet(const DescriptorSetDesc& desc) : desc_(desc) {}
+        DescriptorSetDesc desc_;
     };
 }

@@ -30,7 +30,7 @@ export namespace boza::rhi
         }
 
     protected:
-        explicit GraphicsObject(const Desc& desc) : desc(desc) {}
-        Desc desc;
+        explicit GraphicsObject(const Desc& desc) : desc_(desc) {}
+        Desc desc_;
     };
 }

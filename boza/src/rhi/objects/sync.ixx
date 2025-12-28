@@ -32,7 +32,7 @@ export namespace boza::rhi
         [[nodiscard]] virtual std::uint64_t counter_value() const = 0;
 
         [[nodiscard]]
-        SemaphoreType type() const { return desc.type; };
+        SemaphoreType type() const { return desc_.type; }
 
     protected:
         explicit Semaphore(const SemaphoreDesc& desc) : GraphicsObject(desc) {}

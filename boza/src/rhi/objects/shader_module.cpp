@@ -135,16 +135,16 @@ namespace boza::rhi
     bool ShaderModule::get_meta_data()
     {
         const fs::path shader_dir = AssetPaths::shaders_dir();
-        const fs::path shader_subdir = shader_dir / desc.filename;
+        const fs::path shader_subdir = shader_dir / desc_.filename;
 
-        const fs::path shader_name = fs::path(desc.filename).stem();
+        const fs::path shader_name = fs::path(desc_.filename).stem();
         const fs::path meta_path = shader_subdir / (shader_name.string() + ".meta.json");
 
         const auto meta_json_opt = detail::FileIO::load_json(meta_path);
 
         if (!meta_json_opt.has_value())
         {
-            Log::error("Failed to load shader metadata for {}", desc.filename);
+            Log::error("Failed to load shader metadata for {}", desc_.filename);
             return false;
         }
 

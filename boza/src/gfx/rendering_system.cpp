@@ -37,7 +37,7 @@ namespace boza::gfx
 
             if (!instance_) continue;
 
-            device_.reset(rhi::create_device(
+            device_.reset(create_device(
                 api, {
                     .instance = instance_.get(),
                     .window = window_
@@ -45,7 +45,7 @@ namespace boza::gfx
 
             if (!device_) continue;
 
-            swapchain_.reset(rhi::create_swapchain(
+            swapchain_.reset(create_swapchain(
                 api, {
                     .device = device_.get(),
                     .window = window_,
@@ -60,7 +60,7 @@ namespace boza::gfx
 
             if (!swapchain_) continue;
 
-            descriptor_pool_.reset(rhi::create_descriptor_pool(
+            descriptor_pool_.reset(create_descriptor_pool(
                 api, {
                     .device = device_.get(),
                     .max_sets = 300,
@@ -140,7 +140,7 @@ namespace boza::gfx
             return nullptr;
         }
 
-        gpu_mesh->vertex_buffer.reset(rhi::create_buffer(
+        gpu_mesh->vertex_buffer.reset(create_buffer(
             api_,
             {
                 .device = device_.get(),
@@ -149,7 +149,7 @@ namespace boza::gfx
                 .memory_type = rhi::BufferMemoryType::HostVisible
             }));
 
-        gpu_mesh->index_buffer.reset(rhi::create_buffer(
+        gpu_mesh->index_buffer.reset(create_buffer(
             api_,
             {
                 .device = device_.get(),

@@ -54,21 +54,21 @@ int main(const int argc, const char** argv)
         return 1;
     }
 
-    if (!fs::exists(config.input_file) || !fs::is_regular_file(config.input_file))
+    if (!exists(config.input_file) || !is_regular_file(config.input_file))
     {
         std::println(stderr, "Input file does not exist or is not a regular file: {}", config.input_file.string());
         return 1;
     }
 
-    if (fs::exists(config.output_dir))
+    if (exists(config.output_dir))
     {
-        if (!fs::is_directory(config.output_dir))
+        if (!is_directory(config.output_dir))
         {
             std::println(stderr, "Output path exists but is not a directory: {}", config.output_dir.string());
             return 1;
         }
     }
-    else if (!fs::create_directory(config.output_dir))
+    else if (!create_directory(config.output_dir))
     {
         std::println(stderr, "Failed to create output directory: {}", config.output_dir.string());
         return 1;

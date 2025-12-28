@@ -4,6 +4,7 @@ module;
 #include <GLFW/glfw3.h>
 
 module boza.input;
+import boza.platform;
 
 import :state;
 
@@ -11,7 +12,7 @@ namespace boza
 {
     using namespace input;
 
-    GLFWwindow* window_handle_{ nullptr };
+    platform::Window* s_window{ nullptr };
 
     bool all_keys_held(const KeyCombo& combo, const flat_map<Key, KeyState>& key_states)
     {
@@ -176,14 +177,15 @@ namespace boza
         return it != state.key_states.end() && it->second.is_held();
     }
 
-    void Input::init(void* window_handle)
+    void Input::init(void* window)
     {
-        window_handle_ = static_cast<GLFWwindow*>(window_handle);
+        s_window = static_cast<platform::Window*>(window);
+        auto* glfw_window = static_cast<GLFWwindow*>(s_window->native_handle());
 
-        glfwSetKeyCallback(window_handle_, on_key_callback);
-        glfwSetMouseButtonCallback(window_handle_, on_mouse_button_callback);
-        glfwSetScrollCallback(window_handle_, on_scroll_callback);
-        glfwSetCursorPosCallback(window_handle_, on_cursor_pos_callback);
+        glfwSetKeyCallback(glfw_window, on_key_callback);
+        glfwSetMouseButtonCallback(glfw_window, on_mouse_button_callback);
+        glfwSetScrollCallback(glfw_window, on_scroll_callback);
+        glfwSetCursorPosCallback(glfw_window, on_cursor_pos_callback);
     }
 
     void Input::update()
@@ -209,16 +211,18 @@ namespace boza
 
     void Input::shutdown()
     {
-        if (window_handle_)
+        auto* glfw_window = static_cast<GLFWwindow*>(s_window->native_handle());
+
+        if (glfw_window)
         {
-            glfwSetKeyCallback(window_handle_, nullptr);
-            glfwSetMouseButtonCallback(window_handle_, nullptr);
-            glfwSetScrollCallback(window_handle_, nullptr);
-            glfwSetCursorPosCallback(window_handle_, nullptr);
+            glfwSetKeyCallback(glfw_window, nullptr);
+            glfwSetMouseButtonCallback(glfw_window, nullptr);
+            glfwSetScrollCallback(glfw_window, nullptr);
+            glfwSetCursorPosCallback(glfw_window, nullptr);
         }
 
         InputState::instance().clear();
-        window_handle_ = nullptr;
+        s_window = nullptr;
     }
 
     void Input::reset_cursor_tracking() { InputState::instance().first_cursor_move = true; }

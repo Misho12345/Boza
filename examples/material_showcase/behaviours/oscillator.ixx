@@ -19,6 +19,6 @@ public:
     {
         phase               += dt * speed;
         const float t       = (std::sinf(phase) + 1.0f) * 0.5f;
-        transform->position = glm::mix(start_pos, end_pos, t);
+        transform->position = mix(start_pos, end_pos, t);
     }
 };

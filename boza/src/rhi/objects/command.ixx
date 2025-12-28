@@ -150,9 +150,8 @@ export namespace boza::rhi
             ResourceState new_state) = 0;
 
     protected:
-        explicit CommandBuffer(const CommandBufferDesc& desc) : desc(desc) {}
-
-        CommandBufferDesc desc;
+        explicit CommandBuffer(const CommandBufferDesc& desc) : desc_(desc) {}
+        CommandBufferDesc desc_;
     };
 
     /// -------------------------
@@ -218,10 +217,10 @@ export namespace boza::rhi
 
         virtual bool wait_idle() = 0;
 
-        bool supports_graphics() const { return desc.type.has(CommandQueueType::Graphics); }
-        bool supports_compute() const { return desc.type.has(CommandQueueType::Compute); }
-        bool supports_transfer() const { return desc.type.has(CommandQueueType::Transfer); }
-        bool supports_present() const { return desc.type.has(CommandQueueType::Present); }
+        bool supports_graphics() const { return desc_.type.has(CommandQueueType::Graphics); }
+        bool supports_compute() const { return desc_.type.has(CommandQueueType::Compute); }
+        bool supports_transfer() const { return desc_.type.has(CommandQueueType::Transfer); }
+        bool supports_present() const { return desc_.type.has(CommandQueueType::Present); }
 
     protected:
         explicit CommandQueue(const CommandQueueDesc& desc) : GraphicsObject(desc) {}
