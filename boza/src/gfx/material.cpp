@@ -10,6 +10,7 @@ import boza.gfx.material_loader;
 
 namespace boza
 {
+    // TODO: remove duplicate (compute_dispatcher.cpp has the same) and actually make use of this
     #ifdef BOZA_DEBUG
     template<typename T>
     constexpr rhi::ShaderDataType get_expected_shader_type()

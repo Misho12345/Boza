@@ -185,10 +185,9 @@ namespace boza
         for (auto* layout : impl_->descriptor_set_layouts) { if (layout) layout->destroy(); }
     }
 
+    // TODO: fix duplication; logic is very similar and can be shortened with a helper function
     ComputeDispatcher& ComputeDispatcher::set(const std::string& name, const Texture* texture)
     {
-        Log::info("herererererere");
-
         if (*failed_ptr_) return *this;
 
         const auto binding_info = impl_->reflection.lookup(name);

@@ -12,32 +12,6 @@ import <vk_all>;
 
 namespace boza::rhi::vk
 {
-    VkBufferUsageFlags to_vk(const BufferUsage usage)
-    {
-        switch (usage)
-        {
-            case BufferUsage::Vertex: return VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-            case BufferUsage::Index: return VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-            case BufferUsage::Uniform: return VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-            case BufferUsage::Storage: return VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-            case BufferUsage::Staging: return VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-        }
-
-        std::unreachable();
-    }
-
-    VmaMemoryUsage to_vma(const BufferMemoryType memory_type)
-    {
-        switch (memory_type)
-        {
-            case BufferMemoryType::DeviceLocal: return VMA_MEMORY_USAGE_GPU_ONLY;
-            case BufferMemoryType::HostVisible: return VMA_MEMORY_USAGE_CPU_TO_GPU;
-            case BufferMemoryType::HostCoherent: return VMA_MEMORY_USAGE_CPU_ONLY;
-        }
-
-        std::unreachable();
-    }
-
     bool Buffer::init()
     {
         // Log::trace("Creating buffer ({} bytes)", desc.size);

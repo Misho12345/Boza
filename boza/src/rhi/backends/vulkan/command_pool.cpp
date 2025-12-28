@@ -97,6 +97,7 @@ namespace boza::rhi::vk
         return cmd_buffer;
     }
 
+    // TODO: remove duplication with allocate_command_buffer
     std::vector<rhi::CommandBuffer*> CommandPool::allocate_command_buffers(const uint32_t count, const bool is_primary)
     {
         // Log::trace("Allocating {} command buffers for command pool ({})", count, desc.queue_family_index);

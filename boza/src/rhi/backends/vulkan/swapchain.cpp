@@ -652,21 +652,10 @@ namespace boza::rhi::vk
     {
         // Log::trace("Choosing present mode");
 
-        const VkPresentModeKHR preferred = [this]
-        {
-            switch (desc_.preferred_present_mode)
-            {
-                case PresentMode::Immediate: return VK_PRESENT_MODE_IMMEDIATE_KHR;
-                case PresentMode::Mailbox: return VK_PRESENT_MODE_MAILBOX_KHR;
-                case PresentMode::FifoRelaxed: return VK_PRESENT_MODE_FIFO_RELAXED_KHR;
-                default: return VK_PRESENT_MODE_FIFO_KHR;
-            }
-        }();
-
+        const VkPresentModeKHR preferred = to_vk(desc_.preferred_present_mode);
         for (const auto& available_mode : present_modes_)
         {
-            if (available_mode == preferred)
-                return preferred;
+            if (available_mode == preferred) return preferred;
         }
 
         return VK_PRESENT_MODE_FIFO_KHR;
@@ -725,35 +714,6 @@ namespace boza::rhi::vk
         const Device* device = reinterpret_cast<Device*>(desc_.device);
         const VkDevice vk_device = device->logical_device();
 
-        // Convert DepthFormat to VkFormat
-        auto depth_format_to_vk = [](const DepthFormat fmt) -> VkFormat
-        {
-            switch (fmt)
-            {
-                case DepthFormat::D16:    return VK_FORMAT_D16_UNORM;
-                case DepthFormat::D24:    return VK_FORMAT_X8_D24_UNORM_PACK32;
-                case DepthFormat::D32F:   return VK_FORMAT_D32_SFLOAT;
-                case DepthFormat::D16S8:  return VK_FORMAT_D16_UNORM_S8_UINT;
-                case DepthFormat::D24S8:  return VK_FORMAT_D24_UNORM_S8_UINT;
-                case DepthFormat::D32FS8: return VK_FORMAT_D32_SFLOAT_S8_UINT;
-                default:                  return VK_FORMAT_UNDEFINED;
-            }
-        };
-
-        auto vk_format_to_depth = [](const VkFormat fmt) -> DepthFormat
-        {
-            switch (fmt)
-            {
-                case VK_FORMAT_D16_UNORM:          return DepthFormat::D16;
-                case VK_FORMAT_X8_D24_UNORM_PACK32:return DepthFormat::D24;
-                case VK_FORMAT_D32_SFLOAT:         return DepthFormat::D32F;
-                case VK_FORMAT_D16_UNORM_S8_UINT:  return DepthFormat::D16S8;
-                case VK_FORMAT_D24_UNORM_S8_UINT:  return DepthFormat::D24S8;
-                case VK_FORMAT_D32_SFLOAT_S8_UINT: return DepthFormat::D32FS8;
-                default:                           return DepthFormat::None;
-            }
-        };
-
         // Choose depth format (auto-select if not specified)
         if (desc_.depth_format == DepthFormat::Auto || desc_.depth_format == DepthFormat::None)
         {
@@ -768,7 +728,7 @@ namespace boza::rhi::vk
                 if (props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
                 {
                     vk_depth_format_ = format;
-                    depth_format_ = vk_format_to_depth(format);
+                    depth_format_ = from_vk(format);
                     break;
                 }
             }
@@ -781,7 +741,7 @@ namespace boza::rhi::vk
         }
         else
         {
-            vk_depth_format_ = depth_format_to_vk(desc_.depth_format);
+            vk_depth_format_ = to_vk(desc_.depth_format);
             depth_format_ = desc_.depth_format;
         }
 

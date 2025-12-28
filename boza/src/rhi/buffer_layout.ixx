@@ -256,7 +256,13 @@ export namespace boza::rhi
         static Std140LayoutRules std140;
         static Std430LayoutRules std430;
 
-        if (type == BufferLayoutType::Std430) return std430;
-        return std140;
+        switch (type)
+        {
+            case BufferLayoutType::PushConstant:
+            case BufferLayoutType::Std140: return std140;
+            case BufferLayoutType::Std430: return std430;
+        }
+
+        std::unreachable();
     }
 }

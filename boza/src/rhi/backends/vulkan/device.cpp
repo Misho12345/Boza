@@ -367,6 +367,7 @@ namespace boza::rhi::vk
         return true;
     }
 
+    // TODO: merge those 2 to get less code duplication and unneded complexity
     bool Device::get_queues()
     {
         // Log::trace("Getting device queues");

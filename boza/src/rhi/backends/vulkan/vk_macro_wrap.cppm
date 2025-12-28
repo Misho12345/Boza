@@ -2,7 +2,7 @@ module;
 
 #include <vulkan/vulkan.h>
 
-export module boza.rhi.vulkan:util;
+export module boza.rhi.vulkan:vk_macro_wrap;
 
 import std;
 import boza.core;
@@ -30,15 +30,4 @@ export namespace boza::rhi::vk
     constexpr auto vk_api_version_major(const auto& version) { return VK_VERSION_MAJOR(version); }
     constexpr auto vk_api_version_minor(const auto& version) { return VK_VERSION_MINOR(version); }
     constexpr auto vk_api_version_patch(const auto& version) { return VK_VERSION_PATCH(version); }
-
-    template<typename... Args>
-    [[nodiscard]] bool vk_check(const VkResult result, const std::format_string<Args...> fmt, Args&&... args)
-    {
-        if (result == VK_SUCCESS) return true;
-        Log::error(fmt, std::forward<Args>(args)...);
-        return false;
-    }
-
-
-    [[nodiscard]] bool vk_check(const VkResult result, const auto& msg) { return vk_check(result, "{}", msg); }
 }

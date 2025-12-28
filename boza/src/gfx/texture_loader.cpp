@@ -10,6 +10,7 @@ namespace boza::gfx
     using detail::ImageIO;
     using detail::ImageData;
 
+    // TODO: remove duplicate (same in texture.cpp)
     constexpr int channels_for_format(const TextureFormat format)
     {
         switch (format)

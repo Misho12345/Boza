@@ -215,20 +215,6 @@ namespace boza::rhi::vk
             color_formats.push_back(static_cast<VkFormat>(format));
         }
 
-        auto depth_format_to_vk = [](const DepthFormat fmt) -> VkFormat
-        {
-            switch (fmt)
-            {
-                case DepthFormat::D16:    return VK_FORMAT_D16_UNORM;
-                case DepthFormat::D24:    return VK_FORMAT_X8_D24_UNORM_PACK32;
-                case DepthFormat::D32F:   return VK_FORMAT_D32_SFLOAT;
-                case DepthFormat::D16S8:  return VK_FORMAT_D16_UNORM_S8_UINT;
-                case DepthFormat::D24S8:  return VK_FORMAT_D24_UNORM_S8_UINT;
-                case DepthFormat::D32FS8: return VK_FORMAT_D32_SFLOAT_S8_UINT;
-                default:                  return VK_FORMAT_UNDEFINED;
-            }
-        };
-
         VkPipelineRenderingCreateInfo rendering_info
         {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
@@ -236,7 +222,7 @@ namespace boza::rhi::vk
             .viewMask = 0,
             .colorAttachmentCount = static_cast<uint32_t>(color_formats.size()),
             .pColorAttachmentFormats = color_formats.empty() ? nullptr : color_formats.data(),
-            .depthAttachmentFormat = depth_format_to_vk(desc_.depth_attachment_format),
+            .depthAttachmentFormat = to_vk(desc_.depth_attachment_format),
             .stencilAttachmentFormat = static_cast<VkFormat>(desc_.stencil_attachment_format)
         };
 

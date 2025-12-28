@@ -7,68 +7,6 @@ import <vk_all>;
 
 namespace boza::rhi::vk
 {
-    VkFormat to_vk(const TextureFormat format)
-    {
-        switch (format)
-        {
-            case TextureFormat::R8: return VK_FORMAT_R8_UNORM;
-            case TextureFormat::RG8: return VK_FORMAT_R8G8_UNORM;
-            case TextureFormat::RGB8: return VK_FORMAT_R8G8B8_UNORM;
-            case TextureFormat::RGBA8: return VK_FORMAT_R8G8B8A8_UNORM;
-            case TextureFormat::BGRA8: return VK_FORMAT_B8G8R8A8_UNORM;
-            case TextureFormat::R16F: return VK_FORMAT_R16_SFLOAT;
-            case TextureFormat::RG16F: return VK_FORMAT_R16G16_SFLOAT;
-            case TextureFormat::RGB16F: return VK_FORMAT_R16G16B16_SFLOAT;
-            case TextureFormat::RGBA16F: return VK_FORMAT_R16G16B16A16_SFLOAT;
-            case TextureFormat::R32F: return VK_FORMAT_R32_SFLOAT;
-            case TextureFormat::RG32F: return VK_FORMAT_R32G32_SFLOAT;
-            case TextureFormat::RGB32F: return VK_FORMAT_R32G32B32_SFLOAT;
-            case TextureFormat::RGBA32F: return VK_FORMAT_R32G32B32A32_SFLOAT;
-            case TextureFormat::DEPTH24STENCIL8: return VK_FORMAT_D24_UNORM_S8_UINT;
-            case TextureFormat::DEPTH32F: return VK_FORMAT_D32_SFLOAT;
-        }
-
-        std::unreachable();
-    }
-
-    VkImageUsageFlags to_vk(const Flags<TextureUsage> usage)
-    {
-        VkImageUsageFlags result = 0;
-
-        if (usage.has(TextureUsage::Sampled)) result |= VK_IMAGE_USAGE_SAMPLED_BIT;
-        if (usage.has(TextureUsage::Storage)) result |= VK_IMAGE_USAGE_STORAGE_BIT;
-        if (usage.has(TextureUsage::ColorAttachment)) result |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-        if (usage.has(TextureUsage::DepthStencilAttachment)) result |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        if (usage.has(TextureUsage::TransferSrc)) result |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-        if (usage.has(TextureUsage::TransferDst)) result |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-        if (usage.has(TextureUsage::InputAttachment)) result |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
-
-        return result;
-    }
-
-    VkImageAspectFlags get_image_aspect_flags(const Flags<TextureUsage> usage)
-    {
-        if (usage.has(TextureUsage::DepthStencilAttachment)) return VK_IMAGE_ASPECT_DEPTH_BIT;
-        return VK_IMAGE_ASPECT_COLOR_BIT;
-    }
-
-    VkImageAspectFlags get_image_aspect_flags(const TextureUsage usage)
-    {
-        switch (usage)
-        {
-            case TextureUsage::Sampled:
-            case TextureUsage::Storage:
-            case TextureUsage::ColorAttachment:
-            case TextureUsage::TransferSrc:
-            case TextureUsage::TransferDst:
-            case TextureUsage::InputAttachment: return VK_IMAGE_ASPECT_COLOR_BIT;
-            case TextureUsage::DepthStencilAttachment: return VK_IMAGE_ASPECT_DEPTH_BIT;
-        }
-
-        std::unreachable();
-    }
-
-
     bool Texture::init()
     {
         if (desc_.width == 0 || desc_.height == 0)
@@ -155,22 +93,6 @@ namespace boza::rhi::vk
         }
     }
 
-    VkImageLayout to_vk(const TextureLayout layout)
-    {
-        switch (layout)
-        {
-            case TextureLayout::Undefined: return VK_IMAGE_LAYOUT_UNDEFINED;
-            case TextureLayout::General: return VK_IMAGE_LAYOUT_GENERAL;
-            case TextureLayout::ColorAttachment: return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            case TextureLayout::DepthStencilAttachment: return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-            case TextureLayout::ShaderReadOnly: return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            case TextureLayout::TransferSrc: return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-            case TextureLayout::TransferDst: return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-            case TextureLayout::Present: return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-        }
-        std::unreachable();
-    }
-
     void Texture::transition_layout_internal(const VkImageLayout old_layout, const VkImageLayout new_layout) const
     {
         // Log::trace("Transitioning texture layout: {} -> {}", static_cast<uint32_t>(old_layout), static_cast<uint32_t>(new_layout));
@@ -207,6 +129,8 @@ namespace boza::rhi::vk
 
         VkPipelineStageFlags source_stage;
         VkPipelineStageFlags destination_stage;
+
+        // TODO: optimize that a bit
 
         if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED)
         {
@@ -439,11 +363,11 @@ namespace boza::rhi::vk
 
         const auto* device = reinterpret_cast<Device*>(desc_.device);
 
-        Buffer staging_buffer{ BufferDesc{
-            .device = desc_.device,
-            .size = size,
-            .usage = BufferUsage::Staging,
-            .memory_type = BufferMemoryType::HostVisible
+        Buffer staging_buffer{{
+                .device = desc_.device,
+                .size = size,
+                .usage = BufferUsage::Staging,
+                .memory_type = BufferMemoryType::HostVisible
         }};
 
         if (!staging_buffer.init())
@@ -459,6 +383,7 @@ namespace boza::rhi::vk
 
         transition_layout_internal(current_layout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
+        // TODO: remove duplicate code (almost the same with download)
         auto* cmd_pool = device->command_pool(device->queue_family_indices().graphics_family);
         auto* cmd_buffer = cmd_pool->begin_single_time_commands();
 
@@ -498,7 +423,7 @@ namespace boza::rhi::vk
 
         const auto* device = reinterpret_cast<Device*>(desc_.device);
 
-        Buffer staging_buffer{ BufferDesc{
+        Buffer staging_buffer{{
             .device = desc_.device,
             .size = size,
             .usage = BufferUsage::Staging,

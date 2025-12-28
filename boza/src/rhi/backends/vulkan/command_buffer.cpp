@@ -8,64 +8,6 @@ import :shader_module;
 
 namespace boza::rhi::vk
 {
-    std::pair<VkImageLayout, VkPipelineStageFlags> state_to_layout_and_stage(const ResourceState state)
-    {
-        switch (state)
-        {
-            case ResourceState::Undefined: return { VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT };
-            case ResourceState::ShaderResource: return {
-                    VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
-                };
-            case ResourceState::UnorderedAccess: return {
-                    VK_IMAGE_LAYOUT_GENERAL,
-                    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
-                };
-            case ResourceState::RenderTarget: return {
-                    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-                };
-            case ResourceState::DepthStencil: return {
-                    VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                    VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT
-                };
-            case ResourceState::DepthRead: return {
-                    VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
-                };
-            case ResourceState::CopySource: return {
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    VK_PIPELINE_STAGE_TRANSFER_BIT
-                };
-            case ResourceState::CopyDest: return {
-                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    VK_PIPELINE_STAGE_TRANSFER_BIT
-                };
-            case ResourceState::Present: return {
-                    VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
-                };
-            default: return { VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT };
-        }
-    }
-
-    VkAccessFlags state_to_access(const ResourceState state)
-    {
-        switch (state)
-        {
-            case ResourceState::Undefined: return VK_ACCESS_NONE;
-            case ResourceState::ShaderResource: return VK_ACCESS_SHADER_READ_BIT;
-            case ResourceState::UnorderedAccess: return VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-            case ResourceState::RenderTarget: return VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            case ResourceState::DepthStencil: return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-            case ResourceState::DepthRead: return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-            case ResourceState::CopySource: return VK_ACCESS_TRANSFER_READ_BIT;
-            case ResourceState::CopyDest: return VK_ACCESS_TRANSFER_WRITE_BIT;
-            case ResourceState::Present: return VK_ACCESS_NONE;
-            default: return VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
-        }
-    }
-
     bool CommandBuffer::init() { return true; }
     void CommandBuffer::destroy() { vk_command_buffer_ = nullptr; }
 

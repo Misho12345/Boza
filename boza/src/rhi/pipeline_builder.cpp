@@ -22,6 +22,7 @@ namespace boza::rhi
     {
         flat_map<std::uint32_t, std::vector<DescriptorBinding>> bindings_by_set;
 
+        // TODO: remove duplication for each bindings for each resource type
         for (const auto* shader : shaders_)
         {
             const auto& metadata   = shader->meta_data();
@@ -57,7 +58,7 @@ namespace boza::rhi
                     return b.binding == resource.binding;
                 });
 
-                if (it != bindings.end()) { it->stages |= stage_flag; }
+                if (it != bindings.end()) it->stages |= stage_flag;
                 else
                 {
                     bindings.emplace_back(
@@ -78,7 +79,7 @@ namespace boza::rhi
                     return b.binding == resource.binding;
                 });
 
-                if (it != bindings.end()) { it->stages |= stage_flag; }
+                if (it != bindings.end()) it->stages |= stage_flag;
                 else
                 {
                     bindings.emplace_back(
@@ -99,7 +100,7 @@ namespace boza::rhi
                     return b.binding == resource.binding;
                 });
 
-                if (it != bindings.end()) { it->stages |= stage_flag; }
+                if (it != bindings.end()) it->stages |= stage_flag;
                 else
                 {
                     bindings.emplace_back(
@@ -451,10 +452,10 @@ namespace boza::rhi
     }
 
     bool PipelineResourceBinder::update_uniform_buffer(
-        const std::string& name,
-        Buffer*            buffer,
-        const std::uint32_t     offset,
-        std::uint32_t           range) const
+        const std::string&  name,
+        Buffer*             buffer,
+        const std::uint32_t offset,
+        std::uint32_t       range) const
     {
         if (!resource_map_.contains(name))
         {
@@ -490,10 +491,10 @@ namespace boza::rhi
     }
 
     bool PipelineResourceBinder::update_storage_buffer(
-        const std::string& name,
-        Buffer*            buffer,
-        const std::uint32_t     offset,
-        std::uint32_t           range) const
+        const std::string&  name,
+        Buffer*             buffer,
+        const std::uint32_t offset,
+        std::uint32_t       range) const
     {
         if (!resource_map_.contains(name))
         {
