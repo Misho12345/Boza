@@ -40,7 +40,7 @@ namespace boza::rhi::vk
             if (in_flight_fence)
             {
                 // Ignore return value - we're shutting down anyway
-                (void)in_flight_fence->wait(std::numeric_limits<uint64_t>::max());
+                (void)in_flight_fence->wait();
             }
         }
 
@@ -407,7 +407,7 @@ namespace boza::rhi::vk
             vkFreeCommandBuffers(
                 vk_device,
                 reinterpret_cast<CommandPool*>(desc.device->command_pool(
-                    desc.device->queue_family_indices().compute_family))->vk_command_pool(),
+                    desc.device->queue_family_indices().graphics_family))->vk_command_pool(),
                 static_cast<uint32_t>(command_buffers.size()), command_buffers.data());
         }
 
