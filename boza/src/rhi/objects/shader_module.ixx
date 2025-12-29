@@ -31,8 +31,7 @@ export namespace boza::rhi
         Mat2, Mat3, Mat4,
         Sampler1D, Sampler2D, Sampler3D,
         Sampler1DArray, Sampler2DArray,
-        SamplerCube, SamplerCubeArray,
-        Struct
+        SamplerCube, SamplerCubeArray
     };
 
     using ShaderTypeValue = std::variant<
