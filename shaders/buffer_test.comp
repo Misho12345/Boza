@@ -1,0 +1,69 @@
+#version 450
+
+// will use to check for issues with creating metadata for shaders with buffers
+
+layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in;
+
+struct Particle {
+    vec4 position;
+    vec4 velocity;
+};
+
+layout(set = 0, binding = 0) readonly buffer ParticlesIn {
+    Particle inParticles[];
+};
+
+layout(set = 0, binding = 1) writeonly buffer ParticlesOut {
+    Particle outParticles[];
+};
+
+layout(set = 0, binding = 2) buffer GroupStats {
+    float groupAvgSpeed[];
+};
+
+layout(push_constant) uniform SimParams {
+    float dt;
+    float damping;
+    uint  numParticles;
+    float padding;
+
+} params;
+
+shared float sharedSpeeds[gl_WorkGroupSize.x];
+
+void main()
+{
+    uint gid  = gl_GlobalInvocationID.x;
+    uint lid  = gl_LocalInvocationIndex;
+    uint gkid = gl_WorkGroupID.x;
+    float speed = 0.0;
+
+    if (gid < params.numParticles) {
+        Particle p = inParticles[gid];
+
+        p.velocity.xyz *= params.damping;
+        p.position.xyz += p.velocity.xyz * params.dt;
+
+        outParticles[gid] = p;
+        speed = length(p.velocity.xyz);
+    }
+
+    sharedSpeeds[lid] = speed;
+
+    barrier();
+
+    for (uint stride = gl_WorkGroupSize.x / 2u; stride > 0u; stride >>= 1u) {
+        if (lid < stride) {
+            sharedSpeeds[lid] += sharedSpeeds[lid + stride];
+        }
+
+        barrier();
+    }
+
+    if (lid == 0) {
+        float count = float(gl_WorkGroupSize.x);
+
+        float avgSpeed = sharedSpeeds[0] / count;
+        groupAvgSpeed[gkid] = avgSpeed;
+    }
+}

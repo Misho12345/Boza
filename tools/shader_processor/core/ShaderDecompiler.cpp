@@ -21,7 +21,7 @@ namespace sp
         }
         catch (const spirv_cross::CompilerError& e)
         {
-            std::println(stderr, "SPIRV-Cross failed to decompile to GLSL: {}", e.what());
+            std::println(std::cerr, "SPIRV-Cross failed to decompile to GLSL: {}", e.what());
             return {};
         }
     }
@@ -38,7 +38,7 @@ namespace sp
         }
         catch (const spirv_cross::CompilerError& e)
         {
-            std::println(stderr, "SPIRV-Cross failed to decompile to HLSL: {}", e.what());
+            std::println(std::cerr, "SPIRV-Cross failed to decompile to HLSL: {}", e.what());
             return {};
         }
     }
@@ -52,7 +52,7 @@ namespace sp
         }
         catch (const spirv_cross::CompilerError& e)
         {
-            std::println(stderr, "SPIRV-Cross failed to decompile to MSL: {}", e.what());
+            std::println(std::cerr, "SPIRV-Cross failed to decompile to MSL: {}", e.what());
             return {};
         }
     }

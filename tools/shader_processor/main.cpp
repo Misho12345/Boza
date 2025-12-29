@@ -1,16 +1,14 @@
-#include "core/ShaderProcessor.hpp"
-#include <print>
-#include <string_view>
+import std;
+import shader_processor;
 
-static void print_usage(const char* argv0)
+void print_usage(const char* argv0)
 {
-    std::println(stderr, "Usage: {} <shader_file> --out <output_directory>", argv0);
+    std::println(std::cerr, "Usage: {} <shader_file> --out <output_directory>", argv0);
 }
 
-
-static ProcessorConfig parse_args(const int argc, const char** argv)
+sp::Config parse_args(const int argc, const char** argv)
 {
-    ProcessorConfig config{};
+    sp::Config config{};
     if (argc < 4) return config;
 
     config.input_file = argv[1];
@@ -23,7 +21,7 @@ static ProcessorConfig parse_args(const int argc, const char** argv)
         {
             if (i + 1 >= argc)
             {
-                std::println(stderr, "Error: --out requires a directory path");
+                std::println(std::cerr, "Error: --out requires a directory path");
                 config.input_file.clear();
                 return config;
             }
@@ -34,7 +32,7 @@ static ProcessorConfig parse_args(const int argc, const char** argv)
         else if (arg == "--no-metal") config.enable_metal = false;
         else
         {
-            std::println(stderr, "Unknown argument: {}", arg);
+            std::println(std::cerr, "Unknown argument: {}", arg);
             config.input_file.clear();
             return config;
         }
@@ -46,7 +44,7 @@ static ProcessorConfig parse_args(const int argc, const char** argv)
 
 int main(const int argc, const char** argv)
 {
-    const ProcessorConfig config = parse_args(argc, argv);
+    const sp::Config config = parse_args(argc, argv);
 
     if (config.input_file.empty() || config.output_dir.empty())
     {
@@ -56,7 +54,7 @@ int main(const int argc, const char** argv)
 
     if (!exists(config.input_file) || !is_regular_file(config.input_file))
     {
-        std::println(stderr, "Input file does not exist or is not a regular file: {}", config.input_file.string());
+        std::println(std::cerr, "Input file does not exist or is not a regular file: {}", config.input_file.string());
         return 1;
     }
 
@@ -64,13 +62,13 @@ int main(const int argc, const char** argv)
     {
         if (!is_directory(config.output_dir))
         {
-            std::println(stderr, "Output path exists but is not a directory: {}", config.output_dir.string());
+            std::println(std::cerr, "Output path exists but is not a directory: {}", config.output_dir.string());
             return 1;
         }
     }
     else if (!create_directory(config.output_dir))
     {
-        std::println(stderr, "Failed to create output directory: {}", config.output_dir.string());
+        std::println(std::cerr, "Failed to create output directory: {}", config.output_dir.string());
         return 1;
     }
 
