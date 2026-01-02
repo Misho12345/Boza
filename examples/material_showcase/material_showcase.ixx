@@ -30,6 +30,7 @@ protected:
 
         setup_floor();
         setup_cubes();
+        setup_skybox();
     }
 
 private:
@@ -52,6 +53,18 @@ private:
 
         camera_obj.transform->position = glm::vec3{ 0.0f, 5.0f, 10.0f };
         camera_obj.transform->look_at(glm::vec3{ 0.0f, 0.0f, 0.0f });
+    }
+
+    void setup_skybox() const
+    {
+        auto& skybox = scene_->create_game_object("Skybox");
+        skybox.transform->position = glm::vec3{ 0.0f };
+
+        auto& mr = skybox.add_component<MeshRenderer>();
+        mr.mesh = Mesh::get("cube");
+        mr.material = Material::get("skybox");
+
+        Log::info("Skybox created");
     }
 
     void setup_floor()
@@ -216,10 +229,15 @@ private:
         constexpr std::uint32_t tex_size = 256;
         compute_texture_ = Texture::create(
             "compute_output",
-            tex_size, tex_size,
-            TextureFormat::RGBA8,
-            TextureUsage::Sampled | TextureUsage::Storage | TextureUsage::TransferDst,
-            ResourceAccessMode::Static);
+            {
+                .type = TextureType::Texture2D,
+                .format = TextureFormat::RGBA8,
+                .access_mode = ResourceAccessMode::Static,
+                .width = tex_size,
+                .height = tex_size,
+                .depth = 1,
+                .usage_flags = TextureUsage::Sampled | TextureUsage::Storage | TextureUsage::TransferDst,
+            });
 
         if (!compute_texture_)
         {
@@ -251,13 +269,13 @@ private:
 
     static void create_materials()
     {
-        Texture* default_tex = Texture::get_or_load("default.png");
+        const Texture* default_tex = Texture::get_or_load("default.png");
 
         if (auto* mat = Material::create("default", "default"))
         {
             auto& m = *mat;
             register_custom_material("custom_compute", mat);
-            m["albedo_map"]            = Texture::get("compute_output");
+            m["albedo_map"]            = { Texture::get("compute_output"), Sampler::get("default") };
             m["material.albedo_color"] = glm::vec4{ 1.0f };
             m["material.properties"]   = glm::vec4{ 0.0f, 0.8f, 0.0f, 0.0f };
             Log::info("Created custom_compute material with procedural texture");

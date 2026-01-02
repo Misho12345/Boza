@@ -10,7 +10,7 @@ export namespace boza
     template<typename T>
     constexpr bool is_pointer_type_v = std::is_pointer_v<std::remove_reference_t<T>>;
 
-    enum class PropertyType { Get, Set, GetSet };
+    enum class PropertyType : std::uint8_t { Get, Set, GetSet };
 
     template<typename Owner, typename T, PropertyType Type>
     class Property

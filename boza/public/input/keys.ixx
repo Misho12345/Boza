@@ -74,7 +74,7 @@ export namespace boza
         MouseMiddle = GLFW_MOUSE_BUTTON_MIDDLE
     };
 
-    enum class Action
+    enum class Action : std::uint8_t
     {
         Press,
         Release,

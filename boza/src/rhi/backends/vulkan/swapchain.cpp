@@ -728,7 +728,7 @@ namespace boza::rhi::vk
                 if (props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
                 {
                     vk_depth_format_ = format;
-                    depth_format_ = from_vk(format);
+                    depth_format_ = to_depth_format(format);
                     break;
                 }
             }

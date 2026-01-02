@@ -10,14 +10,14 @@ layout(location = 1) out vec3 fragNormal;
 layout(set = 0, binding = 0) uniform CameraUBO {
     mat4 view;
     mat4 proj;
-} cam;
+} cameraUBO;
 
 layout(push_constant) uniform PushConstants {
     mat4 model;
 } pc;
 
 void main() {
-    gl_Position = cam.proj * cam.view * pc.model * vec4(inPosition, 1.0);
+    gl_Position = cameraUBO.proj * cameraUBO.view * pc.model * vec4(inPosition, 1.0);
     fragTexCoord = inTexCoord;
     fragNormal = inNormal;
 }

@@ -77,23 +77,24 @@ export namespace boza::rhi
     {
         Device* device;
 
-        std::uint32_t width;
-        std::uint32_t height;
-        std::uint32_t depth{ 1 };
-
+        TextureType         type;
         TextureFormat       format;
+        TextureSampleCount  sample_count{ TextureSampleCount::Count1 };
         Flags<TextureUsage> usage;
 
-        std::uint32_t       mip_levels{ 1 };
-        std::uint32_t       array_layers{ 1 };
-        TextureSampleCount  sample_count{ TextureSampleCount::Count1 };
+        std::uint32_t width{ 1 };
+        std::uint32_t height{ 1 };
+        std::uint32_t depth{ 1 };
+
+        std::uint32_t mip_levels{ 1 };
+        std::uint32_t array_layers{ 1 };
     };
 
     class Texture : public GraphicsObject<Texture, TextureDesc>
     {
     public:
-        virtual void upload(const void* data, size_t size) = 0;
-        virtual void download(void* data, size_t size) = 0;
+        virtual void upload(const void* data, size_t size, std::uint32_t layer) = 0;
+        virtual void read_back(void* data, size_t size, std::uint32_t layer) = 0;
         virtual void transition_layout(TextureLayout old_layout, TextureLayout new_layout) = 0;
 
         [[nodiscard]] std::uint32_t width() const { return desc_.width; }
@@ -103,7 +104,7 @@ export namespace boza::rhi
         explicit Texture(const TextureDesc& desc) : GraphicsObject(desc) {}
 
         mutable std::mutex resource_mutex_;
-        std::atomic<bool> in_use_{ false };
+        std::atomic_bool in_use_{ false };
     };
 
 
@@ -135,20 +136,27 @@ export namespace boza::rhi
 
     struct SamplerDesc
     {
-        Device*          device;
-        SamplerFilter    filter{ SamplerFilter::Linear };
-        SamplerWrap      wrap_u{ SamplerWrap::Repeat };
-        SamplerWrap      wrap_v{ SamplerWrap::Repeat };
-        SamplerWrap      wrap_w{ SamplerWrap::Repeat };
-        SamplerFilter    mipmap_mode{ SamplerFilter::Linear };
-        float            mip_lod_bias{ 0.0f };
-        float            min_lod{ 0.0f };
-        float            max_lod{ 1000.0f };
-        float            max_anisotropy{ 1.0f };
+        Device* device;
+
+        TextureType type;
+
+        SamplerFilter filter{ SamplerFilter::Linear };
+        SamplerWrap   wrap_u{ SamplerWrap::Repeat };
+        SamplerWrap   wrap_v{ SamplerWrap::Repeat };
+        SamplerWrap   wrap_w{ SamplerWrap::Repeat };
+
+        SamplerFilter mipmap_mode{ SamplerFilter::Linear };
+        float         mip_lod_bias{ 0.0f };
+
+        float min_lod{ 0.0f };
+        float max_lod{ 1000.0f };
+        float max_anisotropy{ 1.0f };
+
         bool             compare_enable{ false };
         SamplerCompareOp compare_op{ SamplerCompareOp::Always };
-        BorderColor      border_color{ BorderColor::IntOpaqueBlack };
-        bool             unnormalized_coordinates{ false };
+
+        BorderColor border_color{ BorderColor::IntOpaqueBlack };
+        bool        unnormalized_coordinates{ false };
     };
 
     class Sampler : public GraphicsObject<Sampler, SamplerDesc>

@@ -3,62 +3,30 @@ module boza.gfx;
 import :material;
 import :texture;
 import :buffer;
+import :sampler;
 import boza.rhi;
 import boza.core;
 import boza.detail;
 import boza.gfx.material_loader;
+import boza.gfx.sampler_loader;
 
 namespace boza
 {
-    // TODO: remove duplicate (compute_dispatcher.cpp has the same) and actually make use of this
-    #ifdef BOZA_DEBUG
-    template<typename T>
-    constexpr rhi::ShaderDataType get_expected_shader_type()
-    {
-        if constexpr (std::is_same_v<T, float>) return rhi::ShaderDataType::Float;
-        else if constexpr (std::is_same_v<T, std::int32_t>) return rhi::ShaderDataType::Int;
-        else if constexpr (std::is_same_v<T, std::uint32_t>) return rhi::ShaderDataType::Uint;
-        else if constexpr (std::is_same_v<T, glm::vec2>) return rhi::ShaderDataType::Vec2;
-        else if constexpr (std::is_same_v<T, glm::vec3>) return rhi::ShaderDataType::Vec3;
-        else if constexpr (std::is_same_v<T, glm::vec4>) return rhi::ShaderDataType::Vec4;
-        else if constexpr (std::is_same_v<T, glm::ivec2>) return rhi::ShaderDataType::IVec2;
-        else if constexpr (std::is_same_v<T, glm::ivec3>) return rhi::ShaderDataType::IVec3;
-        else if constexpr (std::is_same_v<T, glm::ivec4>) return rhi::ShaderDataType::IVec4;
-        else if constexpr (std::is_same_v<T, glm::uvec2>) return rhi::ShaderDataType::UVec2;
-        else if constexpr (std::is_same_v<T, glm::uvec3>) return rhi::ShaderDataType::UVec3;
-        else if constexpr (std::is_same_v<T, glm::uvec4>) return rhi::ShaderDataType::UVec4;
-        else if constexpr (std::is_same_v<T, glm::mat2>) return rhi::ShaderDataType::Mat2;
-        else if constexpr (std::is_same_v<T, glm::mat3>) return rhi::ShaderDataType::Mat3;
-        else if constexpr (std::is_same_v<T, glm::mat4>) return rhi::ShaderDataType::Mat4;
-        else return rhi::ShaderDataType::Unknown;
-    }
-
-    template<typename T>
-    bool validate_property_type(const std::string& name, rhi::ShaderDataType actual_type)
-    {
-        const auto expected = get_expected_shader_type<T>();
-        if (expected != rhi::ShaderDataType::Unknown && expected != actual_type)
-        {
-            Log::warn("Material property '{}' type mismatch: expected {}, got {}", name, static_cast<int>(expected), static_cast<int>(actual_type));
-            return false;
-        }
-        return true;
-    }
-    #endif
-
     struct Material::Impl
     {
-        rhi::GraphicsPipeline*                  pipeline{ nullptr };
-        rhi::PipelineLayout*                    pipeline_layout{ nullptr };
-        std::vector<rhi::DescriptorSetLayout*>  descriptor_set_layouts;
-        rhi::DescriptorReflection*              reflection{ nullptr };
-        std::vector<rhi::DescriptorSet*>        descriptor_sets;
-        std::vector<std::byte>                  push_constant_staging;
+        rhi::GraphicsPipeline*                 pipeline{ nullptr };
+        rhi::PipelineLayout*                   pipeline_layout{ nullptr };
+        std::vector<rhi::DescriptorSetLayout*> descriptor_set_layouts;
+        rhi::DescriptorReflection*             reflection{ nullptr };
+        std::vector<rhi::DescriptorSet*>       descriptor_sets;
+        std::vector<std::byte>                 push_constant_staging;
 
         flat_map<std::uint32_t, bool> dirty_sets;
 
         flat_map<std::uint32_t, std::vector<std::byte>> uniform_buffer_staging;
         flat_map<std::uint32_t, rhi::Buffer*>           uniform_buffers;
+
+        flat_map<std::string, Sampler*> default_samplers;
 
         rhi::DescriptorPool* descriptor_pool{ nullptr };
     };
@@ -76,10 +44,7 @@ namespace boza
 
             for (auto& buffer : impl_->uniform_buffers | std::views::values)
             {
-                if (buffer)
-                {
-                    buffers_to_delete.push_back(buffer);
-                }
+                if (buffer) buffers_to_delete.push_back(buffer);
             }
 
             impl_->uniform_buffers.clear();
@@ -95,16 +60,55 @@ namespace boza
         {
             impl_->descriptor_pool->free_descriptor_sets(impl_->descriptor_sets);
         }
-        impl_->descriptor_sets.clear();
 
-        if (impl_->reflection)
-        {
-            delete impl_->reflection;
-            impl_->reflection = nullptr;
-        }
+        delete impl_->reflection;
     }
 
-    Material* Material::create(const std::string& vertex_shader_name, const std::string& fragment_shader_name)
+    rhi::CompareOp to_rhi_compare_op(const CompareOp op)
+    {
+        switch (op)
+        {
+            case CompareOp::Never: return rhi::CompareOp::Never;
+            case CompareOp::Less: return rhi::CompareOp::Less;
+            case CompareOp::Equal: return rhi::CompareOp::Equal;
+            case CompareOp::LessOrEqual: return rhi::CompareOp::LessOrEqual;
+            case CompareOp::Greater: return rhi::CompareOp::Greater;
+            case CompareOp::NotEqual: return rhi::CompareOp::NotEqual;
+            case CompareOp::GreaterOrEqual: return rhi::CompareOp::GreaterOrEqual;
+            case CompareOp::Always: return rhi::CompareOp::Always;
+        }
+
+        std::unreachable();
+    }
+
+    rhi::CullMode to_rhi_cull_mode(const CullMode mode)
+    {
+        switch (mode)
+        {
+            case CullMode::None: return rhi::CullMode::None;
+            case CullMode::Front: return rhi::CullMode::Front;
+            case CullMode::Back: return rhi::CullMode::Back;
+            case CullMode::FrontAndBack: return rhi::CullMode::FrontAndBack;
+        }
+
+        std::unreachable();
+    }
+
+    rhi::FrontFace to_rhi_front_face(const FrontFace face)
+    {
+        switch (face)
+        {
+            case FrontFace::CounterClockwise: return rhi::FrontFace::CounterClockwise;
+            case FrontFace::Clockwise: return rhi::FrontFace::Clockwise;
+        }
+
+        std::unreachable();
+    }
+
+    Material* Material::create(
+        const std::string& vertex_shader_name,
+        const std::string& fragment_shader_name,
+        const MaterialSettings& settings)
     {
         if (!detail::RenderContext::initialized() || !detail::RenderContext::device())
         {
@@ -112,10 +116,10 @@ namespace boza
             return nullptr;
         }
 
-        auto* device          = static_cast<rhi::Device*>(detail::RenderContext::device());
-        auto  api             = static_cast<rhi::GraphicsApi>(detail::RenderContext::api());
-        auto* resource_cache  = static_cast<rhi::ResourceCache*>(detail::RenderContext::resource_cache());
-        auto* descriptor_pool = static_cast<rhi::DescriptorPool*>(detail::RenderContext::descriptor_pool());
+        auto* device          = detail::RenderContext::device();
+        auto  api             = detail::RenderContext::api();
+        auto* resource_cache  = detail::RenderContext::resource_cache();
+        auto* descriptor_pool = detail::RenderContext::descriptor_pool();
 
         if (!resource_cache)
         {
@@ -164,15 +168,18 @@ namespace boza
         rhi::ShaderModule* vert_shader = vert_shader_shared.get();
         rhi::ShaderModule* frag_shader = frag_shader_shared.get();
 
-        rhi::GraphicsPipeline* pipeline = nullptr;
-        rhi::PipelineLayout* pipeline_layout = nullptr;
+        rhi::GraphicsPipeline* pipeline        = nullptr;
+        rhi::PipelineLayout*   pipeline_layout = nullptr;
+
         std::vector<rhi::DescriptorSetLayout*> descriptor_set_layouts;
 
-        const auto* cached = resource_cache->get_cached_pipeline(vertex_shader_name, fragment_shader_name);
+        const std::size_t settings_hash = settings.hash();
+        const auto* cached = resource_cache->get_cached_pipeline(vertex_shader_name, fragment_shader_name, settings_hash);
+
         if (cached)
         {
-            pipeline = cached->pipeline;
-            pipeline_layout = cached->layout;
+            pipeline               = cached->pipeline;
+            pipeline_layout        = cached->layout;
             descriptor_set_layouts = cached->descriptor_set_layouts;
         }
         else
@@ -194,7 +201,7 @@ namespace boza
                 return nullptr;
             }
 
-            const auto* swapchain = static_cast<rhi::Swapchain*>(detail::RenderContext::swapchain());
+            const auto* swapchain = detail::RenderContext::swapchain();
             if (!swapchain)
             {
                 Log::error("Swapchain not available in graphics context. Cannot create material.");
@@ -204,7 +211,19 @@ namespace boza
                 return nullptr;
             }
 
-            pipeline = builder.build_graphics_pipeline(swapchain, swapchain->depth_format());
+            const rhi::RasterizationState raster_state{
+                .cull_mode = to_rhi_cull_mode(settings.cull_mode),
+                .front_face = to_rhi_front_face(settings.front_face)
+            };
+
+            const rhi::DepthStencilState depth_state{
+                .depth_test_enable = settings.depth_test_enable,
+                .depth_write_enable = settings.depth_write_enable,
+                .depth_compare_op = to_rhi_compare_op(settings.depth_compare_op)
+            };
+
+            pipeline = builder.build_graphics_pipeline(swapchain, swapchain->depth_format(), raster_state, depth_state);
+
             if (!pipeline)
             {
                 Log::error("Failed to create graphics pipeline for material");
@@ -216,11 +235,12 @@ namespace boza
 
             descriptor_set_layouts = builder.get_descriptor_set_layouts();
 
-            resource_cache->cache_pipeline(vertex_shader_name, fragment_shader_name, {
-                .pipeline = pipeline,
-                .layout = pipeline_layout,
-                .descriptor_set_layouts = descriptor_set_layouts
-            });
+            resource_cache->cache_pipeline(
+                vertex_shader_name, fragment_shader_name, settings_hash, {
+                    .pipeline = pipeline,
+                    .layout = pipeline_layout,
+                    .descriptor_set_layouts = descriptor_set_layouts
+                });
         }
 
         std::vector<rhi::DescriptorSet*> descriptor_sets;
@@ -248,7 +268,7 @@ namespace boza
         reflection->build_from_shaders({ vert_shader, frag_shader });
         material->impl_->reflection = reflection;
 
-        Log::trace("Material created with shaders: {} and {}", vertex_shader_name, fragment_shader_name);
+        // Log::trace("Material created with shaders: {} and {}", vertex_shader_name, fragment_shader_name);
         return material;
     }
 
@@ -267,7 +287,7 @@ namespace boza
             return;
         }
 
-        auto* cmd = static_cast<rhi::CommandBuffer*>(detail::RenderContext::current_command_buffer());
+        auto* cmd = detail::RenderContext::current_command_buffer();
         if (!cmd)
         {
             Log::error("Cannot bind material: no active command buffer.");
@@ -282,7 +302,13 @@ namespace boza
         }
     }
 
-    void Material::push_constants_impl(const std::string& name, const void* data, const std::size_t size) const
+    void Material::mark_set_dirty(const std::uint32_t set) const { impl_->dirty_sets[set] = true; }
+
+    void Material::push_constants_impl(
+        const std::string& name,
+        const void*        data,
+        const std::size_t  size,
+        const ShaderDataType type) const
     {
         if (!impl_->reflection)
         {
@@ -298,13 +324,28 @@ namespace boza
         }
 
         const auto& info = binding_info.value();
+
         if (!info.is_push_constant)
         {
             Log::warn("Material property '{}' is not a push constant", name);
             return;
         }
 
-        auto* cmd = static_cast<rhi::CommandBuffer*>(detail::RenderContext::current_command_buffer());
+        #ifdef BOZA_DEBUG
+        if (!rhi::validate_property_type(type, size, info.data_type, info.size))
+        {
+            const auto error_msg = rhi::format_type_mismatch_error(
+                name,
+                type,
+                size,
+                info.data_type,
+                info.size
+            );
+            Log::warn("{}", error_msg);
+        }
+        #endif
+
+        auto* cmd = detail::RenderContext::current_command_buffer();
         if (!cmd)
         {
             Log::error("Cannot push constants: no active command buffer");
@@ -319,9 +360,11 @@ namespace boza
             data);
     }
 
-    void Material::mark_set_dirty(const std::uint32_t set) const { impl_->dirty_sets[set] = true; }
-
-    void Material::update_property_impl(const std::string& name, const void* data, std::size_t size) const
+    void Material::update_property_impl(
+        const std::string& name,
+        const void*        data,
+        std::size_t        size,
+        const ShaderDataType type) const
     {
         if (!impl_->reflection)
         {
@@ -337,6 +380,20 @@ namespace boza
         }
 
         const auto& info = binding_info.value();
+
+        #ifdef BOZA_DEBUG
+        if (!rhi::validate_property_type(type, size, info.data_type, info.size))
+        {
+            const auto error_msg = rhi::format_type_mismatch_error(
+                name,
+                type,
+                size,
+                info.data_type,
+                info.size
+            );
+            Log::warn("{}", error_msg);
+        }
+        #endif
 
         if (info.is_push_constant)
         {
@@ -362,23 +419,21 @@ namespace boza
 
         if (!impl_->uniform_buffers.contains(binding_key))
         {
-            auto* device = static_cast<rhi::Device*>(detail::RenderContext::device());
-            const auto api = static_cast<rhi::GraphicsApi>(detail::RenderContext::api());
-
-            const auto parent_info = impl_->reflection->lookup(name.substr(0, name.find('.')));
+            const auto        parent_info = impl_->reflection->lookup(name.substr(0, name.find('.')));
             const std::size_t buffer_size = parent_info.has_value() ? parent_info->size : 256;
 
-            auto* buffer = create_buffer(api, {
-                .device = device,
-                .size = buffer_size,
-                .usage = BufferUsage::Uniform,
-                .memory_type = rhi::BufferMemoryType::HostVisible
-            });
+            auto* buffer = create_buffer(
+                detail::RenderContext::api(), {
+                    .device = detail::RenderContext::device(),
+                    .size = buffer_size,
+                    .usage = BufferUsage::Uniform,
+                    .memory_type = rhi::BufferMemoryType::HostVisible
+                });
 
             if (buffer)
             {
                 impl_->uniform_buffers[binding_key] = buffer;
-                impl_->uniform_buffer_staging[binding_key].resize(buffer_size, std::byte{0});
+                impl_->uniform_buffer_staging[binding_key].resize(buffer_size, std::byte{ 0 });
 
                 if (info.set < impl_->descriptor_sets.size())
                 {
@@ -417,7 +472,20 @@ namespace boza
         }
     }
 
-    void Material::update_texture(const std::string& name, const Texture* texture) const
+    void Material::update_texture(const std::string& name, const Texture* texture, const Sampler* sampler) const
+    {
+        // If sampler not provided, use default sampler for this texture binding
+        if (!sampler)
+        {
+            auto it = impl_->default_samplers.find(name);
+            if (it != impl_->default_samplers.end()) sampler = it->second;
+            else sampler                                     = gfx::SamplerLoader::instance().default_sampler();
+        }
+
+        update_texture_sampler(name, texture, sampler);
+    }
+
+    void Material::update_texture_sampler(const std::string& name, const Texture* texture, const Sampler* sampler) const
     {
         if (!impl_->reflection)
         {
@@ -440,6 +508,8 @@ namespace boza
             return;
         }
 
+        if (sampler) impl_->default_samplers[name] = const_cast<Sampler*>(sampler);
+
         if (info.set < impl_->descriptor_sets.size())
         {
             rhi::DescriptorWrite write{
@@ -447,8 +517,8 @@ namespace boza
                 .array_element = 0,
                 .type = rhi::DescriptorType::CombinedImageSampler,
                 .info = rhi::CombinedImageSampler{
-                    .sampler = texture ? static_cast<rhi::Sampler*>(texture->rhi_sampler_handle()) : nullptr,
-                    .texture = texture ? static_cast<rhi::Texture*>(texture->rhi_handle()) : nullptr
+                    .texture = texture ? static_cast<rhi::Texture*>(texture->rhi_handle()) : nullptr,
+                    .sampler = sampler ? static_cast<rhi::Sampler*>(sampler->rhi_handle()) : nullptr
                 }
             };
 
@@ -517,26 +587,15 @@ namespace boza
 
     std::optional<BindingInfo> Material::lookup_binding(const std::string& name) const
     {
-        if (!impl_->reflection)
-        {
-            // Log::trace("lookup_binding('{}') - reflection is null", name);
-            return std::nullopt;
-        }
+        if (!impl_->reflection) return std::nullopt;
 
         auto rhi_info = impl_->reflection->lookup(name);
-        if (!rhi_info.has_value())
-        {
-            // Log::trace("lookup_binding('{}') - not found in reflection", name);
-            return std::nullopt;
-        }
+        if (!rhi_info.has_value()) return std::nullopt;
 
         const auto& [
             set, binding, offset, size,
             descriptor_type, data_type, is_push_constant
         ] = rhi_info.value();
-
-        // Log::trace("lookup_binding('{}') - found: set={}, binding={}, type={}",
-        //            name, set, binding, static_cast<int>(descriptor_type));
 
         return BindingInfo{
             .set = set,
@@ -559,6 +618,12 @@ namespace boza
     PropertyBinder& PropertyBinder::operator=(const Buffer* buffer)
     {
         material_->update_buffer(name_, buffer);
+        return *this;
+    }
+
+    PropertyBinder& PropertyBinder::operator=(const std::pair<Texture*, Sampler*>& texture_sampler)
+    {
+        material_->update_texture_sampler(name_, texture_sampler.first, texture_sampler.second);
         return *this;
     }
 }

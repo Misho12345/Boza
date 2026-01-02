@@ -4,6 +4,7 @@ import boza.gfx;
 import boza.detail;
 import boza.gfx.material_loader;
 import boza.gfx.texture_loader;
+import boza.gfx.sampler_loader;
 
 namespace boza::gfx
 {
@@ -26,7 +27,7 @@ namespace boza::gfx
 
             window_->create(api);
 
-            instance_.reset(rhi::create_instance(
+            instance_.reset(create_instance(
                 api, {
                     .app_name = "Test Boza App",
                     .engine_name = "Boza",
@@ -78,9 +79,9 @@ namespace boza::gfx
             detail::RenderContext::initialize(
                 device_.get(),
                 swapchain_.get(),
-                static_cast<int>(api),
                 resource_cache_.get(),
-                descriptor_pool_.get());
+                descriptor_pool_.get(),
+                api);
 
             api_  = api;
             found = true;
@@ -89,7 +90,7 @@ namespace boza::gfx
 
         if (!found) return false;
 
-        Log::trace("RenderingSystem initialized successfully");
+        // Log::trace("RenderingSystem initialized successfully");
 
         setup_resources();
 
@@ -104,12 +105,15 @@ namespace boza::gfx
 
         TextureLoader::instance().initialize();
 
+        SamplerLoader::instance().initialize();
+        SamplerLoader::instance().load_all_sampler_definitions();
+        SamplerLoader::instance().create_all_samplers();
+
         MaterialLoader::instance().initialize(
             device_.get(),
             swapchain_.get(),
             descriptor_pool_.get(),
             resource_cache_.get(),
-            &TextureLoader::instance(),
             api_);
 
         MaterialLoader::instance().load_all_material_definitions();
@@ -132,7 +136,7 @@ namespace boza::gfx
         const std::size_t vertex_buffer_size = mesh->vertices.size() * sizeof(Vertex);
         const std::size_t index_buffer_size  = mesh->indices.size() * sizeof(std::uint32_t);
 
-        Log::trace("Creating GPU mesh: {} vertices, {} indices", mesh->vertices.size(), mesh->indices.size());
+        // Log::trace("Creating GPU mesh: {} vertices, {} indices", mesh->vertices.size(), mesh->indices.size());
 
         if (vertex_buffer_size == 0 || index_buffer_size == 0)
         {
@@ -256,8 +260,12 @@ namespace boza::gfx
             cmd->bind_vertex_buffer(gpu_mesh->vertex_buffer.get());
             cmd->bind_index_buffer(gpu_mesh->index_buffer.get());
 
-            glm::mat4 model = transform.model_matrix();
-            material->push_constants("pc.model", model);
+            const auto model_pc = material->lookup_binding("pc.model");
+            if (model_pc.has_value() && model_pc->is_push_constant)
+            {
+                glm::mat4 model = transform.model_matrix();
+                material->push_constants("pc.model", model);
+            }
 
             cmd->draw_indexed(gpu_mesh->index_count);
             entities_rendered++;
@@ -279,16 +287,13 @@ namespace boza::gfx
     {
         wait_idle();
 
-        // ComputeDispatcher::cleanup();
-
         MaterialLoader::instance().shutdown();
+        SamplerLoader::instance().shutdown();
         TextureLoader::instance().shutdown();
         gpu_meshes_.clear();
 
         if (resource_cache_) resource_cache_.reset();
         if (descriptor_pool_) descriptor_pool_->destroy();
-
-        detail::RenderContext::shutdown();
 
         if (swapchain_) swapchain_->destroy();
         if (device_) device_->destroy();

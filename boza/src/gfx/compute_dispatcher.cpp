@@ -9,42 +9,6 @@ import boza.detail;
 
 namespace boza
 {
-    #ifdef BOZA_DEBUG
-    template<typename T>
-    constexpr rhi::ShaderDataType get_expected_shader_type()
-    {
-        if constexpr (std::is_same_v<T, float>) return rhi::ShaderDataType::Float;
-        else if constexpr (std::is_same_v<T, std::int32_t>) return rhi::ShaderDataType::Int;
-        else if constexpr (std::is_same_v<T, std::uint32_t>) return rhi::ShaderDataType::Uint;
-        else if constexpr (std::is_same_v<T, glm::vec2>) return rhi::ShaderDataType::Vec2;
-        else if constexpr (std::is_same_v<T, glm::vec3>) return rhi::ShaderDataType::Vec3;
-        else if constexpr (std::is_same_v<T, glm::vec4>) return rhi::ShaderDataType::Vec4;
-        else if constexpr (std::is_same_v<T, glm::ivec2>) return rhi::ShaderDataType::IVec2;
-        else if constexpr (std::is_same_v<T, glm::ivec3>) return rhi::ShaderDataType::IVec3;
-        else if constexpr (std::is_same_v<T, glm::ivec4>) return rhi::ShaderDataType::IVec4;
-        else if constexpr (std::is_same_v<T, glm::uvec2>) return rhi::ShaderDataType::UVec2;
-        else if constexpr (std::is_same_v<T, glm::uvec3>) return rhi::ShaderDataType::UVec3;
-        else if constexpr (std::is_same_v<T, glm::uvec4>) return rhi::ShaderDataType::UVec4;
-        else if constexpr (std::is_same_v<T, glm::mat2>) return rhi::ShaderDataType::Mat2;
-        else if constexpr (std::is_same_v<T, glm::mat3>) return rhi::ShaderDataType::Mat3;
-        else if constexpr (std::is_same_v<T, glm::mat4>) return rhi::ShaderDataType::Mat4;
-        else return rhi::ShaderDataType::Unknown;
-    }
-
-    template<typename T>
-    bool validate_property_type(const std::string& name, rhi::ShaderDataType actual_type)
-    {
-        const auto expected = get_expected_shader_type<T>();
-        if (expected != rhi::ShaderDataType::Unknown && expected != actual_type)
-        {
-            Log::warn("Compute property '{}' type mismatch: expected {}, got {}", name, static_cast<int>(expected),
-                      static_cast<int>(actual_type));
-            return false;
-        }
-        return true;
-    }
-    #endif
-
     struct ComputeDispatcher::Impl
     {
         rhi::ComputePipeline* pipeline{ nullptr };
@@ -78,10 +42,10 @@ namespace boza
             return;
         }
 
-        auto  api             = static_cast<rhi::GraphicsApi>(detail::RenderContext::api());
-        auto* device          = static_cast<rhi::Device*>(detail::RenderContext::device());
-        auto* resource_cache  = static_cast<rhi::ResourceCache*>(detail::RenderContext::resource_cache());
-        auto* descriptor_pool = static_cast<rhi::DescriptorPool*>(detail::RenderContext::descriptor_pool());
+        auto  api             = detail::RenderContext::api();
+        auto* device          = detail::RenderContext::device();
+        auto* resource_cache  = detail::RenderContext::resource_cache();
+        auto* descriptor_pool = detail::RenderContext::descriptor_pool();
 
         if (!resource_cache)
         {
@@ -172,7 +136,7 @@ namespace boza
 
         work_group_size_ = shader->meta_data().work_group_size;
 
-        Log::trace("ComputeDispatcher created for shader: {}", shader_name);
+        // Log::trace("ComputeDispatcher created for shader: {}", shader_name);
     }
 
     ComputeDispatcher::~ComputeDispatcher()
@@ -338,7 +302,7 @@ namespace boza
             return;
         }
 
-        const auto* device = static_cast<rhi::Device*>(detail::RenderContext::device());
+        const auto* device = detail::RenderContext::device();
         if (!device)
         {
             Log::error("Cannot dispatch compute: device is null");
@@ -378,7 +342,8 @@ namespace boza
     void ComputeDispatcher::update_property_impl(
         const std::string& name,
         const void*        data,
-        const std::size_t  size) const
+        const std::size_t  size,
+        const ShaderDataType type) const
     {
         const auto binding_info = impl_->reflection.lookup(name);
         if (!binding_info.has_value())
@@ -389,17 +354,30 @@ namespace boza
 
         const auto& info = binding_info.value();
 
+        #ifdef BOZA_DEBUG
+        if (!rhi::validate_property_type(type, size, info.data_type, info.size))
+        {
+            const auto error_msg = rhi::format_type_mismatch_error(
+                name,
+                type,
+                size,
+                info.data_type,
+                info.size
+            );
+            Log::warn("{}", error_msg);
+        }
+        #endif
+
         if (info.is_push_constant)
         {
-            if (info.offset + size <= impl_->push_constant_staging.size())
-            {
-                std::memcpy(impl_->push_constant_staging.data() + info.offset, data, size);
-            }
-            else
+            if (info.offset + size > impl_->push_constant_staging.size())
             {
                 Log::error("Push constant '{}' offset {} + size {} exceeds staging buffer size {}",
                            name, info.offset, size, impl_->push_constant_staging.size());
+                return;
             }
+
+            std::memcpy(impl_->push_constant_staging.data() + info.offset, data, size);
         }
         else mark_set_dirty(info.set);
     }

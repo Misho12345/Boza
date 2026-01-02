@@ -21,22 +21,30 @@ export namespace boza::gfx
         void shutdown();
 
         Texture* get_or_load(
-            const std::string& filepath,
-            TextureFormat format = TextureFormat::RGBA8,
-            SamplerFilter filter = SamplerFilter::Linear,
-            SamplerWrap wrap = SamplerWrap::Repeat);
+            const std::string& name,
+            TextureType type = TextureType::Texture2D);
+
+        Texture* get_or_load_cubemap(const std::string& name);
+
+        Texture* copy(
+            const std::string& src_name,
+            const std::string& dst_name,
+            ResourceAccessMode access_mode);
 
         void register_texture(const std::string& name, Texture* texture, bool take_ownership = true);
         void unregister_texture(Texture* texture);
-        Texture* get_texture(const std::string& name) const;
+
+        [[nodiscard]] Texture* get_texture(const std::string& name) const;
 
         [[nodiscard]] Texture* error_texture() const { return error_texture_; }
+
+        [[nodiscard]] bool initialized() const { return initialized_; }
 
     private:
         TextureLoader() = default;
         ~TextureLoader();
 
-        static std::string make_texture_key(const std::string& filepath, TextureFormat format);
+        static std::string make_texture_key(const std::string& filepath, TextureType type);
 
         flat_map<std::string, Texture*> textures_;
         std::unordered_set<Texture*> owned_textures_;

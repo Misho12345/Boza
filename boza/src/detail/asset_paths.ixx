@@ -10,13 +10,18 @@ export namespace boza::detail
     public:
         static fs::path assets_dir() { return fs::current_path() / "assets"; }
         static fs::path shaders_dir() { return fs::current_path() / "shaders"; }
-
         static fs::path textures_dir() { return assets_dir() / "textures"; }
         static fs::path materials_dir() { return assets_dir() / "materials"; }
+        static fs::path samplers_dir() { return assets_dir() / "samplers"; }
 
         static fs::path asset(const std::string& relative_path) { return assets_dir() / relative_path; }
         static fs::path texture(const std::string& texture_name) { return textures_dir() / texture_name; }
         static fs::path shader(const std::string& shader_name) { return shaders_dir() / shader_name; }
+
+        static fs::path sampler(const std::string& sampler_name)
+        {
+            return samplers_dir() / (sampler_name + ".smpl.json");
+        }
 
         static fs::path material(const std::string& material_name)
         {

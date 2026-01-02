@@ -30,7 +30,7 @@ export namespace boza
         template<typename... Args> static void error(const std::format_string<Args...> fmt, Args&&... args) { log(spdlog::level::err, fmt, std::forward<Args>(args)...); }
         template<typename... Args> static void critical(const std::format_string<Args...> fmt, Args&&... args) { log(spdlog::level::critical, fmt, std::forward<Args>(args)...); }
 
-        template <typename... Args>
+        template<typename... Args>
         static void log(spdlog::level::level_enum level, const std::format_string<Args...> fmt, Args&&... args)
         {
             auto message = std::vformat(fmt.get(), std::make_format_args(args...));

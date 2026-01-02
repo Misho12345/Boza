@@ -6,7 +6,6 @@ import boza.core;
 import boza.gfx;
 import boza.rhi;
 import boza.detail;
-import boza.gfx.texture_loader;
 
 export namespace boza::gfx
 {
@@ -18,9 +17,21 @@ export namespace boza::gfx
 
     struct TextureInfo
     {
-        std::string   file;
-        TextureFormat format{ TextureFormat::RGBA8 };
+        std::string texture_file;
+        std::string sampler_file;
     };
+
+    using PropertyValue = std::variant<
+        bool,
+        std::int32_t,
+        std::uint32_t,
+        float,
+        double,
+        std::vector<float>,
+        std::vector<std::int32_t>,
+        std::vector<std::uint32_t>,
+        std::vector<double>
+    >;
 
     struct MaterialDefinition
     {
@@ -28,9 +39,10 @@ export namespace boza::gfx
         std::string   vertex_shader;
         std::string   fragment_shader;
         LoadStrategy  load_strategy{ LoadStrategy::GameLoad };
+        MaterialSettings settings{};
 
         flat_map<std::string, TextureInfo> textures;
-        flat_map<std::string, glm::vec4> vec4_properties;
+        flat_map<std::string, flat_map<std::string, PropertyValue>> ubos;
     };
 
     struct CameraUBO
@@ -69,7 +81,6 @@ export namespace boza::gfx
             rhi::Swapchain*      swapchain,
             rhi::DescriptorPool* descriptor_pool,
             rhi::ResourceCache*  resource_cache,
-            TextureLoader*       texture_loader,
             rhi::GraphicsApi     api);
 
         void shutdown();
@@ -83,8 +94,6 @@ export namespace boza::gfx
         void register_material(const std::string& name, Material* material);
         void bind_engine_resources(const Material* material) const;
 
-        [[nodiscard]] rhi::Sampler* default_sampler() const { return default_sampler_.get(); }
-
         [[nodiscard]] rhi::Buffer* camera_ubo() const { return camera_ubo_.get(); }
         [[nodiscard]] rhi::Buffer* light_ubo() const { return light_ubo_.get(); }
         [[nodiscard]] rhi::Buffer* time_ubo() const { return time_ubo_.get(); }
@@ -95,20 +104,18 @@ export namespace boza::gfx
         MaterialLoader() = default;
 
         static std::optional<MaterialDefinition> load_material_definition(const std::filesystem::path& path);
-        static Material*                         create_material_from_definition(const MaterialDefinition& def);
-        void                                     setup_material_from_definition(Material* material, const MaterialDefinition& def);
+
+        static Material* create_material_from_definition(const MaterialDefinition& def);
+        void             setup_material_from_definition(Material* material, const MaterialDefinition& def);
 
         rhi::Device*         device_{ nullptr };
         rhi::Swapchain*      swapchain_{ nullptr };
         rhi::DescriptorPool* descriptor_pool_{ nullptr };
         rhi::ResourceCache*  resource_cache_{ nullptr };
-        TextureLoader*       texture_loader_{ nullptr };
         rhi::GraphicsApi     api_{};
 
         flat_map<std::string, MaterialDefinition> definitions_;
         flat_map<std::string, Material*> materials_;
-
-        std::unique_ptr<rhi::Sampler> default_sampler_;
 
         std::unique_ptr<rhi::Buffer> camera_ubo_;
         std::unique_ptr<rhi::Buffer> light_ubo_;

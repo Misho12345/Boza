@@ -48,8 +48,8 @@ export namespace boza::rhi::vk
         bool init() override;
         void destroy() override;
 
-        void upload(const void* data, size_t size) override;
-        void download(void* data, size_t size) override;
+        void upload(const void* data, size_t size, std::uint32_t layer) override;
+        void read_back(void* data, size_t size, std::uint32_t layer) override;
         void transition_layout(TextureLayout old_layout, TextureLayout new_layout) override;
 
         [[nodiscard]] VkImage vk_image() const;

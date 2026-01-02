@@ -2,6 +2,7 @@ export module boza.rhi:descriptor_reflection;
 
 import std;
 import boza.common;
+import boza.gfx;
 import boza.rhi.objects;
 
 export namespace boza::rhi

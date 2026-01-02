@@ -12,7 +12,7 @@ export namespace boza
     class BOZA_API Camera final : public Component
     {
     public:
-        enum class ProjectionType { Perspective, Orthographic };
+        enum class ProjectionType : std::uint8_t { Perspective, Orthographic };
 
         ProjectionType projection_type{ ProjectionType::Perspective };
         float fov{ 45.0f };

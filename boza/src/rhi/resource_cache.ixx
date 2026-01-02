@@ -30,6 +30,7 @@ export namespace boza::rhi
         {
             std::string vertex_shader;
             std::string fragment_shader;
+            std::size_t settings_hash{ 0 };
 
             bool operator==(const PipelineKey&) const = default;
 
@@ -39,7 +40,8 @@ export namespace boza::rhi
                 {
                     const size_t h1 = std::hash<std::string>{}(key.vertex_shader);
                     const size_t h2 = std::hash<std::string>{}(key.fragment_shader);
-                    return h1 ^ h2 << 1;
+                    const size_t h3 = key.settings_hash;
+                    return h1 ^ (h2 << 1) ^ (h3 << 2);
                 }
             };
         };
@@ -51,8 +53,8 @@ export namespace boza::rhi
             std::vector<DescriptorSetLayout*> descriptor_set_layouts;
         };
 
-        CachedPipeline* get_cached_pipeline(const std::string& vert, const std::string& frag);
-        void cache_pipeline(const std::string& vert, const std::string& frag, const CachedPipeline& cached);
+        CachedPipeline* get_cached_pipeline(const std::string& vert, const std::string& frag, std::size_t settings_hash = 0);
+        void cache_pipeline(const std::string& vert, const std::string& frag, std::size_t settings_hash, const CachedPipeline& cached);
 
         void clear();
 

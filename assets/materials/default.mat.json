@@ -3,11 +3,16 @@
   "fragment_shader": "default",
   "load_strategy": "game_load",
   "textures": {
-    "albedo_map": "default.png"
+    "albedo_map": {
+      "texture": "default.png",
+      "sampler": "default"
+    }
   },
-  "properties": {
-    "material.albedo_color": [0.8, 0.8, 0.8, 1.0],
-    "material.properties": [0.0, 0.5, 0.5, 1.0]
+  "UBOs": {
+    "material": {
+      "albedo_color": [0.8, 0.8, 0.8, 1.0],
+      "properties": [0.0, 0.5, 0.5, 1.0]
+    }
   }
 }
 

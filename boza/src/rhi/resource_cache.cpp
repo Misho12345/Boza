@@ -29,21 +29,27 @@ namespace boza::rhi
             [&] { return factory(path); });
     }
 
-    ResourceCache::CachedPipeline* ResourceCache::get_cached_pipeline(const std::string& vert, const std::string& frag)
+    ResourceCache::CachedPipeline* ResourceCache::get_cached_pipeline(
+        const std::string& vert,
+        const std::string& frag,
+        const std::size_t settings_hash)
     {
         std::lock_guard lock{ pipeline_mutex_ };
-        const PipelineKey key{ vert, frag };
+        const PipelineKey key{ vert, frag, settings_hash };
         const auto it = pipeline_cache_.find(key);
         if (it != pipeline_cache_.end()) return &it->second;
         return nullptr;
     }
 
-    void ResourceCache::cache_pipeline(const std::string& vert, const std::string& frag, const CachedPipeline& cached)
+    void ResourceCache::cache_pipeline(
+        const std::string& vert,
+        const std::string& frag,
+        const std::size_t settings_hash,
+        const CachedPipeline& cached)
     {
         std::lock_guard lock{ pipeline_mutex_ };
-        const PipelineKey key{ vert, frag };
+        const PipelineKey key{ vert, frag, settings_hash };
         pipeline_cache_[key] = cached;
-        Log::trace("Cached pipeline: {} + {}", vert, frag);
     }
 
     void ResourceCache::clear()
@@ -70,7 +76,7 @@ namespace boza::rhi
             pipeline_cache_.clear();
         }
 
-        Log::trace("ResourceCache cleared");
+        // Log::trace("ResourceCache cleared");
     }
 }
 

@@ -19,7 +19,8 @@ namespace boza::rhi
             }
 
             for (const auto& [name, resource] : metadata.storage_buffers)
-            { const BindingInfo info{
+            {
+                const BindingInfo info{
                     .set = resource.set,
                     .binding = resource.binding,
                     .offset = 0,

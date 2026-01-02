@@ -112,8 +112,8 @@ export namespace boza::rhi
 
     struct CombinedImageSampler
     {
-        Sampler* sampler;
         Texture* texture;
+        Sampler* sampler;
     };
 
     struct StorageImage

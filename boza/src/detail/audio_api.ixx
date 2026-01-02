@@ -1,5 +1,6 @@
 export module boza.detail:audio_api;
 
+import std;
 // TODO: add that in ahi/ when ahi is implemented
 
 #ifdef BOZA_OPENAL_ENABLED
@@ -22,7 +23,7 @@ export module boza.detail:audio_api;
 
 export namespace boza::detail
 {
-    enum class AudioApi
+    enum class AudioApi : std::uint8_t
     {
         BOZA_IF_OPENAL(OpenAL,)
         BOZA_IF_XAUDIO2(XAudio2,)

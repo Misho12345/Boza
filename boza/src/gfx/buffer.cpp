@@ -35,8 +35,8 @@ namespace boza
         for (std::uint32_t i = 0; i < buffer_count; ++i)
         {
             void* rhi_buffer = create_buffer(
-                static_cast<rhi::GraphicsApi>(detail::RenderContext::api()), {
-                    .device = static_cast<rhi::Device*>(detail::RenderContext::device()),
+                detail::RenderContext::api(), {
+                    .device = detail::RenderContext::device(),
                     .size = buffer_size,
                     .usage = usage,
                     .memory_type = memory_type

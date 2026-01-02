@@ -106,9 +106,7 @@ namespace boza
         impl_->game_loop->start();
         impl_->game_loop->wait_for_window_close();
 
-        Log::trace("Application stopping");
         shutdown();
-        Log::trace("Application stopped");
     }
 
     void App::shutdown()

@@ -7,7 +7,7 @@ import :file_io;
 
 export namespace boza::detail
 {
-    struct ImageData
+    struct ImageData final
     {
         std::uint32_t width{ 0 };
         std::uint32_t height{ 0 };
@@ -16,19 +16,24 @@ export namespace boza::detail
         std::uint8_t* data{ nullptr };
         std::size_t   size{ 0 };
 
+        bool stbi_loaded{ false };
+
         ImageData() = default;
+
         ImageData(
             const std::uint32_t width,
             const std::uint32_t height,
             const std::uint8_t  channels,
-            std::uint8_t* data)
+            std::uint8_t*       data,
+            const bool          stbi_loaded = false)
             : width{ width },
               height{ height },
               channels{ channels },
               data{ data },
-              size{ width * height * channels } {}
+              size{ width * height * channels },
+              stbi_loaded{ stbi_loaded } {}
 
-        ~ImageData() { if (data) stbi_image_free(data); }
+        ~ImageData() { if (data && stbi_loaded) stbi_image_free(data); }
 
         ImageData(const ImageData&)            = delete;
         ImageData& operator=(const ImageData&) = delete;
@@ -61,28 +66,31 @@ export namespace boza::detail
         }
     };
 
-    class ImageIO
+    class ImageIO final
     {
     public:
         ImageIO() = delete;
 
-        static ImageData read(const fs::path& path, const int desired_channels = 0)
+        static ImageData read(const fs::path& path)
         {
             if (!exists(path)) return {};
 
             int w, h, c;
 
+            if (!stbi_info(path.string().c_str(), &w, &h, &c)) return {};
+
+            const auto desired_channels = c != 3 ? c : 4;
+
             std::uint8_t* data = stbi_load(path.string().c_str(), &w, &h, &c, desired_channels);
             if (!data) return {};
-
-            const int actual_channels = desired_channels == 0 ? c : desired_channels;
 
             return ImageData
             {
                 static_cast<std::uint32_t>(w),
                 static_cast<std::uint32_t>(h),
-                static_cast<std::uint8_t>(actual_channels),
-                data
+                static_cast<std::uint8_t>(desired_channels),
+                data,
+                true
             };
         }
 

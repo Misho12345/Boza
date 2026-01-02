@@ -12,7 +12,7 @@ import boza.common;
 
 export namespace boza
 {
-    enum class BufferUsage
+    enum class BufferUsage : std::uint8_t
     {
         Vertex,
         Index,

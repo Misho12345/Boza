@@ -35,7 +35,7 @@ namespace boza::rhi::vk
             .minLod = desc_.min_lod,
             .maxLod = desc_.max_lod,
             .borderColor = to_vk(desc_.border_color),
-            .unnormalizedCoordinates = desc_.unnormalized_coordinates,
+            .unnormalizedCoordinates = desc_.unnormalized_coordinates
         };
 
         if (!vk_check(

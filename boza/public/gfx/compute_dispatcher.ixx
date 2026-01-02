@@ -7,6 +7,7 @@ export module boza.gfx:compute_dispatcher;
 import std;
 import boza.common;
 import boza.core;
+import :common;
 
 export namespace boza
 {
@@ -24,7 +25,11 @@ export namespace boza
             requires !std::is_same_v<std::remove_cvref_t<T>, Texture*>;
             requires !std::is_same_v<std::remove_cvref_t<T>, Buffer*>;
         }
-        ComputeDispatcher& set(const std::string& name, const T& value);
+        ComputeDispatcher& set(const std::string& name, const T& value)
+        {
+            update_property_impl(name, &value, sizeof(T), get_shader_data_type<T>());
+            return *this;
+        }
 
         ComputeDispatcher& set(const std::string& name, const Texture* texture);
         ComputeDispatcher& set(const std::string& name, const Buffer* buffer);
@@ -54,17 +59,7 @@ export namespace boza
         bool  dispatch_started_{ false };
 
         void mark_set_dirty(std::uint32_t set) const;
-        void update_property_impl(const std::string& name, const void* data, std::size_t size) const;
-    };
 
-    template<typename T> requires requires
-    {
-        requires !std::is_same_v<std::remove_cvref_t<T>, Texture*>;
-        requires !std::is_same_v<std::remove_cvref_t<T>, Buffer*>;
-    }
-    ComputeDispatcher& ComputeDispatcher::set(const std::string& name, const T& value)
-    {
-        update_property_impl(name, &value, sizeof(T));
-        return *this;
-    }
+        void update_property_impl(const std::string& name, const void* data, std::size_t size, ShaderDataType type) const;
+    };
 }

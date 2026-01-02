@@ -11,13 +11,13 @@ layout(location = 2) out vec3 fragPosWorld;
 layout(set = 0, binding = 0) uniform CameraUBO {
     mat4 view;
     mat4 proj;
-} cam;
+} cameraUBO;
 
 layout(set = 0, binding = 4) uniform TimeUBO {
     float time;
     float delta_time;
     vec2 padding;
-} timeData;
+} timeUBO;
 
 layout(push_constant) uniform PushConstants {
     mat4 model;
@@ -26,12 +26,12 @@ layout(push_constant) uniform PushConstants {
 void main() {
     vec3 pos = inPosition;
 
-    float wave = sin(pos.x * 3.0 + timeData.time * 2.0) * 0.1;
-    wave += sin(pos.z * 2.0 + timeData.time * 1.5) * 0.1;
+    float wave = sin(pos.x * 3.0 + timeUBO.time * 2.0) * 0.1;
+    wave += sin(pos.z * 2.0 + timeUBO.time * 1.5) * 0.1;
     pos.y += wave;
 
     vec4 worldPos = pc.model * vec4(pos, 1.0);
-    gl_Position = cam.proj * cam.view * worldPos;
+    gl_Position = cameraUBO.proj * cameraUBO.view * worldPos;
     fragPosWorld = worldPos.xyz;
 
     mat3 normalMatrix = transpose(inverse(mat3(pc.model)));

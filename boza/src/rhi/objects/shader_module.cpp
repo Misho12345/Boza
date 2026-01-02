@@ -36,9 +36,30 @@ namespace boza::rhi
         if (type_str == "uvec2") return ShaderDataType::UVec2;
         if (type_str == "uvec3") return ShaderDataType::UVec3;
         if (type_str == "uvec4") return ShaderDataType::UVec4;
+        if (type_str == "bvec2") return ShaderDataType::BVec2;
+        if (type_str == "bvec3") return ShaderDataType::BVec3;
+        if (type_str == "bvec4") return ShaderDataType::BVec4;
+        if (type_str == "dvec2") return ShaderDataType::DVec2;
+        if (type_str == "dvec3") return ShaderDataType::DVec3;
+        if (type_str == "dvec4") return ShaderDataType::DVec4;
         if (type_str == "mat2") return ShaderDataType::Mat2;
         if (type_str == "mat3") return ShaderDataType::Mat3;
         if (type_str == "mat4") return ShaderDataType::Mat4;
+        if (type_str == "mat2x3") return ShaderDataType::Mat2x3;
+        if (type_str == "mat2x4") return ShaderDataType::Mat2x4;
+        if (type_str == "mat3x2") return ShaderDataType::Mat3x2;
+        if (type_str == "mat3x4") return ShaderDataType::Mat3x4;
+        if (type_str == "mat4x2") return ShaderDataType::Mat4x2;
+        if (type_str == "mat4x3") return ShaderDataType::Mat4x3;
+        if (type_str == "dmat2") return ShaderDataType::DMat2;
+        if (type_str == "dmat3") return ShaderDataType::DMat3;
+        if (type_str == "dmat4") return ShaderDataType::DMat4;
+        if (type_str == "dmat2x3") return ShaderDataType::DMat2x3;
+        if (type_str == "dmat2x4") return ShaderDataType::DMat2x4;
+        if (type_str == "dmat3x2") return ShaderDataType::DMat3x2;
+        if (type_str == "dmat3x4") return ShaderDataType::DMat3x4;
+        if (type_str == "dmat4x2") return ShaderDataType::DMat4x2;
+        if (type_str == "dmat4x3") return ShaderDataType::DMat4x3;
         if (type_str == "sampler1D") return ShaderDataType::Sampler1D;
         if (type_str == "sampler2D") return ShaderDataType::Sampler2D;
         if (type_str == "sampler3D") return ShaderDataType::Sampler3D;
@@ -62,7 +83,7 @@ namespace boza::rhi
             if (res.contains("set")) res.at("set").get_to(resource.set);
             if (res.contains("binding")) res.at("binding").get_to(resource.binding);
             if (res.contains("location")) res.at("location").get_to(resource.location);
-            if (res.contains("size")) res.at("size").get_to(resource.size);
+            if (res.contains("min_size")) res.at("min_size").get_to(resource.size);
             if (res.contains("vec_size")) res.at("vec_size").get_to(resource.vec_size);
             if (res.contains("columns")) res.at("columns").get_to(resource.columns);
             if (res.contains("type"))
@@ -80,7 +101,7 @@ namespace boza::rhi
                     if (member_json.contains("name")) member_json.at("name").get_to(member.name);
                     if (member_json.contains("type")) member_json.at("type").get_to(member.type_name);
                     if (member_json.contains("offset")) member_json.at("offset").get_to(member.offset);
-                    if (member_json.contains("size")) member_json.at("size").get_to(member.size);
+                    if (member_json.contains("min_size")) member_json.at("min_size").get_to(member.size);
                     member.data_type = parse_data_type(member.type_name);
                     resource.members.push_back(member);
                 }
