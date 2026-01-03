@@ -7,7 +7,7 @@ using namespace boza;
 export class RandomColorPulser final : public Behaviour
 {
 public:
-    float speed{ 0.1f };
+    float speed{ 0.2f };
 
     void awake() override
     {
@@ -43,6 +43,8 @@ public:
         const glm::vec3 color = mix(color_a_, color_b_, cooldown_);
 
         (*material)["material.albedo_color"] = glm::vec4{ color, 1.0f };
+
+        transform->local_scale = glm::vec3{ glm::sin((cooldown_ + 0.5f) * glm::half_pi<float>()) * 2.0f };
     }
 
 private:

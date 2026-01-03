@@ -22,8 +22,10 @@ export namespace boza
         using getter_type_const = T(Owner::*)() const;
         using setter_type = void(Owner::*)(remove_cvref_t<T>);
         using setter_type_ref = void(Owner::*)(const remove_cvref_t<T>&);
+        using setter_type_nonconst_ref = void(Owner::*)(remove_cvref_t<T>&);
         using setter_type_const = void(Owner::*)(remove_cvref_t<T>) const;
         using setter_type_ref_const = void(Owner::*)(const remove_cvref_t<T>&) const;
+        using setter_type_nonconst_ref_const = void(Owner::*)(remove_cvref_t<T>&) const;
 
     public:
         template<typename G, typename S>
@@ -48,6 +50,17 @@ export namespace boza
             set_setter(setter);
         }
 
+        template<typename G, typename S>
+            requires has_getter && has_setter &&
+            (std::is_same_v<G, getter_type> || std::is_same_v<G, getter_type_const>) &&
+            (std::is_same_v<S, setter_type_nonconst_ref> || std::is_same_v<S, setter_type_nonconst_ref_const>)
+        constexpr Property(G getter, S setter, const std::size_t offset = 0)
+            : offset_(offset)
+        {
+            set_getter(getter);
+            set_setter(setter);
+        }
+
         template<typename G>
             requires has_getter && (!has_setter) &&
             (std::is_same_v<G, getter_type> || std::is_same_v<G, getter_type_const>)
@@ -63,6 +76,12 @@ export namespace boza
         template<typename S>
             requires has_setter && (!has_getter) &&
             (std::is_same_v<S, setter_type_ref> || std::is_same_v<S, setter_type_ref_const>)
+        constexpr explicit Property(S setter, const std::size_t offset = 0)
+            : offset_(offset) { set_setter(setter); }
+
+        template<typename S>
+            requires has_setter && (!has_getter) &&
+            (std::is_same_v<S, setter_type_nonconst_ref> || std::is_same_v<S, setter_type_nonconst_ref_const>)
         constexpr explicit Property(S setter, const std::size_t offset = 0)
             : offset_(offset) { set_setter(setter); }
 
@@ -100,6 +119,12 @@ export namespace boza
         [[nodiscard]] constexpr auto& operator*() requires has_getter && is_pointer_type_v<T> { return *call_getter(); }
 
         constexpr Property& operator=(const remove_cvref_t<T>& value) requires has_setter
+        {
+            if constexpr (has_setter) call_setter(value);
+            return *this;
+        }
+
+        constexpr Property& operator=(remove_cvref_t<T>& value) requires has_setter
         {
             if constexpr (has_setter) call_setter(value);
             return *this;
@@ -326,6 +351,12 @@ export namespace boza
             requires(T a, const U& b) { a[b]; } { return call_getter()[index]; }
 
     private:
+        enum class SetterKind : std::uint8_t {
+            ByValue,
+            ByConstRef,
+            ByNonConstRef  // NEW
+        };
+
         template<typename G>
         constexpr void set_getter(G getter) requires has_getter
         {
@@ -347,25 +378,37 @@ export namespace boza
             if constexpr (std::is_same_v<S, setter_type>)
             {
                 setter_ = setter;
-                uses_ref_setter_ = false;
+                setter_kind_ = SetterKind::ByValue;
                 uses_const_setter_ = false;
             }
             else if constexpr (std::is_same_v<S, setter_type_ref>)
             {
                 setter_ref_ = setter;
-                uses_ref_setter_ = true;
+                setter_kind_ = SetterKind::ByConstRef;
+                uses_const_setter_ = false;
+            }
+            else if constexpr (std::is_same_v<S, setter_type_nonconst_ref>)
+            {
+                setter_nonconst_ref_ = setter;
+                setter_kind_ = SetterKind::ByNonConstRef;
                 uses_const_setter_ = false;
             }
             else if constexpr (std::is_same_v<S, setter_type_const>)
             {
                 setter_const_ = setter;
-                uses_ref_setter_ = false;
+                setter_kind_ = SetterKind::ByValue;
                 uses_const_setter_ = true;
             }
             else if constexpr (std::is_same_v<S, setter_type_ref_const>)
             {
                 setter_ref_const_ = setter;
-                uses_ref_setter_ = true;
+                setter_kind_ = SetterKind::ByConstRef;
+                uses_const_setter_ = true;
+            }
+            else if constexpr (std::is_same_v<S, setter_type_nonconst_ref_const>)
+            {
+                setter_nonconst_ref_const_ = setter;
+                setter_kind_ = SetterKind::ByNonConstRef;
                 uses_const_setter_ = true;
             }
         }
@@ -390,14 +433,34 @@ export namespace boza
             const auto* owner_const = static_cast<const Owner*>(get_owner());
             if (uses_const_setter_)
             {
-                if (uses_ref_setter_) (owner_const->*setter_ref_const_)(value);
-                else (owner_const->*setter_const_)(value);
+                switch (setter_kind_)
+                {
+                    case SetterKind::ByValue:
+                        (owner_const->*setter_const_)(value);
+                        break;
+                    case SetterKind::ByConstRef:
+                        (owner_const->*setter_ref_const_)(value);
+                        break;
+                    case SetterKind::ByNonConstRef:
+                        (owner_const->*setter_nonconst_ref_const_)(const_cast<remove_cvref_t<T>&>(value));
+                        break;
+                }
             }
             else
             {
                 auto* owner = const_cast<Owner*>(owner_const);
-                if (uses_ref_setter_) (owner->*setter_ref_)(value);
-                else (owner->*setter_)(value);
+                switch (setter_kind_)
+                {
+                    case SetterKind::ByValue:
+                        (owner->*setter_)(value);
+                        break;
+                    case SetterKind::ByConstRef:
+                        (owner->*setter_ref_)(value);
+                        break;
+                    case SetterKind::ByNonConstRef:
+                        (owner->*setter_nonconst_ref_)(const_cast<remove_cvref_t<T>&>(value));
+                        break;
+                }
             }
         }
 
@@ -406,13 +469,33 @@ export namespace boza
             auto* owner = static_cast<Owner*>(get_owner());
             if (uses_const_setter_)
             {
-                if (uses_ref_setter_) (owner->*setter_ref_const_)(value);
-                else (owner->*setter_const_)(value);
+                switch (setter_kind_)
+                {
+                    case SetterKind::ByValue:
+                        (owner->*setter_const_)(value);
+                        break;
+                    case SetterKind::ByConstRef:
+                        (owner->*setter_ref_const_)(value);
+                        break;
+                    case SetterKind::ByNonConstRef:
+                        (owner->*setter_nonconst_ref_const_)(const_cast<remove_cvref_t<T>&>(value));
+                        break;
+                }
             }
             else
             {
-                if (uses_ref_setter_) (owner->*setter_ref_)(value);
-                else (owner->*setter_)(value);
+                switch (setter_kind_)
+                {
+                    case SetterKind::ByValue:
+                        (owner->*setter_)(value);
+                        break;
+                    case SetterKind::ByConstRef:
+                        (owner->*setter_ref_)(value);
+                        break;
+                    case SetterKind::ByNonConstRef:
+                        (owner->*setter_nonconst_ref_)(const_cast<remove_cvref_t<T>&>(value));
+                        break;
+                }
             }
         }
 
@@ -435,9 +518,11 @@ export namespace boza
         [[no_unique_address]] std::conditional_t<has_getter, bool, std::monostate> uses_const_getter_{};
         [[no_unique_address]] std::conditional_t<has_setter, setter_type, std::monostate> setter_{};
         [[no_unique_address]] std::conditional_t<has_setter, setter_type_ref, std::monostate> setter_ref_{};
+        [[no_unique_address]] std::conditional_t<has_setter, setter_type_nonconst_ref, std::monostate> setter_nonconst_ref_{};  // NEW
         [[no_unique_address]] std::conditional_t<has_setter, setter_type_const, std::monostate> setter_const_{};
         [[no_unique_address]] std::conditional_t<has_setter, setter_type_ref_const, std::monostate> setter_ref_const_{};
-        [[no_unique_address]] std::conditional_t<has_setter, bool, std::monostate> uses_ref_setter_{};
+        [[no_unique_address]] std::conditional_t<has_setter, setter_type_nonconst_ref_const, std::monostate> setter_nonconst_ref_const_{};  // NEW
+        [[no_unique_address]] std::conditional_t<has_setter, SetterKind, std::monostate> setter_kind_{};  // CHANGED: track which setter type
         [[no_unique_address]] std::conditional_t<has_setter, bool, std::monostate> uses_const_setter_{};
         std::size_t offset_;
     };

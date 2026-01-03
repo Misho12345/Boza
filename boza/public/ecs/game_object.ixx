@@ -57,8 +57,9 @@ export namespace boza
         };
 
         std::string name;
-        Tag         tag;
-        Layer       layer;
+
+        Tag   tag;
+        Layer layer;
 
         [[nodiscard]]
         bool is_valid() const;

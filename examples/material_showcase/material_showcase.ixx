@@ -151,26 +151,9 @@ private:
         }
 
         {
-            auto& cube = scene_->create_game_object("OscillatingCube");
-            cube.transform->position = glm::vec3{ -3.0f, 2.0f, 3.0f };
-
-            auto& mr = cube.add_component<MeshRenderer>();
-            mr.mesh = Mesh::get("cube");
-            mr.material = Material::get("custom_compute");
-
-            auto& rotator = cube.add_component<Rotator>();
-            rotator.rotation_axis = glm::vec3{ 1.0f, 1.0f, 1.0f };
-            rotator.rotation_speed = 2.0f;
-
-            auto& oscillator = cube.add_component<Oscillator>();
-            oscillator.start_pos = glm::vec3{ -3.0f, 2.0f, 3.0f };
-            oscillator.end_pos = glm::vec3{ 3.0f, 2.0f, 3.0f };
-            oscillator.speed = 1.5f;
-        }
-
-        {
             auto& cube = scene_->create_game_object("PulsingCube");
-            cube.transform->position = glm::vec3{ 0.0f, 2.0f, -3.0f };
+
+            cube.transform->position = glm::vec3{ 0.0f, 2.0f, -4.0f };
             cube.transform->scale = glm::vec3{ 1.5f };
 
             auto& mr = cube.add_component<MeshRenderer>();
@@ -182,6 +165,24 @@ private:
             rotator.rotation_speed = 0.8f;
 
             cube.add_component<RandomColorPulser>();
+
+        }
+
+        {
+            auto& cube = scene_->create_game_object("OscillatingCube");
+            cube.transform->parent = scene_->find_game_object_by_name("PulsingCube")->transform;
+            cube.transform->local_position = glm::vec3{ 0.0f, 1.0f, 3.0f };
+
+            auto& mr = cube.add_component<MeshRenderer>();
+            mr.mesh = Mesh::get("cube");
+            mr.material = Material::get("custom_compute");
+
+            auto& rotator = cube.add_component<Rotator>();
+            rotator.rotation_axis = glm::vec3{ 1.0f, 1.0f, 1.0f };
+            rotator.rotation_speed = 2.0f;
+
+            auto& oscillator = cube.add_component<Oscillator>();
+            oscillator.speed = 1.5f;
         }
 
         {
@@ -212,11 +213,13 @@ private:
 
         {
             auto& cube = scene_->create_game_object("WaveCube");
-            cube.transform->position = glm::vec3{ 0.0f, 4.5f, -4.0f };
+            cube.transform->parent = scene_->find_game_object_by_name("OscillatingCube")->transform;
+            cube.transform->local_position = glm::vec3{ 0.0f, 2.0f, 0.0f };
 
             auto& mr = cube.add_component<MeshRenderer>();
             mr.mesh = Mesh::get("cube");
             mr.material = Material::get("wave");
+
         }
 
         Log::info("Created all cubes");

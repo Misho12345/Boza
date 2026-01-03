@@ -15,6 +15,7 @@ namespace boza::gfx
 
 export namespace boza
 {
+    class Transform;
     class GameObject;
     class Behaviour;
 
@@ -53,11 +54,12 @@ export namespace boza
     private:
         void cleanup_destroyed_behaviours();
 
-        void        register_behaviour(entt::entity entity, Behaviour* behaviour);
-        GameObject* get_game_object(entt::entity entity) const;
+        [[nodiscard]] GameObject* get_game_object(entt::entity entity) const;
+        [[nodiscard]] bool is_entity_valid(entt::entity entity) const;
+
+        void register_behaviour(entt::entity entity, Behaviour* behaviour);
 
         entt::registry& get_world();
-        bool            is_entity_valid(entt::entity entity) const;
 
         [[nodiscard]] const std::string& get_name() const { return name_; }
 
@@ -73,6 +75,7 @@ export namespace boza
         bool started_{ false };
 
         friend class GameObject;
+        friend class Transform;
         friend class gfx::RenderingSystem;
     };
 }

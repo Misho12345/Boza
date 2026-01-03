@@ -8,17 +8,25 @@ using namespace boza;
 export class Oscillator final : public Behaviour
 {
 public:
-    glm::vec3 start_pos{ 0.0f };
-    glm::vec3 end_pos{ 0.0f };
-    float     speed{ 1.0f };
-    float     phase{ 0.0f };
+    float speed{ 1.0f };
+    float amplitude{ 1.0f };
+    float phase{ 0.0f };
+    glm::vec3 axis{ 0.0f, 1.0f, 0.0f };
 
-    void start() override { start_pos = transform->position; }
+    void start() override
+    {
+        base_local_ = transform->local_position;
+    }
 
     void update(const float dt) override
     {
-        phase               += dt * speed;
-        const float t       = (std::sinf(phase) + 1.0f) * 0.5f;
-        transform->position = mix(start_pos, end_pos, t);
+        phase += dt * speed;
+
+        const float s = glm::sin(phase);
+        const glm::vec3 offset = normalize(axis) * (s * amplitude);
+        transform->local_position = base_local_ + offset;
     }
+
+private:
+    glm::vec3 base_local_{};
 };

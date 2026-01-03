@@ -42,6 +42,8 @@ export namespace boza
 
     protected:
         Component() = default;
+        Scene* scene_{ nullptr };
+        entt::entity entity_{ entt::null };
 
     private:
         [[nodiscard]] Transform&  get_transform() const { return *transform_; }
@@ -50,8 +52,6 @@ export namespace boza
 
         Transform*   transform_{ nullptr };
         GameObject*  game_object_{ nullptr };
-        entt::entity entity_{ entt::null };
-        Scene*       scene_{ nullptr };
 
         friend class GameObject;
         friend class Scene;
