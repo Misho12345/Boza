@@ -32,13 +32,11 @@ export namespace boza::rhi::vk
 
         DescriptorSet*              allocate_descriptor_set(rhi::DescriptorSetLayout* layout) override;
         std::vector<DescriptorSet*> allocate_descriptor_sets(
-            uint32_t                                      count,
-            const std::vector<rhi::DescriptorSetLayout*>& layouts) override;
+            uint32_t                             count,
+            std::span<rhi::DescriptorSetLayout*> layouts) override;
 
         void free_descriptor_set(DescriptorSet* set) override;
-        void free_descriptor_sets(const std::vector<DescriptorSet*>& sets) override;
-
-        void recycle_descriptor_set(DescriptorSet* set) override;
+        void free_descriptor_sets(std::span<DescriptorSet*> sets) override;
 
         bool reset() override;
 
@@ -60,7 +58,7 @@ export namespace boza::rhi::vk
         bool init() override;
         void destroy() override;
 
-        void update(const std::vector<DescriptorWrite>& writes) override;
+        void update(std::span<DescriptorWrite> writes) override;
 
         [[nodiscard]] VkDescriptorSet vk_descriptor_set() const;
 

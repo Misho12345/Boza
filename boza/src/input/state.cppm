@@ -11,19 +11,19 @@ namespace boza::input
 
     struct KeyState
     {
-        bool is_pressed() const { return data_ & 0x01; }
-        bool is_held() const { return data_ & 0x02; }
+        [[nodiscard]] bool is_pressed() const { return data_ & 0b01; }
+        [[nodiscard]] bool is_held() const { return data_ & 0b10; }
 
         void set_pressed(const bool value)
         {
-            if (value) data_ |= 0x01;
-            else data_ &= ~0x01;
+            if (value) data_ |= 0b01;
+            else data_ &= ~0b01;
         }
 
         void set_held(const bool value)
         {
-            if (value) data_ |= 0x02;
-            else data_ &= ~0x02;
+            if (value) data_ |= 0b10;
+            else data_ &= ~0b10;
         }
 
         double last_press_time{ 0.0 };
@@ -38,31 +38,8 @@ namespace boza::input
         std::function<void()> callback;
     };
 
-    class CallbackExecutor
-    {
-    public:
-        static CallbackExecutor& instance();
-
-        void execute(std::function<void()> func);
-        void execute(std::function<void(glm::vec2)> func, glm::vec2 xy);
-
-        ~CallbackExecutor();
-
-    private:
-        CallbackExecutor();
-
-        std::vector<std::thread> workers_;
-        std::queue<std::function<void()>> tasks_;
-        std::mutex queue_mutex_;
-        std::condition_variable condition_;
-        bool stop_{ false };
-    };
-
-    inline void async_execute(std::function<void()> func) { CallbackExecutor::instance().execute(std::move(func)); }
-    inline void async_execute(std::function<void(glm::vec2)> func, const glm::vec2 xy)
-    {
-        CallbackExecutor::instance().execute(std::move(func), xy);
-    }
+    void async_execute(std::function<void()> func);
+    void async_execute(std::function<void(glm::vec2)> func, glm::vec2 xy);
 
     struct InputState
     {
@@ -85,6 +62,12 @@ namespace boza::input
 
         glm::vec2 last_cursor_pos{ 0.0f, 0.0f };
         bool first_cursor_move{ true };
+
+        glm::vec2 accumulated_mouse_delta{ 0.0f, 0.0f };
+        std::mutex mouse_delta_mutex;
+
+        std::queue<std::function<void()>> execution_queue;
+        std::mutex execution_mutex;
 
         static InputState& instance()
         {

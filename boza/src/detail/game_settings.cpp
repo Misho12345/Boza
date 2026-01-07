@@ -15,7 +15,7 @@ namespace boza::detail
     PhysicsSettings GameSettings::physics{};
     InputSettings GameSettings::input{};
 
-    bool GameSettings::load_from_file(const std::filesystem::path& filepath)
+    bool GameSettings::load_from_file(const fs::path& filepath)
     {
         const auto data_opt = FileIO::load_json(filepath);
         if (!data_opt.has_value())

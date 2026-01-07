@@ -24,8 +24,8 @@ export namespace boza::rhi::vk
 
         [[nodiscard]]
         static bool check_extensions_and_layers_support(
-            const std::span<const char*>& extensions,
-            const std::span<const char*>& layers);
+            std::span<const char*> extensions,
+            std::span<const char*> layers);
 
         #ifdef BOZA_DEBUG
         [[nodiscard]] bool       create_debug_messenger();

@@ -44,7 +44,7 @@ export namespace boza::rhi
         std::vector<DescriptorSetLayout*> descriptor_set_layouts_;
         PipelineLayout*                   pipeline_layout_{ nullptr };
 
-        struct DescriptorBinding
+        struct DescriptorBinding final
         {
             std::uint32_t      binding;
             DescriptorType     type;

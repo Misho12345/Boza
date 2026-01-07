@@ -1,5 +1,10 @@
+module;
+
+#include <cassert>
+
 module boza.gfx.sampler_loader;
 
+import boza.gfx;
 import boza.detail;
 
 namespace boza::gfx
@@ -16,21 +21,19 @@ namespace boza::gfx
     {
         if (initialized_) return;
 
-        default_sampler_ = Sampler::create_internal(
+        Sampler default_sampler{
             "boza_default_sampler",
             SamplerFilter::Linear,
             SamplerWrap::Repeat,
             SamplerWrap::Repeat,
             SamplerWrap::Repeat,
             SamplerFilter::Linear,
-            0.0f, 0.0f, 1000.0f, 1.0f);
+            0.0f, 0.0f, 1000.0f, 1.0f
+        };
 
-        if (default_sampler_)
-        {
-            owned_samplers_.insert(default_sampler_);
-            // Log::trace("Created default sampler (linear/repeat)");
-        }
-        else Log::error("Failed to create default sampler");
+        auto [it, inserted] = samplers_.try_emplace("boza_default_sampler", std::move(default_sampler));
+
+        if (!inserted || !it->second.rhi_handle()) Log::error("Failed to create default sampler");
 
         initialized_ = true;
     }
@@ -40,20 +43,10 @@ namespace boza::gfx
         if (!initialized_) return;
 
         samplers_.clear();
-
-        for (const auto* sampler : owned_samplers_)
-        {
-            if (sampler) delete sampler;
-        }
-
-        owned_samplers_.clear();
-
-        default_sampler_ = nullptr;
-        definitions_.clear();
         initialized_ = false;
     }
 
-    bool SamplerLoader::load_all_sampler_definitions()
+    bool SamplerLoader::load_and_create_samplers()
     {
         const auto samplers_dir = detail::AssetPaths::samplers_dir();
 
@@ -69,9 +62,7 @@ namespace boza::gfx
             if (entry.is_regular_file() &&
                 entry.path().extension() == ".json" &&
                 entry.path().stem().extension() == ".smpl")
-            {
                 sampler_files.push_back(entry.path());
-            }
         }
 
         if (sampler_files.empty())
@@ -83,30 +74,7 @@ namespace boza::gfx
         for (const auto& path : sampler_files)
         {
             auto def_opt = load_sampler_definition(path);
-            if (def_opt.has_value())
-            {
-                const auto& def = def_opt.value();
-                definitions_[def.name] = def;
-                // Log::trace("Loaded sampler definition: {}", def.name);
-            }
-        }
-
-        // Log::trace("Loaded {} sampler definitions", definitions_.size());
-        return true;
-    }
-
-    bool SamplerLoader::create_all_samplers()
-    {
-        for (const auto& [name, def] : definitions_)
-        {
-            auto* sampler = create_sampler_from_definition(def);
-            if (sampler)
-            {
-                samplers_[name] = sampler;
-                owned_samplers_.insert(sampler);
-                // Log::trace("Created sampler: {}", name);
-            }
-            else Log::error("Failed to create sampler: {}", name);
+            if (def_opt.has_value()) create(def_opt.value());
         }
 
         return true;
@@ -174,9 +142,54 @@ namespace boza::gfx
         return def;
     }
 
-    Sampler* SamplerLoader::create_sampler_from_definition(const SamplerDefinition& def)
+    Sampler& SamplerLoader::create(
+        const std::string_view name,
+        const SamplerFilter filter,
+        const SamplerWrap wrap_u,
+        const SamplerWrap wrap_v,
+        const SamplerWrap wrap_w,
+        const SamplerFilter mipmap_mode,
+        const float mip_lod_bias,
+        const float min_lod,
+        const float max_lod,
+        const float max_anisotropy)
     {
-        return Sampler::create_internal(
+        const std::string name_str{ name };
+
+        if (samplers_.contains(name_str))
+        {
+            Log::warn("Sampler '{}' already exists, returning existing sampler", name_str);
+            return samplers_.at(name_str);
+        }
+
+        Sampler sampler{
+            name,
+            filter,
+            wrap_u,
+            wrap_v,
+            wrap_w,
+            mipmap_mode,
+            mip_lod_bias,
+            min_lod,
+            max_lod,
+            max_anisotropy
+        };
+
+        auto [it, inserted] = samplers_.try_emplace(name_str, std::move(sampler));
+
+        if (!inserted || !it->second.rhi_handle())
+        {
+            Log::error("Failed to create sampler: {}", name_str);
+            return default_sampler();
+        }
+
+        Log::trace("Created sampler: {}", name_str);
+        return it->second;
+    }
+
+    Sampler& SamplerLoader::create(const SamplerDefinition& def)
+    {
+        return create(
             def.name,
             def.filter,
             def.wrap_u,
@@ -189,74 +202,43 @@ namespace boza::gfx
             def.max_anisotropy);
     }
 
-    Sampler* SamplerLoader::get_or_load(const std::string& name)
+    Sampler& SamplerLoader::get_sampler(const std::string_view name)
     {
-        if (samplers_.contains(name)) return samplers_[name];
-
-        if (definitions_.contains(name))
-        {
-            const auto& def = definitions_[name];
-            auto* sampler = create_sampler_from_definition(def);
-            if (sampler)
-            {
-                samplers_[name] = sampler;
-                owned_samplers_.insert(sampler);
-                Log::trace("Created on-demand sampler: {}", name);
-                return sampler;
-            }
-        }
-
-        Log::warn("Sampler '{}' not found, returning default sampler", name);
-        return default_sampler_;
+        if (auto* sampler = try_get_sampler(name)) return *sampler;
+        return default_sampler();
     }
 
-    Sampler* SamplerLoader::get_sampler(const std::string& name) const
+    Sampler* SamplerLoader::try_get_sampler(const std::string_view name)
     {
-        const auto it = samplers_.find(name);
-        return it != samplers_.end() ? it->second : nullptr;
+        const std::string name_str{ name };
+        auto it = samplers_.find(name_str);
+        return it != samplers_.end() ? &it->second : nullptr;
     }
 
-    void SamplerLoader::register_sampler(const std::string& name, Sampler* sampler, const bool take_ownership)
+    void SamplerLoader::destroy(const std::string_view name)
     {
-        if (!sampler)
+        const std::string name_str{ name };
+
+        if (name_str == "boza_default_sampler")
         {
-            Log::warn("Cannot register null sampler '{}'", name);
+            Log::warn("Cannot destroy default sampler");
             return;
         }
 
-        if (samplers_.contains(name))
+        const auto it = samplers_.find(name_str);
+        if (it != samplers_.end())
         {
-            auto* existing = samplers_[name];
-            if (existing != sampler && owned_samplers_.contains(existing))
-            {
-                Log::warn("Sampler '{}' already registered, replacing and deleting old sampler", name);
-                owned_samplers_.erase(existing);
-                delete existing;
-            }
+            Log::trace("Destroyed sampler: {}", name_str);
+            samplers_.erase(it);
         }
-
-        samplers_[name] = sampler;
-
-        if (take_ownership)
-            owned_samplers_.insert(sampler);
-
-        // Log::trace("Registered sampler: {} (owned: {})", name, take_ownership);
+        else Log::warn("Attempted to destroy non-existent sampler: {}", name_str);
     }
 
-    void SamplerLoader::unregister_sampler(Sampler* sampler)
+    Sampler& SamplerLoader::default_sampler()
     {
-        if (!sampler) return;
-
-        for (auto it = samplers_.begin(); it != samplers_.end();)
-        {
-            if (it->second == sampler)
-            {
-                Log::trace("Unregistered sampler: {}", it->first);
-                it = samplers_.erase(it);
-            }
-            else ++it;
-        }
-
-        owned_samplers_.erase(sampler);
+        auto it = samplers_.find("boza_default_sampler");
+        assert(it != samplers_.end() && "Default sampler not initialized");
+        return it->second;
     }
 }
+

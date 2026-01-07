@@ -19,17 +19,22 @@ export namespace boza::gfx
     class RenderingSystem final
     {
     public:
-        bool init(platform::Window& window, std::shared_ptr<Scene> scene);
+        bool init(platform::Window& window);
         void run();
         void destroy();
         void wait_idle() const;
 
-    private:
-        void     setup_resources();
-        GpuMesh* get_or_create_gpu_mesh(Mesh* mesh);
-        void     update_camera_uniforms() const;
+        void set_active_scene(Scene* scene);
+        void set_primary_camera(Camera* camera);
 
-        std::shared_ptr<Scene> active_scene_{ nullptr };
+    private:
+        void setup_resources();
+        void update_camera_uniforms() const;
+
+        GpuMesh* get_or_create_gpu_mesh(Mesh* mesh);
+
+        Camera*                primary_camera_{ nullptr };
+        Scene*                 active_scene_{ nullptr };
         rhi::GraphicsApi       api_{};
         platform::Window*      window_{ nullptr };
 
@@ -39,7 +44,7 @@ export namespace boza::gfx
         std::unique_ptr<rhi::DescriptorPool> descriptor_pool_{ nullptr };
         std::unique_ptr<rhi::ResourceCache>  resource_cache_{ nullptr };
 
-        flat_map<Mesh*, std::unique_ptr<GpuMesh>> gpu_meshes_;
+        node_map<Mesh*, GpuMesh> gpu_meshes_;
 
         bool resources_initialized_{ false };
     };

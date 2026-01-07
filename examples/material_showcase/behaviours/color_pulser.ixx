@@ -1,3 +1,7 @@
+module;
+
+#include <cassert>
+
 export module behaviours:color_pulser;
 
 import std;
@@ -11,57 +15,57 @@ public:
 
     void awake() override
     {
-        mesh_renderer_ = game_object->try_get_component<MeshRenderer>();
+        if (game_object->has_component<MeshRenderer>())
+            material_ = game_object->get_component<MeshRenderer>().material;
     }
 
-    void update(const float dt) override
+    void update() override
     {
-        if (!mesh_renderer_)
-        {
-            mesh_renderer_ = game_object->try_get_component<MeshRenderer>();
-            if (!mesh_renderer_) return;
-        }
+        assert(material_ && "Material not set");
 
-        auto* material = mesh_renderer_->material;
-        if (!material)
-        {
-            Log::warn("material is nullptr");
-            return;
-        }
-
-        cooldown_ += dt * speed;
+        cooldown_ += Time::delta_time() * speed;
         if (cooldown_ > 1.0f)
         {
             cooldown_ = 0.0f;
             color_a_ = color_b_;
             color_b_ = glm::vec3{
-                Random::real<float>(),
-                Random::real<float>(),
-                Random::real<float>()
+                Random::number<float>(),
+                Random::number<float>(),
+                Random::number<float>()
             };
         }
         const glm::vec3 color = mix(color_a_, color_b_, cooldown_);
 
-        (*material)["material.albedo_color"] = glm::vec4{ color, 1.0f };
+        (*material_)["material.albedo_color"] = glm::vec4{ color, 1.0f };
 
         transform->local_scale = glm::vec3{ glm::sin((cooldown_ + 0.5f) * glm::half_pi<float>()) * 2.0f };
+    }
+
+    void on_clone(GameObject& target) override
+    {
+        auto& cloned = target.add_component<RandomColorPulser>();
+        copy_base_component_data_to(&cloned);
+        cloned.speed = speed;
+        cloned.color_a_ = color_a_;
+        cloned.color_b_ = color_b_;
+        cloned.cooldown_ = cooldown_;
     }
 
 private:
     glm::vec3 color_a_
     {
-        Random::real<float>(),
-        Random::real<float>(),
-        Random::real<float>()
+        Random::number<float>(),
+        Random::number<float>(),
+        Random::number<float>()
     };
 
     glm::vec3 color_b_
     {
-        Random::real<float>(),
-        Random::real<float>(),
-        Random::real<float>()
+        Random::number<float>(),
+        Random::number<float>(),
+        Random::number<float>()
     };
 
-    MeshRenderer* mesh_renderer_{ nullptr };
+    Material* material_{ nullptr };
     float cooldown_{ 0.0f };
 };

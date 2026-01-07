@@ -1,11 +1,15 @@
 module;
 
 #include "api.hpp"
-#include <cstddef>
 
 export module boza.gfx:sampler;
 
 import boza.common;
+
+namespace boza::gfx
+{
+    class SamplerLoader;
+}
 
 export namespace boza
 {
@@ -26,69 +30,72 @@ export namespace boza
 
     class BOZA_API Sampler final
     {
+        [[nodiscard]] SamplerFilter get_filter() const { return filter_; }
+
+        [[nodiscard]] SamplerWrap get_wrap_u() const { return wrap_u_; }
+        [[nodiscard]] SamplerWrap get_wrap_v() const { return wrap_v_; }
+        [[nodiscard]] SamplerWrap get_wrap_w() const { return wrap_w_; }
+
+        [[nodiscard]] SamplerFilter get_mipmap_mode() const { return mipmap_mode_; }
+
+        [[nodiscard]] float get_mip_lod_bias() const { return mip_lod_bias_; }
+        [[nodiscard]] float get_min_lod() const { return min_lod_; }
+        [[nodiscard]] float get_max_lod() const { return max_lod_; }
+        [[nodiscard]] float get_max_anisotropy() const { return max_anisotropy_; }
+
     public:
         ~Sampler();
 
         Sampler(const Sampler&)            = delete;
         Sampler& operator=(const Sampler&) = delete;
-        Sampler(Sampler&&)                 = delete;
-        Sampler& operator=(Sampler&&)      = delete;
+        Sampler(Sampler&&) noexcept;
+        Sampler& operator=(Sampler&&) noexcept;
 
-        static Sampler* create(
-            const std::string& name,
-            SamplerFilter      filter = SamplerFilter::Linear,
-            SamplerWrap        wrap   = SamplerWrap::Repeat);
+        static Sampler& create(
+            std::string_view name,
+            SamplerFilter    filter         = SamplerFilter::Linear,
+            SamplerWrap      wrap_u         = SamplerWrap::Repeat,
+            SamplerWrap      wrap_v         = SamplerWrap::Repeat,
+            SamplerWrap      wrap_w         = SamplerWrap::Repeat,
+            SamplerFilter    mipmap_mode    = SamplerFilter::Linear,
+            float            mip_lod_bias   = 0.0f,
+            float            min_lod        = 0.0f,
+            float            max_lod        = 1000.0f,
+            float            max_anisotropy = 1.0f);
 
-        static Sampler* create_internal(
-            const std::string& name,
-            SamplerFilter      filter,
-            SamplerWrap        wrap_u,
-            SamplerWrap        wrap_v,
-            SamplerWrap        wrap_w,
-            SamplerFilter      mipmap_mode,
-            float              mip_lod_bias,
-            float              min_lod,
-            float              max_lod,
-            float              max_anisotropy);
+        static Sampler& get(std::string_view name);
+        static Sampler* try_get(std::string_view name);
 
-        static Sampler* get(const std::string& name);
-        static void     destroy(Sampler* sampler);
+        static void destroy(std::string_view name);
 
-        PropertyGet<Sampler, SamplerFilter> filter{ &Sampler::get_filter, offsetof(Sampler, filter_) };
-        PropertyGet<Sampler, SamplerWrap> wrap_u{ &Sampler::get_wrap_u, offsetof(Sampler, wrap_u_) };
-        PropertyGet<Sampler, SamplerWrap> wrap_v{ &Sampler::get_wrap_v, offsetof(Sampler, wrap_v_) };
-        PropertyGet<Sampler, SamplerWrap> wrap_w{ &Sampler::get_wrap_w, offsetof(Sampler, wrap_w_) };
-        PropertyGet<Sampler, SamplerFilter> mipmap_mode{ &Sampler::get_mipmap_mode, offsetof(Sampler, mipmap_mode_) };
-        PropertyGet<Sampler, float> mip_lod_bias{ &Sampler::get_mip_lod_bias, offsetof(Sampler, mip_lod_bias_) };
-        PropertyGet<Sampler, float> min_lod{ &Sampler::get_min_lod, offsetof(Sampler, min_lod_) };
-        PropertyGet<Sampler, float> max_lod{ &Sampler::get_max_lod, offsetof(Sampler, max_lod_) };
-        PropertyGet<Sampler, float> max_anisotropy{ &Sampler::get_max_anisotropy, offsetof(Sampler, max_anisotropy_) };
+        [[msvc::no_unique_address]] Property<Sampler, &Sampler::get_filter>         filter{ this };
+        [[msvc::no_unique_address]] Property<Sampler, &Sampler::get_wrap_u>         wrap_u{ this };
+        [[msvc::no_unique_address]] Property<Sampler, &Sampler::get_wrap_v>         wrap_v{ this };
+        [[msvc::no_unique_address]] Property<Sampler, &Sampler::get_wrap_w>         wrap_w{ this };
+        [[msvc::no_unique_address]] Property<Sampler, &Sampler::get_mipmap_mode>    mipmap_mode{ this };
+        [[msvc::no_unique_address]] Property<Sampler, &Sampler::get_mip_lod_bias>   mip_lod_bias{ this };
+        [[msvc::no_unique_address]] Property<Sampler, &Sampler::get_min_lod>        min_lod{ this };
+        [[msvc::no_unique_address]] Property<Sampler, &Sampler::get_max_lod>        max_lod{ this };
+        [[msvc::no_unique_address]] Property<Sampler, &Sampler::get_max_anisotropy> max_anisotropy{ this };
 
-        [[nodiscard]] void* rhi_handle() const { return rhi_sampler_; }
+        [[nodiscard]] void*            rhi_handle() const { return rhi_sampler_; }
+        [[nodiscard]] std::string_view name() const { return name_; }
 
     private:
         Sampler(
-            SamplerFilter filter,
-            SamplerWrap   wrap_u,
-            SamplerWrap   wrap_v,
-            SamplerWrap   wrap_w,
-            SamplerFilter mipmap_mode,
-            float         mip_lod_bias,
-            float         min_lod,
-            float         max_lod,
-            float         max_anisotropy);
+            std::string_view name,
+            SamplerFilter    filter,
+            SamplerWrap      wrap_u,
+            SamplerWrap      wrap_v,
+            SamplerWrap      wrap_w,
+            SamplerFilter    mipmap_mode,
+            float            mip_lod_bias,
+            float            min_lod,
+            float            max_lod,
+            float            max_anisotropy);
 
-        [[nodiscard]] SamplerFilter get_filter() const { return filter_; }
-        [[nodiscard]] SamplerWrap   get_wrap_u() const { return wrap_u_; }
-        [[nodiscard]] SamplerWrap   get_wrap_v() const { return wrap_v_; }
-        [[nodiscard]] SamplerWrap   get_wrap_w() const { return wrap_w_; }
-        [[nodiscard]] SamplerFilter get_mipmap_mode() const { return mipmap_mode_; }
-        [[nodiscard]] float         get_mip_lod_bias() const { return mip_lod_bias_; }
-        [[nodiscard]] float         get_min_lod() const { return min_lod_; }
-        [[nodiscard]] float         get_max_lod() const { return max_lod_; }
-        [[nodiscard]] float         get_max_anisotropy() const { return max_anisotropy_; }
-
-        void* rhi_sampler_{ nullptr };
+        std::string name_;
+        void*       rhi_sampler_{ nullptr };
 
         SamplerFilter filter_;
         SamplerWrap   wrap_u_;
@@ -101,5 +108,7 @@ export namespace boza
         float min_lod_;
         float max_lod_;
         float max_anisotropy_;
+
+        friend class gfx::SamplerLoader;
     };
 }

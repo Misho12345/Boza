@@ -18,13 +18,24 @@ public:
         base_local_ = transform->local_position;
     }
 
-    void update(const float dt) override
+    void update() override
     {
-        phase += dt * speed;
+        phase += Time::delta_time() * speed;
 
         const float s = glm::sin(phase);
         const glm::vec3 offset = normalize(axis) * (s * amplitude);
         transform->local_position = base_local_ + offset;
+    }
+
+    void on_clone(GameObject& target) override
+    {
+        auto& cloned = target.add_component<Oscillator>();
+        copy_base_component_data_to(&cloned);
+        cloned.speed = speed;
+        cloned.amplitude = amplitude;
+        cloned.phase = phase;
+        cloned.axis = axis;
+        cloned.base_local_ = base_local_;
     }
 
 private:

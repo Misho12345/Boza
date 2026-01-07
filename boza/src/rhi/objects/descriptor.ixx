@@ -74,13 +74,11 @@ export namespace boza::rhi
     public:
         virtual DescriptorSet*              allocate_descriptor_set(DescriptorSetLayout* layout) = 0;
         virtual std::vector<DescriptorSet*> allocate_descriptor_sets(
-            std::uint32_t                            count,
-            const std::vector<DescriptorSetLayout*>& layouts) = 0;
+            std::uint32_t                   count,
+            std::span<DescriptorSetLayout*> layouts) = 0;
 
         virtual void free_descriptor_set(DescriptorSet* set) = 0;
-        virtual void free_descriptor_sets(const std::vector<DescriptorSet*>& sets) = 0;
-
-        virtual void recycle_descriptor_set(DescriptorSet* set) = 0;
+        virtual void free_descriptor_sets(std::span<DescriptorSet*> sets) = 0;
 
         virtual bool reset() = 0;
 
@@ -146,7 +144,7 @@ export namespace boza::rhi
         virtual bool init() = 0;
         virtual void destroy() = 0;
 
-        virtual void update(const std::vector<DescriptorWrite>& writes) = 0;
+        virtual void update(std::span<DescriptorWrite> writes) = 0;
 
         std::uint64_t generation{ 0 };
 

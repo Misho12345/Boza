@@ -1,7 +1,6 @@
 module;
 
 #include "api.hpp"
-#include <cstddef>
 
 export module boza.ecs:tag;
 
@@ -12,16 +11,22 @@ export namespace boza
 {
     class BOZA_API Tag final
     {
+        [[nodiscard]] std::uint32_t get_id() const;
+        [[nodiscard]] const std::string& get_name() const;
+
     public:
         Tag() = default;
         explicit Tag(const std::uint32_t id) : id_{ id } {}
         explicit Tag(const std::string& name);
 
+        Tag(const Tag& other);
+        Tag& operator=(const Tag& other);
+
         Tag& operator=(const std::string& tag_name);
         Tag& operator=(std::uint32_t tag_id);
 
-        PropertyGet<Tag, std::uint32_t> id{ &Tag::get_id, offsetof(Tag, id) };
-        PropertyGet<Tag, std::string> name{ &Tag::get_name, offsetof(Tag, name) };
+        [[msvc::no_unique_address]] Property<Tag, &Tag::get_id> id{ this };
+        [[msvc::no_unique_address]] Property<Tag, &Tag::get_name> name{ this };
 
         bool operator==(const Tag& other) const;
         bool operator!=(const Tag& other) const;
@@ -29,9 +34,6 @@ export namespace boza
         bool operator!=(const std::string& tag_name) const;
 
     private:
-        [[nodiscard]] std::uint32_t get_id() const;
-        [[nodiscard]] std::string get_name() const;
-
         uint32_t id_{ 0 };
     };
 }

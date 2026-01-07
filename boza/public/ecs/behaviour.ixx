@@ -16,13 +16,17 @@ export namespace boza
         virtual void awake() {}
         virtual void start() {}
 
-        virtual void update([[maybe_unused]] float dt) {}
-        virtual void late_update([[maybe_unused]] float dt) {}
-        virtual void fixed_update([[maybe_unused]] float fixed_dt) {}
-
-        virtual void on_destroy() {}
+        virtual void update() {}
+        virtual void late_update() {}
+        virtual void fixed_update() {}
 
     protected:
         Behaviour() = default;
+
+    private:
+        bool awake_called_{ false };
+        bool start_called_{ false };
+
+        friend class Scene;
     };
 }

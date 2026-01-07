@@ -18,8 +18,7 @@ export namespace boza::platform
     class Window final
     {
     public:
-        Window(std::uint32_t width, std::uint32_t height, std::string title, bool fullscreen = false);
-        ~Window() = default;
+        Window() = default;
 
         Window(const Window&)            = delete;
         Window(Window&&)                 = delete;
@@ -27,22 +26,26 @@ export namespace boza::platform
         Window& operator=(Window&&)      = delete;
 
         static bool init();
-        bool        create(rhi::GraphicsApi api);
+
+        void init(std::uint32_t width, std::uint32_t height, std::string title, bool fullscreen = false);
+        bool create(rhi::GraphicsApi api);
 
         void        destroy();
         static void terminate();
 
         void toggle_fullscreen();
 
-        uint32_t width() const { return width_; }
-        uint32_t height() const { return height_; }
+        [[nodiscard]] std::uint32_t width() const { return width_; }
+        [[nodiscard]] std::uint32_t height() const { return height_; }
 
+        [[nodiscard]]
         float aspect_ratio() const
         {
             if (height_ == 0) return 1.0f;
             return static_cast<float>(width_) / static_cast<float>(height_);
         }
 
+        [[nodiscard]]
         bool        should_close() const;
         static void poll_events();
         void        set_window_resize_callback();
@@ -50,7 +53,10 @@ export namespace boza::platform
         void show() const;
         void hide() const;
 
-        void set_cursor_state(CursorState state);
+        [[nodiscard]]
+        CursorState cursor_state() const;
+        void        set_cursor_state(CursorState state);
+
         void apply_cursor_state_if_needed();
 
         [[nodiscard]] bool has_resized();

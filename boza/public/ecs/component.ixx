@@ -1,13 +1,11 @@
 module;
 
 #include "api.hpp"
-#include <cstddef>
 
 export module boza.ecs:component;
 
 import std;
 import boza.common;
-import <entt/entt.hpp>;
 
 export namespace boza
 {
@@ -17,41 +15,64 @@ export namespace boza
 
     class BOZA_API Component
     {
+        [[nodiscard]] Transform&       get_transform_ref();
+        [[nodiscard]] const Transform& get_transform_cref() const;
+
+        [[nodiscard]] Scene&       get_scene_ref();
+        [[nodiscard]] const Scene& get_scene_cref() const;
+
+        [[nodiscard]] GameObject&       get_game_object_ref();
+        [[nodiscard]] const GameObject& get_game_object_cref() const;
+
+        [[nodiscard]]
+        bool get_enabled() const { return enabled_; }
+        void set_enabled(bool value);
+
     public:
         virtual ~Component() = default;
 
-        PropertyGet<Component, Transform&> transform
-        {
-            &Component::get_transform,
-            offsetof(Component, transform)
-        };
+        [[msvc::no_unique_address]]
+        Property<
+            Component,
+            &Component::get_transform_ref,
+            &Component::get_transform_cref
+        > transform{ this };
 
-        PropertyGet<Component, Scene&> scene
-        {
-            &Component::get_scene,
-            offsetof(Component, scene)
-        };
+        [[msvc::no_unique_address]]
+        Property<
+            Component,
+            &Component::get_scene_ref,
+            &Component::get_scene_cref
+        > scene{ this };
 
-        PropertyGet<Component, GameObject&> game_object
-        {
-            &Component::get_game_object,
-            offsetof(Component, game_object)
-        };
+        [[msvc::no_unique_address]]
+        Property<
+            Component,
+            &Component::get_game_object_ref,
+            &Component::get_game_object_cref
+        > game_object{ this };
 
-        bool enabled{ true };
+        [[msvc::no_unique_address]]
+        Property<
+            Component,
+            &Component::get_enabled,
+            &Component::set_enabled
+        > enabled{ this };
+
+        virtual void on_enable() {}
+        virtual void on_disable() {}
+        virtual void on_destroy() {}
+
+        virtual void on_clone([[maybe_unused]] GameObject& target) {}
 
     protected:
         Component() = default;
-        Scene* scene_{ nullptr };
-        entt::entity entity_{ entt::null };
+
+        void copy_base_component_data_to(Component* target) const;
 
     private:
-        [[nodiscard]] Transform&  get_transform() const { return *transform_; }
-        [[nodiscard]] Scene&      get_scene() const { return *scene_; }
-        [[nodiscard]] GameObject& get_game_object() const { return *game_object_; }
-
-        Transform*   transform_{ nullptr };
-        GameObject*  game_object_{ nullptr };
+        GameObject* game_object_{ nullptr };
+        bool enabled_{ true };
 
         friend class GameObject;
         friend class Scene;

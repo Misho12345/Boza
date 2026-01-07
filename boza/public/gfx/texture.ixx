@@ -1,6 +1,5 @@
 module;
 
-#include <cstddef>
 #include "api.hpp"
 
 export module boza.gfx:texture;
@@ -97,8 +96,14 @@ export namespace boza
         Flags<TextureUsage> usage_flags{ TextureUsage::Sampled | TextureUsage::TransferDst };
     };
 
-    class BOZA_API Texture
+    class BOZA_API Texture final
     {
+        [[nodiscard]] std::uint32_t get_width() const { return settings_.width; }
+        [[nodiscard]] std::uint32_t get_height() const { return settings_.height; }
+        [[nodiscard]] std::uint32_t get_depth() const { return settings_.depth; }
+        [[nodiscard]] TextureType get_type() const { return settings_.type; }
+        [[nodiscard]] TextureFormat get_format() const { return settings_.format; }
+
     public:
         ~Texture();
 
@@ -107,19 +112,22 @@ export namespace boza
         Texture(Texture&&) noexcept;
         Texture& operator=(Texture&&) noexcept;
 
-        static Texture* get_or_load(const std::string& name);
-
-        static Texture* copy(
-            const std::string& src_name,
-            const std::string& dst_name,
+        static Texture& copy(
+            std::string_view src_name,
+            std::string_view dst_name,
             ResourceAccessMode access_mode);
 
-        static Texture* create(
-            const std::string& name,
+        static Texture& create(
+            std::string_view name,
             const TextureSettings& settings);
 
-        static Texture* get(const std::string& name);
-        static void     destroy(Texture* texture);
+        static Texture& get_or_load(std::string_view name);
+        static Texture& get_or_load_cubemap(std::string_view name);
+
+        static Texture& get(std::string_view name);
+        static Texture* try_get(std::string_view name);
+
+        static void destroy(std::string_view name);
 
         void upload(const void* data, std::size_t data_size, std::uint32_t frame_index = 0) const;
         void upload_layer(const void* data, std::size_t data_size, std::uint32_t layer, std::uint32_t frame_index = 0) const;
@@ -129,27 +137,23 @@ export namespace boza
 
         void transition_layout(TextureLayout old_layout, TextureLayout new_layout, std::uint32_t frame_index = 0) const;
 
-        PropertyGet<Texture, std::uint32_t> width{ &Texture::get_width, offsetof(Texture, width) };
-        PropertyGet<Texture, std::uint32_t> height{ &Texture::get_height, offsetof(Texture, height) };
-        PropertyGet<Texture, std::uint32_t> depth{ &Texture::get_depth, offsetof(Texture, depth) };
-        PropertyGet<Texture, TextureType> type{ &Texture::get_type, offsetof(Texture, type) };
-        PropertyGet<Texture, TextureFormat> format{ &Texture::get_format, offsetof(Texture, format) };
+        [[msvc::no_unique_address]] Property<Texture, &Texture::get_width>  width{ this };
+        [[msvc::no_unique_address]] Property<Texture, &Texture::get_height> height{ this };
+        [[msvc::no_unique_address]] Property<Texture, &Texture::get_depth>  depth{ this };
+        [[msvc::no_unique_address]] Property<Texture, &Texture::get_type>   type{ this };
+        [[msvc::no_unique_address]] Property<Texture, &Texture::get_format> format{ this };
 
         [[nodiscard]] void* rhi_handle(std::uint32_t frame_index = 0) const;
         [[nodiscard]] bool  is_valid() const { return !rhi_textures_.empty(); }
+        [[nodiscard]] std::string_view name() const { return name_; }
 
     private:
-        explicit Texture(const TextureSettings& settings);
-        void     cleanup();
-
-        [[nodiscard]] std::uint32_t get_width() const { return settings_.width; }
-        [[nodiscard]] std::uint32_t get_height() const { return settings_.height; }
-        [[nodiscard]] std::uint32_t get_depth() const { return settings_.depth; }
-        [[nodiscard]] TextureType get_type() const { return settings_.type; }
-        [[nodiscard]] TextureFormat get_format() const { return settings_.format; }
+        Texture(std::string_view name, const TextureSettings& settings);
+        void cleanup();
 
         [[nodiscard]] std::uint32_t resolve_texture_index(std::uint32_t frame_index) const;
 
+        std::string name_;
         TextureSettings settings_;
         std::vector<void*> rhi_textures_{};
 

@@ -119,13 +119,13 @@ namespace boza::rhi::vk
         const uint32_t       set_index)
     {
         // Log::trace("Binding descriptor set at index {}", set_index);
-        bind_descriptor_sets(layout, { set }, set_index);
+        bind_descriptor_sets(layout, { &set, 1 }, set_index);
     }
 
     void CommandBuffer::bind_descriptor_sets(
-        rhi::PipelineLayout*                    layout,
-        const std::vector<rhi::DescriptorSet*>& sets,
-        const uint32_t                          first_set)
+        rhi::PipelineLayout*                 layout,
+        const std::span<rhi::DescriptorSet*> sets,
+        const uint32_t                       first_set)
     {
         // Log::trace("Binding {} descriptor set(s) starting at index {}", sets.size(), first_set);
 

@@ -10,12 +10,11 @@ namespace boza::gfx
 {
     using platform::Window;
 
-    bool RenderingSystem::init(Window& window, std::shared_ptr<Scene> scene)
+    bool RenderingSystem::init(Window& window)
     {
         bool found = false;
 
-        window_       = &window;
-        active_scene_ = std::move(scene);
+        window_ = &window;
 
         for (const auto& api : rhi::graphics_apis_by_priority)
         {
@@ -106,8 +105,7 @@ namespace boza::gfx
         TextureLoader::instance().initialize();
 
         SamplerLoader::instance().initialize();
-        SamplerLoader::instance().load_all_sampler_definitions();
-        SamplerLoader::instance().create_all_samplers();
+        SamplerLoader::instance().load_and_create_samplers();
 
         MaterialLoader::instance().initialize(
             device_.get(),
@@ -129,9 +127,9 @@ namespace boza::gfx
         }
 
         const auto it = gpu_meshes_.find(mesh);
-        if (it != gpu_meshes_.end()) return it->second.get();
+        if (it != gpu_meshes_.end()) return &it->second;
 
-        auto gpu_mesh = std::make_unique<GpuMesh>();
+        GpuMesh gpu_mesh;
 
         const std::size_t vertex_buffer_size = mesh->vertices.size() * sizeof(Vertex);
         const std::size_t index_buffer_size  = mesh->indices.size() * sizeof(std::uint32_t);
@@ -144,7 +142,7 @@ namespace boza::gfx
             return nullptr;
         }
 
-        gpu_mesh->vertex_buffer.reset(create_buffer(
+        gpu_mesh.vertex_buffer.reset(create_buffer(
             api_,
             {
                 .device = device_.get(),
@@ -153,7 +151,7 @@ namespace boza::gfx
                 .memory_type = rhi::BufferMemoryType::HostVisible
             }));
 
-        gpu_mesh->index_buffer.reset(create_buffer(
+        gpu_mesh.index_buffer.reset(create_buffer(
             api_,
             {
                 .device = device_.get(),
@@ -162,55 +160,41 @@ namespace boza::gfx
                 .memory_type = rhi::BufferMemoryType::HostVisible
             }));
 
-        gpu_mesh->index_count = static_cast<std::uint32_t>(mesh->indices.size());
+        gpu_mesh.index_count = static_cast<std::uint32_t>(mesh->indices.size());
 
-        if (!gpu_mesh->vertex_buffer || !gpu_mesh->index_buffer)
+        if (!gpu_mesh.vertex_buffer || !gpu_mesh.index_buffer)
         {
             Log::error("Failed to create GPU buffers for mesh");
             return nullptr;
         }
 
-        gpu_mesh->vertex_buffer->upload(mesh->vertices.data(), vertex_buffer_size, 0);
-        gpu_mesh->index_buffer->upload(mesh->indices.data(), index_buffer_size, 0);
+        gpu_mesh.vertex_buffer->upload(mesh->vertices.data(), vertex_buffer_size, 0);
+        gpu_mesh.index_buffer->upload(mesh->indices.data(), index_buffer_size, 0);
 
-        auto* result = gpu_mesh.get();
         gpu_meshes_[mesh] = std::move(gpu_mesh);
-
-        return result;
+        return &gpu_meshes_[mesh];
     }
 
     void RenderingSystem::update_camera_uniforms() const
     {
-        if (!active_scene_) return;
+        if (!active_scene_ || !primary_camera_) return;
 
         auto* camera_ubo = MaterialLoader::instance().camera_ubo();
         if (!camera_ubo) return;
 
-        auto& registry = active_scene_->get_world();
-        auto  view     = registry.view<Camera, Transform>();
+        const float aspect_ratio = static_cast<float>(swapchain_->width()) / static_cast<float>(swapchain_->height());
 
-        for (auto entity : view)
-        {
-            auto& camera    = view.get<Camera>(entity);
-            auto& transform = view.get<Transform>(entity);
+        const CameraUBO ubo_data{
+            .view = primary_camera_->transform->view_matrix(),
+            .proj = primary_camera_->projection_matrix(aspect_ratio)
+        };
 
-            if (!camera.primary) continue;
-
-            const float aspect_ratio = static_cast<float>(swapchain_->width()) / static_cast<float>(swapchain_->height());
-
-            CameraUBO ubo_data{
-                .view = transform.view_matrix(),
-                .proj = camera.projection_matrix(aspect_ratio)
-            };
-
-            camera_ubo->upload(&ubo_data, sizeof(CameraUBO), 0);
-            break;
-        }
+        camera_ubo->upload(&ubo_data, sizeof(CameraUBO), 0);
     }
 
     void RenderingSystem::run()
     {
-        if (!active_scene_) return;
+        if (!active_scene_ || !active_scene_->root().active) return;
         if (!swapchain_->begin_frame()) return;
 
         if (!resources_initialized_) setup_resources();
@@ -225,33 +209,47 @@ namespace boza::gfx
 
         swapchain_->begin_render_pass(image_idx);
 
-        auto& registry = active_scene_->get_world();
-        auto view = registry.view<Transform, MeshRenderer>();
+        std::vector<MeshRenderer*> renderables;
+
+        std::vector<const Transform*> stack;
+        stack.reserve(128);
+
+        stack.emplace_back(&active_scene_->root().transform);
+
+        if (const auto persistent_scene = Scene::persistent_scene())
+            stack.emplace_back(&persistent_scene->root().transform);
+
+        while (!stack.empty())
+        {
+            const Transform* transform = stack.back();
+            stack.pop_back();
+
+            const auto& go = transform->game_object();
+            if (!go.active) continue;
+
+            if (auto* renderer = go.try_get_component<MeshRenderer>();
+                renderer && renderer->enabled)
+                renderables.emplace_back(renderer);
+
+            for (auto* child : transform->get_children())
+            {
+                if (child) stack.emplace_back(child);
+            }
+        }
 
         static bool first_frame = true;
-        int entities_rendered = 0;
 
-        for (auto entity : view)
+        for (const auto mesh_renderer : renderables)
         {
-            auto& transform = view.get<Transform>(entity);
-            auto& mesh_renderer = view.get<MeshRenderer>(entity);
+            if (!mesh_renderer->mesh) continue;
 
-            if (!mesh_renderer.mesh) continue;
+            const auto gpu_mesh = get_or_create_gpu_mesh(mesh_renderer->mesh);
+            if (!gpu_mesh || !gpu_mesh->index_buffer || !gpu_mesh->vertex_buffer) continue;
 
-            const auto mesh_ptr_value = reinterpret_cast<std::uintptr_t>(mesh_renderer.mesh.get());
-            if (mesh_ptr_value < 0x10000 || (mesh_ptr_value & 0xFFFF) == 0)
-            {
-                Log::error("Entity has corrupted mesh pointer: 0x{:x}", mesh_ptr_value);
-                continue;
-            }
-
-            GpuMesh* gpu_mesh = get_or_create_gpu_mesh(mesh_renderer.mesh.get());
-            if (!gpu_mesh || !gpu_mesh->vertex_buffer || !gpu_mesh->index_buffer) continue;
-
-            Material* material = mesh_renderer.material;
+            Material* material = mesh_renderer->material;
             if (!material)
             {
-                material = MaterialLoader::instance().get_material("default");
+                material = MaterialLoader::instance().try_get_material("default");
                 if (!material) continue;
             }
 
@@ -263,18 +261,17 @@ namespace boza::gfx
             const auto model_pc = material->lookup_binding("pc.model");
             if (model_pc.has_value() && model_pc->is_push_constant)
             {
-                glm::mat4 model = transform.model_matrix();
+                glm::mat4 model = mesh_renderer->transform->world_matrix();
                 material->push_constants("pc.model", model);
             }
 
             cmd->draw_indexed(gpu_mesh->index_count);
-            entities_rendered++;
         }
 
         if (first_frame)
         {
             first_frame = false;
-            Log::info("First frame: rendered {} entities", entities_rendered);
+            Log::info("First frame: rendered {} entities", renderables.size());
         }
 
         detail::RenderContext::set_current_command_buffer(nullptr);
@@ -300,8 +297,8 @@ namespace boza::gfx
         if (instance_) instance_->destroy();
     }
 
-    void RenderingSystem::wait_idle() const
-    {
-        if (device_) device_->wait_idle();
-    }
+    void RenderingSystem::wait_idle() const { if (device_) device_->wait_idle(); }
+
+    void RenderingSystem::set_active_scene(Scene* scene) { active_scene_ = scene; }
+    void RenderingSystem::set_primary_camera(Camera* camera) { primary_camera_ = camera; }
 }

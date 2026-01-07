@@ -1,6 +1,5 @@
 module;
 
-#include <cstddef>
 #include "api.hpp"
 
 export module boza.app;
@@ -27,46 +26,38 @@ export namespace boza
         bool init();
         void run();
 
-        void toggle_fullscreen() const;
-        void set_cursor_state(CursorState state) const;
+        static void toggle_fullscreen();
+        static void set_cursor_state(CursorState state);
+        static CursorState cursor_state();
 
-        static std::shared_ptr<Scene> create_scene(const std::string& name = "New Scene");
-        static void register_custom_material(const std::string& name, Material* material);
+        static void set_active_scene(Scene& scene);
+        static Scene* active_scene();
 
-        PropertyGetSet<App, std::shared_ptr<Scene>> active_scene
-        {
-            &App::get_active_scene,
-            &App::set_active_scene,
-            offsetof(App, active_scene)
-        };
+        static void set_primary_camera(Camera& camera);
+        static Camera* primary_camera();
 
-        PropertySet<App, float> target_fps
-        {
-            &App::set_target_fps,
-            offsetof(App, target_fps)
-        };
+        static void set_target_fps(float fps);
+        static float target_fps();
 
-        PropertySet<App, float> fixed_update_rate
-        {
-            &App::set_fixed_update_rate,
-            offsetof(App, fixed_update_rate)
-        };
+        static void set_fixed_update_rate(float rate);
+        static float fixed_update_rate();
 
     protected:
-        virtual void on_setup_scene() = 0;
-        virtual void on_graphics_ready() {}
+        virtual void setup() {}
+        virtual void post_setup() {}
         virtual void on_shutdown() {}
 
     private:
-        void                   set_active_scene(const std::shared_ptr<Scene>& scene) const;
-        std::shared_ptr<Scene> get_active_scene() const;
-
-        void set_target_fps(float fps) const;
-        void set_fixed_update_rate(float rate) const;
+        static Scene& create_scene(std::string_view name = "New Scene");
+        static Scene* get_scene(std::string_view name);
 
         void shutdown();
 
         struct Impl;
         std::unique_ptr<Impl> impl_;
+
+        static App* s_instance_;
+
+        friend Scene;
     };
 }

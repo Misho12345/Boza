@@ -22,8 +22,10 @@ export namespace boza
 
         template<typename T> requires requires
         {
-            requires !std::is_same_v<std::remove_cvref_t<T>, Texture*>;
-            requires !std::is_same_v<std::remove_cvref_t<T>, Buffer*>;
+            requires !std::same_as<std::remove_cvref_t<T>, Texture*>;
+            requires !std::same_as<std::remove_cvref_t<T>, Texture>;
+            requires !std::same_as<std::remove_cvref_t<T>, Buffer*>;
+            requires !std::same_as<std::remove_cvref_t<T>, Buffer>;
         }
         ComputeDispatcher& set(const std::string& name, const T& value)
         {
@@ -31,8 +33,8 @@ export namespace boza
             return *this;
         }
 
-        ComputeDispatcher& set(const std::string& name, const Texture* texture);
-        ComputeDispatcher& set(const std::string& name, const Buffer* buffer);
+        ComputeDispatcher& set(const std::string& name, const Texture& texture);
+        ComputeDispatcher& set(const std::string& name, const Buffer& buffer);
 
         ComputeDispatcher& dispatch(std::uint32_t width, std::uint32_t height = 1, std::uint32_t depth = 1);
         ComputeDispatcher& dispatch_groups(std::uint32_t x, std::uint32_t y, std::uint32_t z);

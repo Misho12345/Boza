@@ -20,23 +20,20 @@ export namespace boza::gfx
         void initialize();
         void shutdown();
 
-        Texture* get_or_load(
-            const std::string& name,
+        Texture& get_or_load(
+            std::string_view name,
             TextureType type = TextureType::Texture2D);
 
-        Texture* get_or_load_cubemap(const std::string& name);
+        Texture& get_or_load_cubemap(std::string_view name);
 
-        Texture* copy(
-            const std::string& src_name,
-            const std::string& dst_name,
+        Texture& copy(
+            std::string_view src_name,
+            std::string_view dst_name,
             ResourceAccessMode access_mode);
 
-        void register_texture(const std::string& name, Texture* texture, bool take_ownership = true);
-        void unregister_texture(Texture* texture);
+        [[nodiscard]] Texture* try_get_texture(std::string_view name);
 
-        [[nodiscard]] Texture* get_texture(const std::string& name) const;
-
-        [[nodiscard]] Texture* error_texture() const { return error_texture_; }
+        [[nodiscard]] Texture& error_texture() { return *error_texture_; }
 
         [[nodiscard]] bool initialized() const { return initialized_; }
 
@@ -44,11 +41,18 @@ export namespace boza::gfx
         TextureLoader() = default;
         ~TextureLoader();
 
-        static std::string make_texture_key(const std::string& filepath, TextureType type);
+        Texture& create(
+            std::string_view name,
+            const TextureSettings& settings);
 
-        flat_map<std::string, Texture*> textures_;
-        std::unordered_set<Texture*> owned_textures_;
+        void destroy(std::string_view name);
+
+        static std::string make_texture_key(std::string_view filepath, TextureType type);
+
+        node_map<std::string, Texture> textures_;
         Texture* error_texture_{ nullptr };
         bool initialized_{ false };
+
+        friend class Texture;
     };
 }

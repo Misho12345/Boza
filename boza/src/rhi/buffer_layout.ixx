@@ -225,22 +225,22 @@ export namespace boza::rhi
         template<typename T>
         static constexpr ShaderValueType get_shader_type()
         {
-            if constexpr (std::is_same_v<T, float>) return ShaderValueType::Float;
-            else if constexpr (std::is_same_v<T, std::int32_t>) return ShaderValueType::Int;
-            else if constexpr (std::is_same_v<T, std::uint32_t>) return ShaderValueType::Uint;
-            else if constexpr (std::is_same_v<T, bool>) return ShaderValueType::Bool;
-            else if constexpr (std::is_same_v<T, glm::vec2>) return ShaderValueType::Vec2;
-            else if constexpr (std::is_same_v<T, glm::vec3>) return ShaderValueType::Vec3;
-            else if constexpr (std::is_same_v<T, glm::vec4>) return ShaderValueType::Vec4;
-            else if constexpr (std::is_same_v<T, glm::ivec2>) return ShaderValueType::IVec2;
-            else if constexpr (std::is_same_v<T, glm::ivec3>) return ShaderValueType::IVec3;
-            else if constexpr (std::is_same_v<T, glm::ivec4>) return ShaderValueType::IVec4;
-            else if constexpr (std::is_same_v<T, glm::uvec2>) return ShaderValueType::UVec2;
-            else if constexpr (std::is_same_v<T, glm::uvec3>) return ShaderValueType::UVec3;
-            else if constexpr (std::is_same_v<T, glm::uvec4>) return ShaderValueType::UVec4;
-            else if constexpr (std::is_same_v<T, glm::mat2>) return ShaderValueType::Mat2;
-            else if constexpr (std::is_same_v<T, glm::mat3>) return ShaderValueType::Mat3;
-            else if constexpr (std::is_same_v<T, glm::mat4>) return ShaderValueType::Mat4;
+            if constexpr (std::same_as<T, float>) return ShaderValueType::Float;
+            else if constexpr (std::same_as<T, std::int32_t>) return ShaderValueType::Int;
+            else if constexpr (std::same_as<T, std::uint32_t>) return ShaderValueType::Uint;
+            else if constexpr (std::same_as<T, bool>) return ShaderValueType::Bool;
+            else if constexpr (std::same_as<T, glm::vec2>) return ShaderValueType::Vec2;
+            else if constexpr (std::same_as<T, glm::vec3>) return ShaderValueType::Vec3;
+            else if constexpr (std::same_as<T, glm::vec4>) return ShaderValueType::Vec4;
+            else if constexpr (std::same_as<T, glm::ivec2>) return ShaderValueType::IVec2;
+            else if constexpr (std::same_as<T, glm::ivec3>) return ShaderValueType::IVec3;
+            else if constexpr (std::same_as<T, glm::ivec4>) return ShaderValueType::IVec4;
+            else if constexpr (std::same_as<T, glm::uvec2>) return ShaderValueType::UVec2;
+            else if constexpr (std::same_as<T, glm::uvec3>) return ShaderValueType::UVec3;
+            else if constexpr (std::same_as<T, glm::uvec4>) return ShaderValueType::UVec4;
+            else if constexpr (std::same_as<T, glm::mat2>) return ShaderValueType::Mat2;
+            else if constexpr (std::same_as<T, glm::mat3>) return ShaderValueType::Mat3;
+            else if constexpr (std::same_as<T, glm::mat4>) return ShaderValueType::Mat4;
             else return ShaderValueType::Float;
         }
 

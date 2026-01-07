@@ -8,32 +8,34 @@ using namespace boza;
 export class CameraController final : public Behaviour
 {
 public:
-    std::mutex mutex_rot{};
-
     float move_speed{ 1.0f };
     float sensitivity{ 0.001f };
 
     float move_accel_smooth_time{ 0.08f };
     float move_decel_smooth_time{ 0.03f };
-    float rotation_smooth_time{ 0.01f };
-
-    glm::vec2 delta_rot{};
+    float rotation_smooth_time{ 0.001f };
 
     void awake() override
     {
-        Input::on<Action::MouseMove>([this](const glm::vec2 move)
+        const glm::vec3 forward = normalize(transform->forward());
+        yaw_ = target_yaw_ = std::atan2(forward.x, forward.z);
+        pitch_ = target_pitch_ = std::asin(glm::clamp(-forward.y, -1.0f, 1.0f));
+
+        Input::on<Action::MouseMove>([this](const glm::vec2 delta)
         {
-            std::lock_guard lock{ mutex_rot };
-            delta_rot += move * sensitivity;
+            if (App::cursor_state() != CursorState::HiddenLocked) return;
+
+            target_yaw_   += delta.x * sensitivity;
+            target_pitch_ = glm::clamp(target_pitch_ + delta.y * sensitivity, pitch_min, pitch_max);
         });
     }
 
-    void update(const float dt) override
+    void update() override
     {
         glm::vec3 input{};
 
-        if (Input::is_held(Key::W)) --input.z;
-        if (Input::is_held(Key::S)) ++input.z;
+        if (Input::is_held(Key::W)) ++input.z;
+        if (Input::is_held(Key::S)) --input.z;
         if (Input::is_held(Key::A)) --input.x;
         if (Input::is_held(Key::D)) ++input.x;
         if (Input::is_held(Key::Space)) ++input.y;
@@ -41,7 +43,7 @@ public:
 
         glm::vec3 desired_velocity{ 0.0f };
 
-        if (glm::length2(input) > 0.0f)
+        if (glm::length2(input) > 1e-8f)
         {
             glm::vec3 world_dir{ 0.0f, input.y, 0.0f };
 
@@ -70,29 +72,37 @@ public:
         const bool  stopping = glm::length2(desired_velocity) < 1e-8f;
         const float tau      = stopping ? move_decel_smooth_time : move_accel_smooth_time;
 
-        current_velocity_ = exp_smooth_vec3(current_velocity_, desired_velocity, dt, tau);
+        current_velocity_ = exp_smooth_vec3(current_velocity_, desired_velocity, Time::delta_time(), tau);
+        transform->position += current_velocity_ * Time::delta_time();
 
-        transform->position += current_velocity_ * dt;
+        if (yaw_ == target_yaw_ && pitch_ == target_pitch_) return;
 
-        glm::vec2 frame_delta{};
-
+        if (rotation_smooth_time > 0.0f)
         {
-            std::lock_guard lock{ mutex_rot };
-            frame_delta = delta_rot;
-            delta_rot   = { 0.0f, 0.0f };
+            yaw_   = exp_smooth_angle(yaw_, target_yaw_, Time::delta_time(), rotation_smooth_time);
+            pitch_ = exp_smooth_scalar(pitch_, target_pitch_, Time::delta_time(), rotation_smooth_time);
         }
-
-        target_yaw_   += frame_delta.x;
-        target_pitch_ += frame_delta.y;
-        target_pitch_ = glm::clamp(target_pitch_, pitch_min, pitch_max);
-
-        yaw_   = exp_smooth_angle(yaw_, target_yaw_, dt, rotation_smooth_time);
-        pitch_ = exp_smooth_scalar(pitch_, target_pitch_, dt, rotation_smooth_time);
+        else
+        {
+            yaw_ = target_yaw_;
+            pitch_ = target_pitch_;
+        }
 
         const glm::quat q_yaw   = glm::angleAxis(yaw_, glm::vec3{ 0.0f, 1.0f, 0.0f });
         const glm::quat q_pitch = glm::angleAxis(pitch_, glm::vec3{ 1.0f, 0.0f, 0.0f });
 
         transform->rotation = normalize(q_yaw * q_pitch);
+    }
+
+    void on_clone(GameObject& target) override
+    {
+        auto& cloned = target.add_component<CameraController>();
+        copy_base_component_data_to(&cloned);
+        cloned.move_speed = move_speed;
+        cloned.sensitivity = sensitivity;
+        cloned.move_accel_smooth_time = move_accel_smooth_time;
+        cloned.move_decel_smooth_time = move_decel_smooth_time;
+        cloned.rotation_smooth_time = rotation_smooth_time;
     }
 
 private:

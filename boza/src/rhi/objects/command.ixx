@@ -46,7 +46,7 @@ export namespace boza::rhi
         virtual std::vector<CommandBuffer*> allocate_command_buffers(std::uint32_t count, bool is_primary = true) = 0;
 
         virtual void free_command_buffer(CommandBuffer* command_buffer) = 0;
-        virtual void free_command_buffers(const std::vector<CommandBuffer*>& command_buffers) = 0;
+        virtual void free_command_buffers(std::span<CommandBuffer*> command_buffers) = 0;
 
         virtual bool reset(bool release_resources = false) = 0;
 
@@ -133,9 +133,9 @@ export namespace boza::rhi
 
         virtual void bind_descriptor_set(PipelineLayout* layout, DescriptorSet* set, std::uint32_t set_index) = 0;
         virtual void bind_descriptor_sets(
-            PipelineLayout*                    layout,
-            const std::vector<DescriptorSet*>& sets,
-            std::uint32_t                      first_set) = 0;
+            PipelineLayout*           layout,
+            std::span<DescriptorSet*> sets,
+            std::uint32_t             first_set) = 0;
 
         virtual void push_constants(
             PipelineLayout* layout,

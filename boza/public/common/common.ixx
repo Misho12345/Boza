@@ -18,6 +18,11 @@ export namespace glm
 
 export namespace boza
 {
+    using namespace std::string_literals;
+    using namespace std::string_view_literals;
+    using namespace std::chrono_literals;
+    using namespace std::complex_literals;
+
     using nlohmann::json;
 
     template<typename... Args> using flat_map = gtl::flat_hash_map<Args...>;

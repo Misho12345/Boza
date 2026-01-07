@@ -1,6 +1,7 @@
 module boza.ecs;
 
 import :camera;
+import :game_object;
 
 namespace boza
 {
@@ -20,5 +21,16 @@ namespace boza
 
         proj[1][1] *= -1.0f;
         return proj;
+    }
+
+    void Camera::on_clone(GameObject& target)
+    {
+        auto& cloned = target.add_component<Camera>();
+        copy_base_component_data_to(&cloned);
+        cloned.projection_type = projection_type;
+        cloned.fov = fov;
+        cloned.near_clip = near_clip;
+        cloned.far_clip = far_clip;
+        cloned.ortho_size = ortho_size;
     }
 }

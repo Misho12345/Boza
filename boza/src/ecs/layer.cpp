@@ -8,6 +8,13 @@ namespace boza
 
     Layer::Layer(const std::string& name) : mask_{ LayerManager::instance().layer_mask(name) } {}
 
+    Layer::Layer(const Layer& other) { mask_ = other.mask_;}
+    Layer& Layer::operator=(const Layer& other)
+    {
+        if (&other != this) mask_ = other.mask_;
+        return *this;
+    }
+
     Layer& Layer::operator=(const uint32_t mask_value)
     {
         mask_ = mask_value;
@@ -62,5 +69,5 @@ namespace boza
     }
 
     std::uint32_t Layer::get_mask() const { return mask_; }
-    std::string Layer::get_name() const { return LayerManager::instance().layer_name(mask_); }
+    const std::string& Layer::get_name() const { return LayerManager::instance().layer_name(mask_); }
 }

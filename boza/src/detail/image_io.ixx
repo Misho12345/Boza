@@ -39,28 +39,22 @@ export namespace boza::detail
         ImageData& operator=(const ImageData&) = delete;
 
         ImageData(ImageData&& other) noexcept
-        {
-            width      = other.width;
-            height     = other.height;
-            channels   = other.channels;
-            data       = other.data;
-            size       = other.size;
-            other.data = nullptr;
-        }
+            : width{ other.width },
+              height{ other.height },
+              channels{ other.channels },
+              data{ std::exchange(other.data, nullptr) },
+              size{ other.size } {}
 
         ImageData& operator=(ImageData&& other) noexcept
         {
-            if (this != &other)
-            {
-                if (data) stbi_image_free(data);
+            if (this == &other) return *this;
+            if (data && stbi_loaded) stbi_image_free(data);
 
-                width      = other.width;
-                height     = other.height;
-                channels   = other.channels;
-                data       = other.data;
-                size       = other.size;
-                other.data = nullptr;
-            }
+            width    = other.width;
+            height   = other.height;
+            channels = other.channels;
+            data     = std::exchange(other.data, nullptr);
+            size     = other.size;
 
             return *this;
         }

@@ -52,32 +52,6 @@ export namespace boza::rhi
         Point
     };
 
-    enum class CullMode : std::uint8_t
-    {
-        None,
-        Front,
-        Back,
-        FrontAndBack
-    };
-
-    enum class FrontFace : std::uint8_t
-    {
-        CounterClockwise,
-        Clockwise
-    };
-
-    enum class CompareOp : std::uint8_t
-    {
-        Never,
-        Less,
-        Equal,
-        LessOrEqual,
-        Greater,
-        NotEqual,
-        GreaterOrEqual,
-        Always
-    };
-
     enum class BlendFactor : std::uint8_t
     {
         Zero,

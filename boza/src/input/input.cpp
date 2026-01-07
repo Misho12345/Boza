@@ -35,7 +35,7 @@ namespace boza
         return false;
     }
 
-    void trigger_bindings(const std::vector<BindingEvent>& bindings, const flat_map<Key, KeyState>& key_states)
+    void trigger_bindings(std::span<BindingEvent> bindings, const flat_map<Key, KeyState>& key_states)
     {
         for (const auto& [binding, callback] : bindings)
         {
@@ -115,9 +115,9 @@ namespace boza
         const glm::vec2 delta = current_pos - state.last_cursor_pos;
         state.last_cursor_pos = current_pos;
 
-        for (const auto& callback : state.mouse_move_callbacks)
         {
-            async_execute(callback, delta);
+            std::lock_guard lock{ state.mouse_delta_mutex };
+            state.accumulated_mouse_delta += delta;
         }
     }
 
@@ -226,6 +226,39 @@ namespace boza
     }
 
     void Input::reset_cursor_tracking() { InputState::instance().first_cursor_move = true; }
+
+    void Input::flush_input_queue()
+    {
+        auto& state = InputState::instance();
+
+        glm::vec2 frame_mouse_delta{ 0.0f, 0.0f };
+        {
+            std::lock_guard lock{ state.mouse_delta_mutex };
+            frame_mouse_delta = state.accumulated_mouse_delta;
+            state.accumulated_mouse_delta = glm::vec2{ 0.0f, 0.0f };
+        }
+
+        if (glm::length2(frame_mouse_delta) > 1e-8f)
+        {
+            for (const auto& callback : state.mouse_move_callbacks)
+            {
+                if (callback) callback(frame_mouse_delta);
+            }
+        }
+
+        std::queue<std::function<void()>> local_queue;
+        {
+            std::lock_guard lock{ state.execution_mutex };
+            std::swap(local_queue, state.execution_queue);
+        }
+
+        while (!local_queue.empty())
+        {
+            auto& callback = local_queue.front();
+            if (callback) callback();
+            local_queue.pop();
+        }
+    }
 
     template BOZA_API void Input::on<Action::Press>(KeyBinding, std::function<void()>);
     template BOZA_API void Input::on<Action::Release>(KeyBinding, std::function<void()>);

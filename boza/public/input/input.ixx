@@ -42,6 +42,7 @@ namespace boza
         static void init(void* window);
         static void update();
         static void shutdown();
+        static void flush_input_queue();
 
         static void reset_cursor_tracking();
 

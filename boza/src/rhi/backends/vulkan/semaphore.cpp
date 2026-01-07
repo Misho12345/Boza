@@ -35,7 +35,7 @@ namespace boza::rhi::vk
         }
         else
         {
-            constexpr VkSemaphoreCreateInfo create_info
+            static constexpr VkSemaphoreCreateInfo create_info
             {
                 .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
                 .pNext = nullptr,

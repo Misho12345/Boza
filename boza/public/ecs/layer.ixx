@@ -1,6 +1,5 @@
 module;
 
-#include <cstddef>
 #include "api.hpp"
 
 export module boza.ecs:layer;
@@ -12,16 +11,22 @@ export namespace boza
 {
     class BOZA_API Layer final
     {
+        [[nodiscard]] std::uint32_t get_mask() const;
+        [[nodiscard]] const std::string& get_name() const;
+
     public:
         Layer() = default;
         explicit Layer(const std::uint32_t mask) : mask_{ mask } {}
         explicit Layer(const std::string& name);
 
+        Layer(const Layer& other);
+        Layer& operator=(const Layer& other);
+
         Layer& operator=(const std::string& layer_name);
         Layer& operator=(std::uint32_t mask_value);
 
-        PropertyGet<Layer, std::uint32_t> mask{ &Layer::get_mask, offsetof(Layer, mask) };
-        PropertyGet<Layer, std::string> name{ &Layer::get_name, offsetof(Layer, name) };
+        [[msvc::no_unique_address]] Property<Layer, &Layer::get_mask> mask{ this };
+        [[msvc::no_unique_address]] Property<Layer, &Layer::get_name> name{ this };
 
         Layer operator|(const Layer& other) const;
         Layer operator&(const Layer& other) const;
@@ -41,9 +46,6 @@ export namespace boza
         bool operator!=(const std::string& layer_name) const;
 
     private:
-        std::uint32_t get_mask() const;
-        std::string get_name() const;
-
         std::uint32_t mask_{ 1 };
     };
 }

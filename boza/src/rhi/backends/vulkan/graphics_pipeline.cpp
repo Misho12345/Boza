@@ -97,7 +97,7 @@ namespace boza::rhi::vk
             .primitiveRestartEnable = false
         };
 
-        constexpr VkPipelineViewportStateCreateInfo viewport_state
+        static constexpr VkPipelineViewportStateCreateInfo viewport_state
         {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
             .pNext = nullptr,
@@ -193,13 +193,13 @@ namespace boza::rhi::vk
             }
         };
 
-        const std::vector dynamic_states
+        static constexpr std::array dynamic_states
         {
             VK_DYNAMIC_STATE_VIEWPORT,
             VK_DYNAMIC_STATE_SCISSOR
         };
 
-        const VkPipelineDynamicStateCreateInfo dynamic_state
+        static constexpr VkPipelineDynamicStateCreateInfo dynamic_state
         {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
             .pNext = nullptr,

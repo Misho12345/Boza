@@ -8,6 +8,11 @@ import std;
 import boza.common;
 import :common;
 
+namespace boza::gfx
+{
+    class MaterialLoader;
+}
+
 export namespace boza
 {
     class Material;
@@ -43,6 +48,8 @@ export namespace boza
 
     struct MaterialSettings
     {
+        std::string vertex_shader;
+        std::string fragment_shader;
         CompareOp depth_compare_op{ CompareOp::Less };
         bool      depth_test_enable{ true };
         bool      depth_write_enable{ true };
@@ -54,7 +61,10 @@ export namespace boza
         [[nodiscard]] std::size_t hash() const noexcept
         {
             std::size_t h = 0;
-            h ^= std::hash<std::uint8_t>{}(static_cast<std::uint8_t>(depth_compare_op)) << 0;
+
+            h ^= std::hash<std::string>{}(vertex_shader);
+            h ^= std::hash<std::string>{}(fragment_shader) << 1;
+            h ^= std::hash<std::uint8_t>{}(static_cast<std::uint8_t>(depth_compare_op)) << 2;
             h ^= std::hash<bool>{}(depth_test_enable) << 8;
             h ^= std::hash<bool>{}(depth_write_enable) << 9;
             h ^= std::hash<std::uint8_t>{}(static_cast<std::uint8_t>(cull_mode)) << 10;
@@ -71,7 +81,7 @@ export namespace boza
         std::uint32_t size{ 0 };
         std::uint32_t descriptor_type{ 0 };
         std::uint32_t data_type{ 0 };
-        bool is_push_constant{ false };
+        bool          is_push_constant{ false };
     };
 
     class BOZA_API PropertyBinder
@@ -83,15 +93,15 @@ export namespace boza
 
         template<typename T> requires requires
         {
-            requires !std::is_same_v<std::remove_cvref_t<T>, Texture*>;
-            requires !std::is_same_v<std::remove_cvref_t<T>, Buffer*>;
-            requires !std::is_same_v<std::remove_cvref_t<T>, std::pair<Texture*, Sampler*>>;
+            requires !std::same_as<std::remove_cvref_t<T>, Texture>;
+            requires !std::same_as<std::remove_cvref_t<T>, Buffer>;
+            requires !std::same_as<std::remove_cvref_t<T>, std::pair<Texture&, Sampler&>>;
         }
         PropertyBinder& operator=(const T& value);
 
-        PropertyBinder& operator=(const Texture* texture);
-        PropertyBinder& operator=(const Buffer* buffer);
-        PropertyBinder& operator=(const std::pair<Texture*, Sampler*>& texture_sampler);
+        PropertyBinder& operator=(const Texture& texture);
+        PropertyBinder& operator=(const Buffer& buffer);
+        PropertyBinder& operator=(std::pair<Texture&, Sampler&> texture_sampler);
 
     private:
         Material*   material_;
@@ -101,13 +111,21 @@ export namespace boza
     class BOZA_API Material
     {
     public:
-        static Material* create(
-            const std::string& vertex_shader_name,
-            const std::string& fragment_shader_name,
-            const MaterialSettings& settings = {});
-        static Material* get(const std::string& name);
+        static Material& create(
+            std::string_view name,
+            const MaterialSettings& settings);
+
+        static Material& get(std::string_view name);
+        static Material* try_get(std::string_view name);
+
+        static void destroy(std::string_view name);
 
         ~Material();
+
+        Material(const Material&) = delete;
+        Material& operator=(const Material&) = delete;
+        Material(Material&&) noexcept;
+        Material& operator=(Material&&) noexcept;
 
         PropertyBinder operator[](std::string_view name);
 
@@ -116,50 +134,75 @@ export namespace boza
         template<typename T>
         void push_constants(const std::string& name, const T& value)
         {
-            push_constants_impl(name, &value, sizeof(T), get_shader_data_type<T>());
+            push_constants(name, &value, sizeof(T), get_shader_data_type<T>());
         }
 
         template<typename T>
         void update_property(const std::string& name, const T& value)
         {
-            update_property_impl(name, &value, sizeof(T), get_shader_data_type<T>());
+            update_property(name, &value, sizeof(T), get_shader_data_type<T>());
         }
 
-        void update_texture(const std::string& name, const Texture* texture, const Sampler* sampler = nullptr) const;
-        void update_texture_sampler(const std::string& name, const Texture* texture, const Sampler* sampler) const;
-        void update_buffer(const std::string& name, const Buffer* buffer) const;
+        void update_texture(const std::string& name, const Texture& texture);
+        void update_texture(const std::string& name, const Texture& texture, Sampler& sampler);
+        void update_buffer(const std::string& name, const Buffer& buffer);
 
         [[nodiscard]] std::optional<BindingInfo> lookup_binding(const std::string& name) const;
 
-        [[nodiscard]] void* rhi_pipeline_handle() const;
-        [[nodiscard]] void* rhi_pipeline_layout_handle() const;
-
-        [[nodiscard]] std::size_t descriptor_set_count() const;
-        [[nodiscard]] void*       rhi_descriptor_set_handle(std::size_t index) const;
+        [[nodiscard]] std::size_t        descriptor_set_count() const;
+        [[nodiscard]] void*              rhi_descriptor_set_handle(std::size_t index) const;
+        [[nodiscard]] const std::string& name() const { return name_; }
 
     private:
-        Material();
+        explicit Material(std::string_view name);
+        void cleanup();
 
-        struct Impl;
-        std::unique_ptr<Impl> impl_;
+        std::string name_;
 
-        void mark_set_dirty(std::uint32_t set) const;
+        void* pipeline_{ nullptr };
+        void* pipeline_layout_{ nullptr };
+        std::vector<void*> descriptor_set_layouts_;
+        std::vector<void*> descriptor_sets_;
+        std::vector<std::byte> push_constant_staging_;
 
-        void push_constants_impl(const std::string& name, const void* data, std::size_t size, ShaderDataType type) const;
-        void update_property_impl(const std::string& name, const void* data, std::size_t size, ShaderDataType type) const;
+        void* reflection_{ nullptr };
+
+        flat_map<std::uint32_t, bool> dirty_sets_;
+
+        flat_map<std::uint32_t, std::vector<std::byte>> uniform_buffer_staging_;
+        flat_map<std::uint32_t, void*> uniform_buffers_;
+
+        flat_map<std::string, Sampler*> default_samplers_;
+
+        void* descriptor_pool_{ nullptr };
+
+        void mark_set_dirty(std::uint32_t set);
+
+        void push_constants(
+            const std::string& name,
+            const void*        data,
+            std::size_t        size,
+            ShaderDataType     type) const;
+
+        void update_property(
+            const std::string& name,
+            const void*        data,
+            std::size_t        size,
+            ShaderDataType     type);
 
         friend class PropertyBinder;
+        friend class gfx::MaterialLoader;
     };
 
     template<typename T> requires requires
     {
-        requires !std::is_same_v<std::remove_cvref_t<T>, Texture*>;
-        requires !std::is_same_v<std::remove_cvref_t<T>, Buffer*>;
-        requires !std::is_same_v<std::remove_cvref_t<T>, std::pair<Texture*, Sampler*>>;
+        requires !std::same_as<std::remove_cvref_t<T>, Texture>;
+        requires !std::same_as<std::remove_cvref_t<T>, Buffer>;
+        requires !std::same_as<std::remove_cvref_t<T>, std::pair<Texture&, Sampler&>>;
     }
     PropertyBinder& PropertyBinder::operator=(const T& value)
     {
-        material_->update_property_impl(name_, &value, sizeof(T), get_shader_data_type<T>());
+        material_->update_property(name_, &value, sizeof(T), get_shader_data_type<T>());
         return *this;
     }
 }

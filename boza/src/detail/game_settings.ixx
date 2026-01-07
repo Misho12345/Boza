@@ -34,7 +34,7 @@ export namespace boza::detail
     public:
         GameSettings() = delete;
 
-        static bool load_from_file(const std::filesystem::path& filepath);
+        static bool load_from_file(const fs::path& filepath);
         static void load_defaults();
 
         static WindowSettings window;

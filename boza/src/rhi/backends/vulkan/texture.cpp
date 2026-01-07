@@ -33,7 +33,7 @@ namespace boza::rhi::vk
             .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
         };
 
-        constexpr VmaAllocationCreateInfo allocation_create_info
+        static constexpr VmaAllocationCreateInfo allocation_create_info
         {
             .usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
         };

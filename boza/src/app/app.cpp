@@ -1,3 +1,7 @@
+module;
+
+#include <cassert>
+
 module boza.app;
 
 import boza.platform;
@@ -27,15 +31,27 @@ namespace boza
 
     struct App::Impl
     {
-        std::unique_ptr<Window>          window;
-        std::unique_ptr<RenderingSystem> rendering_system;
-        std::unique_ptr<GameLoop>        game_loop;
-        std::shared_ptr<Scene>           active_scene;
+        Window          window{};
+        RenderingSystem rendering_system{};
+        GameLoop        game_loop{};
+
+        node_map<std::string, Scene> scenes{};
+        Scene* active_scene{ nullptr };
+        Camera* primary_camera{ nullptr };
+
         bool initialized{ false };
     };
 
-    App::App() : impl_(std::make_unique<Impl>()) { Log::init(); }
-    App::~App() = default;
+    App* App::s_instance_ = nullptr;
+
+    App::App() : impl_(std::make_unique<Impl>())
+    {
+        assert(s_instance_ == nullptr && "App instance already exists");
+        Log::init();
+        s_instance_ = this;
+    }
+
+    App::~App() { s_instance_ = nullptr; }
 
     bool App::init()
     {
@@ -44,50 +60,41 @@ namespace boza
             Log::warn("Could not load game settings from file, using defaults");
         }
 
-        impl_->window = std::make_unique<Window>(
-            GameSettings::window.width,
-            GameSettings::window.height,
-            GameSettings::window.title,
-            GameSettings::window.fullscreen
-        );
-
         if (!Window::init())
         {
             Log::critical("Failed to initialize windowing system");
             return false;
         }
 
-        on_setup_scene();
+        impl_->window.init(
+            GameSettings::window.width,
+            GameSettings::window.height,
+            GameSettings::window.title,
+            GameSettings::window.fullscreen
+        );
 
-        if (!impl_->active_scene) impl_->active_scene = create_scene("Default Scene");
-
-        impl_->rendering_system = std::make_unique<RenderingSystem>();
-        if (!impl_->rendering_system->init(*impl_->window, impl_->active_scene))
+        if (!impl_->rendering_system.init(impl_->window))
         {
             Log::error("Failed to initialize rendering system");
             return false;
         }
 
-        on_graphics_ready();
-
-        GameLoopConfig loop_config
-        {
+        impl_->game_loop.init({
+            .rendering_system = &impl_->rendering_system,
+            .window = &impl_->window,
             .target_fps = GameSettings::graphics.target_fps,
             .fixed_update_rate = GameSettings::physics.fixed_update_rate,
             .input_poll_rate = GameSettings::input.poll_rate,
             .vsync = GameSettings::graphics.vsync
-        };
+        });
 
-        impl_->game_loop = std::make_unique<GameLoop>(loop_config);
+        Input::init(&impl_->window);
 
-        if (impl_->active_scene) { impl_->game_loop->set_active_scene(impl_->active_scene); }
+        setup();
 
-        impl_->game_loop->set_on_render([this] { impl_->rendering_system->run(); });
-        impl_->game_loop->set_poll_events([this] { impl_->window->poll_events(); });
-        impl_->game_loop->set_should_close([this] { return impl_->window->should_close(); });
-        impl_->game_loop->set_apply_cursor_state([this] { impl_->window->apply_cursor_state_if_needed(); });
+        if (!impl_->active_scene) set_active_scene(create_scene("Default Scene"));
 
-        Input::init(impl_->window.get());
+        post_setup();
 
         impl_->initialized = true;
         return true;
@@ -95,7 +102,7 @@ namespace boza
 
     void App::run()
     {
-        if (!impl_->game_loop || !impl_->initialized)
+        if (!impl_->initialized)
         {
             Log::critical("App::run() called before App::init(). Please call init() first.");
             return;
@@ -103,8 +110,8 @@ namespace boza
 
         Log::trace("Starting application...");
 
-        impl_->game_loop->start();
-        impl_->game_loop->wait_for_window_close();
+        impl_->game_loop.start();
+        impl_->game_loop.wait_for_window_close();
 
         shutdown();
     }
@@ -113,56 +120,93 @@ namespace boza
     {
         if (!impl_->initialized) return;
 
-        if (impl_->rendering_system) impl_->rendering_system->wait_idle();
+        impl_->rendering_system.wait_idle();
         on_shutdown();
-        if (impl_->rendering_system) impl_->rendering_system->destroy();
+        impl_->rendering_system.destroy();
 
         Input::shutdown();
 
-        if (impl_->window) impl_->window->destroy();
+        impl_->window.destroy();
         Window::terminate();
 
         impl_->initialized = false;
         Log::trace("App shutdown complete");
     }
 
-    void App::toggle_fullscreen() const
+    void App::toggle_fullscreen()
     {
-        if (impl_->window) impl_->window->toggle_fullscreen();
+        if (s_instance_) s_instance_->impl_->window.toggle_fullscreen();
     }
 
-    void App::set_cursor_state(const CursorState state) const
+    void App::set_cursor_state(const CursorState state)
     {
-        if (!impl_->window) return;
-        impl_->window->set_cursor_state(state);
+        if (s_instance_) s_instance_->impl_->window.set_cursor_state(state);
     }
 
-    void App::set_active_scene(const std::shared_ptr<Scene>& scene) const
+    CursorState App::cursor_state()
     {
-        impl_->active_scene = scene;
-        if (impl_->game_loop) impl_->game_loop->set_active_scene(scene);
+        return s_instance_ ? s_instance_->impl_->window.cursor_state() : CursorState::Normal;
     }
 
-    std::shared_ptr<Scene> App::get_active_scene() const { return impl_->active_scene; }
-
-    std::shared_ptr<Scene> App::create_scene(const std::string& name)
+    void App::set_active_scene(Scene& scene)
     {
-        auto scene = std::make_shared<Scene>(name);
-        return scene;
+        if (!s_instance_) return;
+
+        s_instance_->impl_->active_scene = &scene;
+        s_instance_->impl_->game_loop.set_active_scene(s_instance_->impl_->active_scene);
+        s_instance_->impl_->rendering_system.set_active_scene(s_instance_->impl_->active_scene);
     }
 
-    void App::set_target_fps(const float fps) const
+    Scene* App::active_scene() { return s_instance_ ? s_instance_->impl_->active_scene : nullptr; }
+
+    void App::set_primary_camera(Camera& camera)
     {
-        if (impl_->game_loop) impl_->game_loop->set_target_fps(fps);
+        if (!s_instance_) return;
+
+        s_instance_->impl_->primary_camera = &camera;
+        s_instance_->impl_->rendering_system.set_primary_camera(&camera);
     }
 
-    void App::set_fixed_update_rate(const float rate) const
+    Camera* App::primary_camera()
     {
-        if (impl_->game_loop) impl_->game_loop->set_fixed_update_rate(rate);
+        return s_instance_ ? s_instance_->impl_->primary_camera : nullptr;
     }
 
-    void App::register_custom_material(const std::string& name, Material* material)
+    Scene& App::create_scene(const std::string_view name)
     {
-        gfx::MaterialLoader::instance().register_material(name, material);
+        assert(s_instance_ && "App instance not created");
+
+        auto [it, inserted] = s_instance_->impl_->scenes.emplace(name, Scene(name));
+        return it->second;
+    }
+
+    Scene* App::get_scene(const std::string_view name)
+    {
+        if (!s_instance_) return nullptr;
+
+        auto it = s_instance_->impl_->scenes.find(name);
+        return it != s_instance_->impl_->scenes.end() ? &it->second : nullptr;
+    }
+
+    void App::set_target_fps(const float fps)
+    {
+        if (s_instance_ ) s_instance_->impl_->game_loop.set_target_fps(fps);
+    }
+
+    float App::target_fps()
+    {
+        return s_instance_ ? s_instance_->impl_->game_loop.get_target_fps() : 0.0f;
+    }
+
+    void App::set_fixed_update_rate(const float rate)
+    {
+        if (s_instance_) s_instance_->impl_->game_loop.set_fixed_update_rate(rate);
+    }
+
+    float App::fixed_update_rate()
+    {
+        return s_instance_
+                   ? s_instance_->impl_->game_loop.get_fixed_update_rate()
+                   : 0.0f;
     }
 }

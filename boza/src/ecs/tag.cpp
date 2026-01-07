@@ -5,7 +5,14 @@ namespace boza
 {
     using detail::TagManager;
 
-    Tag::Tag(const std::string& name) : id_(TagManager::instance().tag_id(name)) {}
+    Tag::Tag(const std::string& name) : id_{ TagManager::instance().tag_id(name) } {}
+
+    Tag::Tag(const Tag& other) { id_ = other.id_; }
+    Tag& Tag::operator=(const Tag& other)
+    {
+        if (&other != this) id_ = other.id_;
+        return *this;
+    }
 
     Tag& Tag::operator=(const std::string& tag_name)
     {
@@ -25,5 +32,5 @@ namespace boza
     bool Tag::operator!=(const std::string& tag_name) const { return !(*this == tag_name); }
 
     std::uint32_t Tag::get_id() const { return id_; }
-    std::string Tag::get_name() const { return TagManager::instance().tag_name(id_); }
+    const std::string& Tag::get_name() const { return TagManager::instance().tag_name(id_); }
 }

@@ -128,6 +128,8 @@ if (MSVC)
             _CRT_SECURE_NO_WARNINGS
             _SCL_SECURE_NO_WARNINGS
     )
+else ()
+    add_compile_options(-fvisibility=hidden)
 endif ()
 
 # === Link Time Optimization ===

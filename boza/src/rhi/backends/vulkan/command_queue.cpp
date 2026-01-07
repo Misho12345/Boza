@@ -76,7 +76,7 @@ namespace boza::rhi::vk
 
     bool CommandQueue::submit(
         const std::vector<rhi::CommandBuffer*>& command_buffers,
-        rhi::Fence* signal_fence)
+        rhi::Fence*                             signal_fence)
     {
         const SubmitInfo submit_info
         {

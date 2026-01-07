@@ -1,3 +1,7 @@
+module;
+
+#include <cassert>
+
 module boza.gfx;
 
 import :texture;
@@ -30,7 +34,9 @@ namespace boza
         }
     }
 
-    Texture::Texture(const TextureSettings& settings) : settings_{ settings }
+    Texture::Texture(const std::string_view name, const TextureSettings& settings)
+        : name_{ name },
+          settings_{ settings }
     {
         if (!detail::RenderContext::initialized())
         {
@@ -92,10 +98,10 @@ namespace boza
         rhi_textures_.clear();
     }
 
-
     Texture::Texture(Texture&& other) noexcept
-        : settings_{ other.settings_ },
-          rhi_textures_{ std::move(other.rhi_textures_) } { other.settings_ = TextureSettings{}; }
+        : name_{ std::move(other.name_) },
+          settings_{ std::exchange(other.settings_, {}) },
+          rhi_textures_{ std::move(other.rhi_textures_) } {}
 
     Texture& Texture::operator=(Texture&& other) noexcept
     {
@@ -103,47 +109,53 @@ namespace boza
 
         cleanup();
 
+        name_ = std::move(other.name_);
         rhi_textures_ = std::move(other.rhi_textures_);
-        settings_     = other.settings_;
+        settings_     = std::exchange(other.settings_, {});
 
         return *this;
     }
 
-    Texture* Texture::get_or_load(const std::string& name) { return gfx::TextureLoader::instance().get_or_load(name); }
+    Texture& Texture::get_or_load(const std::string_view name)
+    {
+        return gfx::TextureLoader::instance().get_or_load(name);
+    }
 
-    Texture* Texture::copy(
-        const std::string&       src_name,
-        const std::string&       dst_name,
+    Texture& Texture::get_or_load_cubemap(std::string_view name)
+    {
+        return gfx::TextureLoader::instance().get_or_load_cubemap(name);
+    }
+
+    Texture& Texture::copy(
+        const std::string_view src_name,
+        const std::string_view dst_name,
         const ResourceAccessMode access_mode)
     {
         return gfx::TextureLoader::instance().copy(src_name, dst_name, access_mode);
     }
 
-    Texture* Texture::create(
-        const std::string&    name,
+    Texture& Texture::create(
+        const std::string_view name,
         const TextureSettings& settings)
     {
-        auto* texture = new Texture(settings);
-
-        if (!texture->is_valid())
-        {
-            Log::error("Failed to create Texture");
-            delete texture;
-            return nullptr;
-        }
-
-        gfx::TextureLoader::instance().register_texture(name, texture, true);
-        return texture;
+        return gfx::TextureLoader::instance().create(name, settings);
     }
 
-    Texture* Texture::get(const std::string& name) { return gfx::TextureLoader::instance().get_texture(name); }
-
-    void Texture::destroy(Texture* texture)
+    Texture& Texture::get(const std::string_view name)
     {
-        if (!texture) return;
+        auto* texture = try_get(name);
+        assert(texture && "Texture not found");
+        return *texture;
+    }
 
-        gfx::TextureLoader::instance().unregister_texture(texture);
-        delete texture;
+    Texture* Texture::try_get(const std::string_view name)
+    {
+        return gfx::TextureLoader::instance().try_get_texture(name);
+    }
+
+    void Texture::destroy(std::string_view name)
+    {
+        gfx::TextureLoader::instance().destroy(name);
     }
 
     void Texture::upload(const void* data, const std::size_t data_size, const std::uint32_t frame_index) const

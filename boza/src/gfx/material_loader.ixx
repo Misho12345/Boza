@@ -88,10 +88,9 @@ export namespace boza::gfx
         bool load_all_material_definitions();
         bool create_game_load_materials();
 
-        Material* get_or_create_material(const std::string& name);
-        Material* get_material(const std::string& name) const;
+        Material& get_or_create_material(std::string_view name, const MaterialSettings& settings);
+        Material* try_get_material(std::string_view name);
 
-        void register_material(const std::string& name, Material* material);
         void bind_engine_resources(const Material* material) const;
 
         [[nodiscard]] rhi::Buffer* camera_ubo() const { return camera_ubo_.get(); }
@@ -103,10 +102,15 @@ export namespace boza::gfx
     private:
         MaterialLoader() = default;
 
-        static std::optional<MaterialDefinition> load_material_definition(const std::filesystem::path& path);
+        static std::optional<MaterialDefinition> load_material_definition(const fs::path& path);
 
-        static Material* create_material_from_definition(const MaterialDefinition& def);
-        void             setup_material_from_definition(Material* material, const MaterialDefinition& def);
+        void destroy(std::string_view name);
+
+        static Material create(
+            std::string_view name,
+            const MaterialSettings& settings);
+
+        void setup(Material* material, const MaterialDefinition& def);
 
         rhi::Device*         device_{ nullptr };
         rhi::Swapchain*      swapchain_{ nullptr };
@@ -115,13 +119,15 @@ export namespace boza::gfx
         rhi::GraphicsApi     api_{};
 
         flat_map<std::string, MaterialDefinition> definitions_;
-        flat_map<std::string, Material*> materials_;
+        node_map<std::string, Material> materials_;
 
         std::unique_ptr<rhi::Buffer> camera_ubo_;
         std::unique_ptr<rhi::Buffer> light_ubo_;
         std::unique_ptr<rhi::Buffer> time_ubo_;
 
         bool initialized_{ false };
+
+        friend class Material;
     };
 }
 

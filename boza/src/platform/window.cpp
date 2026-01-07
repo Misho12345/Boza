@@ -20,16 +20,6 @@ extern "C"
 
 namespace boza::platform
 {
-    Window::Window(
-        const uint32_t width,
-        const uint32_t height,
-        std::string    title,
-        const bool     fullscreen)
-        : title_(std::move(title)),
-          fullscreen_(fullscreen),
-          last_width_(width),
-          last_height_(height) {}
-
     bool Window::init()
     {
         if (!glfwInit())
@@ -39,6 +29,14 @@ namespace boza::platform
         }
 
         return true;
+    }
+
+    void Window::init(const std::uint32_t width, const std::uint32_t height, std::string title, const bool fullscreen)
+    {
+        last_width_  = width;
+        last_height_ = height;
+        title_       = std::move(title);
+        fullscreen_  = fullscreen;
     }
 
     bool Window::create([[maybe_unused]] const rhi::GraphicsApi api)
@@ -188,6 +186,9 @@ namespace boza::platform
 
     void Window::show() const { glfwShowWindow(window_); }
     void Window::hide() const { glfwHideWindow(window_); }
+
+
+    CursorState Window::cursor_state() const { return current_cursor_state_; }
 
     void Window::set_cursor_state(const CursorState state)
     {

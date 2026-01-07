@@ -5,7 +5,7 @@ import boza.core;
 
 namespace boza::rhi
 {
-    void DescriptorReflection::build_from_shaders(const std::vector<ShaderModule*>& shaders)
+    void DescriptorReflection::build_from_shaders(const std::span<ShaderModule*> shaders)
     {
         bindings_.clear();
 
@@ -33,7 +33,8 @@ namespace boza::rhi
             }
 
             for (const auto& [name, resource] : metadata.sampled_images)
-            { const BindingInfo info{
+            {
+                const BindingInfo info{
                     .set = resource.set,
                     .binding = resource.binding,
                     .offset = 0,
@@ -46,7 +47,8 @@ namespace boza::rhi
             }
 
             for (const auto& [name, resource] : metadata.storage_images)
-            { const BindingInfo info{
+            {
+                const BindingInfo info{
                     .set = resource.set,
                     .binding = resource.binding,
                     .offset = 0,
@@ -122,10 +124,7 @@ namespace boza::rhi
     std::optional<BindingInfo> DescriptorReflection::lookup(const std::string_view name) const
     {
         const auto it = bindings_.find(std::string(name));
-        if (it != bindings_.end())
-        {
-            return it->second;
-        }
+        if (it != bindings_.end()) return it->second;
         return std::nullopt;
     }
 }

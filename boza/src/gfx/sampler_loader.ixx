@@ -34,29 +34,38 @@ export namespace boza::gfx
         void initialize();
         void shutdown();
 
-        bool load_all_sampler_definitions();
-        bool create_all_samplers();
+        bool load_and_create_samplers();
 
-        Sampler* get_or_load(const std::string& name);
-        Sampler* get_sampler(const std::string& name) const;
+        Sampler& get_sampler(std::string_view name);
+        Sampler* try_get_sampler(std::string_view name);
 
-        void register_sampler(const std::string& name, Sampler* sampler, bool take_ownership = true);
-        void unregister_sampler(Sampler* sampler);
-
-        [[nodiscard]] Sampler* default_sampler() const { return default_sampler_; }
+        [[nodiscard]] Sampler& default_sampler();
         [[nodiscard]] bool initialized() const { return initialized_; }
 
     private:
         SamplerLoader() = default;
         ~SamplerLoader();
 
-        static std::optional<SamplerDefinition> load_sampler_definition(const std::filesystem::path& path);
-        static Sampler* create_sampler_from_definition(const SamplerDefinition& def);
+        static std::optional<SamplerDefinition> load_sampler_definition(const fs::path& path);
 
-        flat_map<std::string, SamplerDefinition> definitions_;
-        flat_map<std::string, Sampler*> samplers_;
-        std::unordered_set<Sampler*> owned_samplers_;
-        Sampler* default_sampler_{ nullptr };
+        Sampler& create(
+            std::string_view name,
+            SamplerFilter    filter,
+            SamplerWrap      wrap_u,
+            SamplerWrap      wrap_v,
+            SamplerWrap      wrap_w,
+            SamplerFilter    mipmap_mode,
+            float            mip_lod_bias,
+            float            min_lod,
+            float            max_lod,
+            float            max_anisotropy);
+
+        Sampler& create(const SamplerDefinition& def);
+        void destroy(std::string_view name);
+
+        node_map<std::string, Sampler> samplers_;
         bool initialized_{ false };
+
+        friend class Sampler;
     };
 }

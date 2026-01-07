@@ -1,5 +1,8 @@
 module boza.gfx.material_loader;
 
+import boza.rhi;
+
+import boza.gfx;
 import boza.gfx.texture_loader;
 import boza.gfx.sampler_loader;
 
@@ -69,14 +72,6 @@ namespace boza::gfx
 
         initialized_ = false;
 
-        for (auto& material : materials_ | std::views::values)
-        {
-            if (material)
-            {
-                delete material;
-                material = nullptr;
-            }
-        }
         materials_.clear();
 
         time_ubo_.reset();
@@ -120,21 +115,35 @@ namespace boza::gfx
         {
             if (def.load_strategy == LoadStrategy::GameLoad)
             {
-                auto* material = create_material_from_definition(def);
-                if (material)
+                MaterialSettings settings{
+                    .vertex_shader = def.vertex_shader,
+                    .fragment_shader = def.fragment_shader,
+                    .depth_compare_op = def.settings.depth_compare_op,
+                    .depth_test_enable = def.settings.depth_test_enable,
+                    .depth_write_enable = def.settings.depth_write_enable,
+                    .cull_mode = def.settings.cull_mode,
+                    .front_face = def.settings.front_face
+                };
+
+                Material mat = create(name, settings);
+                auto [it, inserted] = materials_.try_emplace(name, std::move(mat));
+
+                if (inserted)
                 {
-                    materials_[name] = material;
-                    bind_engine_resources(material);
-                    setup_material_from_definition(material, def);
-                    // Log::trace("Created material: {}", name);
+                    bind_engine_resources(&it->second);
+                    setup(&it->second, def);
                 }
-                else Log::error("Failed to create material: {}", name);
+                else
+                {
+                    Log::error("Failed to create material: {}", name);
+                    if (inserted) materials_.erase(it);
+                }
             }
         }
         return true;
     }
 
-    std::optional<MaterialDefinition> MaterialLoader::load_material_definition(const std::filesystem::path& path)
+    std::optional<MaterialDefinition> MaterialLoader::load_material_definition(const fs::path& path)
     {
         auto json_opt = detail::FileIO::load_json(path);
         if (!json_opt.has_value())
@@ -295,11 +304,6 @@ namespace boza::gfx
         return def;
     }
 
-    Material* MaterialLoader::create_material_from_definition(const MaterialDefinition& def)
-    {
-        return Material::create(def.vertex_shader, def.fragment_shader, def.settings);
-    }
-
     void MaterialLoader::bind_engine_resources(const Material* material) const
     {
         if (material->descriptor_set_count() == 0) return;
@@ -338,7 +342,7 @@ namespace boza::gfx
         if (!writes.empty()) desc_set->update(writes);
     }
 
-    void MaterialLoader::setup_material_from_definition(Material* material, const MaterialDefinition& def)
+    void MaterialLoader::setup(Material* material, const MaterialDefinition& def)
     {
         if (!TextureLoader::instance().initialized()) return;
         if (!SamplerLoader::instance().initialized()) return;
@@ -356,13 +360,13 @@ namespace boza::gfx
             const bool is_cubemap = shader_data_type == ShaderDataType::SamplerCube ||
                                     shader_data_type == ShaderDataType::SamplerCubeArray;
 
-            Texture* texture = is_cubemap
+            Texture& texture = is_cubemap
                                    ? TextureLoader::instance().get_or_load_cubemap(tex_info.texture_file)
                                    : TextureLoader::instance().get_or_load(tex_info.texture_file);
 
-            Sampler* sampler = SamplerLoader::instance().get_or_load(tex_info.sampler_file);
+            Sampler& sampler = SamplerLoader::instance().get_sampler(tex_info.sampler_file);
 
-            if (texture && sampler) material->update_texture(prop_name, texture, sampler);
+            material->update_texture(prop_name, texture, sampler);
         }
 
         for (const auto& [ubo_name, properties] : def.ubos)
@@ -382,12 +386,12 @@ namespace boza::gfx
                 {
                     using D = std::decay_t<T>;
 
-                    if constexpr (std::is_same_v<D, bool>) material->update_property(full_name, static_cast<std::uint32_t>(val));
-                    else if constexpr (std::is_same_v<D, std::int32_t> ||
-                        std::is_same_v<D, std::uint32_t> ||
-                        std::is_same_v<D, float> ||
-                        std::is_same_v<D, double>) material->update_property(full_name, val);
-                    else if constexpr (std::is_same_v<D, std::vector<float>>)
+                    if constexpr (std::same_as<D, bool>) material->update_property(full_name, static_cast<std::uint32_t>(val));
+                    else if constexpr (std::same_as<D, std::int32_t> ||
+                        std::same_as<D, std::uint32_t> ||
+                        std::same_as<D, float> ||
+                        std::same_as<D, double>) material->update_property(full_name, val);
+                    else if constexpr (std::same_as<D, std::vector<float>>)
                     {
                         if (val.size() == 2) material->update_property(full_name, glm::vec2(val[0], val[1]));
                         else if (val.size() == 3) material->update_property(full_name, glm::vec3(val[0], val[1], val[2]));
@@ -413,19 +417,19 @@ namespace boza::gfx
                                 val[12], val[13], val[14], val[15]
                             ));
                     }
-                    else if constexpr (std::is_same_v<D, std::vector<std::int32_t>>)
+                    else if constexpr (std::same_as<D, std::vector<std::int32_t>>)
                     {
                         if (val.size() == 2) material->update_property(full_name, glm::ivec2(val[0], val[1]));
                         else if (val.size() == 3) material->update_property(full_name, glm::ivec3(val[0], val[1], val[2]));
                         else if (val.size() == 4) material->update_property(full_name, glm::ivec4(val[0], val[1], val[2], val[3]));
                     }
-                    else if constexpr (std::is_same_v<D, std::vector<std::uint32_t>>)
+                    else if constexpr (std::same_as<D, std::vector<std::uint32_t>>)
                     {
                         if (val.size() == 2) material->update_property(full_name, glm::uvec2(val[0], val[1]));
                         else if (val.size() == 3) material->update_property(full_name, glm::uvec3(val[0], val[1], val[2]));
                         else if (val.size() == 4) material->update_property(full_name, glm::uvec4(val[0], val[1], val[2], val[3]));
                     }
-                    else if constexpr (std::is_same_v<D, std::vector<double>>)
+                    else if constexpr (std::same_as<D, std::vector<double>>)
                     {
                         if (val.size() == 2) material->update_property(full_name, glm::dvec2(val[0], val[1]));
                         else if (val.size() == 3) material->update_property(full_name, glm::dvec3(val[0], val[1], val[2]));
@@ -436,54 +440,259 @@ namespace boza::gfx
         }
     }
 
-    Material* MaterialLoader::get_or_create_material(const std::string& name)
+    Material* MaterialLoader::try_get_material(const std::string_view name)
     {
-        if (materials_.contains(name)) return materials_[name];
+        auto it = materials_.find(name);
+        if (it != materials_.end()) return &it->second;
 
-        if (definitions_.contains(name))
+        std::string name_str{ name };
+
+        auto def_it = definitions_.find(name_str);
+        if (def_it != definitions_.end() && def_it->second.load_strategy == LoadStrategy::OnDemand)
         {
-            const auto& def      = definitions_[name];
-            auto*       material = create_material_from_definition(def);
-            if (material)
+            const auto& def = def_it->second;
+            Log::trace("Loading on-demand material: {}", name);
+
+            const MaterialSettings settings{
+                .vertex_shader = def.vertex_shader,
+                .fragment_shader = def.fragment_shader,
+                .depth_compare_op = def.settings.depth_compare_op,
+                .depth_test_enable = def.settings.depth_test_enable,
+                .depth_write_enable = def.settings.depth_write_enable,
+                .cull_mode = def.settings.cull_mode,
+                .front_face = def.settings.front_face
+            };
+
+            Material mat = create(name, settings);
+            auto [new_it, inserted] = materials_.try_emplace(name_str, std::move(mat));
+
+            if (inserted && new_it->second.pipeline_)
             {
-                materials_[name] = material;
-                bind_engine_resources(material);
-                setup_material_from_definition(material, def);
-                // Log::trace("Created on-demand material: {}", name);
-                return material;
+                bind_engine_resources(&new_it->second);
+                setup(&new_it->second, def);
+                return &new_it->second;
             }
+
+            Log::error("Failed to create on-demand material: {}", name);
+            if (inserted) materials_.erase(new_it);
+            return nullptr;
         }
 
-        Log::warn("Material '{}' not found", name);
         return nullptr;
     }
 
-    Material* MaterialLoader::get_material(const std::string& name) const
+    Material& MaterialLoader::get_or_create_material(const std::string_view name, const MaterialSettings& settings)
+    {
+        if (auto* existing = try_get_material(name)) return *existing;
+
+        Material mat = create(name, settings);
+
+        std::string name_str{ name };
+        auto [it, inserted] = materials_.try_emplace(name_str, std::move(mat));
+
+        if (!inserted || !it->second.pipeline_)
+        {
+            Log::error("Failed to create material: {}", name);
+            if (inserted) materials_.erase(it);
+            std::abort();
+        }
+
+        bind_engine_resources(&it->second);
+        return it->second;
+    }
+
+    void MaterialLoader::destroy(const std::string_view name)
     {
         const auto it = materials_.find(name);
-        if (it != materials_.end()) { return it->second; }
-        return nullptr;
+        if (it != materials_.end())
+        {
+            Log::trace("Destroyed material: {}", name);
+            materials_.erase(it);
+        }
+        else Log::warn("Attempted to destroy non-existent material: {}", name);
     }
 
-    void MaterialLoader::register_material(const std::string& name, Material* material)
+    Material MaterialLoader::create(
+        const std::string_view name,
+        const MaterialSettings& settings)
     {
-        if (!material)
+        Material material{ name };
+
+        if (settings.vertex_shader.empty() || settings.fragment_shader.empty())
         {
-            Log::warn("Cannot register null material '{}'", name);
-            return;
+            Log::error("Material '{}': vertex or fragment shader name is empty", name);
+            return material;
         }
 
-        if (materials_.contains(name))
+        if (!detail::RenderContext::initialized() || !detail::RenderContext::device())
         {
-            Log::warn("Material '{}' already registered, replacing", name);
-            delete materials_[name];
+            Log::error("Render context not initialized. Cannot create material.");
+            return material;
         }
 
-        materials_[name] = material;
-        bind_engine_resources(material);
+        auto* device          = detail::RenderContext::device();
+        auto  api             = detail::RenderContext::api();
+        auto* resource_cache  = detail::RenderContext::resource_cache();
+        auto* descriptor_pool = detail::RenderContext::descriptor_pool();
 
-        // Log::trace("Registered custom material: {}", name);
+        if (!resource_cache)
+        {
+            Log::error("ResourceCache not available in graphics context. Cannot create material.");
+            return material;
+        }
+
+        if (!descriptor_pool)
+        {
+            Log::error("DescriptorPool not available in graphics context. Cannot create material.");
+            return material;
+        }
+
+        const rhi::ShaderModuleDesc vert_desc{
+            .device = device,
+            .filename = settings.vertex_shader + ".vert",
+            .stage = rhi::ShaderStage::Vertex
+        };
+
+        const rhi::ShaderModuleDesc frag_desc{
+            .device = device,
+            .filename = settings.fragment_shader + ".frag",
+            .stage = rhi::ShaderStage::Fragment
+        };
+
+        const auto vert_shader_shared = resource_cache->get_or_create_shader(
+            vert_desc,
+            [api](const rhi::ShaderModuleDesc& desc) { return create_shader_module(api, desc); });
+
+        if (!vert_shader_shared)
+        {
+            Log::error("Failed to load vertex shader: {}", settings.vertex_shader);
+            return material;
+        }
+
+        const auto frag_shader_shared = resource_cache->get_or_create_shader(
+            frag_desc,
+            [api](const rhi::ShaderModuleDesc& desc) { return create_shader_module(api, desc); });
+
+        if (!frag_shader_shared)
+        {
+            Log::error("Failed to load fragment shader: {}", settings.fragment_shader);
+            return material;
+        }
+
+        rhi::ShaderModule* vert_shader = vert_shader_shared.get();
+        rhi::ShaderModule* frag_shader = frag_shader_shared.get();
+
+        rhi::GraphicsPipeline* pipeline        = nullptr;
+        rhi::PipelineLayout*   pipeline_layout = nullptr;
+
+        std::vector<rhi::DescriptorSetLayout*> descriptor_set_layouts;
+
+        const std::size_t settings_hash = settings.hash();
+        const auto* cached = resource_cache->get_cached_pipeline(settings.vertex_shader, settings.fragment_shader, settings_hash);
+
+        if (cached)
+        {
+            pipeline               = cached->pipeline;
+            pipeline_layout        = cached->layout;
+            descriptor_set_layouts = cached->descriptor_set_layouts;
+        }
+        else
+        {
+            rhi::PipelineBuilder builder(api, device, { vert_shader, frag_shader });
+
+            if (!builder.build_descriptor_set_layouts())
+            {
+                Log::error("Failed to build descriptor set layouts for material");
+                return material;
+            }
+
+            pipeline_layout = builder.build_pipeline_layout();
+            if (!pipeline_layout)
+            {
+                Log::error("Failed to create pipeline layout for material");
+                const auto& layouts = builder.get_descriptor_set_layouts();
+                for (auto* layout : layouts) { if (layout) layout->destroy(); }
+                return material;
+            }
+
+            const auto* swapchain = detail::RenderContext::swapchain();
+            if (!swapchain)
+            {
+                Log::error("Swapchain not available in graphics context. Cannot create material.");
+                if (pipeline_layout) pipeline_layout->destroy();
+                const auto& layouts = builder.get_descriptor_set_layouts();
+                for (auto* layout : layouts) { if (layout) layout->destroy(); }
+                return material;
+            }
+
+            const rhi::RasterizationState raster_state{
+                .cull_mode = settings.cull_mode,
+                .front_face = settings.front_face
+            };
+
+            const rhi::DepthStencilState depth_state{
+                .depth_test_enable = settings.depth_test_enable,
+                .depth_write_enable = settings.depth_write_enable,
+                .depth_compare_op = settings.depth_compare_op
+            };
+
+            pipeline = builder.build_graphics_pipeline(swapchain, swapchain->depth_format(), raster_state, depth_state);
+
+            if (!pipeline)
+            {
+                Log::error("Failed to create graphics pipeline for material");
+                if (pipeline_layout) pipeline_layout->destroy();
+                const auto& layouts = builder.get_descriptor_set_layouts();
+                for (auto* layout : layouts) { if (layout) layout->destroy(); }
+                return material;
+            }
+
+            descriptor_set_layouts = builder.get_descriptor_set_layouts();
+
+            resource_cache->cache_pipeline(
+                settings.vertex_shader, settings.fragment_shader, settings_hash, {
+                    .pipeline = pipeline,
+                    .layout = pipeline_layout,
+                    .descriptor_set_layouts = descriptor_set_layouts
+                });
+        }
+
+        std::vector<rhi::DescriptorSet*> descriptor_sets;
+        descriptor_sets.reserve(descriptor_set_layouts.size());
+
+        for (auto* layout : descriptor_set_layouts)
+        {
+            auto* desc_set = descriptor_pool->allocate_descriptor_set(layout);
+            if (!desc_set)
+            {
+                Log::error("Failed to allocate descriptor set for material");
+                return material;
+            }
+            descriptor_sets.push_back(desc_set);
+        }
+
+        material.pipeline_ = pipeline;
+        material.pipeline_layout_ = pipeline_layout;
+        material.descriptor_set_layouts_.reserve(descriptor_set_layouts.size());
+        for (auto* layout : descriptor_set_layouts)
+        {
+            material.descriptor_set_layouts_.push_back(layout);
+        }
+        material.descriptor_sets_.reserve(descriptor_sets.size());
+        for (auto* set : descriptor_sets)
+        {
+            material.descriptor_sets_.push_back(set);
+        }
+        material.descriptor_pool_ = descriptor_pool;
+
+        auto* reflection = new rhi::DescriptorReflection();
+        std::array shaders{ vert_shader, frag_shader };
+        reflection->build_from_shaders(shaders);
+        material.reflection_ = reflection;
+
+        return material;
     }
+
 
     void MaterialLoader::update_time_ubo(const float time, const float delta_time) const
     {

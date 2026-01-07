@@ -1,6 +1,5 @@
 module;
 
-#include <cstddef>
 #include "api.hpp"
 
 export module boza.gfx:buffer;
@@ -21,8 +20,11 @@ export namespace boza
         Staging
     };
 
-    class BOZA_API Buffer
+    class BOZA_API Buffer final
     {
+        [[nodiscard]] std::size_t get_size() const { return size_; }
+        [[nodiscard]] ResourceAccessMode get_access_mode() const { return access_mode_; }
+
     public:
         Buffer(
             std::size_t buffer_size,
@@ -46,28 +48,27 @@ export namespace boza
         }
 
         template<typename T>
-        void upload(const std::vector<T>& data, const std::uint32_t frame_index = 0)
+        void upload(std::span<T> data, const std::uint32_t frame_index = 0)
         {
             upload(data.data(), data.size() * sizeof(T), 0, frame_index);
         }
 
-        PropertyGet<Buffer, std::size_t> size{ &Buffer::get_size, offsetof(Buffer, size) };
-        PropertyGet<Buffer, ResourceAccessMode> access_mode{ &Buffer::get_access_mode, offsetof(Buffer, access_mode) };
+        [[msvc::no_unique_address]] Property<Buffer, &Buffer::get_size> size{ this };
+        [[msvc::no_unique_address]] Property<Buffer, &Buffer::get_access_mode> access_mode{ this };
 
+        [[nodiscard]]
         void* map(std::uint32_t frame_index = 0) const;
         void  unmap(std::uint32_t frame_index = 0) const;
 
-        void* rhi_handle(std::uint32_t frame_index = 0) const;
+        [[nodiscard]] void* rhi_handle(std::uint32_t frame_index = 0) const;
 
     private:
         void destroy();
+        [[nodiscard]]
         void* get_validated_buffer(
             std::uint32_t frame_index,
             std::size_t offset = 0,
             std::size_t data_size = 0) const;
-
-        [[nodiscard]] std::size_t get_size() const { return size_; }
-        [[nodiscard]] ResourceAccessMode get_access_mode() const { return access_mode_; }
 
         std::vector<void*> rhi_buffers_;
         std::size_t size_;

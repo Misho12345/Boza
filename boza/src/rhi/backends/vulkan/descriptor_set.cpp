@@ -8,7 +8,7 @@ namespace boza::rhi::vk
     bool DescriptorSet::init() { return true; }
     void DescriptorSet::destroy() {}
 
-    void DescriptorSet::update(const std::vector<DescriptorWrite>& writes)
+    void DescriptorSet::update(const std::span<DescriptorWrite> writes)
     {
         // Log::trace("Updating descriptor set with {} write(s)", writes.size());
 
@@ -40,7 +40,7 @@ namespace boza::rhi::vk
                 [&]<typename T>(T&& arg)
                 {
                     using decayed_t = std::decay_t<T>;
-                    if constexpr (std::is_same_v<decayed_t, UniformBuffer>)
+                    if constexpr (std::same_as<decayed_t, UniformBuffer>)
                     {
                         buffer_infos.emplace_back(
                             static_cast<Buffer*>(arg.buffer)->vk_buffer(),
@@ -49,7 +49,7 @@ namespace boza::rhi::vk
                         );
                         vk_write.pBufferInfo = &buffer_infos.back();
                     }
-                    else if constexpr (std::is_same_v<decayed_t, StorageBuffer>)
+                    else if constexpr (std::same_as<decayed_t, StorageBuffer>)
                     {
                         buffer_infos.emplace_back(
                             static_cast<Buffer*>(arg.buffer)->vk_buffer(),
@@ -58,7 +58,7 @@ namespace boza::rhi::vk
                         );
                         vk_write.pBufferInfo = &buffer_infos.back();
                     }
-                    else if constexpr (std::is_same_v<decayed_t, CombinedImageSampler>)
+                    else if constexpr (std::same_as<decayed_t, CombinedImageSampler>)
                     {
                         image_infos.emplace_back(
                             static_cast<Sampler*>(arg.sampler)->vk_sampler(),
@@ -67,7 +67,7 @@ namespace boza::rhi::vk
                         );
                         vk_write.pImageInfo = &image_infos.back();
                     }
-                    else if constexpr (std::is_same_v<decayed_t, StorageImage>)
+                    else if constexpr (std::same_as<decayed_t, StorageImage>)
                     {
                         image_infos.emplace_back(
                             nullptr,

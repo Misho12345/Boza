@@ -6,176 +6,222 @@ import behaviours;
 
 using namespace boza;
 
+class FPSLogger final : public Behaviour
+{
+public:
+    void update() override
+    {
+        ++count_;
+        time_passed_ += Time::delta_time();
+
+        if (time_passed_ >= step_)
+        {
+            Log::debug("{:.2f} FPS", count_ / time_passed_);
+            time_passed_ = 0.0f;
+            count_       = 0;
+        }
+    }
+
+private:
+    static constexpr float step_{ std::chrono::duration<float>(1s).count() };
+
+    std::uint32_t count_{};
+    float time_passed_{};
+};
+
 export class MaterialShowcase final : public App
 {
 protected:
-    void on_setup_scene() override
+    void setup() override
     {
-        scene_       = create_scene("Showcase Scene");
-        active_scene = scene_;
+        generate_compute_texture();
+        create_materials();
 
-        setup_camera();
+        Mesh::register_mesh("cube", create_cube_mesh());
+        Mesh::register_mesh("plane", create_plane_mesh());
 
-        Input::on<Action::Press>(Key::F11, [this] { toggle_fullscreen(); });
-        Input::on<Action::Press>(Key::MouseLeft, [this] { set_cursor_state(CursorState::Locked); });
+        auto& scene = Scene::create("MaterialShowcase");
+
+        scene.root().add_component<FPSLogger>();
+
+        setup_camera(scene);
+        setup_floor(scene);
+        setup_cubes(scene);
+        setup_skybox(scene);
+
+        // auto& obj = scene.create_game_object({
+        //     .name = "OrbitingCubesParent",
+        //     .local_position = { 0.0f, 3.0f, 0.0f }
+        // });
+        //
+        // obj.add_component<Rotator>().rotation_axis = normalize(glm::vec3{ 1.0f, 1.0f, 1.0f });
+        //
+        // auto& mr = obj.add_component<MeshRenderer>();
+        // mr.mesh = &Mesh::get("cube");
+        // mr.material = &Material::get("dancho");
+        //
+        // setup_orbiting_cubes(obj, 30, 12);
+
+        Scene::load("MaterialShowcase", SceneLoadMode::Single);
+
+        Input::on<Action::Press>(Key::F11, toggle_fullscreen);
+        Input::on<Action::Press>(Key::MouseLeft, [this] { set_cursor_state(CursorState::HiddenLocked); });
         Input::on<Action::Press>(Key::Esc, [this] { set_cursor_state(CursorState::Normal); });
 
         Log::info("Scene setup complete!");
     }
 
-    void on_graphics_ready() override
-    {
-        generate_compute_texture();
-        create_materials();
-
-        setup_floor();
-        setup_cubes();
-        setup_skybox();
-    }
-
 private:
-    std::shared_ptr<Scene> scene_;
-    std::shared_ptr<Mesh>  cube_mesh_;
-    std::shared_ptr<Mesh>  plane_mesh_;
-    Texture* compute_texture_{ nullptr };
-
-    void setup_camera() const
+    static void setup_camera(Scene& scene)
     {
-        auto& camera_obj = scene_->create_game_object("MainCamera");
+        auto& camera_obj = scene.create_game_object({
+            .name = "MainCamera",
+            .local_position = { -8.0f, 7.0f, 5.7f }
+        });
+
+        camera_obj.transform->look_at(glm::vec3{ 0.0f, 0.0f, 0.0f });
+
         auto& camera     = camera_obj.add_component<Camera>();
         camera.fov       = 60.0f;
         camera.near_clip = 0.1f;
         camera.far_clip  = 500.0f;
-        camera.primary   = true;
+
+        set_primary_camera(camera);
 
         auto& controller      = camera_obj.add_component<CameraController>();
         controller.move_speed = 10.0f;
-
-        camera_obj.transform->position = glm::vec3{ 0.0f, 5.0f, 10.0f };
-        camera_obj.transform->look_at(glm::vec3{ 0.0f, 0.0f, 0.0f });
     }
 
-    void setup_skybox() const
+    static void setup_skybox(Scene& scene)
     {
-        auto& skybox = scene_->create_game_object("Skybox");
-        skybox.transform->position = glm::vec3{ 0.0f };
+        auto& skybox = scene.create_game_object({"Skybox" });
 
         auto& mr = skybox.add_component<MeshRenderer>();
-        mr.mesh = Mesh::get("cube");
-        mr.material = Material::get("skybox");
+        mr.mesh = &Mesh::get("cube");
+        mr.material = &Material::get("skybox");
 
         Log::info("Skybox created");
     }
 
-    void setup_floor()
+    static void setup_floor(Scene& scene)
     {
-        plane_mesh_ = create_plane_mesh(20.0f);
-        Mesh::register_mesh("plane", plane_mesh_);
-
-        auto& floor = scene_->create_game_object("Floor");
-        floor.transform->position = glm::vec3{ 0.0f, -1.5f, 0.0f };
+        auto& floor = scene.create_game_object({
+            .name = "Floor",
+            .local_position = { 0.0f, -2.5f, 0.0f },
+            .local_scale = { 25.0f, 1.0f, 25.0f }
+        });
 
         auto& mr = floor.add_component<MeshRenderer>();
-        mr.mesh = Mesh::get("plane");
-        mr.material = Material::get("dancho");
+        mr.mesh = &Mesh::get("plane");
+        mr.material = &Material::get("dancho");
     }
 
-    void setup_cubes()
+    static void setup_cubes(Scene& scene)
     {
-        cube_mesh_ = create_cube_mesh();
-        Mesh::register_mesh("cube", cube_mesh_);
-
+        // dancho
         {
-            auto& cube = scene_->create_game_object("DanchoCube");
-            cube.transform->position = glm::vec3{ -4.0f, 0.0f, 0.0f };
+            auto& cube = scene.create_game_object(
+            {
+                .name = "DanchoCube",
+                .local_position = glm::vec3{ -4.0f, 0.0f, 0.0f }
+            });
 
             auto& mr = cube.add_component<MeshRenderer>();
-            mr.mesh = Mesh::get("cube");
-            mr.material = Material::get("dancho");
+            mr.mesh = &Mesh::get("cube");
+            mr.material = &Material::get("dancho");
 
             auto& rotator = cube.add_component<Rotator>();
             rotator.rotation_axis = glm::vec3{ 0.0f, 1.0f, 0.0f };
             rotator.rotation_speed = 0.5f;
         }
 
+        // red
         {
-            auto& cube = scene_->create_game_object("RedCube");
-            cube.transform->position = glm::vec3{ -2.0f, 0.0f, 0.0f };
+            auto& cube = scene.create_game_object({
+                .name = "RedCube",
+                .local_position = glm::vec3{ -2.0f, 0.0f, 0.0f }
+            });
 
             auto& mr = cube.add_component<MeshRenderer>();
-            mr.mesh = Mesh::get("cube");
-            mr.material = Material::get("red");
+            mr.mesh = &Mesh::get("cube");
+            mr.material = &Material::get("red");
 
             auto& rotator = cube.add_component<Rotator>();
             rotator.rotation_axis = glm::vec3{ 1.0f, 0.0f, 0.0f };
             rotator.rotation_speed = 0.7f;
         }
 
+        // green
         {
-            auto& cube = scene_->create_game_object("GreenCube");
-            cube.transform->position = glm::vec3{ 0.0f, 0.0f, 0.0f };
+            auto& cube = scene.create_game_object({ .name = "GreenCube" });
 
             auto& mr = cube.add_component<MeshRenderer>();
-            mr.mesh = Mesh::get("cube");
-            mr.material = Material::get("green");
+            mr.mesh = &Mesh::get("cube");
+            mr.material = &Material::get("green");
 
             auto& rotator = cube.add_component<Rotator>();
             rotator.rotation_axis = glm::vec3{ 0.0f, 1.0f, 1.0f };
             rotator.rotation_speed = 0.4f;
         }
 
+        // blue
         {
-            auto& cube = scene_->create_game_object("BlueCube");
-            cube.transform->position = glm::vec3{ 2.0f, 0.0f, 0.0f };
+            auto& cube = scene.create_game_object(
+            {
+                .name = "BlueCube",
+                .local_position = glm::vec3{ 2.0f, 0.0f, 0.0f }
+            });
 
             auto& mr = cube.add_component<MeshRenderer>();
-            mr.mesh = Mesh::get("cube");
-            mr.material = Material::get("blue_metallic");
+            mr.mesh = &Mesh::get("cube");
+            mr.material = &Material::get("blue_metallic");
 
             auto& rotator = cube.add_component<Rotator>();
             rotator.rotation_axis = glm::vec3{ 1.0f, 1.0f, 0.0f };
             rotator.rotation_speed = -0.6f;
         }
 
+        // default
         {
-            auto& cube = scene_->create_game_object("DefaultCube");
-            cube.transform->position = glm::vec3{ 4.0f, 0.0f, 0.0f };
+            auto& cube = scene.create_game_object({
+                .name = "DefaultCube",
+                .local_position = glm::vec3{ 4.0f, 0.0f, 0.0f }
+            });
 
             auto& mr = cube.add_component<MeshRenderer>();
-            mr.mesh = Mesh::get("cube");
-            mr.material = Material::get("default");
-
-            auto& rotator = cube.add_component<Rotator>();
-            rotator.rotation_axis = glm::vec3{ 1.0f, 0.0f, 1.0f };
-            rotator.rotation_speed = 0.3f;
+            mr.mesh = &Mesh::get("cube");
+            mr.material = &Material::get("default");
         }
 
+        // pulsing
         {
-            auto& cube = scene_->create_game_object("PulsingCube");
-
-            cube.transform->position = glm::vec3{ 0.0f, 2.0f, -4.0f };
-            cube.transform->scale = glm::vec3{ 1.5f };
+            auto& cube = scene.create_game_object({
+                .name = "PulsingCube",
+                .local_position = glm::vec3{ 0.0f, 2.0f, -4.0f },
+                .local_scale = glm::vec3{ 1.5f }
+            });
 
             auto& mr = cube.add_component<MeshRenderer>();
-            mr.mesh = Mesh::get("cube");
-            mr.material = Material::get("pulsing");
+            mr.mesh = &Mesh::get("cube");
+            mr.material = &Material::get("pulsing");
 
             auto& rotator = cube.add_component<Rotator>();
             rotator.rotation_axis = glm::vec3{ 0.0f, 1.0f, 0.0f };
             rotator.rotation_speed = 0.8f;
 
             cube.add_component<RandomColorPulser>();
-
         }
 
+        // oscillating / compute tex
         {
-            auto& cube = scene_->create_game_object("OscillatingCube");
-            cube.transform->parent = scene_->find_game_object_by_name("PulsingCube")->transform;
-            cube.transform->local_position = glm::vec3{ 0.0f, 1.0f, 3.0f };
+            auto& cube = scene.get_game_object("PulsingCube").add_child({
+                .name = "OscillatingCube",
+                .local_position = glm::vec3{ 0.0f, 0.0f, 5.0f }
+            });
 
             auto& mr = cube.add_component<MeshRenderer>();
-            mr.mesh = Mesh::get("cube");
-            mr.material = Material::get("custom_compute");
+            mr.mesh = &Mesh::get("cube");
+            mr.material = &Material::get("custom_compute");
 
             auto& rotator = cube.add_component<Rotator>();
             rotator.rotation_axis = glm::vec3{ 1.0f, 1.0f, 1.0f };
@@ -185,52 +231,98 @@ private:
             oscillator.speed = 1.5f;
         }
 
+        // unlit orange
         {
-            auto& cube = scene_->create_game_object("UnlitOrangeCube");
-            cube.transform->position = glm::vec3{ -2.0f, 1.0f, -4.0f };
+            auto& cube = scene.create_game_object({
+                .name = "UnlitOrangeCube",
+                .local_position = glm::vec3{ -2.0f, 1.0f, -4.0f }
+            });
 
             auto& mr = cube.add_component<MeshRenderer>();
-            mr.mesh = Mesh::get("cube");
-            mr.material = Material::get("unlit_orange");
+            mr.mesh = &Mesh::get("cube");
+            mr.material = &Material::get("unlit_orange");
 
             auto& rotator = cube.add_component<Rotator>();
             rotator.rotation_axis = glm::vec3{ 0.0f, 1.0f, 0.0f };
             rotator.rotation_speed = 1.2f;
         }
 
+        // unlit cyan
         {
-            auto& cube = scene_->create_game_object("UnlitCyanCube");
-            cube.transform->position = glm::vec3{ 2.0f, 1.0f, -4.0f };
+            auto& cube = scene.create_game_object({
+                .name = "UnlitCyanCube",
+                .local_position = glm::vec3{ 2.0f, 1.0f, -4.0f }
+            });
 
             auto& mr = cube.add_component<MeshRenderer>();
-            mr.mesh = Mesh::get("cube");
-            mr.material = Material::get("unlit_cyan");
+            mr.mesh = &Mesh::get("cube");
+            mr.material = &Material::get("unlit_cyan");
 
             auto& rotator = cube.add_component<Rotator>();
             rotator.rotation_axis = glm::vec3{ 1.0f, 0.0f, 0.0f };
             rotator.rotation_speed = -1.0f;
         }
 
+        // wave
         {
-            auto& cube = scene_->create_game_object("WaveCube");
-            cube.transform->parent = scene_->find_game_object_by_name("OscillatingCube")->transform;
-            cube.transform->local_position = glm::vec3{ 0.0f, 2.0f, 0.0f };
+            auto& cube = scene.get_game_object("OscillatingCube").add_child({
+                .local_position = glm::vec3{ 0.0f, 2.0f, 0.0f }
+            });
 
             auto& mr = cube.add_component<MeshRenderer>();
-            mr.mesh = Mesh::get("cube");
-            mr.material = Material::get("wave");
+            mr.mesh = &Mesh::get("cube");
+            mr.material = &Material::get("wave");
 
         }
 
         Log::info("Created all cubes");
     }
 
-    void generate_compute_texture()
+    static void setup_orbiting_cubes(
+        const GameObject&   parent,
+        const std::uint32_t orbits,
+        const std::uint32_t per_orbit_count)
+    {
+        static constexpr std::array material_pool
+        {
+            "default",
+            "custom_compute",
+            "pulsing",
+            "blue_metallic",
+            "dancho",
+            "red",
+            "green",
+            "unlit_orange",
+            "unlit_cyan",
+            "wave"
+        };
+
+        for (std::uint32_t i = 0; i < orbits; ++i)
+        {
+            const glm::vec3 axis = normalize(glm::vec3{
+                Random::range<float>(-1.0f, 1.0f),
+                Random::range<float>(-1.0f, 1.0f),
+                Random::range<float>(-1.0f, 1.0f)
+            });
+
+            for (std::uint32_t j = 0; j < per_orbit_count; ++j)
+            {
+                auto& cube = parent.add_child({ std::format("OrbitingCube({}-{})", i, j) });
+                auto& mr = cube.add_component<MeshRenderer>();
+                mr.mesh = &Mesh::get("cube");
+                mr.material = &Material::get(*Random::pick(material_pool));
+                cube.add_component<Orbiter>(axis, (i + 2) * 2.0f, 10.0f + i * 3.0f, j * (360.0f / per_orbit_count));
+            }
+        }
+    }
+
+
+    static void generate_compute_texture()
     {
         Log::info("Generating compute texture...");
 
         constexpr std::uint32_t tex_size = 256;
-        compute_texture_ = Texture::create(
+        const Texture& compute_texture_ = Texture::create(
             "compute_output",
             {
                 .type = TextureType::Texture2D,
@@ -241,12 +333,6 @@ private:
                 .depth = 1,
                 .usage_flags = TextureUsage::Sampled | TextureUsage::Storage | TextureUsage::TransferDst,
             });
-
-        if (!compute_texture_)
-        {
-            Log::error("Failed to create compute texture");
-            return;
-        }
 
         bool failed = false;
 
@@ -261,45 +347,47 @@ private:
         if (failed)
         {
             Log::error("Compute dispatch failed");
-            Texture::destroy(compute_texture_);
-            compute_texture_ = nullptr;
+            Texture::destroy("compute_output");
             return;
         }
 
-        compute_texture_->transition_layout(TextureLayout::General, TextureLayout::ShaderReadOnly);
+        compute_texture_.transition_layout(TextureLayout::General, TextureLayout::ShaderReadOnly);
         Log::info("Compute texture generated");
     }
 
     static void create_materials()
     {
-        const Texture* default_tex = Texture::get_or_load("default.png");
-
-        if (auto* mat = Material::create("default", "default"))
         {
-            auto& m = *mat;
-            register_custom_material("custom_compute", mat);
-            m["albedo_map"]            = { Texture::get("compute_output"), Sampler::get("default") };
-            m["material.albedo_color"] = glm::vec4{ 1.0f };
-            m["material.properties"]   = glm::vec4{ 0.0f, 0.8f, 0.0f, 0.0f };
+            Material& mat = Material::create("custom_compute", {
+                .vertex_shader = "default",
+                .fragment_shader = "default"
+            });
+
+            mat["albedo_map"]            = { Texture::get("compute_output"), Sampler::get("default") };
+            mat["material.albedo_color"] = glm::vec4{ 1.0f };
+            mat["material.properties"]   = glm::vec4{ 0.0f, 0.8f, 0.0f, 0.0f };
             Log::info("Created custom_compute material with procedural texture");
         }
 
-        if (auto* mat = Material::create("default", "default"))
         {
-            auto& m = *mat;
-            register_custom_material("pulsing", mat);
-            m["albedo_map"]            = default_tex;
-            m["material.albedo_color"] = glm::vec4{ 1.0f, 0.0f, 0.0f, 1.0f };
-            m["material.properties"]   = glm::vec4{ 0.0f, 0.8f, 0.2f, 0.0f };
+            Material& mat = Material::create("pulsing", {
+                .vertex_shader = "default",
+                .fragment_shader = "default"
+            });
+
+            mat["albedo_map"]            = Texture::get_or_load("default.png");
+            mat["material.albedo_color"] = glm::vec4{ 1.0f, 0.0f, 0.0f, 1.0f };
+            mat["material.properties"]   = glm::vec4{ 0.0f, 0.8f, 0.2f, 0.0f };
             Log::info("Created pulsing material with color animation");
         }
     }
 
-    static std::shared_ptr<Mesh> create_cube_mesh()
-    {
-        auto mesh = std::make_shared<Mesh>();
 
-        mesh->vertices = {
+    static Mesh create_cube_mesh()
+    {
+        Mesh mesh;
+
+        mesh.vertices = {
             { { -0.5f, -0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } },
             { { 0.5f, -0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f } },
             { { 0.5f, 0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f } },
@@ -331,7 +419,7 @@ private:
             { { -0.5f, 0.5f, -0.5f }, { -1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f } },
         };
 
-        mesh->indices = {
+        mesh.indices = {
             0, 2, 1,        0, 3, 2,        4, 6, 5,        4, 7, 6,
             8, 10, 9,       8, 11, 10,      12, 14, 13,     12, 15, 14,
             16, 18, 17,     16, 19, 18,     20, 22, 21,     20, 23, 22
@@ -340,19 +428,18 @@ private:
         return mesh;
     }
 
-    static std::shared_ptr<Mesh> create_plane_mesh(const float size)
+    static Mesh create_plane_mesh()
     {
-        auto        mesh = std::make_shared<Mesh>();
-        const float half = size * 0.5f;
+        Mesh mesh;
 
-        mesh->vertices = {
-            { { -half, 0.0f, half }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
-            { { half, 0.0f, half }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
-            { { half, 0.0f, -half }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f } },
-            { { -half, 0.0f, -half }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } },
+        mesh.vertices = {
+            { { -0.5f, 0.0f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
+            { { 0.5f, 0.0f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
+            { { 0.5f, 0.0f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f } },
+            { { -0.5f, 0.0f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } },
         };
 
-        mesh->indices = { 0, 2, 1, 0, 3, 2 };
+        mesh.indices = { 0, 2, 1, 0, 3, 2 };
 
         return mesh;
     }

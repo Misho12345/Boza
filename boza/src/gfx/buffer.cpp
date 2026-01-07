@@ -56,22 +56,20 @@ namespace boza
     Buffer::~Buffer() { destroy(); }
 
     Buffer::Buffer(Buffer&& other) noexcept
-        : rhi_buffers_(std::move(other.rhi_buffers_)),
-          size_(other.size_),
-          access_mode_(other.access_mode_) { other.size_ = 0; }
+        : rhi_buffers_{ std::move(other.rhi_buffers_) },
+          size_{ std::exchange(other.size_, 0) },
+          access_mode_{ other.access_mode_ } {}
 
     Buffer& Buffer::operator=(Buffer&& other) noexcept
     {
-        if (this != &other)
-        {
-            destroy();
+        if (this == &other) return *this;
 
-            rhi_buffers_ = std::move(other.rhi_buffers_);
-            size_        = other.size_;
-            access_mode_ = other.access_mode_;
+        destroy();
 
-            other.size_ = 0;
-        }
+        rhi_buffers_ = std::move(other.rhi_buffers_);
+        size_        = std::exchange(other.size_, 0);
+        access_mode_ = other.access_mode_;
+
         return *this;
     }
 

@@ -17,7 +17,7 @@ export namespace boza::rhi::vk
         std::vector<CommandBuffer*> allocate_command_buffers(std::uint32_t count, bool is_primary = true) override;
 
         void free_command_buffer(CommandBuffer* command_buffer) override;
-        void free_command_buffers(const std::vector<CommandBuffer*>& command_buffers) override;
+        void free_command_buffers(std::span<CommandBuffer*> command_buffers) override;
 
         bool reset(bool release_resources = false) override;
 
@@ -66,7 +66,7 @@ export namespace boza::rhi::vk
         void bind_index_buffer(Buffer* buffer, std::uint64_t offset = 0, bool use_uint16 = false) override;
 
         void bind_descriptor_set(PipelineLayout* layout, DescriptorSet* set, std::uint32_t set_index) override;
-        void bind_descriptor_sets(PipelineLayout* layout, const std::vector<DescriptorSet*>& sets, std::uint32_t first_set) override;
+        void bind_descriptor_sets(PipelineLayout* layout, std::span<DescriptorSet*> sets, std::uint32_t first_set) override;
 
         void push_constants(PipelineLayout* layout, ShaderStage stage, std::uint32_t offset, std::uint32_t size, const void* data) override;
 
@@ -113,8 +113,8 @@ export namespace boza::rhi::vk
 
         PresentResult present(const PresentInfo& present_info) override;
         PresentResult present(
-            Swapchain* swapchain,
-            std::uint32_t image_index,
+            Swapchain*                     swapchain,
+            std::uint32_t                  image_index,
             const std::vector<Semaphore*>& wait_semaphores) override;
 
         bool wait_idle() override;

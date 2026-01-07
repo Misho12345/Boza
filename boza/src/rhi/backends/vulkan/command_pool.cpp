@@ -182,7 +182,7 @@ namespace boza::rhi::vk
         delete command_buffer;
     }
 
-    void CommandPool::free_command_buffers(const std::vector<rhi::CommandBuffer*>& command_buffers)
+    void CommandPool::free_command_buffers(const std::span<rhi::CommandBuffer*> command_buffers)
     {
         // Log::trace("Freeing {} command buffers for command pool ({})", command_buffers.size(), desc.queue_family_index);
 

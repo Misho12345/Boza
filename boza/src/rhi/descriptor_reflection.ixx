@@ -18,12 +18,12 @@ export namespace boza::rhi
         bool is_push_constant{ false };
     };
 
-    class DescriptorReflection
+    class DescriptorReflection final
     {
     public:
         DescriptorReflection() = default;
 
-        void build_from_shaders(const std::vector<ShaderModule*>& shaders);
+        void build_from_shaders(std::span<ShaderModule*> shaders);
 
         [[nodiscard]]
         std::optional<BindingInfo> lookup(std::string_view name) const;

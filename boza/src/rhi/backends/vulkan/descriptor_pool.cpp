@@ -51,12 +51,12 @@ namespace boza::rhi::vk
     {
         // Log::trace("Allocating single descriptor set");
 
-        return allocate_descriptor_sets(1, { layout })[0];
+        return allocate_descriptor_sets(1, { &layout, 1 })[0];
     }
 
     std::vector<rhi::DescriptorSet*> DescriptorPool::allocate_descriptor_sets(
-        const uint32_t count,
-        const std::vector<rhi::DescriptorSetLayout*>& layouts)
+        const uint32_t                             count,
+        const std::span<rhi::DescriptorSetLayout*> layouts)
     {
         // Log::trace("Allocating {} descriptor set(s)", count);
 
@@ -107,10 +107,10 @@ namespace boza::rhi::vk
     void DescriptorPool::free_descriptor_set(rhi::DescriptorSet* set)
     {
         // Log::trace("Freeing single descriptor set");
-        free_descriptor_sets({ set });
+        free_descriptor_sets({ &set, 1 });
     }
 
-    void DescriptorPool::free_descriptor_sets(const std::vector<rhi::DescriptorSet*>& sets)
+    void DescriptorPool::free_descriptor_sets(const std::span<rhi::DescriptorSet*> sets)
     {
         // Log::trace("Freeing {} descriptor set(s)", sets.size());
 
@@ -132,14 +132,6 @@ namespace boza::rhi::vk
             vk_descriptor_sets.data());
     }
 
-    void DescriptorPool::recycle_descriptor_set(rhi::DescriptorSet* set)
-    {
-        // Log::trace("Recycling descriptor set");
-
-        // In Vulkan, recycling is effectively the same as freeing back to the pool
-        // The descriptor set can be reused when the pool allocates again
-        free_descriptor_set(set);
-    }
 
     bool DescriptorPool::reset()
     {

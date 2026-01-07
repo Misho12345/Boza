@@ -4,71 +4,19 @@ import :state;
 
 namespace boza::input
 {
-    CallbackExecutor& CallbackExecutor::instance()
+
+    void async_execute(std::function<void()> func)
     {
-        static CallbackExecutor executor;
-        return executor;
+        auto&           state = InputState::instance();
+        std::lock_guard lock{ state.execution_mutex };
+        state.execution_queue.push(std::move(func));
     }
 
-    void CallbackExecutor::execute(std::function<void()> func)
+    void async_execute(std::function<void(glm::vec2)> func, const glm::vec2 xy)
     {
-        {
-            std::lock_guard lock{ queue_mutex_ };
-            tasks_.emplace(std::move(func));
-        }
-
-        condition_.notify_one();
-    }
-
-    void CallbackExecutor::execute(std::function<void(glm::vec2)> func, glm::vec2 xy)
-    {
-        execute([f = std::move(func), xy] { f(xy); });
-    }
-
-    CallbackExecutor::~CallbackExecutor()
-    {
-        {
-            std::lock_guard lock{ queue_mutex_ };
-            stop_ = true;
-        }
-
-        condition_.notify_all();
-        for (auto& worker : workers_)
-        {
-            if (worker.joinable()) worker.join();
-        }
-    }
-
-    CallbackExecutor::CallbackExecutor()
-    {
-        const auto thread_count = std::max(2u, std::thread::hardware_concurrency() / 4);
-        workers_.reserve(thread_count);
-
-        for (unsigned i = 0; i < thread_count; ++i)
-        {
-            workers_.emplace_back([this]
-            {
-                while (true)
-                {
-                    std::function<void()> task;
-
-                    {
-                        std::unique_lock lock{ queue_mutex_ };
-                        condition_.wait(lock, [this] { return stop_ || !tasks_.empty(); });
-
-                        if (stop_ && tasks_.empty()) return;
-
-                        if (!tasks_.empty())
-                        {
-                            task = std::move(tasks_.front());
-                            tasks_.pop();
-                        }
-                    }
-
-                    if (task) task();
-                }
-            });
-        }
+        auto&           state = InputState::instance();
+        std::lock_guard lock{ state.execution_mutex };
+        state.execution_queue.push([func = std::move(func), xy] { func(xy); });
     }
 
     void InputState::clear()
@@ -92,6 +40,16 @@ namespace boza::input
 
         last_cursor_pos = glm::vec2{ 0.0f, 0.0f };
         first_cursor_move = true;
+
+        {
+            std::lock_guard mouse_lock{ mouse_delta_mutex };
+            accumulated_mouse_delta = glm::vec2{ 0.0f, 0.0f };
+        }
+
+        {
+            std::lock_guard exec_lock{ execution_mutex };
+            while (!execution_queue.empty()) execution_queue.pop();
+        }
     }
 
     InputState::InputState()

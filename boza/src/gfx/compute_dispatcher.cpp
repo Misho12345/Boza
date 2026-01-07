@@ -132,7 +132,7 @@ namespace boza
         impl_->descriptor_sets        = std::move(descriptor_sets);
         impl_->descriptor_pool        = descriptor_pool;
 
-        impl_->reflection.build_from_shaders({ shader });
+        impl_->reflection.build_from_shaders({ &shader, 1 });
 
         work_group_size_ = shader->meta_data().work_group_size;
 
@@ -150,7 +150,7 @@ namespace boza
     }
 
     // TODO: fix duplication; logic is very similar and can be shortened with a helper function
-    ComputeDispatcher& ComputeDispatcher::set(const std::string& name, const Texture* texture)
+    ComputeDispatcher& ComputeDispatcher::set(const std::string& name, const Texture& texture)
     {
         if (*failed_ptr_) return *this;
 
@@ -187,16 +187,16 @@ namespace boza
             .array_element = 0,
             .type = rhi::DescriptorType::StorageImage,
             .info = rhi::StorageImage{
-                .texture = static_cast<rhi::Texture*>(texture->rhi_handle())
+                .texture = static_cast<rhi::Texture*>(texture.rhi_handle())
             }
         };
 
-        desc_set->update({ write });
+        desc_set->update({ &write, 1 });
         mark_set_dirty(info.set);
         return *this;
     }
 
-    ComputeDispatcher& ComputeDispatcher::set(const std::string& name, const Buffer* buffer)
+    ComputeDispatcher& ComputeDispatcher::set(const std::string& name, const Buffer& buffer)
     {
         if (*failed_ptr_) return *this;
 
@@ -233,13 +233,13 @@ namespace boza
             .array_element = 0,
             .type = rhi::DescriptorType::StorageBuffer,
             .info = rhi::StorageBuffer{
-                .buffer = static_cast<rhi::Buffer*>(buffer->rhi_handle()),
+                .buffer = static_cast<rhi::Buffer*>(buffer.rhi_handle()),
                 .offset = 0,
-                .range = static_cast<std::uint32_t>(buffer->size())
+                .range = static_cast<std::uint32_t>(buffer.size())
             }
         };
 
-        desc_set->update({ write });
+        desc_set->update({ &write, 1 });
         mark_set_dirty(info.set);
         return *this;
     }

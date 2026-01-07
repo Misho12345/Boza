@@ -96,8 +96,8 @@ namespace boza::rhi::vk
     }
 
     bool Instance::check_extensions_and_layers_support(
-        const std::span<const char*>& extensions,
-        const std::span<const char*>& layers)
+        const std::span<const char*> extensions,
+        const std::span<const char*> layers)
     {
         uint32_t extension_count = 0;
         if (!vk_check(
@@ -178,7 +178,7 @@ namespace boza::rhi::vk
     #ifdef BOZA_DEBUG
     bool Instance::create_debug_messenger()
     {
-        constexpr VkDebugUtilsMessengerCreateInfoEXT debug_messenger_create_info
+        static constexpr VkDebugUtilsMessengerCreateInfoEXT debug_messenger_create_info
         {
             .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
             .pNext = nullptr,

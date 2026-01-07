@@ -718,7 +718,12 @@ namespace boza::rhi::vk
         if (desc_.depth_format == DepthFormat::Auto || desc_.depth_format == DepthFormat::None)
         {
             // Try to find a supported depth format
-            constexpr std::array candidates = { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT };
+            static constexpr std::array candidates
+            {
+                VK_FORMAT_D32_SFLOAT,
+                VK_FORMAT_D32_SFLOAT_S8_UINT,
+                VK_FORMAT_D24_UNORM_S8_UINT
+            };
 
             for (const auto format : candidates)
             {
@@ -765,7 +770,7 @@ namespace boza::rhi::vk
             .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
         };
 
-        constexpr VmaAllocationCreateInfo alloc_info
+        static constexpr VmaAllocationCreateInfo alloc_info
         {
             .flags = 0,
             .usage = VMA_MEMORY_USAGE_GPU_ONLY,

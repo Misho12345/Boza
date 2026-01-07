@@ -24,8 +24,9 @@ export namespace boza
         std::vector<Vertex>        vertices;
         std::vector<std::uint32_t> indices;
 
-        static void register_mesh(const std::string& name, std::shared_ptr<Mesh> mesh);
-        static std::shared_ptr<Mesh> get(const std::string& name);
+        static void register_mesh(const std::string& name, Mesh mesh);
+        static Mesh& get(const std::string& name);
+        static Mesh* try_get(const std::string& name);
     };
 
     class BOZA_API MeshRenderer final : public Component
@@ -34,7 +35,9 @@ export namespace boza
         MeshRenderer()           = default;
         ~MeshRenderer() override = default;
 
-        std::shared_ptr<Mesh> mesh{ nullptr };
+        Mesh* mesh{ nullptr };
         Material* material{ nullptr };
+
+        void on_clone(GameObject& target) override;
     };
 }
