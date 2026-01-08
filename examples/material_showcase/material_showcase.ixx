@@ -64,9 +64,9 @@ protected:
 
         Scene::load("MaterialShowcase", SceneLoadMode::Single);
 
-        Input::on<Action::Press>(Key::F11, toggle_fullscreen);
-        Input::on<Action::Press>(Key::MouseLeft, [this] { set_cursor_state(CursorState::HiddenLocked); });
-        Input::on<Action::Press>(Key::Esc, [this] { set_cursor_state(CursorState::Normal); });
+        Input::on<Action::Press>(Key::F11, &App::toggle_fullscreen);
+        Input::on<Action::Press>(Key::MouseLeft, [] { cursor_state = CursorState::HiddenLocked; });
+        Input::on<Action::Press>(Key::Esc, [] { cursor_state = CursorState::Normal; });
 
         Log::info("Scene setup complete!");
     }
@@ -86,7 +86,7 @@ private:
         camera.near_clip = 0.1f;
         camera.far_clip  = 500.0f;
 
-        set_primary_camera(camera);
+        primary_camera = camera;
 
         auto& controller      = camera_obj.add_component<CameraController>();
         controller.move_speed = 10.0f;
@@ -319,8 +319,6 @@ private:
 
     static void generate_compute_texture()
     {
-        Log::info("Generating compute texture...");
-
         constexpr std::uint32_t tex_size = 256;
         const Texture& compute_texture_ = Texture::create(
             "compute_output",

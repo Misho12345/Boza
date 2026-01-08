@@ -4,9 +4,11 @@ export import glm;
 export import <nlohmann/json.hpp>;
 import <gtl/phmap.hpp>;
 
-export import :property;
 export import :flags;
 export import :random;
+
+export import :property;
+export import :static_property;
 
 export namespace fs = std::filesystem;
 

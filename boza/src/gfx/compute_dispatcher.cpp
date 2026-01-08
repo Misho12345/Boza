@@ -20,7 +20,7 @@ namespace boza
 
         std::vector<rhi::DescriptorSetLayout*> descriptor_set_layouts;
         std::vector<rhi::DescriptorSet*>       descriptor_sets;
-        std::vector<std::byte>                 push_constant_staging;
+        std::vector<std::uint8_t>                 push_constant_staging;
 
         flat_map<std::uint32_t, bool> dirty_sets;
     };

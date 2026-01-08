@@ -163,13 +163,13 @@ export namespace boza
         void* pipeline_layout_{ nullptr };
         std::vector<void*> descriptor_set_layouts_;
         std::vector<void*> descriptor_sets_;
-        std::vector<std::byte> push_constant_staging_;
+        std::vector<std::uint8_t> push_constant_staging_;
 
         void* reflection_{ nullptr };
 
         flat_map<std::uint32_t, bool> dirty_sets_;
 
-        flat_map<std::uint32_t, std::vector<std::byte>> uniform_buffer_staging_;
+        flat_map<std::uint32_t, std::vector<std::uint8_t>> uniform_buffer_staging_;
         flat_map<std::uint32_t, void*> uniform_buffers_;
 
         flat_map<std::string, Sampler*> default_samplers_;

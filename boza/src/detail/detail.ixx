@@ -9,6 +9,3 @@ export import :file_io;
 export import :image_io;
 
 export import :render_context;
-
-// TODO: move from here
-export import :audio_api;

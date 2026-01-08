@@ -444,7 +444,7 @@ namespace boza
             return;
         }
 
-        auto* active = App::active_scene();
+        Scene* active = App::active_scene();
         assert(active && "No active scene for additive load");
         scene->clone_hierarchy_into(*active, nullptr);
     }
@@ -454,7 +454,7 @@ namespace boza
         const auto* scene = App::get_scene(scene_name);
         assert(scene && "Scene not found");
 
-        auto* active = App::active_scene();
+        Scene* active = App::active_scene();
         assert(active && "No active scene to instantiate into");
 
         auto& parent = active->create_game_object(root_info);

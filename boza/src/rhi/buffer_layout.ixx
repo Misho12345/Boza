@@ -202,7 +202,7 @@ export namespace boza::rhi
             const std::size_t     aligned_offset = rules_->align_offset(current_offset_, type);
             const std::size_t     size           = rules_->get_size(type);
 
-            if (aligned_offset + size > data_.size()) { data_.resize(aligned_offset + size, std::byte{ 0 }); }
+            if (aligned_offset + size > data_.size()) { data_.resize(aligned_offset + size, 0); }
 
             std::memcpy(data_.data() + aligned_offset, &value, sizeof(T));
             current_offset_ = aligned_offset + size;
@@ -210,16 +210,16 @@ export namespace boza::rhi
 
         void write_at(const std::size_t offset, const void* value, const std::size_t size)
         {
-            if (offset + size > data_.size()) data_.resize(offset + size, std::byte{});
+            if (offset + size > data_.size()) data_.resize(offset + size, 0);
             std::memcpy(data_.data() + offset, value, size);
         }
 
-        [[nodiscard]] const std::byte* data() const { return data_.data(); }
+        [[nodiscard]] const std::uint8_t* data() const { return data_.data(); }
         [[nodiscard]] std::size_t      size() const { return data_.size(); }
         [[nodiscard]] std::size_t      current_offset() const { return current_offset_; }
 
         void reserve(const std::size_t size) { data_.reserve(size); }
-        void resize(const std::size_t size) { data_.resize(size, std::byte{ 0 }); }
+        void resize(const std::size_t size) { data_.resize(size, 0); }
 
     private:
         template<typename T>
@@ -246,7 +246,7 @@ export namespace boza::rhi
 
         BufferLayoutType                   layout_type_;
         std::unique_ptr<BufferLayoutRules> rules_;
-        std::vector<std::byte>             data_;
+        std::vector<std::uint8_t>             data_;
         std::size_t                        current_offset_{ 0 };
     };
 

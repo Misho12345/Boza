@@ -183,7 +183,7 @@ namespace boza::gfx
             return default_sampler();
         }
 
-        Log::trace("Created sampler: {}", name_str);
+        // Log::trace("Created sampler: {}", name_str);
         return it->second;
     }
 

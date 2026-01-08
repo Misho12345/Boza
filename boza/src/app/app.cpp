@@ -25,7 +25,6 @@ namespace boza
 
     using platform::Window;
 
-    using detail::AudioApi;
     using detail::AssetPaths;
     using detail::GameSettings;
 
@@ -41,8 +40,6 @@ namespace boza
 
         bool initialized{ false };
     };
-
-    App* App::s_instance_ = nullptr;
 
     App::App() : impl_(std::make_unique<Impl>())
     {
@@ -143,7 +140,7 @@ namespace boza
         if (s_instance_) s_instance_->impl_->window.set_cursor_state(state);
     }
 
-    CursorState App::cursor_state()
+    CursorState App::get_cursor_state()
     {
         return s_instance_ ? s_instance_->impl_->window.cursor_state() : CursorState::Normal;
     }
@@ -157,7 +154,7 @@ namespace boza
         s_instance_->impl_->rendering_system.set_active_scene(s_instance_->impl_->active_scene);
     }
 
-    Scene* App::active_scene() { return s_instance_ ? s_instance_->impl_->active_scene : nullptr; }
+    Scene* App::get_active_scene() { return s_instance_ ? s_instance_->impl_->active_scene : nullptr; }
 
     void App::set_primary_camera(Camera& camera)
     {
@@ -167,7 +164,7 @@ namespace boza
         s_instance_->impl_->rendering_system.set_primary_camera(&camera);
     }
 
-    Camera* App::primary_camera()
+    Camera* App::get_primary_camera()
     {
         return s_instance_ ? s_instance_->impl_->primary_camera : nullptr;
     }
@@ -193,7 +190,7 @@ namespace boza
         if (s_instance_ ) s_instance_->impl_->game_loop.set_target_fps(fps);
     }
 
-    float App::target_fps()
+    float App::get_target_fps()
     {
         return s_instance_ ? s_instance_->impl_->game_loop.get_target_fps() : 0.0f;
     }
@@ -203,7 +200,7 @@ namespace boza
         if (s_instance_) s_instance_->impl_->game_loop.set_fixed_update_rate(rate);
     }
 
-    float App::fixed_update_rate()
+    float App::get_fixed_update_rate()
     {
         return s_instance_
                    ? s_instance_->impl_->game_loop.get_fixed_update_rate()

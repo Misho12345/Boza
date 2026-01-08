@@ -32,13 +32,6 @@ export namespace boza
             return dist(engine());
         }
 
-        static std::size_t index(const std::size_t n) noexcept
-        {
-            if (n == 0) return 0;
-            std::uniform_int_distribution<std::size_t> dist(0, n - 1);
-            return dist(engine());
-        }
-
         static bool chance(const double p = 0.5) noexcept
         {
             if (p <= 0.0) return false;
@@ -81,7 +74,7 @@ export namespace boza
             std::string result;
             result.reserve(length);
 
-            for (std::size_t i = 0; i < length; ++i) { result += charset[index(charset.size())]; }
+            for (std::size_t i = 0; i < length; ++i) { result += charset[number(charset.size())]; }
 
             return result;
         }
@@ -151,8 +144,7 @@ export namespace boza
         }
 
     private:
-        static constexpr std::string_view alphanumeric_charset =
-                "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        static constexpr std::string_view alphanumeric_charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         static constexpr std::string_view alpha_charset   = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
         static constexpr std::string_view numeric_charset = "0123456789";
         static constexpr std::string_view hex_charset     = "0123456789abcdef";
@@ -176,8 +168,8 @@ export namespace boza
         static std::uint64_t splitmix64(std::uint64_t& x) noexcept
         {
             std::uint64_t z = (x += 0x9E3779B97F4A7C15ULL);
-            z               = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
-            z               = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
+            z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
+            z = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
             return z ^ (z >> 31);
         }
 

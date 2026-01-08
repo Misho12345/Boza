@@ -292,7 +292,7 @@ namespace boza::gfx
             return *error_texture_;
         }
 
-        Log::trace("Created texture: {}", name_str);
+        // Log::trace("Created texture: {}", name_str);
         return it->second;
     }
 

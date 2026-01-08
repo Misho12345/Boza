@@ -14,6 +14,21 @@ export namespace boza
 {
     class BOZA_API App
     {
+        static void set_cursor_state(CursorState state);
+        static CursorState get_cursor_state();
+
+        static void set_active_scene(Scene& scene);
+        static Scene* get_active_scene();
+
+        static void set_primary_camera(Camera& camera);
+        static Camera* get_primary_camera();
+
+        static void set_target_fps(float fps);
+        static float get_target_fps();
+
+        static void set_fixed_update_rate(float rate);
+        static float get_fixed_update_rate();
+
     public:
         App();
         virtual ~App();
@@ -27,20 +42,26 @@ export namespace boza
         void run();
 
         static void toggle_fullscreen();
-        static void set_cursor_state(CursorState state);
-        static CursorState cursor_state();
 
-        static void set_active_scene(Scene& scene);
-        static Scene* active_scene();
+        static inline StaticProperty<
+            &App::get_cursor_state,
+            &App::set_cursor_state
+        > cursor_state;
 
-        static void set_primary_camera(Camera& camera);
-        static Camera* primary_camera();
+        static inline StaticProperty<
+            &App::get_active_scene,
+            &App::set_active_scene
+        > active_scene;
 
-        static void set_target_fps(float fps);
-        static float target_fps();
+        static inline StaticProperty<
+            &App::get_primary_camera,
+            &App::set_primary_camera
+        > primary_camera;
 
-        static void set_fixed_update_rate(float rate);
-        static float fixed_update_rate();
+        static inline StaticProperty<
+            &App::get_target_fps,
+            &App::set_target_fps
+        > target_fps;
 
     protected:
         virtual void setup() {}
@@ -56,8 +77,9 @@ export namespace boza
         struct Impl;
         std::unique_ptr<Impl> impl_;
 
-        static App* s_instance_;
+        static inline App* s_instance_{ nullptr };
 
         friend Scene;
+        template<auto...> friend class StaticProperty;
     };
 }

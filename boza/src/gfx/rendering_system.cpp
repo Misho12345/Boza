@@ -237,8 +237,6 @@ namespace boza::gfx
             }
         }
 
-        static bool first_frame = true;
-
         for (const auto mesh_renderer : renderables)
         {
             if (!mesh_renderer->mesh) continue;
@@ -266,12 +264,6 @@ namespace boza::gfx
             }
 
             cmd->draw_indexed(gpu_mesh->index_count);
-        }
-
-        if (first_frame)
-        {
-            first_frame = false;
-            Log::info("First frame: rendered {} entities", renderables.size());
         }
 
         detail::RenderContext::set_current_command_buffer(nullptr);

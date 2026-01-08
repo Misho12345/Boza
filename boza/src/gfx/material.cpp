@@ -287,7 +287,7 @@ namespace boza
             if (buffer)
             {
                 uniform_buffers_[binding_key] = buffer;
-                uniform_buffer_staging_[binding_key].resize(buffer_size, std::byte{ 0 });
+                uniform_buffer_staging_[binding_key].resize(buffer_size, 0);
 
                 if (info.set < descriptor_sets_.size())
                 {

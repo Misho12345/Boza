@@ -451,7 +451,7 @@ namespace boza::gfx
         if (def_it != definitions_.end() && def_it->second.load_strategy == LoadStrategy::OnDemand)
         {
             const auto& def = def_it->second;
-            Log::trace("Loading on-demand material: {}", name);
+            // Log::trace("Loading on-demand material: {}", name);
 
             const MaterialSettings settings{
                 .vertex_shader = def.vertex_shader,

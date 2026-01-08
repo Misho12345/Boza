@@ -218,7 +218,21 @@ export namespace boza
             using R_no_ref        = std::remove_cvref_t<R>;
 
             if constexpr (std::same_as<ret_type_no_ref, R_no_ref> && std::is_invocable_v<decltype(First), Owner&>)
+            {
                 return std::invoke(First, *owner());
+            }
+            else if constexpr (std::is_pointer_v<ret_type_no_ref> && std::is_pointer_v<R_no_ref> &&
+                               std::is_invocable_v<decltype(First), Owner&>)
+            {
+                using ret_pointee = std::remove_pointer_t<ret_type_no_ref>;
+                using R_pointee   = std::remove_pointer_t<R_no_ref>;
+
+                if constexpr (std::same_as<std::remove_cv_t<ret_pointee>, std::remove_cv_t<R_pointee>>)
+                {
+                    return static_cast<R>(std::invoke(First, *owner()));
+                }
+                else return call_getter_by_type_impl<R>(method_pack<Rest...>{});
+            }
             else return call_getter_by_type_impl<R>(method_pack<Rest...>{});
         }
 
@@ -230,7 +244,21 @@ export namespace boza
             using R_no_ref        = std::remove_cvref_t<R>;
 
             if constexpr (std::same_as<ret_type_no_ref, R_no_ref> && std::is_invocable_v<decltype(First), const Owner&>)
+            {
                 return std::invoke(First, *owner());
+            }
+            else if constexpr (std::is_pointer_v<ret_type_no_ref> && std::is_pointer_v<R_no_ref> &&
+                               std::is_invocable_v<decltype(First), const Owner&>)
+            {
+                using ret_pointee = std::remove_pointer_t<ret_type_no_ref>;
+                using R_pointee   = std::remove_pointer_t<R_no_ref>;
+
+                if constexpr (std::same_as<std::remove_cv_t<ret_pointee>, std::remove_cv_t<R_pointee>>)
+                {
+                    return static_cast<R>(std::invoke(First, *owner()));
+                }
+                else return call_getter_by_type_impl<R>(method_pack<Rest...>{});
+            }
             else return call_getter_by_type_impl<R>(method_pack<Rest...>{});
         }
 

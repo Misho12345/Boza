@@ -23,7 +23,7 @@ public:
 
         Input::on<Action::MouseMove>([this](const glm::vec2 delta)
         {
-            if (App::cursor_state() != CursorState::HiddenLocked) return;
+            if (App::cursor_state != CursorState::HiddenLocked) return;
 
             target_yaw_   += delta.x * sensitivity;
             target_pitch_ = glm::clamp(target_pitch_ + delta.y * sensitivity, pitch_min, pitch_max);

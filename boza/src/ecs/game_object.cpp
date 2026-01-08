@@ -48,28 +48,28 @@ namespace boza
 
     GameObject& GameObject::create(const GameObjectInfo& info)
     {
-        auto* scene = App::active_scene();
+        Scene* scene = App::active_scene();
         assert(scene && "No active scene to create GameObject in");
         return scene->create_game_object(info);
     }
 
     GameObject& GameObject::get(const std::string_view name)
     {
-        const auto* scene = App::active_scene();
+        const Scene* scene = App::active_scene();
         assert(scene && "No active scene");
         return scene->get_game_object(name);
     }
 
     GameObject* GameObject::try_get(const std::string_view name)
     {
-        const auto* scene = App::active_scene();
+        const Scene* scene = App::active_scene();
         assert(scene && "No active scene");
         return scene->try_get_game_object(name);
     }
 
     GameObject& GameObject::root()
     {
-        const auto* scene = App::active_scene();
+        const Scene* scene = App::active_scene();
         assert(scene && "No active scene");
         return scene->root();
     }
