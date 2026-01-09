@@ -40,10 +40,6 @@ namespace boza::app
         float get_target_fps() const;
         void set_target_fps(float fps);
 
-        [[nodiscard]]
-        float get_fixed_update_rate() const;
-        void set_fixed_update_rate(float rate);
-
         void wait_for_window_close();
 
     private:

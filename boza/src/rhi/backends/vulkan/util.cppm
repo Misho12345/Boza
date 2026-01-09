@@ -332,20 +332,20 @@ namespace boza::rhi::vk
     {
         VkImageUsageFlags result = 0;
 
-        if (usage.has(TextureUsage::Sampled)) result |= VK_IMAGE_USAGE_SAMPLED_BIT;
-        if (usage.has(TextureUsage::Storage)) result |= VK_IMAGE_USAGE_STORAGE_BIT;
-        if (usage.has(TextureUsage::ColorAttachment)) result |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-        if (usage.has(TextureUsage::DepthStencilAttachment)) result |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        if (usage.has(TextureUsage::TransferSrc)) result |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-        if (usage.has(TextureUsage::TransferDst)) result |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-        if (usage.has(TextureUsage::InputAttachment)) result |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+        if (usage & TextureUsage::Sampled) result |= VK_IMAGE_USAGE_SAMPLED_BIT;
+        if (usage & TextureUsage::Storage) result |= VK_IMAGE_USAGE_STORAGE_BIT;
+        if (usage & TextureUsage::ColorAttachment) result |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        if (usage & TextureUsage::DepthStencilAttachment) result |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        if (usage & TextureUsage::TransferSrc) result |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        if (usage & TextureUsage::TransferDst) result |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        if (usage & TextureUsage::InputAttachment) result |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
 
         return result;
     }
 
     VkImageAspectFlags get_image_aspect_flags(const Flags<TextureUsage> usage)
     {
-        if (usage.has(TextureUsage::DepthStencilAttachment)) return VK_IMAGE_ASPECT_DEPTH_BIT;
+        if (usage & TextureUsage::DepthStencilAttachment) return VK_IMAGE_ASPECT_DEPTH_BIT;
         return VK_IMAGE_ASPECT_COLOR_BIT;
     }
 
@@ -477,13 +477,13 @@ namespace boza::rhi::vk
     {
         VkShaderStageFlags result = 0;
 
-        if (stages.has(ShaderStage::Vertex)) result |= VK_SHADER_STAGE_VERTEX_BIT;
-        if (stages.has(ShaderStage::Fragment)) result |= VK_SHADER_STAGE_FRAGMENT_BIT;
-        if (stages.has(ShaderStage::Compute)) result |= VK_SHADER_STAGE_COMPUTE_BIT;
-        if (stages.has(ShaderStage::TessControl)) result |= VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
-        if (stages.has(ShaderStage::TessEvaluation)) result |= VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-        if (stages.has(ShaderStage::Geometry)) result |= VK_SHADER_STAGE_GEOMETRY_BIT;
-        if (stages.has(ShaderStage::All)) result |= VK_SHADER_STAGE_ALL;
+        if (stages & ShaderStage::Vertex) result |= VK_SHADER_STAGE_VERTEX_BIT;
+        if (stages & ShaderStage::Fragment) result |= VK_SHADER_STAGE_FRAGMENT_BIT;
+        if (stages & ShaderStage::Compute) result |= VK_SHADER_STAGE_COMPUTE_BIT;
+        if (stages & ShaderStage::TessControl) result |= VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
+        if (stages & ShaderStage::TessEvaluation) result |= VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+        if (stages & ShaderStage::Geometry) result |= VK_SHADER_STAGE_GEOMETRY_BIT;
+        if (stages & ShaderStage::All) result |= VK_SHADER_STAGE_ALL;
 
         return result;
     }

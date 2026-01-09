@@ -1,41 +1,28 @@
 module boza.core;
 
+import :time;
+
 namespace boza
 {
-    struct Time::TimeData
-    {
-        std::chrono::steady_clock::time_point last_frame_time;
-        std::chrono::steady_clock::time_point start_time;
-    };
-
-    std::unique_ptr<Time::TimeData> Time::time_data_ = std::make_unique<TimeData>();
-
     void Time::init()
     {
-        time_data_->start_time      = std::chrono::steady_clock::now();
-        time_data_->last_frame_time = time_data_->start_time;
-
-        frame_count_   = 0;
-        time_          = 0.0f;
-        unscaled_time_ = 0.0f;
+        last_frame_time_ = std::chrono::steady_clock::now();
     }
 
     void Time::update()
     {
         const auto current_time = std::chrono::steady_clock::now();
 
-        const std::chrono::duration<float> duration = current_time - time_data_->last_frame_time;
+        // calculate elapsed time since the last update() call
+        const std::chrono::duration<float> duration = current_time - last_frame_time_;
+        last_frame_time_ = current_time;
 
+        // get the unscaled duration and add it to the total unscaled time
         unscaled_delta_time_ = duration.count();
-        delta_time_          = unscaled_delta_time_ * time_scale_;
+        unscaled_time_       += unscaled_delta_time_;
 
-        time_data_->last_frame_time = current_time;
-
-        unscaled_time_ += unscaled_delta_time_;
-        time_ += delta_time_;
-
-        ++frame_count_;
-
-        if (unscaled_delta_time_ > 0.0f) fps_ = 1.0f / unscaled_delta_time_;
+        // get the scaled duration and add it to the total scaled time
+        delta_time_ = unscaled_delta_time_ * time_scale;
+        time_       += delta_time_;
     }
 }

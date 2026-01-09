@@ -18,8 +18,7 @@ namespace boza::app
         assert(config.window && "Window cannot be null");
         config_ = config;
 
-        const float fixed_timestep = config_.fixed_update_rate > 0 ? 1.0f / config_.fixed_update_rate : 1.0f / 60.0f;
-        Time::set_fixed_delta_time(fixed_timestep);
+        Time::fixed_delta_time = 1.0f / (config_.fixed_update_rate > 0 ? config_.fixed_update_rate : 60.0f);
     }
 
     void GameLoop::start()
@@ -80,14 +79,6 @@ namespace boza::app
     float GameLoop::get_target_fps() const { return config_.target_fps; }
     void  GameLoop::set_target_fps(const float fps) { config_.target_fps = fps; }
 
-    float GameLoop::get_fixed_update_rate() const { return config_.fixed_update_rate; }
-
-    void GameLoop::set_fixed_update_rate(const float rate)
-    {
-        config_.fixed_update_rate = rate;
-        Time::set_fixed_delta_time(rate > 0 ? 1.0f / rate : 1.0f / 60.0f);
-    }
-
     bool GameLoop::is_running() const { return running_; }
 
     void GameLoop::update_scene(Scene* scene)
@@ -123,7 +114,7 @@ namespace boza::app
             if (!config_.vsync && config_.target_fps > 0)
             {
                 const float frame_time = 1.0f / config_.target_fps;
-                const float elapsed    = Time::unscaled_delta_time();
+                const float elapsed    = Time::unscaled_delta_time_;
                 if (elapsed < frame_time)
                     std::this_thread::sleep_for(std::chrono::duration<float>(frame_time - elapsed));
             }
@@ -134,11 +125,11 @@ namespace boza::app
     {
         const float fixed_timestep = config_.fixed_update_rate > 0 ? 1.0f / config_.fixed_update_rate : 1.0f / 60.0f;
         float accumulator    = 0.0f;
-        float last_time      = Time::unscaled_time();
+        float last_time      = Time::unscaled_time_;
 
         while (running_.load())
         {
-            const float current_time = Time::unscaled_time();
+            const float current_time = Time::unscaled_time_;
             const float frame_time   = current_time - last_time;
             last_time          = current_time;
             accumulator       += frame_time;

@@ -68,7 +68,7 @@ namespace boza::rhi::vk
             "Failed to create image view"))
             return false;
 
-        if (desc_.usage.has(TextureUsage::Storage))
+        if (desc_.usage & TextureUsage::Storage)
         {
             transition_layout_internal(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
         }
@@ -388,7 +388,7 @@ namespace boza::rhi::vk
         auto* cmd_buffer = cmd_pool->begin_single_time_commands();
 
         VkImageLayout current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-        if (desc_.usage.has(TextureUsage::Storage)) current_layout = VK_IMAGE_LAYOUT_GENERAL;
+        if (desc_.usage & TextureUsage::Storage) current_layout = VK_IMAGE_LAYOUT_GENERAL;
 
         {
             VkImageMemoryBarrier barrier

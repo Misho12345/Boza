@@ -72,15 +72,15 @@ public:
         const bool  stopping = glm::length2(desired_velocity) < 1e-8f;
         const float tau      = stopping ? move_decel_smooth_time : move_accel_smooth_time;
 
-        current_velocity_ = exp_smooth_vec3(current_velocity_, desired_velocity, Time::delta_time(), tau);
-        transform->position += current_velocity_ * Time::delta_time();
+        current_velocity_ = exp_smooth_vec3(current_velocity_, desired_velocity, Time::delta_time, tau);
+        transform->position += current_velocity_ * Time::delta_time;
 
         if (yaw_ == target_yaw_ && pitch_ == target_pitch_) return;
 
         if (rotation_smooth_time > 0.0f)
         {
-            yaw_   = exp_smooth_angle(yaw_, target_yaw_, Time::delta_time(), rotation_smooth_time);
-            pitch_ = exp_smooth_scalar(pitch_, target_pitch_, Time::delta_time(), rotation_smooth_time);
+            yaw_   = exp_smooth_angle(yaw_, target_yaw_, Time::delta_time, rotation_smooth_time);
+            pitch_ = exp_smooth_scalar(pitch_, target_pitch_, Time::delta_time, rotation_smooth_time);
         }
         else
         {

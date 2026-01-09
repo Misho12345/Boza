@@ -41,7 +41,7 @@ namespace boza
         bool initialized{ false };
     };
 
-    App::App() : impl_(std::make_unique<Impl>())
+    App::App() : impl_{ std::make_unique<Impl>() }
     {
         assert(s_instance_ == nullptr && "App instance already exists");
         Log::init();
@@ -185,25 +185,6 @@ namespace boza
         return it != s_instance_->impl_->scenes.end() ? &it->second : nullptr;
     }
 
-    void App::set_target_fps(const float fps)
-    {
-        if (s_instance_ ) s_instance_->impl_->game_loop.set_target_fps(fps);
-    }
-
-    float App::get_target_fps()
-    {
-        return s_instance_ ? s_instance_->impl_->game_loop.get_target_fps() : 0.0f;
-    }
-
-    void App::set_fixed_update_rate(const float rate)
-    {
-        if (s_instance_) s_instance_->impl_->game_loop.set_fixed_update_rate(rate);
-    }
-
-    float App::get_fixed_update_rate()
-    {
-        return s_instance_
-                   ? s_instance_->impl_->game_loop.get_fixed_update_rate()
-                   : 0.0f;
-    }
+    void App::set_target_fps(const float fps) { if (s_instance_) s_instance_->impl_->game_loop.set_target_fps(fps); }
+    float App::get_target_fps() { return s_instance_ ? s_instance_->impl_->game_loop.get_target_fps() : 0.0f; }
 }

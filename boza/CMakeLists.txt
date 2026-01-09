@@ -5,6 +5,7 @@ boza_enable_warnings(boza_engine)
 # === Collect Module Files ===
 file(GLOB_RECURSE public_modules CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/public/*.ixx"
+        "${CMAKE_CURRENT_SOURCE_DIR}/public/*.cppm"
 )
 file(GLOB_RECURSE private_modules CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.ixx"

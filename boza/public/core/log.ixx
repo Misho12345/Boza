@@ -8,28 +8,131 @@ export module boza.core:log;
 import std;
 import boza.common;
 
+namespace boza { class App; }
+
 export namespace boza
 {
+    /**
+     * @brief Logging utility class for structured logging throughout the application.
+     *
+     * Provides a static interface to spdlog for consistent logging across different
+     * severity levels. This class cannot be instantiated, and all methods are static.
+     *
+     * @note Trace and debug messages are disabled in Release builds for performance.
+     */
     class BOZA_API Log final
     {
     public:
         Log() = delete;
-        ~Log() = delete;
 
+        /**
+         * @brief Log a trace-level message.
+         * @param value The value to log (will be formatted using {})
+         * @note Won't be logged in Release mode
+         */
         static void trace(const auto& value) { log(spdlog::level::trace, "{}", value); }
+
+        /**
+         * @brief Log a debug-level message.
+         * @param value The value to log (will be formatted using {})
+         * @note Won't be logged in Release mode
+         */
         static void debug(const auto& value) { log(spdlog::level::debug, "{}", value); }
+
+        /**
+         * @brief Log an info-level message.
+         * @param value The value to log (will be formatted using {})
+         */
         static void info(const auto& value) { log(spdlog::level::info, "{}", value); }
+
+        /**
+         * @brief Log a warning-level message.
+         * @param value The value to log (will be formatted using {})
+         */
         static void warn(const auto& value) { log(spdlog::level::warn, "{}", value); }
+
+        /**
+         * @brief Log an error-level message.
+         * @param value The value to log (will be formatted using {})
+         */
         static void error(const auto& value) { log(spdlog::level::err, "{}", value); }
+
+        /**
+         * @brief Log a critical-level message.
+         * @param value The value to log (will be formatted using {})
+         */
         static void critical(const auto& value) { log(spdlog::level::critical, "{}", value); }
 
-        template<typename... Args> static void trace(const std::format_string<Args...> fmt, Args&&... args) { log(spdlog::level::trace, fmt, std::forward<Args>(args)...); }
-        template<typename... Args> static void debug(const std::format_string<Args...> fmt, Args&&... args) { log(spdlog::level::debug, fmt, std::forward<Args>(args)...); }
-        template<typename... Args> static void info(const std::format_string<Args...> fmt, Args&&... args) { log(spdlog::level::info, fmt, std::forward<Args>(args)...); }
-        template<typename... Args> static void warn(const std::format_string<Args...> fmt, Args&&... args) { log(spdlog::level::warn, fmt, std::forward<Args>(args)...); }
-        template<typename... Args> static void error(const std::format_string<Args...> fmt, Args&&... args) { log(spdlog::level::err, fmt, std::forward<Args>(args)...); }
-        template<typename... Args> static void critical(const std::format_string<Args...> fmt, Args&&... args) { log(spdlog::level::critical, fmt, std::forward<Args>(args)...); }
+        /**
+         * @brief Log a formatted trace-level message.
+         * @param fmt Format string (std::format compatible)
+         * @param args Arguments to format
+         * @note Won't be logged in Release mode
+         */
+        template<typename... Args> static void trace(const std::format_string<Args...> fmt, Args&&... args)
+        {
+            log(spdlog::level::trace, fmt, std::forward<Args>(args)...);
+        }
 
+        /**
+         * @brief Log a formatted debug-level message.
+         * @param fmt Format string (std::format compatible)
+         * @param args Arguments to format
+         * @note Won't be logged in Release mode
+         */
+        template<typename... Args> static void debug(const std::format_string<Args...> fmt, Args&&... args)
+        {
+            log(spdlog::level::debug, fmt, std::forward<Args>(args)...);
+        }
+
+        /**
+         * @brief Log a formatted info-level message.
+         * @param fmt Format string (std::format compatible)
+         * @param args Arguments to format
+         */
+        template<typename... Args> static void info(const std::format_string<Args...> fmt, Args&&... args)
+        {
+            log(spdlog::level::info, fmt, std::forward<Args>(args)...);
+        }
+
+        /**
+         * @brief Log a formatted warning-level message.
+         * @param fmt Format string (std::format compatible)
+         * @param args Arguments to format
+         */
+        template<typename... Args> static void warn(const std::format_string<Args...> fmt, Args&&... args)
+        {
+            log(spdlog::level::warn, fmt, std::forward<Args>(args)...);
+        }
+
+        /**
+         * @brief Log a formatted error-level message.
+         * @param fmt Format string (std::format compatible)
+         * @param args Arguments to format
+         */
+        template<typename... Args> static void error(const std::format_string<Args...> fmt, Args&&... args)
+        {
+            log(spdlog::level::err, fmt, std::forward<Args>(args)...);
+        }
+
+        /**
+         * @brief Log a formatted critical-level message.
+         * @param fmt Format string (std::format compatible)
+         * @param args Arguments to format
+         */
+        template<typename... Args> static void critical(const std::format_string<Args...> fmt, Args&&... args)
+        {
+            log(spdlog::level::critical, fmt, std::forward<Args>(args)...);
+        }
+
+
+    private:
+        /**
+         * @brief Low-level logging function with custom severity level.
+         * @param level The severity level to log at
+         * @param fmt Format string (std::format compatible)
+         * @param args Arguments to format
+         */
         template<typename... Args>
         static void log(spdlog::level::level_enum level, const std::format_string<Args...> fmt, Args&&... args)
         {
@@ -37,134 +140,21 @@ export namespace boza
             log()->log(level, message);
         }
 
+        /**
+         * @brief Initialize the logging system.
+         *
+         * Must be called before any logging operations. Sets up the underlying
+         * spdlog logger with appropriate configuration.
+         */
         static void init();
 
-    private:
+        /**
+         * @brief Get the underlying spdlog logger instance.
+         * @return Shared pointer to the logger
+         */
         static std::shared_ptr<spdlog::logger> log();
+
+        friend class App;
     };
 }
 
-namespace std
-{
-    template<std::size_t L, typename T, glm::qualifier Q>
-    struct formatter<glm::vec<L, T, Q>, char>
-    {
-        constexpr auto parse(std::format_parse_context& ctx) -> decltype(ctx.begin()) { return ctx.begin(); }
-
-        template<typename FormatContext>
-        FormatContext::iterator format(const glm::vec<L, T, Q>& v, FormatContext& ctx) const
-        {
-            auto out = ctx.out();
-            std::format_to(out, "(");
-            for (typename glm::vec<L, T, Q>::length_type i = 0; i < static_cast<glm::vec<L, T, Q>::length_type>(L); ++i)
-            {
-                std::format_to(out, "{}", v[i]);
-                if (i + 1 < L) std::format_to(out, ", ");
-            }
-            return std::format_to(out, ")");
-        }
-    };
-
-
-    template<typename T, glm::qualifier Q>
-    struct formatter<glm::qua<T, Q>, char>
-    {
-        char presentation = 'c';
-
-        constexpr auto parse(std::format_parse_context& ctx) -> decltype(ctx.begin())
-        {
-            auto it  = ctx.begin();
-            const auto end = ctx.end();
-
-            if (it != end && (*it == 'c' || *it == 'a')) presentation = *it++;
-            if (it != end && *it != '}') throw std::format_error("invalid format for quaternion");
-
-            return it;
-        }
-
-        template<typename FormatContext>
-        FormatContext::iterator format(const glm::qua<T, Q>& q, FormatContext& ctx) const
-        {
-            auto out = ctx.out();
-
-            if (presentation == 'a')
-            {
-                T                 angle = glm::angle(q);
-                glm::vec<3, T, Q> axis  = glm::axis(q);
-                return std::format_to(out, "quat(axis: ({}, {}, {}), angle: {}°)",
-                                      axis.x, axis.y, axis.z, glm::degrees(angle));
-            }
-
-            return std::format_to(out, "quat(w: {}, x: {}, y: {}, z: {})", q.w, q.x, q.y, q.z);
-        }
-    };
-
-
-    template<std::size_t C, std::size_t R, typename T, glm::qualifier Q>
-    struct formatter<glm::mat<C, R, T, Q>, char>
-    {
-        char presentation = 'c';
-
-        constexpr auto parse(std::format_parse_context& ctx) -> decltype(ctx.begin())
-        {
-            auto       it  = ctx.begin();
-            const auto end = ctx.end();
-
-            if (it != end && (*it == 'c' || *it == 'r' || *it == 'm')) presentation = *it++;
-            if (it != end && *it != '}') throw std::format_error("invalid format for matrix");
-
-            return it;
-        }
-
-        template<typename FormatContext>
-        FormatContext::iterator format(const glm::mat<C, R, T, Q>& m, FormatContext& ctx) const
-        {
-            auto out = ctx.out();
-
-            if (presentation == 'm')
-            {
-                std::format_to(out, "mat{}x{}\n", C, R);
-                for (typename glm::mat<C, R, T, Q>::length_type row = 0; row < static_cast<glm::mat<C, R, T, Q>::length_type>(R); ++row)
-                {
-                    std::format_to(out, "  [");
-                    for (typename glm::mat<C, R, T, Q>::length_type col = 0; col < static_cast<glm::mat<C, R, T, Q>::length_type>(C); ++col)
-                    {
-                        std::format_to(out, "{:8.3f}", static_cast<double>(m[col][row]));
-                        if (col + 1 < C) std::format_to(out, " ");
-                    }
-                    std::format_to(out, "]");
-                    if (row + 1 < R) std::format_to(out, "\n");
-                }
-                return out;
-            }
-
-            if (presentation == 'r')
-            {
-                std::format_to(out, "mat{}x{}(", C, R);
-                for (typename glm::mat<C, R, T, Q>::length_type row = 0; row < static_cast<glm::mat<C, R, T, Q>::length_type>(R); ++row)
-                {
-                    std::format_to(out, "[");
-                    for (typename glm::mat<C, R, T, Q>::length_type col = 0; col < static_cast<glm::mat<C, R, T, Q>::length_type>(C); ++col)
-                    {
-                        std::format_to(out, "{}", m[col][row]);
-                        if (col + 1 < C) std::format_to(out, ", ");
-                    }
-                    std::format_to(out, "]");
-                    if (row + 1 < R) std::format_to(out, ", ");
-                }
-                return std::format_to(out, ")");
-            }
-
-            std::format_to(out, "mat{}x{}(", C, R);
-            for (typename glm::mat<C, R, T, Q>::length_type col = 0; col < static_cast<glm::mat<C, R, T, Q>::length_type>(C); ++col)
-            {
-                for (typename glm::mat<C, R, T, Q>::length_type row = 0; row < static_cast<glm::mat<C, R, T, Q>::length_type>(R); ++row)
-                {
-                    std::format_to(out, "{}", m[col][row]);
-                    if (col + 1 < C || row + 1 < R) std::format_to(out, ", ");
-                }
-            }
-            return std::format_to(out, ")");
-        }
-    };
-}

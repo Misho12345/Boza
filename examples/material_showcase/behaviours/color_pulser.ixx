@@ -23,7 +23,7 @@ public:
     {
         assert(material_ && "Material not set");
 
-        cooldown_ += Time::delta_time() * speed;
+        cooldown_ += Time::delta_time * speed;
         if (cooldown_ > 1.0f)
         {
             cooldown_ = 0.0f;

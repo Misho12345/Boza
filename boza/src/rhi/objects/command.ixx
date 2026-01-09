@@ -217,10 +217,10 @@ export namespace boza::rhi
 
         virtual bool wait_idle() = 0;
 
-        bool supports_graphics() const { return desc_.type.has(CommandQueueType::Graphics); }
-        bool supports_compute() const { return desc_.type.has(CommandQueueType::Compute); }
-        bool supports_transfer() const { return desc_.type.has(CommandQueueType::Transfer); }
-        bool supports_present() const { return desc_.type.has(CommandQueueType::Present); }
+        bool supports_graphics() const { return desc_.type & CommandQueueType::Graphics; }
+        bool supports_compute() const { return desc_.type & CommandQueueType::Compute; }
+        bool supports_transfer() const { return desc_.type & CommandQueueType::Transfer; }
+        bool supports_present() const { return desc_.type & CommandQueueType::Present; }
 
     protected:
         explicit CommandQueue(const CommandQueueDesc& desc) : GraphicsObject(desc) {}

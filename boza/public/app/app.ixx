@@ -14,20 +14,17 @@ export namespace boza
 {
     class BOZA_API App
     {
-        static void set_cursor_state(CursorState state);
         static CursorState get_cursor_state();
+        static void set_cursor_state(CursorState state);
 
-        static void set_active_scene(Scene& scene);
         static Scene* get_active_scene();
+        static void set_active_scene(Scene& scene);
 
-        static void set_primary_camera(Camera& camera);
         static Camera* get_primary_camera();
+        static void set_primary_camera(Camera& camera);
 
-        static void set_target_fps(float fps);
         static float get_target_fps();
-
-        static void set_fixed_update_rate(float rate);
-        static float get_fixed_update_rate();
+        static void set_target_fps(float fps);
 
     public:
         App();
@@ -43,22 +40,22 @@ export namespace boza
 
         static void toggle_fullscreen();
 
-        static inline StaticProperty<
+        static inline GlobalProperty<
             &App::get_cursor_state,
             &App::set_cursor_state
         > cursor_state;
 
-        static inline StaticProperty<
+        static inline GlobalProperty<
             &App::get_active_scene,
             &App::set_active_scene
         > active_scene;
 
-        static inline StaticProperty<
+        static inline GlobalProperty<
             &App::get_primary_camera,
             &App::set_primary_camera
         > primary_camera;
 
-        static inline StaticProperty<
+        static inline GlobalProperty<
             &App::get_target_fps,
             &App::set_target_fps
         > target_fps;
@@ -80,6 +77,6 @@ export namespace boza
         static inline App* s_instance_{ nullptr };
 
         friend Scene;
-        template<auto...> friend class StaticProperty;
+        template<auto...> friend class GlobalProperty;
     };
 }

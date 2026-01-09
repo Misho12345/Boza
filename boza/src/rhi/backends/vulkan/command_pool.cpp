@@ -12,8 +12,8 @@ namespace boza::rhi::vk
         const Device* device = reinterpret_cast<Device*>(desc_.device);
 
         VkCommandPoolCreateFlags flags = 0;
-        if (desc_.flags.has(CommandPoolOption::Transient)) flags |= VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-        if (desc_.flags.has(CommandPoolOption::ResetCommandBuffer)) flags |= VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        if (desc_.flags & CommandPoolOption::Transient) flags |= VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+        if (desc_.flags & CommandPoolOption::ResetCommandBuffer) flags |= VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
         const VkCommandPoolCreateInfo pool_info
         {

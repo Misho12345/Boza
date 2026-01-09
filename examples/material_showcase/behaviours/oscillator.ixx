@@ -20,7 +20,7 @@ public:
 
     void update() override
     {
-        phase += Time::delta_time() * speed;
+        phase += Time::delta_time * speed;
 
         const float s = glm::sin(phase);
         const glm::vec3 offset = normalize(axis) * (s * amplitude);

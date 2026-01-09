@@ -19,11 +19,9 @@ namespace boza::rhi::vk
 
         VkCommandBufferUsageFlags vk_flags{};
 
-        if (usage_flags.has(CommandBufferUsage::OneTimeSubmit)) vk_flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-        if (usage_flags.has(CommandBufferUsage::RenderPassContinue)) vk_flags |=
-                VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
-        if (usage_flags.has(CommandBufferUsage::SimultaneousUse)) vk_flags |=
-                VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+        if (usage_flags & CommandBufferUsage::OneTimeSubmit) vk_flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        if (usage_flags & CommandBufferUsage::RenderPassContinue) vk_flags |= VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
+        if (usage_flags & CommandBufferUsage::SimultaneousUse) vk_flags |= VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
 
         const VkCommandBufferBeginInfo begin_info
         {

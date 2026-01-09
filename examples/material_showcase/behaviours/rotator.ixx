@@ -13,7 +13,7 @@ public:
 
     void update() override
     {
-        const glm::quat delta_rot = glm::angleAxis(rotation_speed * Time::delta_time(), normalize(rotation_axis));
+        const glm::quat delta_rot = glm::angleAxis(rotation_speed * Time::delta_time, normalize(rotation_axis));
         transform->local_rotation = normalize(delta_rot * transform->local_rotation);
     }
 

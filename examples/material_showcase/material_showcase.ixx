@@ -17,6 +17,7 @@ public:
         if (time_passed_ >= step_)
         {
             Log::debug("{:.2f} FPS", count_ / time_passed_);
+
             time_passed_ = 0.0f;
             count_       = 0;
         }
@@ -41,7 +42,6 @@ protected:
         Mesh::register_mesh("plane", create_plane_mesh());
 
         auto& scene = Scene::create("MaterialShowcase");
-
         scene.root().add_component<FPSLogger>();
 
         setup_camera(scene);

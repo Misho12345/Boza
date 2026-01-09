@@ -205,7 +205,7 @@ namespace boza::gfx
         detail::RenderContext::set_current_command_buffer(cmd);
 
         update_camera_uniforms();
-        MaterialLoader::instance().update_time_ubo(Time::time(), Time::delta_time());
+        MaterialLoader::instance().update_time_ubo(Time::time(), Time::delta_time);
 
         swapchain_->begin_render_pass(image_idx);
 

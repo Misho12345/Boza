@@ -1,23 +1,35 @@
+module;
+
+#include "api.hpp"
+
 export module boza.common:random;
 
 import std;
 
 export namespace boza
 {
-    class Random final
+    /**
+     * @brief Thread-safe static random number generation utility class.
+     */
+    class BOZA_API Random final
     {
     public:
+        Random() = delete;
+
+        /// Reseed the RNG with a specific seed
         static void reseed(const std::uint64_t seed) noexcept { engine() = make_engine(seed); }
+        /// Reseed the RNG with entropy
         static void reseed() noexcept { engine() = make_engine(make_seed_entropy()); }
 
-        static std::mt19937_64& rng() noexcept { return engine(); }
-
+        /// Generate a random integer in range [0, max]
         template<std::integral T>
-        static T number(T max = std::numeric_limits<T>::max()) noexcept { return range<T>(std::numeric_limits<T>::min(), max); }
+        static T number(T max = std::numeric_limits<T>::max()) noexcept { return range<T>(0, max); }
 
+        /// Generate a random float in range [0, max]
         template<std::floating_point T>
         static T number(T max = 1) noexcept { return range<T>(T{ 0 }, max); }
 
+        /// Generate a random integer in range [min, max]
         template<std::integral T>
         static T range(T min, T max) noexcept
         {
@@ -25,6 +37,7 @@ export namespace boza
             return dist(engine());
         }
 
+        /// Generate a random float in range [min, max]
         template<std::floating_point T>
         static T range(T min, T max) noexcept
         {
@@ -32,6 +45,10 @@ export namespace boza
             return dist(engine());
         }
 
+        /**
+         * @brief Random boolean with given probability.
+         * @param p Probability of returning true (0.0 to 1.0)
+         */
         static bool chance(const double p = 0.5) noexcept
         {
             if (p <= 0.0) return false;
@@ -40,31 +57,40 @@ export namespace boza
             return dist(engine());
         }
 
+        /// Randomly shuffle elements in a span
         template<class T>
         static void shuffle(std::span<T> s) noexcept { std::shuffle(s.begin(), s.end(), engine()); }
 
+        /// Pick a random element from a range, returns pointer or nullptr if empty
         template<class R> requires std::ranges::contiguous_range<R> && std::ranges::sized_range<R>
         static std::add_pointer_t<std::remove_reference_t<std::ranges::range_reference_t<R>>> pick(R&& r) noexcept
         {
             auto s = std::span{ r };
             if (s.empty()) return nullptr;
-            return &s[index(s.size())];
+            return &s[number(s.size())];
         }
 
+        /// Pick a random element from a span, returns pointer or nullptr if empty
         template<class T>
         static T* pick(std::span<T> s) noexcept
         {
             if (s.empty()) return nullptr;
-            return &s[index(s.size())];
+            return &s[number(s.size())];
         }
 
+        /// Pick a random element from a const span, returns pointer or nullptr if empty
         template<class T>
         static const T* pick(std::span<const T> s) noexcept
         {
             if (s.empty()) return nullptr;
-            return &s[index(s.size())];
+            return &s[number(s.size())];
         }
 
+        /**
+         * @brief Generate a random string of given length from a character set.
+         * @param length Length of the string to generate
+         * @param charset Set of characters to choose from
+         */
         static std::string string(
             const std::size_t      length,
             const std::string_view charset = alphanumeric_charset) noexcept
@@ -79,30 +105,57 @@ export namespace boza
             return result;
         }
 
+        /// Generate random alphanumeric string (a-z, A-Z, 0-9)
         static std::string alphanumeric(const std::size_t length) noexcept
         {
             return string(length, alphanumeric_charset);
         }
 
+        /// Generate random alphabetic string (a-z, A-Z)
         static std::string alpha(const std::size_t length) noexcept { return string(length, alpha_charset); }
+        /// Generate random numeric string (0-9)
         static std::string numeric(const std::size_t length) noexcept { return string(length, numeric_charset); }
+        /// Generate random hexadecimal string (0-9, a-f)
         static std::string hex(const std::size_t length) noexcept { return string(length, hex_charset); }
 
+        /**
+         * @brief Pick a random enum value from a list.
+         * @code
+         * enum class Color { Red, Green, Blue };
+         * auto color = Random::pick_enum({
+         *     Color::Red,
+         *     Color::Green,
+         *     Color::Blue
+         * });
+         * @endcode
+         */
         template<class E> requires std::is_enum_v<E>
         static E pick_enum(std::initializer_list<E> values) noexcept
         {
             if (values.size() == 0) return E{};
-            const auto idx = index(values.size());
+            const auto idx = number(values.size());
             return *(values.begin() + idx);
         }
 
+        /// Pick a random enum value from a span
         template<class E> requires std::is_enum_v<E>
         static E pick_enum(std::span<const E> values) noexcept
         {
             if (values.empty()) return E{};
-            return values[index(values.size())];
+            return values[number(values.size())];
         }
 
+        /**
+         * @brief Pick a random enum value with weighted probabilities.
+         * @code
+         * enum class Rarity { Common, Rare, Epic };
+         * auto rarity = Random::pick_enum_weighted({
+         *     { Rarity::Common, 70.0 },
+         *     { Rarity::Rare, 25.0 },
+         *     { Rarity::Epic, 5.0 }
+         * });
+         * @endcode
+         */
         template<class E> requires std::is_enum_v<E>
         static E pick_enum_weighted(std::initializer_list<std::pair<E, double>> weighted_values) noexcept
         {
@@ -123,6 +176,7 @@ export namespace boza
             return values[dist(engine())];
         }
 
+        /// Pick a random enum value with weighted probabilities from a span
         template<class E> requires std::is_enum_v<E>
         static E pick_enum_weighted(std::span<const std::pair<E, double>> weighted_values) noexcept
         {

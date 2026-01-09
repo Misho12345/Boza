@@ -31,7 +31,7 @@ public:
     {
         if (!transform->has_parent()) return;
 
-        angle += orbit_speed * Time::delta_time();
+        angle += orbit_speed * Time::delta_time;
 
         transform->local_position = get_local_position_on_orbit(glm::radians(angle));
         transform->look_at(transform->parent->position());
