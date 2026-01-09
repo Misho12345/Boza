@@ -1,13 +1,12 @@
-module;
-
-#include <cassert>
-
 module boza.gfx;
 
 import :sampler;
-import boza.rhi;
+
 import boza.core;
-import boza.detail;
+
+import boza.rhi;
+import boza.rhi.render_context;
+
 import boza.gfx.sampler_loader;
 
 namespace boza
@@ -34,15 +33,15 @@ namespace boza
           max_lod_{ max_lod },
           max_anisotropy_{ max_anisotropy }
     {
-        if (!detail::RenderContext::initialized())
+        if (!rhi::RenderContext::initialized())
         {
             Log::error("Render context not initialized.");
             return;
         }
 
         rhi_sampler_ = create_sampler(
-            detail::RenderContext::api(), {
-                .device = detail::RenderContext::device(),
+            rhi::RenderContext::api(), {
+                .device = rhi::RenderContext::device(),
                 .type = TextureType::Texture2D,
                 .filter = filter_,
                 .wrap_u = wrap_u_,

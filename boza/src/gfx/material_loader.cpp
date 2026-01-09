@@ -1,10 +1,13 @@
 module boza.gfx.material_loader;
 
 import boza.rhi;
+import boza.rhi.render_context;
 
 import boza.gfx;
 import boza.gfx.texture_loader;
 import boza.gfx.sampler_loader;
+
+import boza.detail;
 
 namespace boza::gfx
 {
@@ -524,16 +527,16 @@ namespace boza::gfx
             return material;
         }
 
-        if (!detail::RenderContext::initialized() || !detail::RenderContext::device())
+        if (!rhi::RenderContext::initialized() || !rhi::RenderContext::device())
         {
             Log::error("Render context not initialized. Cannot create material.");
             return material;
         }
 
-        auto* device          = detail::RenderContext::device();
-        auto  api             = detail::RenderContext::api();
-        auto* resource_cache  = detail::RenderContext::resource_cache();
-        auto* descriptor_pool = detail::RenderContext::descriptor_pool();
+        auto* device          = rhi::RenderContext::device();
+        auto  api             = rhi::RenderContext::api();
+        auto* resource_cache  = rhi::RenderContext::resource_cache();
+        auto* descriptor_pool = rhi::RenderContext::descriptor_pool();
 
         if (!resource_cache)
         {
@@ -615,7 +618,7 @@ namespace boza::gfx
                 return material;
             }
 
-            const auto* swapchain = detail::RenderContext::swapchain();
+            const auto* swapchain = rhi::RenderContext::swapchain();
             if (!swapchain)
             {
                 Log::error("Swapchain not available in graphics context. Cannot create material.");

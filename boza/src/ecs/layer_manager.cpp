@@ -1,7 +1,6 @@
-module boza.detail;
-import :layer_manager;
+module boza.ecs.layer_manager;
 
-namespace boza::detail
+namespace boza::ecs
 {
     LayerManager& LayerManager::instance()
     {

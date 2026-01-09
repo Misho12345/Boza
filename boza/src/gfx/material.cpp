@@ -4,16 +4,18 @@ module;
 
 module boza.gfx;
 
-import boza.rhi;
-import boza.core;
-import boza.detail;
-import boza.gfx.material_loader;
-import boza.gfx.sampler_loader;
-
 import :material;
 import :texture;
 import :buffer;
 import :sampler;
+
+import boza.core;
+
+import boza.rhi;
+import boza.rhi.render_context;
+
+import boza.gfx.material_loader;
+import boza.gfx.sampler_loader;
 
 namespace boza
 {
@@ -135,7 +137,7 @@ namespace boza
             return;
         }
 
-        auto* cmd = detail::RenderContext::current_command_buffer();
+        auto* cmd = rhi::RenderContext::current_command_buffer();
         if (!cmd)
         {
             Log::error("Cannot bind material: no active command buffer.");
@@ -199,7 +201,7 @@ namespace boza
         }
         #endif
 
-        auto* cmd = detail::RenderContext::current_command_buffer();
+        auto* cmd = rhi::RenderContext::current_command_buffer();
         if (!cmd)
         {
             Log::error("Cannot push constants: no active command buffer");
@@ -277,8 +279,8 @@ namespace boza
             const std::size_t buffer_size = parent_info.has_value() ? parent_info->size : 256;
 
             auto* buffer = create_buffer(
-                detail::RenderContext::api(), {
-                    .device = detail::RenderContext::device(),
+                rhi::RenderContext::api(), {
+                    .device = rhi::RenderContext::device(),
                     .size = buffer_size,
                     .usage = BufferUsage::Uniform,
                     .memory_type = rhi::BufferMemoryType::HostVisible

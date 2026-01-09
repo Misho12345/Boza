@@ -2,8 +2,11 @@ module boza.gfx.texture_loader;
 
 import boza.core;
 import boza.gfx;
+
 import boza.detail;
+
 import boza.rhi;
+import boza.rhi.render_context;
 
 namespace boza::gfx
 {
@@ -84,7 +87,7 @@ namespace boza::gfx
         if (auto it = textures_.find(key); it != textures_.end()) return it->second;
         if (auto it = textures_.find(name_str); it != textures_.end()) return it->second;
 
-        if (!detail::RenderContext::initialized())
+        if (!rhi::RenderContext::initialized())
         {
             Log::error("Render context not initialized.");
             return *error_texture_;
@@ -136,7 +139,7 @@ namespace boza::gfx
         if (auto it = textures_.find(key); it != textures_.end())
             return it->second;
 
-        if (!detail::RenderContext::initialized())
+        if (!rhi::RenderContext::initialized())
         {
             Log::error("Render context not initialized.");
             return *error_texture_;

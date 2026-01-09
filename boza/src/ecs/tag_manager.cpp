@@ -1,9 +1,7 @@
-module boza.detail;
-import :tag_manager;
+module boza.ecs.tag_manager;
 
-namespace boza::detail
+namespace boza::ecs
 {
-
     TagManager& TagManager::instance()
     {
         static TagManager instance;

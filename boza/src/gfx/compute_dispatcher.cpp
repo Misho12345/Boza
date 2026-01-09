@@ -3,9 +3,11 @@ module boza.gfx;
 import :compute_dispatcher;
 import :texture;
 import :buffer;
+
 import boza.rhi;
+import boza.rhi.render_context;
+
 import boza.core;
-import boza.detail;
 
 namespace boza
 {
@@ -35,17 +37,17 @@ namespace boza
 
         work_group_size_ = glm::uvec3{ 1, 1, 1 };
 
-        if (!detail::RenderContext::initialized() || !detail::RenderContext::device())
+        if (!rhi::RenderContext::initialized() || !rhi::RenderContext::device())
         {
             Log::error("Render context not initialized. Cannot create compute dispatcher.");
             failed = true;
             return;
         }
 
-        auto  api             = detail::RenderContext::api();
-        auto* device          = detail::RenderContext::device();
-        auto* resource_cache  = detail::RenderContext::resource_cache();
-        auto* descriptor_pool = detail::RenderContext::descriptor_pool();
+        auto  api             = rhi::RenderContext::api();
+        auto* device          = rhi::RenderContext::device();
+        auto* resource_cache  = rhi::RenderContext::resource_cache();
+        auto* descriptor_pool = rhi::RenderContext::descriptor_pool();
 
         if (!resource_cache)
         {
@@ -302,7 +304,7 @@ namespace boza
             return;
         }
 
-        const auto* device = detail::RenderContext::device();
+        const auto* device = rhi::RenderContext::device();
         if (!device)
         {
             Log::error("Cannot dispatch compute: device is null");

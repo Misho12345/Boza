@@ -5,10 +5,15 @@ module;
 module boza.gfx;
 
 import :texture;
-import boza.rhi;
+
 import boza.common;
 import boza.core;
+
 import boza.detail;
+
+import boza.rhi;
+import boza.rhi.render_context;
+
 import boza.gfx.texture_loader;
 
 namespace boza
@@ -38,14 +43,14 @@ namespace boza
         : name_{ name },
           settings_{ settings }
     {
-        if (!detail::RenderContext::initialized())
+        if (!rhi::RenderContext::initialized())
         {
             Log::error("Render context not initialized.");
             return;
         }
 
         const std::uint32_t texture_count = settings_.access_mode == ResourceAccessMode::Dynamic
-                                                ? detail::RenderContext::frames_in_flight()
+                                                ? rhi::RenderContext::frames_in_flight()
                                                 : 1;
 
         rhi_textures_.reserve(texture_count);
@@ -57,8 +62,8 @@ namespace boza
         for (std::uint32_t i = 0; i < texture_count; ++i)
         {
             void* rhi_texture = create_texture(
-                detail::RenderContext::api(), {
-                    .device = (detail::RenderContext::device()),
+                rhi::RenderContext::api(), {
+                    .device = (rhi::RenderContext::device()),
                     .type = settings_.type,
                     .format = settings_.format,
                     .usage = settings_.usage_flags,

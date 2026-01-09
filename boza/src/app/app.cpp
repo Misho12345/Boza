@@ -4,12 +4,15 @@ module;
 
 module boza.app;
 
-import boza.platform;
+import boza.app.game_settings;
+
 import boza.core;
 import boza.gfx;
 import boza.input;
+import boza.platform;
 
 import boza.detail;
+
 import boza.rhi.api;
 import boza.gfx.rendering_system;
 import boza.gfx.material_loader;
@@ -26,7 +29,6 @@ namespace boza
     using platform::Window;
 
     using detail::AssetPaths;
-    using detail::GameSettings;
 
     struct App::Impl
     {
@@ -52,7 +54,7 @@ namespace boza
 
     bool App::init()
     {
-        if (!GameSettings::load_from_file(AssetPaths::asset("game_settings.json").string()))
+        if (!app::GameSettings::load_from_file(AssetPaths::asset("game_settings.json").string()))
         {
             Log::warn("Could not load game settings from file, using defaults");
         }
@@ -64,10 +66,10 @@ namespace boza
         }
 
         impl_->window.init(
-            GameSettings::window.width,
-            GameSettings::window.height,
-            GameSettings::window.title,
-            GameSettings::window.fullscreen
+            app::GameSettings::window.width,
+            app::GameSettings::window.height,
+            app::GameSettings::window.title,
+            app::GameSettings::window.fullscreen
         );
 
         if (!impl_->rendering_system.init(impl_->window))
@@ -79,10 +81,10 @@ namespace boza
         impl_->game_loop.init({
             .rendering_system = &impl_->rendering_system,
             .window = &impl_->window,
-            .target_fps = GameSettings::graphics.target_fps,
-            .fixed_update_rate = GameSettings::physics.fixed_update_rate,
-            .input_poll_rate = GameSettings::input.poll_rate,
-            .vsync = GameSettings::graphics.vsync
+            .target_fps = app::GameSettings::graphics.target_fps,
+            .fixed_update_rate = app::GameSettings::physics.fixed_update_rate,
+            .input_poll_rate = app::GameSettings::input.poll_rate,
+            .vsync = app::GameSettings::graphics.vsync
         });
 
         Input::init(&impl_->window);

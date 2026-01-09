@@ -1,9 +1,9 @@
-export module boza.detail:game_settings;
+export module boza.app.game_settings;
 
 import std;
 import boza.common;
 
-export namespace boza::detail
+export namespace boza::app
 {
     struct WindowSettings
     {

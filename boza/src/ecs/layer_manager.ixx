@@ -1,9 +1,9 @@
-export module boza.detail:layer_manager;
+export module boza.ecs.layer_manager;
 
 import std;
 import boza.common;
 
-export namespace boza::detail
+export namespace boza::ecs
 {
     class LayerManager final
     {

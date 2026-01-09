@@ -1,9 +1,9 @@
-export module boza.detail:tag_manager;
+export module boza.ecs.tag_manager;
 
 import std;
 import boza.common;
 
-export namespace boza::detail
+export namespace boza::ecs
 {
     class TagManager final
     {

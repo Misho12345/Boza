@@ -1,11 +1,9 @@
-module boza.detail;
+module boza.rhi.render_context;
 
-import :render_context;
-import boza.rhi;
 import boza.core;
 import boza.gfx;
 
-namespace boza::detail
+namespace boza::rhi
 {
     RenderContext& RenderContext::instance()
     {
@@ -14,11 +12,11 @@ namespace boza::detail
     }
 
     void RenderContext::initialize(
-        rhi::Device*           device,
-        rhi::Swapchain*        swapchain,
-        rhi::ResourceCache*    resource_cache,
-        rhi::DescriptorPool*   descriptor_pool,
-        const rhi::GraphicsApi api)
+        Device*           device,
+        Swapchain*        swapchain,
+        ResourceCache*    resource_cache,
+        DescriptorPool*   descriptor_pool,
+        const GraphicsApi api)
     {
         auto& ctx = instance();
 

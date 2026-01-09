@@ -1,12 +1,15 @@
-module boza.detail;
-
-import :game_settings;
+module boza.app.game_settings;
 
 import std;
 import boza.common;
 import boza.core;
 
-namespace boza::detail
+import boza.ecs.tag_manager;
+import boza.ecs.layer_manager;
+
+import boza.detail;
+
+namespace boza::app
 {
     using detail::FileIO;
 
@@ -59,7 +62,7 @@ namespace boza::detail
 
         if (data.contains("tags") && data["tags"].is_object())
         {
-            auto& tag_manager = TagManager::instance();
+            auto& tag_manager = ecs::TagManager::instance();
             tag_manager.clear();
 
             for (auto& [name, id] : data["tags"].items())
@@ -70,7 +73,7 @@ namespace boza::detail
 
         if (data.contains("layers") && data["layers"].is_object())
         {
-            auto& layer_manager = LayerManager::instance();
+            auto& layer_manager = ecs::LayerManager::instance();
             layer_manager.clear();
 
             for (auto& [name, shift] : data["layers"].items())
@@ -91,13 +94,13 @@ namespace boza::detail
         physics = PhysicsSettings{};
         input = InputSettings{};
 
-        auto& tag_manager = TagManager::instance();
+        auto& tag_manager = ecs::TagManager::instance();
         tag_manager.clear();
         tag_manager.register_tag("None", 0);
         tag_manager.register_tag("Player", 1);
         tag_manager.register_tag("Enemy", 2);
 
-        auto& layer_manager = LayerManager::instance();
+        auto& layer_manager = ecs::LayerManager::instance();
         layer_manager.clear();
         layer_manager.register_layer("Default", 0);
         layer_manager.register_layer("Ground", 1);

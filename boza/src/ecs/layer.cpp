@@ -1,12 +1,10 @@
 module boza.ecs;
 
-import boza.detail;
+import boza.ecs.layer_manager;
 
 namespace boza
 {
-    using detail::LayerManager;
-
-    Layer::Layer(const std::string& name) : mask_{ LayerManager::instance().layer_mask(name) } {}
+    Layer::Layer(const std::string& name) : mask_{ ecs::LayerManager::instance().layer_mask(name) } {}
 
     Layer::Layer(const Layer& other) { mask_ = other.mask_;}
     Layer& Layer::operator=(const Layer& other)
@@ -23,7 +21,7 @@ namespace boza
 
     Layer& Layer::operator=(const std::string& layer_name)
     {
-        mask_ = LayerManager::instance().layer_mask(layer_name);
+        mask_ = ecs::LayerManager::instance().layer_mask(layer_name);
         return *this;
     }
 
@@ -55,7 +53,7 @@ namespace boza
 
     bool Layer::contains(const std::string& layer_name) const
     {
-        const uint32_t layer_mask = LayerManager::instance().layer_mask(layer_name);
+        const uint32_t layer_mask = ecs::LayerManager::instance().layer_mask(layer_name);
         return (mask_ & layer_mask) != 0;
     }
 
@@ -65,9 +63,9 @@ namespace boza
 
     bool Layer::operator==(const std::string& layer_name) const
     {
-        return mask_ == LayerManager::instance().layer_mask(layer_name);
+        return mask_ == ecs::LayerManager::instance().layer_mask(layer_name);
     }
 
     std::uint32_t Layer::get_mask() const { return mask_; }
-    const std::string& Layer::get_name() const { return LayerManager::instance().layer_name(mask_); }
+    const std::string& Layer::get_name() const { return ecs::LayerManager::instance().layer_name(mask_); }
 }

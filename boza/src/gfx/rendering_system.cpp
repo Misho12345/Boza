@@ -1,10 +1,12 @@
 module boza.gfx.rendering_system;
 
 import boza.gfx;
-import boza.detail;
 import boza.gfx.material_loader;
 import boza.gfx.texture_loader;
 import boza.gfx.sampler_loader;
+
+import boza.rhi.render_context;
+import boza.app.game_settings;
 
 namespace boza::gfx
 {
@@ -49,7 +51,7 @@ namespace boza::gfx
                 api, {
                     .device = device_.get(),
                     .window = window_,
-                    .preferred_present_mode = detail::GameSettings::graphics.vsync ? rhi::PresentMode::Fifo : rhi::PresentMode::Mailbox,
+                    .preferred_present_mode = app::GameSettings::graphics.vsync ? rhi::PresentMode::Fifo : rhi::PresentMode::Mailbox,
                     .preferred_image_count = 3,
                     .max_frames_in_flight = 2,
                     .enable_depth = true,
@@ -75,7 +77,7 @@ namespace boza::gfx
 
             resource_cache_ = std::make_unique<rhi::ResourceCache>();
 
-            detail::RenderContext::initialize(
+            rhi::RenderContext::initialize(
                 device_.get(),
                 swapchain_.get(),
                 resource_cache_.get(),
@@ -202,7 +204,7 @@ namespace boza::gfx
         const std::uint32_t image_idx = swapchain_->current_image_index();
         rhi::CommandBuffer* cmd       = swapchain_->current_command_buffer();
 
-        detail::RenderContext::set_current_command_buffer(cmd);
+        rhi::RenderContext::set_current_command_buffer(cmd);
 
         update_camera_uniforms();
         MaterialLoader::instance().update_time_ubo(Time::time(), Time::delta_time);
@@ -266,7 +268,7 @@ namespace boza::gfx
             cmd->draw_indexed(gpu_mesh->index_count);
         }
 
-        detail::RenderContext::set_current_command_buffer(nullptr);
+        rhi::RenderContext::set_current_command_buffer(nullptr);
 
         swapchain_->end_render_pass(image_idx);
         swapchain_->end_frame();

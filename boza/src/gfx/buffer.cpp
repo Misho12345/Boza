@@ -1,9 +1,11 @@
 module boza.gfx;
 
 import :buffer;
-import boza.rhi;
+
 import boza.core;
-import boza.detail;
+
+import boza.rhi;
+import boza.rhi.render_context;
 
 namespace boza
 {
@@ -14,7 +16,7 @@ namespace boza
         : size_(buffer_size),
           access_mode_(buffer_access_mode)
     {
-        if (!detail::RenderContext::initialized())
+        if (!rhi::RenderContext::initialized())
         {
             Log::error("Render context not initialized.");
             return;
@@ -27,7 +29,7 @@ namespace boza
         }
 
         const std::uint32_t buffer_count = buffer_access_mode == ResourceAccessMode::Dynamic
-                                               ? detail::RenderContext::frames_in_flight()
+                                               ? rhi::RenderContext::frames_in_flight()
                                                : 1;
 
         rhi_buffers_.reserve(buffer_count);
@@ -35,8 +37,8 @@ namespace boza
         for (std::uint32_t i = 0; i < buffer_count; ++i)
         {
             void* rhi_buffer = create_buffer(
-                detail::RenderContext::api(), {
-                    .device = detail::RenderContext::device(),
+                rhi::RenderContext::api(), {
+                    .device = rhi::RenderContext::device(),
                     .size = buffer_size,
                     .usage = usage,
                     .memory_type = memory_type
