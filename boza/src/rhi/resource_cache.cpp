@@ -52,6 +52,24 @@ namespace boza::rhi
         pipeline_cache_[key] = cached;
     }
 
+    ResourceCache::CachedComputePipeline* ResourceCache::get_cached_compute_pipeline(const std::string& compute_shader)
+    {
+        std::lock_guard lock{ compute_pipeline_mutex_ };
+        const ComputePipelineKey key{ compute_shader };
+        const auto it = compute_pipeline_cache_.find(key);
+        if (it != compute_pipeline_cache_.end()) return &it->second;
+        return nullptr;
+    }
+
+    void ResourceCache::cache_compute_pipeline(
+        const std::string& compute_shader,
+        const CachedComputePipeline& cached)
+    {
+        std::lock_guard lock{ compute_pipeline_mutex_ };
+        const ComputePipelineKey key{ compute_shader };
+        compute_pipeline_cache_[key] = cached;
+    }
+
     void ResourceCache::clear()
     {
         {
@@ -74,6 +92,19 @@ namespace boza::rhi
                 }
             }
             pipeline_cache_.clear();
+        }
+        {
+            std::lock_guard lock{ compute_pipeline_mutex_ };
+            for (auto& [pipeline, layout, descriptor_set_layouts] : compute_pipeline_cache_ | std::views::values)
+            {
+                if (pipeline) pipeline->destroy();
+                if (layout) layout->destroy();
+                for (auto* dsl : descriptor_set_layouts)
+                {
+                    if (dsl) dsl->destroy();
+                }
+            }
+            compute_pipeline_cache_.clear();
         }
 
         // Log::trace("ResourceCache cleared");

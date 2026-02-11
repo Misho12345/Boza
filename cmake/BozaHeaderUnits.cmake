@@ -86,7 +86,7 @@ function(target_add_header_unit library_name header_include_dir header_rel_path)
         set(runtime_flag "$<IF:$<CONFIG:Debug>,/MDd,/MD>")
 
         add_custom_command(
-                OUTPUT "${out_file}"
+                OUTPUT "${out_file}" "${obj_file}"
                 COMMAND ${CMAKE_CXX_COMPILER}
                 /nologo /c /EHsc /std:c++latest ${runtime_flag}
                 "/external:I${header_include_dir}" /external:W0
@@ -98,34 +98,13 @@ function(target_add_header_unit library_name header_include_dir header_rel_path)
                 COMMENT "Building header unit for ${library_name}: ${header_rel_path}"
                 VERBATIM
         )
+
+        set_source_files_properties("${out_file}" "${obj_file}" PROPERTIES GENERATED TRUE)
+
     elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-        set(out_file "${library_output_dir}/${header_rel_path}.pcm")
-
-        add_custom_command(
-                OUTPUT "${out_file}"
-                COMMAND ${CMAKE_CXX_COMPILER}
-                -std=c++23 -fmodule-header=user -xc++-header
-                ${compile_flags}
-                "${header_abs_path}"
-                -o "${out_file}"
-                DEPENDS "${header_abs_path}"
-                COMMENT "Building header unit for ${library_name}: ${header_rel_path}"
-                VERBATIM
-        )
+        message(FATAL_ERROR "Clang header unit support is not implemented.")
     elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        set(out_file "${library_output_dir}/${header_rel_path}.gcm")
-
-        add_custom_command(
-                OUTPUT "${out_file}"
-                COMMAND ${CMAKE_CXX_COMPILER}
-                -std=c++23 -x c++-header -fmodules-ts
-                ${compile_flags}
-                "${header_abs_path}"
-                -o "${out_file}"
-                DEPENDS "${header_abs_path}"
-                COMMENT "Building header unit for ${library_name}: ${header_rel_path}"
-                VERBATIM
-        )
+        message(FATAL_ERROR "GCC header unit support is not implemented.")
     endif ()
 
     add_custom_target(${target_name} ALL DEPENDS "${out_file}")
@@ -147,18 +126,16 @@ function(_enable_header_unit target library_name header_include_dir header_rel_p
 
     if (MSVC)
         set(ifc_file "${library_output_dir}/${header_rel_path}.ifc")
+        set(obj_file "${library_output_dir}/${header_rel_path}.obj")
         file(TO_CMAKE_PATH "${header_include_dir}/${header_rel_path}" header_path)
         file(TO_CMAKE_PATH "${ifc_file}" ifc_path)
         target_compile_options(${target} PRIVATE "/headerUnit${header_path}=${ifc_path}")
+        target_sources(${target} PRIVATE "${obj_file}")
 
     elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-        set(pcm_file "${library_output_dir}/${header_rel_path}.pcm")
-        target_compile_options(${target} PRIVATE -fmodule-file=${pcm_file})
-        set_property(TARGET ${target} APPEND PROPERTY CXX_SCANDEP_FLAGS -fmodule-file=${pcm_file})
-
+        message(FATAL_ERROR "Clang header unit enabling is not implemented.")
     elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        set(gcm_file "${library_output_dir}/${header_rel_path}.gcm")
-        target_compile_options(${target} PRIVATE -fmodule-header=${header_rel_path}=${gcm_file})
+        message(FATAL_ERROR "GCC header unit enabling is not implemented.")
     endif ()
 
     if (definitions)

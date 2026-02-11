@@ -1,7 +1,3 @@
-module;
-
-#include <cassert>
-
 module boza.gfx;
 
 import :material;
@@ -47,18 +43,43 @@ namespace boza
             }
         }
 
-        if (descriptor_pool_ && !descriptor_sets_.empty())
+        if (descriptor_pool_ && (!descriptor_sets_.empty() || !descriptor_sets_per_frame_.empty()))
         {
             std::vector<rhi::DescriptorSet*> sets_to_free;
-            sets_to_free.reserve(descriptor_sets_.size());
 
-            for (auto* set : descriptor_sets_)
+            if (!descriptor_sets_per_frame_.empty())
             {
-                sets_to_free.push_back(static_cast<rhi::DescriptorSet*>(set));
+                std::size_t total_set_count = 0;
+                for (const auto& frame_sets : descriptor_sets_per_frame_)
+                {
+                    total_set_count += frame_sets.size();
+                }
+
+                sets_to_free.reserve(total_set_count);
+
+                for (const auto& frame_sets : descriptor_sets_per_frame_)
+                {
+                    for (auto* set : frame_sets)
+                    {
+                        sets_to_free.push_back(static_cast<rhi::DescriptorSet*>(set));
+                    }
+                }
+            }
+            else
+            {
+                sets_to_free.reserve(descriptor_sets_.size());
+
+                for (auto* set : descriptor_sets_)
+                {
+                    sets_to_free.push_back(static_cast<rhi::DescriptorSet*>(set));
+                }
             }
 
             static_cast<rhi::DescriptorPool*>(descriptor_pool_)->free_descriptor_sets(sets_to_free);
         }
+
+        descriptor_sets_.clear();
+        descriptor_sets_per_frame_.clear();
 
         if (reflection_)
         {
@@ -73,13 +94,15 @@ namespace boza
           pipeline_layout_{ std::exchange(other.pipeline_layout_, nullptr) },
           descriptor_set_layouts_{ std::move(other.descriptor_set_layouts_) },
           descriptor_sets_{ std::move(other.descriptor_sets_) },
+          descriptor_sets_per_frame_{ std::move(other.descriptor_sets_per_frame_) },
           push_constant_staging_{ std::move(other.push_constant_staging_) },
           reflection_{ std::exchange(other.reflection_, nullptr) },
           dirty_sets_{ std::move(other.dirty_sets_) },
           uniform_buffer_staging_{ std::move(other.uniform_buffer_staging_) },
           uniform_buffers_{ std::move(other.uniform_buffers_) },
           default_samplers_{ std::move(other.default_samplers_) },
-          descriptor_pool_{ std::exchange(other.descriptor_pool_, nullptr) } {}
+          descriptor_pool_{ std::exchange(other.descriptor_pool_, nullptr) },
+          cpu_cull_enabled_{ std::exchange(other.cpu_cull_enabled_, true) } {}
 
     Material& Material::operator=(Material&& other) noexcept
     {
@@ -92,6 +115,7 @@ namespace boza
         pipeline_layout_ = std::exchange(other.pipeline_layout_, nullptr);
         descriptor_set_layouts_ = std::move(other.descriptor_set_layouts_);
         descriptor_sets_ = std::move(other.descriptor_sets_);
+        descriptor_sets_per_frame_ = std::move(other.descriptor_sets_per_frame_);
         push_constant_staging_ = std::move(other.push_constant_staging_);
         reflection_ = std::exchange(other.reflection_, nullptr);
         dirty_sets_ = std::move(other.dirty_sets_);
@@ -99,6 +123,7 @@ namespace boza
         uniform_buffers_ = std::move(other.uniform_buffers_);
         default_samplers_ = std::move(other.default_samplers_);
         descriptor_pool_ = std::exchange(other.descriptor_pool_, nullptr);
+        cpu_cull_enabled_ = std::exchange(other.cpu_cull_enabled_, true);
 
         return *this;
     }
@@ -113,7 +138,7 @@ namespace boza
     Material& Material::get(const std::string_view name)
     {
         auto* material = try_get(name);
-        assert(material && "Material not found");
+        assert(material != nullptr, "Material not found");
         return *material;
     }
 
@@ -146,11 +171,26 @@ namespace boza
 
         cmd->bind_graphics_pipeline(static_cast<rhi::GraphicsPipeline*>(pipeline_));
 
-        if (!descriptor_sets_.empty())
+        const std::vector<void*>* active_descriptor_sets = &descriptor_sets_;
+
+        if (!descriptor_sets_per_frame_.empty())
+        {
+            std::uint32_t frame_index = 0;
+
+            if (const auto* swapchain = rhi::RenderContext::swapchain())
+            {
+                frame_index = swapchain->current_frame();
+            }
+
+            frame_index %= static_cast<std::uint32_t>(descriptor_sets_per_frame_.size());
+            active_descriptor_sets = &descriptor_sets_per_frame_[frame_index];
+        }
+
+        if (active_descriptor_sets && !active_descriptor_sets->empty())
         {
             std::vector<rhi::DescriptorSet*> sets;
-            sets.reserve(descriptor_sets_.size());
-            for (auto* set : descriptor_sets_)
+            sets.reserve(active_descriptor_sets->size());
+            for (auto* set : *active_descriptor_sets)
             {
                 sets.push_back(static_cast<rhi::DescriptorSet*>(set));
             }
@@ -164,7 +204,7 @@ namespace boza
         const std::string& name,
         const void*        data,
         const std::size_t  size,
-        const ShaderDataType type) const
+        [[maybe_unused]] const ShaderDataType type) const
     {
         if (!reflection_)
         {
@@ -220,7 +260,7 @@ namespace boza
         const std::string& name,
         const void*        data,
         std::size_t        size,
-        const ShaderDataType type)
+        [[maybe_unused]] const ShaderDataType type)
     {
         if (!reflection_)
         {
@@ -291,18 +331,27 @@ namespace boza
                 uniform_buffers_[binding_key] = buffer;
                 uniform_buffer_staging_[binding_key].resize(buffer_size, 0);
 
-                if (info.set < descriptor_sets_.size())
+                rhi::DescriptorWrite write{
+                    .binding = info.binding,
+                    .array_element = 0,
+                    .type = rhi::DescriptorType::UniformBuffer,
+                    .info = rhi::UniformBuffer{
+                        .buffer = buffer,
+                        .offset = 0,
+                        .range = static_cast<std::uint32_t>(buffer_size)
+                    }
+                };
+
+                if (!descriptor_sets_per_frame_.empty())
                 {
-                    rhi::DescriptorWrite write{
-                        .binding = info.binding,
-                        .array_element = 0,
-                        .type = rhi::DescriptorType::UniformBuffer,
-                        .info = rhi::UniformBuffer{
-                            .buffer = buffer,
-                            .offset = 0,
-                            .range = static_cast<std::uint32_t>(buffer_size)
-                        }
-                    };
+                    for (const auto& frame_sets : descriptor_sets_per_frame_)
+                    {
+                        if (info.set >= frame_sets.size()) continue;
+                        static_cast<rhi::DescriptorSet*>(frame_sets[info.set])->update({ &write, 1 });
+                    }
+                }
+                else if (info.set < descriptor_sets_.size())
+                {
                     static_cast<rhi::DescriptorSet*>(descriptor_sets_[info.set])->update({ &write, 1 });
                 }
             }
@@ -358,18 +407,28 @@ namespace boza
 
         default_samplers_[name] = &sampler;
 
-        if (info.set < descriptor_sets_.size())
-        {
-            rhi::DescriptorWrite write{
-                .binding = info.binding,
-                .array_element = 0,
-                .type = rhi::DescriptorType::CombinedImageSampler,
-                .info = rhi::CombinedImageSampler{
-                    .texture = static_cast<rhi::Texture*>(texture.rhi_handle()),
-                    .sampler = static_cast<rhi::Sampler*>(sampler.rhi_handle())
-                }
-            };
+        rhi::DescriptorWrite write{
+            .binding = info.binding,
+            .array_element = 0,
+            .type = rhi::DescriptorType::CombinedImageSampler,
+            .info = rhi::CombinedImageSampler{
+                .texture = static_cast<rhi::Texture*>(texture.rhi_handle()),
+                .sampler = static_cast<rhi::Sampler*>(sampler.rhi_handle())
+            }
+        };
 
+        if (!descriptor_sets_per_frame_.empty())
+        {
+            for (const auto& frame_sets : descriptor_sets_per_frame_)
+            {
+                if (info.set >= frame_sets.size()) continue;
+                static_cast<rhi::DescriptorSet*>(frame_sets[info.set])->update({ &write, 1 });
+            }
+
+            mark_set_dirty(info.set);
+        }
+        else if (info.set < descriptor_sets_.size())
+        {
             static_cast<rhi::DescriptorSet*>(descriptor_sets_[info.set])->update({ &write, 1 });
             mark_set_dirty(info.set);
         }
@@ -392,26 +451,81 @@ namespace boza
 
         const auto& info = binding_info.value();
 
-        if (info.set < descriptor_sets_.size())
+        const auto update_set = [&buffer, &info](void* set_handle, const std::uint32_t frame_index) -> bool
         {
+            auto* buffer_handle = static_cast<rhi::Buffer*>(buffer.rhi_handle(frame_index));
+            if (!buffer_handle) return false;
+
             rhi::DescriptorWrite write{
                 .binding = info.binding,
                 .array_element = 0,
                 .type = info.descriptor_type,
                 .info = info.descriptor_type == rhi::DescriptorType::UniformBuffer
                             ? rhi::DescriptorInfo(rhi::UniformBuffer{
-                                .buffer = static_cast<rhi::Buffer*>(buffer.rhi_handle()),
+                                .buffer = buffer_handle,
                                 .offset = 0,
                                 .range = static_cast<std::uint32_t>(buffer.size())
                             })
                             : rhi::DescriptorInfo(rhi::StorageBuffer{
-                                .buffer = static_cast<rhi::Buffer*>(buffer.rhi_handle()),
+                                .buffer = buffer_handle,
                                 .offset = 0,
                                 .range = static_cast<std::uint32_t>(buffer.size())
                             })
             };
 
-            static_cast<rhi::DescriptorSet*>(descriptor_sets_[info.set])->update({ &write, 1 });
+            static_cast<rhi::DescriptorSet*>(set_handle)->update({ &write, 1 });
+            return true;
+        };
+
+        const bool has_per_frame_sets = !descriptor_sets_per_frame_.empty();
+        const bool dynamic_buffer = buffer.access_mode == ResourceAccessMode::Dynamic;
+
+        if (has_per_frame_sets)
+        {
+            if (dynamic_buffer)
+            {
+                std::uint32_t frame_index = 0;
+                if (const auto* swapchain = rhi::RenderContext::swapchain())
+                {
+                    frame_index = swapchain->current_frame();
+                }
+
+                frame_index %= static_cast<std::uint32_t>(descriptor_sets_per_frame_.size());
+
+                const auto& frame_sets = descriptor_sets_per_frame_[frame_index];
+                if (info.set < frame_sets.size() && !update_set(frame_sets[info.set], frame_index))
+                {
+                    Log::error("Cannot update dynamic buffer '{}': invalid RHI buffer handle for frame {}", name, frame_index);
+                    return;
+                }
+            }
+            else
+            {
+                for (const auto& frame_sets : descriptor_sets_per_frame_)
+                {
+                    if (info.set >= frame_sets.size()) continue;
+                    if (!update_set(frame_sets[info.set], 0))
+                    {
+                        Log::error("Cannot update buffer '{}': invalid static RHI buffer handle", name);
+                        return;
+                    }
+                }
+            }
+
+            mark_set_dirty(info.set);
+            return;
+        }
+
+        if (info.set < descriptor_sets_.size())
+        {
+            const std::uint32_t frame_index = dynamic_buffer ? 0u : 0u;
+
+            if (!update_set(descriptor_sets_[info.set], frame_index))
+            {
+                Log::error("Cannot update buffer '{}': invalid RHI buffer handle", name);
+                return;
+            }
+
             mark_set_dirty(info.set);
         }
     }

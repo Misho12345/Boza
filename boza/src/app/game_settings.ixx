@@ -13,20 +13,11 @@ export namespace boza::app
         bool fullscreen{ false };
     };
 
-    struct GraphicsSettings
+    struct GameplaySettings
     {
         float target_fps{ 60.0f };
         bool vsync{ true };
-    };
-
-    struct PhysicsSettings
-    {
-        float fixed_update_rate{ 60.0f };
-    };
-
-    struct InputSettings
-    {
-        float poll_rate{ 240.0f };
+        float physics_update_rate{ 60.0f };
     };
 
     class GameSettings final
@@ -38,9 +29,7 @@ export namespace boza::app
         static void load_defaults();
 
         static WindowSettings window;
-        static GraphicsSettings graphics;
-        static PhysicsSettings physics;
-        static InputSettings input;
+        static GameplaySettings gameplay;
     };
 }
 

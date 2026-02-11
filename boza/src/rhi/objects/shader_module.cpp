@@ -70,6 +70,53 @@ namespace boza::rhi
         return ShaderDataType::Unknown;
     }
 
+    ShaderModule::PushConstantMember parse_member(const json& member_json)
+    {
+        ShaderModule::PushConstantMember member;
+
+        if (member_json.contains("name")) member_json.at("name").get_to(member.name);
+        if (member_json.contains("type")) member_json.at("type").get_to(member.type_name);
+        if (member_json.contains("offset")) member_json.at("offset").get_to(member.offset);
+
+        if (member_json.contains("size")) member_json.at("size").get_to(member.size);
+        else if (member_json.contains("min_size")) member_json.at("min_size").get_to(member.size);
+
+        if (member_json.contains("is_runtime_array")) member_json.at("is_runtime_array").get_to(member.is_runtime_array);
+        if (member_json.contains("array_size")) member_json.at("array_size").get_to(member.array_size);
+        if (member_json.contains("array_stride")) member_json.at("array_stride").get_to(member.array_stride);
+
+        member.data_type = parse_data_type(member.type_name);
+        return member;
+    }
+
+    void parse_struct_types(
+        const json&                                      j,
+        flat_map<std::string, ShaderModule::StructType>& struct_types)
+    {
+        if (!j.contains("struct_types")) return;
+
+        for (const auto& struct_json : j["struct_types"])
+        {
+            std::string struct_name;
+            if (struct_json.contains("name")) struct_json.at("name").get_to(struct_name);
+            if (struct_name.empty()) continue;
+
+            ShaderModule::StructType struct_type{
+                .size = static_cast<std::uint32_t>(struct_json.value("size", 0))
+            };
+
+            if (struct_json.contains("members"))
+            {
+                for (const auto& member_json : struct_json["members"])
+                {
+                    struct_type.members.push_back(parse_member(member_json));
+                }
+            }
+
+            struct_types[struct_name] = std::move(struct_type);
+        }
+    }
+
     void parse_resources(
         const json&                                          j,
         const std::string&                                   type,
@@ -84,6 +131,7 @@ namespace boza::rhi
             if (res.contains("binding")) res.at("binding").get_to(resource.binding);
             if (res.contains("location")) res.at("location").get_to(resource.location);
             if (res.contains("min_size")) res.at("min_size").get_to(resource.size);
+            else if (res.contains("size")) res.at("size").get_to(resource.size);
             if (res.contains("vec_size")) res.at("vec_size").get_to(resource.vec_size);
             if (res.contains("columns")) res.at("columns").get_to(resource.columns);
             if (res.contains("type"))
@@ -97,13 +145,7 @@ namespace boza::rhi
             {
                 for (const auto& member_json : res["members"])
                 {
-                    ShaderModule::PushConstantMember member;
-                    if (member_json.contains("name")) member_json.at("name").get_to(member.name);
-                    if (member_json.contains("type")) member_json.at("type").get_to(member.type_name);
-                    if (member_json.contains("offset")) member_json.at("offset").get_to(member.offset);
-                    if (member_json.contains("min_size")) member_json.at("min_size").get_to(member.size);
-                    member.data_type = parse_data_type(member.type_name);
-                    resource.members.push_back(member);
+                    resource.members.push_back(parse_member(member_json));
                 }
             }
 
@@ -134,13 +176,7 @@ namespace boza::rhi
             {
                 for (const auto& member_json : pc_json["members"])
                 {
-                    ShaderModule::PushConstantMember member;
-                    if (member_json.contains("name")) member_json.at("name").get_to(member.name);
-                    if (member_json.contains("type")) member_json.at("type").get_to(member.type_name);
-                    if (member_json.contains("offset")) member_json.at("offset").get_to(member.offset);
-                    if (member_json.contains("size")) member_json.at("size").get_to(member.size);
-                    member.data_type = parse_data_type(member.type_name);
-                    range.members.push_back(member);
+                    range.members.push_back(parse_member(member_json));
                 }
             }
 
@@ -171,6 +207,7 @@ namespace boza::rhi
 
         const auto& meta_json = meta_json_opt.value();
 
+        parse_struct_types(meta_json, meta_data_.struct_types);
         parse_resources(meta_json, "uniform_buffers", meta_data_.uniform_buffers);
         parse_resources(meta_json, "storage_buffers", meta_data_.storage_buffers);
         parse_resources(meta_json, "stage_inputs", meta_data_.stage_inputs);

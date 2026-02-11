@@ -19,9 +19,26 @@ layout(set = 0, binding = 4) uniform TimeUBO {
     vec2 padding;
 } timeUBO;
 
-layout(push_constant) uniform PushConstants {
+struct WaveData {
     mat4 model;
+};
+
+layout(set = 0, binding = 5) readonly buffer PcInstances {
+    WaveData instances[];
+} pc_instances;
+
+layout(push_constant) uniform PushConstants {
+    WaveData push;
+    uint use_instancing;
 } pc;
+
+mat4 resolve_model_matrix() {
+    if (pc.use_instancing != 0u) {
+        return pc_instances.instances[gl_InstanceIndex].model;
+    }
+
+    return pc.push.model;
+}
 
 void main() {
     vec3 pos = inPosition;
@@ -30,11 +47,13 @@ void main() {
     wave += sin(pos.z * 2.0 + timeUBO.time * 1.5) * 0.1;
     pos.y += wave;
 
-    vec4 worldPos = pc.model * vec4(pos, 1.0);
+    mat4 model_matrix = resolve_model_matrix();
+
+    vec4 worldPos = model_matrix * vec4(pos, 1.0);
     gl_Position = cameraUBO.proj * cameraUBO.view * worldPos;
     fragPosWorld = worldPos.xyz;
 
-    mat3 normalMatrix = transpose(inverse(mat3(pc.model)));
+    mat3 normalMatrix = transpose(inverse(mat3(model_matrix)));
     fragNormal = normalize(normalMatrix * inNormal);
 
     fragTexCoord = inTexCoord;

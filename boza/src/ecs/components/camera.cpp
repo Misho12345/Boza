@@ -1,36 +1,33 @@
 module boza.ecs;
 
 import :camera;
-import :game_object;
 
 namespace boza
 {
-    glm::mat4 Camera::projection_matrix(const float aspect_ratio) const
+    void Camera::set_is_primary(const bool value)
     {
-        glm::mat4 proj;
-        if (projection_type == ProjectionType::Perspective)
-        {
-            proj = glm::perspective(glm::radians(fov), aspect_ratio, near_clip, far_clip);
-        }
-        else
-        {
-            const float half_height = ortho_size * 0.5f;
-            const float half_width  = half_height * aspect_ratio;
-            proj = glm::ortho(-half_width, half_width, -half_height, half_height, near_clip, far_clip);
-        }
+        if (is_primary_ == value) return;
+        is_primary_ = value;
 
-        proj[1][1] *= -1.0f;
-        return proj;
+        if (entity_.is_valid())
+        {
+            if (value) (void)entity_.add<tags::PrimaryCamera>();
+            else (void)entity_.remove<tags::PrimaryCamera>();
+        }
     }
 
-    void Camera::on_clone(GameObject& target)
+    glm::mat4 Camera::projection_matrix(const float aspect_ratio) const
     {
-        auto& cloned = target.add_component<Camera>();
-        copy_base_component_data_to(&cloned);
-        cloned.projection_type = projection_type;
-        cloned.fov = fov;
-        cloned.near_clip = near_clip;
-        cloned.far_clip = far_clip;
-        cloned.ortho_size = ortho_size;
+        switch (projection_type)
+        {
+            case ProjectionType::Perspective:
+                return glm::perspective(glm::radians(fov), aspect_ratio, near_clip, far_clip);
+            case ProjectionType::Orthographic:
+                const float half_width = ortho_size * aspect_ratio * 0.5f;
+                const float half_height = ortho_size * 0.5f;
+                return glm::ortho(-half_width, half_width, -half_height, half_height, near_clip, far_clip);
+        }
+
+        std::unreachable();
     }
 }

@@ -57,8 +57,6 @@ export namespace boza::platform
         CursorState cursor_state() const;
         void        set_cursor_state(CursorState state);
 
-        void apply_cursor_state_if_needed();
-
         [[nodiscard]] bool has_resized();
         [[nodiscard]] bool is_minimized() const;
 
@@ -76,17 +74,16 @@ export namespace boza::platform
         uint32_t width_{};
         uint32_t height_{};
 
-        std::string title_;
-        bool        fullscreen_;
+        std::string title_{};
+        bool        fullscreen_{};
 
-        uint32_t last_width_;
-        uint32_t last_height_;
+        uint32_t last_width_{};
+        uint32_t last_height_{};
 
         uint32_t last_pos_x_{};
         uint32_t last_pos_y_{};
 
         CursorState current_cursor_state_{ CursorState::Normal };
-        std::atomic<CursorState> desired_cursor_state_{ CursorState::Normal };
 
         std::atomic_bool resized_{ false };
         GLFWwindow*      window_{ nullptr };

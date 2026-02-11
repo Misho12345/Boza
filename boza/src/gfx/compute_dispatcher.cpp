@@ -81,34 +81,56 @@ namespace boza
             return;
         }
 
-        rhi::ShaderModule*   shader = shader_shared.get();
-        rhi::PipelineBuilder builder{ api, device, { shader } };
+        rhi::ShaderModule*    shader          = shader_shared.get();
+        rhi::ComputePipeline* pipeline        = nullptr;
+        rhi::PipelineLayout*  pipeline_layout = nullptr;
+        std::vector<rhi::DescriptorSetLayout*> descriptor_set_layouts;
 
-        if (!builder.build_descriptor_set_layouts())
+        const auto* cached = resource_cache->get_cached_compute_pipeline(shader_name);
+        if (cached)
         {
-            Log::error("Failed to build descriptor set layouts for compute shader: {}", shader_name);
-            failed = true;
-            return;
+            pipeline               = cached->pipeline;
+            pipeline_layout        = cached->layout;
+            descriptor_set_layouts = cached->descriptor_set_layouts;
+        }
+        else
+        {
+            rhi::PipelineBuilder builder{ api, device, { shader } };
+
+            if (!builder.build_descriptor_set_layouts())
+            {
+                Log::error("Failed to build descriptor set layouts for compute shader: {}", shader_name);
+                failed = true;
+                return;
+            }
+
+            pipeline_layout = builder.build_pipeline_layout();
+            if (!pipeline_layout)
+            {
+                Log::error("Failed to create pipeline layout for compute shader: {}", shader_name);
+                failed = true;
+                return;
+            }
+
+            pipeline = builder.build_compute_pipeline();
+            if (!pipeline)
+            {
+                Log::error("Failed to create compute pipeline for shader: {}", shader_name);
+                failed = true;
+                return;
+            }
+
+            descriptor_set_layouts = builder.get_descriptor_set_layouts();
+
+            resource_cache->cache_compute_pipeline(
+                shader_name,
+                {
+                    .pipeline = pipeline,
+                    .layout = pipeline_layout,
+                    .descriptor_set_layouts = descriptor_set_layouts
+                });
         }
 
-        rhi::PipelineLayout* pipeline_layout = builder.build_pipeline_layout();
-        if (!pipeline_layout)
-        {
-            Log::error("Failed to create pipeline layout for compute shader: {}", shader_name);
-            failed = true;
-            return;
-        }
-
-        rhi::ComputePipeline* pipeline = builder.build_compute_pipeline();
-        if (!pipeline)
-        {
-            Log::error("Failed to create compute pipeline for shader: {}", shader_name);
-            if (pipeline_layout) pipeline_layout->destroy();
-            failed = true;
-            return;
-        }
-
-        const auto&                      descriptor_set_layouts = builder.get_descriptor_set_layouts();
         std::vector<rhi::DescriptorSet*> descriptor_sets;
         descriptor_sets.reserve(descriptor_set_layouts.size());
 
@@ -119,8 +141,7 @@ namespace boza
             {
                 Log::error("Failed to allocate descriptor set for compute dispatcher");
 
-                if (pipeline) pipeline->destroy();
-                if (pipeline_layout) pipeline_layout->destroy();
+                if (!descriptor_sets.empty()) descriptor_pool->free_descriptor_sets(descriptor_sets);
                 failed = true;
                 return;
             }
@@ -145,10 +166,10 @@ namespace boza
     {
         if (dispatch_started_ && pending_dispatch_.valid()) pending_dispatch_.wait();
 
-        if (impl_->pipeline) impl_->pipeline->destroy();
-        if (impl_->pipeline_layout) impl_->pipeline_layout->destroy();
-
-        for (auto* layout : impl_->descriptor_set_layouts) { if (layout) layout->destroy(); }
+        if (impl_->descriptor_pool && !impl_->descriptor_sets.empty())
+        {
+            impl_->descriptor_pool->free_descriptor_sets(impl_->descriptor_sets);
+        }
     }
 
     // TODO: fix duplication; logic is very similar and can be shortened with a helper function
@@ -345,6 +366,7 @@ namespace boza
         const std::string& name,
         const void*        data,
         const std::size_t  size,
+        [[maybe_unused]]
         const ShaderDataType type) const
     {
         const auto binding_info = impl_->reflection.lookup(name);

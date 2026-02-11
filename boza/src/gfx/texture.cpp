@@ -1,7 +1,3 @@
-module;
-
-#include <cassert>
-
 module boza.gfx;
 
 import :texture;
@@ -149,7 +145,7 @@ namespace boza
     Texture& Texture::get(const std::string_view name)
     {
         auto* texture = try_get(name);
-        assert(texture && "Texture not found");
+        assert(texture != nullptr, "Texture not found");
         return *texture;
     }
 

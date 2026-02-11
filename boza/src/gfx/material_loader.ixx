@@ -35,11 +35,12 @@ export namespace boza::gfx
 
     struct MaterialDefinition
     {
-        std::string   name;
-        std::string   vertex_shader;
-        std::string   fragment_shader;
-        LoadStrategy  load_strategy{ LoadStrategy::GameLoad };
+        std::string      name;
+        std::string      vertex_shader;
+        std::string      fragment_shader;
+        LoadStrategy     load_strategy{ LoadStrategy::GameLoad };
         MaterialSettings settings{};
+        bool             cpu_cull_enabled{ true };
 
         flat_map<std::string, TextureInfo> textures;
         flat_map<std::string, flat_map<std::string, PropertyValue>> ubos;
@@ -93,9 +94,9 @@ export namespace boza::gfx
 
         void bind_engine_resources(const Material* material) const;
 
-        [[nodiscard]] rhi::Buffer* camera_ubo() const { return camera_ubo_.get(); }
-        [[nodiscard]] rhi::Buffer* light_ubo() const { return light_ubo_.get(); }
-        [[nodiscard]] rhi::Buffer* time_ubo() const { return time_ubo_.get(); }
+        [[nodiscard]] Buffer* camera_ubo() { return camera_ubo_ ? &camera_ubo_.value() : nullptr; }
+        [[nodiscard]] Buffer* light_ubo() { return light_ubo_ ? &light_ubo_.value() : nullptr; }
+        [[nodiscard]] Buffer* time_ubo() { return time_ubo_ ? &time_ubo_.value() : nullptr; }
 
         void update_time_ubo(float time, float delta_time) const;
 
@@ -119,11 +120,11 @@ export namespace boza::gfx
         rhi::GraphicsApi     api_{};
 
         flat_map<std::string, MaterialDefinition> definitions_;
-        node_map<std::string, Material> materials_;
+        mt::node_map<std::string, Material> materials_;
 
-        std::unique_ptr<rhi::Buffer> camera_ubo_;
-        std::unique_ptr<rhi::Buffer> light_ubo_;
-        std::unique_ptr<rhi::Buffer> time_ubo_;
+        std::optional<Buffer> camera_ubo_;
+        std::optional<Buffer> light_ubo_;
+        std::optional<Buffer> time_ubo_;
 
         bool initialized_{ false };
 

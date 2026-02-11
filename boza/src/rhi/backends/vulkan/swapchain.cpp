@@ -3,6 +3,7 @@ module boza.rhi.vulkan;
 import :swapchain;
 import :util;
 import :sync;
+import boza.core;
 
 namespace boza::rhi::vk
 {
@@ -130,6 +131,7 @@ namespace boza::rhi::vk
 
         const Device* device = reinterpret_cast<Device*>(desc_.device);
         const VkDevice vk_device = device->logical_device();
+        using clock = std::chrono::steady_clock;
 
         if (desc_.window->is_minimized()) return skip_image_idx;
 
@@ -140,36 +142,107 @@ namespace boza::rhi::vk
                 Log::critical("Failed to recreate swapchain");
                 return invalid_image_idx;
             }
+
             return skip_image_idx;
         }
 
         const auto& frame = frames_[current_frame_];
 
-        if (!frame.in_flight_fence->wait(std::numeric_limits<uint64_t>::max())) return invalid_image_idx;
+        constexpr std::uint64_t fence_wait_poll_ns = 100'000'000; // 100 ms
+        constexpr float         fence_wait_warn_period_s = 1.0f;
+        constexpr float         fence_wait_timeout_s = 5.0f;
+
+        const auto wait_start = clock::now();
+        auto       next_wait_warn_at = wait_start + std::chrono::duration<float>{ fence_wait_warn_period_s };
+
+        while (!frame.in_flight_fence->wait(fence_wait_poll_ns))
+        {
+            const auto now = clock::now();
+            const float waited_seconds = std::chrono::duration<float>{ now - wait_start }.count();
+
+            if (now >= next_wait_warn_at)
+            {
+                Log::warn(
+                    "Swapchain acquire stalled {:.2f}s waiting for in-flight fence (frame {})",
+                    waited_seconds,
+                    current_frame_
+                );
+                next_wait_warn_at += std::chrono::duration<float>{ fence_wait_warn_period_s };
+            }
+
+            if (waited_seconds >= fence_wait_timeout_s)
+            {
+                Log::error(
+                    "Swapchain acquire timed out after {:.2f}s waiting for GPU fence; forcing swapchain recreate",
+                    waited_seconds
+                );
+
+                should_recreate_ = true;
+                return skip_image_idx;
+            }
+        }
+
         if (!frame.in_flight_fence->reset()) return invalid_image_idx;
 
         uint32_t image_index;
         const VkSemaphore vk_semaphore = static_cast<Semaphore*>(frame.image_available_semaphore.get())->vk_semaphore();
 
-        const VkResult result = vkAcquireNextImageKHR(
-            vk_device,
-            vk_swapchain_,
-            std::numeric_limits<uint64_t>::max(),
-            vk_semaphore,
-            nullptr,
-            &image_index
-        );
+        constexpr std::uint64_t acquire_poll_ns = 100'000'000; // 100 ms
+        constexpr float         acquire_warn_period_s = 1.0f;
+        constexpr float         acquire_timeout_s = 5.0f;
 
-        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
-        {
-            should_recreate_ = true;
-            return skip_image_idx;
-        }
+        const auto acquire_start = clock::now();
+        auto       next_acquire_warn_at = acquire_start + std::chrono::duration<float>{ acquire_warn_period_s };
 
-        if (result != VK_SUCCESS)
+        while (true)
         {
-            Log::critical("Failed to acquire next swapchain image");
-            return invalid_image_idx;
+            const VkResult result = vkAcquireNextImageKHR(
+                vk_device,
+                vk_swapchain_,
+                acquire_poll_ns,
+                vk_semaphore,
+                nullptr,
+                &image_index
+            );
+
+            if (result == VK_SUCCESS) break;
+
+            if (result == VK_TIMEOUT)
+            {
+                const auto now = clock::now();
+                const float waited_seconds = std::chrono::duration<float>{ now - acquire_start }.count();
+
+                if (now >= next_acquire_warn_at)
+                {
+                    Log::warn(
+                        "Swapchain image acquisition stalled {:.2f}s (frame {})",
+                        waited_seconds,
+                        current_frame_
+                    );
+                    next_acquire_warn_at += std::chrono::duration<float>{ acquire_warn_period_s };
+                }
+
+                if (waited_seconds >= acquire_timeout_s)
+                {
+                    Log::error(
+                        "Swapchain image acquisition timed out after {:.2f}s; forcing swapchain recreate",
+                        waited_seconds
+                    );
+
+                    should_recreate_ = true;
+                    return skip_image_idx;
+                }
+
+                continue;
+            }
+
+            if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+            {
+                should_recreate_ = true;
+                return skip_image_idx;
+            }
+
+            if (!vk_check(result, "Failed to acquire next swapchain image")) return invalid_image_idx;
         }
 
         return image_index;
@@ -187,16 +260,17 @@ namespace boza::rhi::vk
             render_finished_semaphore] = frames_[current_frame_];
 
         if (!device->graphics_queue()->submit({
-            .command_buffers = { cmd_buffer.get() },
-            .wait_semaphores = { image_available_semaphore.get() },
-            .wait_stages = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT },
+            .command_buffers   = { cmd_buffer.get() },
+            .wait_semaphores   = { image_available_semaphore.get() },
+            .wait_stages       = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT },
             .signal_semaphores = { render_finished_semaphore.get() },
-            .signal_fence = in_flight_fence.get()
-        })) return false;
+            .signal_fence      = in_flight_fence.get()
+        }))
+            return false;
 
         const PresentResult result = device->present_queue()->present({
-            .swapchains = { this },
-            .image_indices = { image_index },
+            .swapchains      = { this },
+            .image_indices   = { image_index },
             .wait_semaphores = { render_finished_semaphore.get() }
         });
 
@@ -301,9 +375,9 @@ namespace boza::rhi::vk
         const VkViewport viewport
         {
             .x = 0.0f,
-            .y = 0.0f,
+            .y = static_cast<float>(extent_.height),
             .width = static_cast<float>(extent_.width),
-            .height = static_cast<float>(extent_.height),
+            .height = -static_cast<float>(extent_.height),
             .minDepth = 0.0f,
             .maxDepth = 1.0f
         };
@@ -653,12 +727,55 @@ namespace boza::rhi::vk
         // Log::trace("Choosing present mode");
 
         const VkPresentModeKHR preferred = to_vk(desc_.preferred_present_mode);
-        for (const auto& available_mode : present_modes_)
+        const auto mode_name = [](const VkPresentModeKHR mode) -> const char*
         {
-            if (available_mode == preferred) return preferred;
+            switch (mode)
+            {
+                case VK_PRESENT_MODE_IMMEDIATE_KHR: return "Immediate";
+                case VK_PRESENT_MODE_MAILBOX_KHR: return "Mailbox";
+                case VK_PRESENT_MODE_FIFO_KHR: return "Fifo";
+                case VK_PRESENT_MODE_FIFO_RELAXED_KHR: return "FifoRelaxed";
+                default: return "Unknown";
+            }
+        };
+
+        const auto has_mode = [this](const VkPresentModeKHR mode)
+        {
+            return std::ranges::find(present_modes_, mode) != present_modes_.end();
+        };
+
+        if (has_mode(preferred)) return preferred;
+
+        VkPresentModeKHR fallback = VK_PRESENT_MODE_FIFO_KHR;
+
+        if (preferred == VK_PRESENT_MODE_IMMEDIATE_KHR && has_mode(VK_PRESENT_MODE_MAILBOX_KHR))
+        {
+            fallback = VK_PRESENT_MODE_MAILBOX_KHR;
+        }
+        else if (preferred == VK_PRESENT_MODE_MAILBOX_KHR && has_mode(VK_PRESENT_MODE_IMMEDIATE_KHR))
+        {
+            fallback = VK_PRESENT_MODE_IMMEDIATE_KHR;
+        }
+        else if (has_mode(VK_PRESENT_MODE_FIFO_RELAXED_KHR))
+        {
+            fallback = VK_PRESENT_MODE_FIFO_RELAXED_KHR;
+        }
+        else if (has_mode(VK_PRESENT_MODE_FIFO_KHR))
+        {
+            fallback = VK_PRESENT_MODE_FIFO_KHR;
+        }
+        else if (!present_modes_.empty())
+        {
+            fallback = present_modes_.front();
         }
 
-        return VK_PRESENT_MODE_FIFO_KHR;
+        Log::warn(
+            "Preferred present mode {} unavailable, using {}",
+            mode_name(preferred),
+            mode_name(fallback)
+        );
+
+        return fallback;
     }
 
     void Swapchain::choose_surface_format()

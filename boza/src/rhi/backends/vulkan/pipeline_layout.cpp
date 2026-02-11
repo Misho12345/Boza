@@ -16,7 +16,33 @@ namespace boza::rhi::vk
             const auto& meta_data = shader->meta_data();
             for (const auto& [name, pc] : meta_data.push_constants)
             {
-                push_constants_[name] = pc;
+                const auto [it, inserted] = push_constants_.try_emplace(name, pc);
+                if (inserted) continue;
+
+                auto& existing = it->second;
+
+                #ifdef BOZA_DEBUG
+                if (existing.offset != pc.offset || existing.size != pc.size)
+                {
+                    Log::warn(
+                        "Push constant range '{}' has inconsistent offset/size across shader stages ({}:{}) vs ({}:{})",
+                        name,
+                        existing.offset,
+                        existing.size,
+                        pc.offset,
+                        pc.size);
+                }
+                #endif
+
+                const auto merged_stage_bits =
+                    static_cast<std::underlying_type_t<ShaderStage>>(existing.stage) |
+                    static_cast<std::underlying_type_t<ShaderStage>>(pc.stage);
+                existing.stage = static_cast<ShaderStage>(merged_stage_bits);
+
+                if (existing.members.empty() && !pc.members.empty())
+                {
+                    existing.members = pc.members;
+                }
             }
         }
 

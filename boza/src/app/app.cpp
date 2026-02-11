@@ -1,60 +1,45 @@
-module;
-
-#include <cassert>
-
 module boza.app;
 
 import boza.app.game_settings;
 
 import boza.core;
+import boza.ecs;
 import boza.gfx;
 import boza.input;
 import boza.platform;
 
 import boza.detail;
 
-import boza.rhi.api;
-import boza.gfx.rendering_system;
-import boza.gfx.material_loader;
+import boza.rhi.render_context;
 
 import :game_loop;
 
 namespace boza
 {
-    using app::GameLoop;
-    using app::GameLoopConfig;
-
-    using gfx::RenderingSystem;
-
     using platform::Window;
-
     using detail::AssetPaths;
 
     struct App::Impl
     {
-        Window          window{};
-        RenderingSystem rendering_system{};
-        GameLoop        game_loop{};
-
-        node_map<std::string, Scene> scenes{};
-        Scene* active_scene{ nullptr };
-        Camera* primary_camera{ nullptr };
-
-        bool initialized{ false };
+        Window        window{};
+        app::GameLoop game_loop{};
+        bool          initialized{ false };
     };
+
 
     App::App() : impl_{ std::make_unique<Impl>() }
     {
-        assert(s_instance_ == nullptr && "App instance already exists");
+        assert(s_instance_ == nullptr, "App instance already exists");
         Log::init();
         s_instance_ = this;
     }
 
     App::~App() { s_instance_ = nullptr; }
 
+
     bool App::init()
     {
-        if (!app::GameSettings::load_from_file(AssetPaths::asset("game_settings.json").string()))
+        if (!app::GameSettings::load_from_file(AssetPaths::asset("game_settings.json")))
         {
             Log::warn("Could not load game settings from file, using defaults");
         }
@@ -72,34 +57,26 @@ namespace boza
             app::GameSettings::window.fullscreen
         );
 
-        if (!impl_->rendering_system.init(impl_->window))
+        rhi::RenderContext::set_window(&impl_->window);
+
+        impl_->game_loop.init({
+            .target_fps       = app::GameSettings::gameplay.target_fps,
+            .physics_update_rate = app::GameSettings::gameplay.physics_update_rate
+        });
+
+        if (!impl_->game_loop.run_engine_begin_stages())
         {
-            Log::error("Failed to initialize rendering system");
+            Log::critical("Failed to initialize engine begin stages");
             return false;
         }
 
-        impl_->game_loop.init({
-            .rendering_system = &impl_->rendering_system,
-            .window = &impl_->window,
-            .target_fps = app::GameSettings::graphics.target_fps,
-            .fixed_update_rate = app::GameSettings::physics.fixed_update_rate,
-            .input_poll_rate = app::GameSettings::input.poll_rate,
-            .vsync = app::GameSettings::graphics.vsync
-        });
-
-        Input::init(&impl_->window);
-
         setup();
-
-        if (!impl_->active_scene) set_active_scene(create_scene("Default Scene"));
-
-        post_setup();
 
         impl_->initialized = true;
         return true;
     }
 
-    void App::run()
+    void App::run() const
     {
         if (!impl_->initialized)
         {
@@ -107,23 +84,14 @@ namespace boza
             return;
         }
 
-        Log::trace("Starting application...");
-
-        impl_->game_loop.start();
-        impl_->game_loop.wait_for_window_close();
+        impl_->game_loop.run();
 
         shutdown();
     }
 
-    void App::shutdown()
+    void App::shutdown() const
     {
         if (!impl_->initialized) return;
-
-        impl_->rendering_system.wait_idle();
-        on_shutdown();
-        impl_->rendering_system.destroy();
-
-        Input::shutdown();
 
         impl_->window.destroy();
         Window::terminate();
@@ -132,61 +100,38 @@ namespace boza
         Log::trace("App shutdown complete");
     }
 
+
     void App::toggle_fullscreen()
     {
-        if (s_instance_) s_instance_->impl_->window.toggle_fullscreen();
+        assert(s_instance_ != nullptr, "App instance does not exist");
+        s_instance_->impl_->window.toggle_fullscreen();
     }
+
+    void App::quit() { Scene::world().quit(); }
+
 
     void App::set_cursor_state(const CursorState state)
     {
-        if (s_instance_) s_instance_->impl_->window.set_cursor_state(state);
+        assert(s_instance_ != nullptr, "App instance does not exist");
+        s_instance_->impl_->window.set_cursor_state(state);
     }
 
     CursorState App::get_cursor_state()
     {
-        return s_instance_ ? s_instance_->impl_->window.cursor_state() : CursorState::Normal;
+        assert(s_instance_ != nullptr, "App instance does not exist");
+        return s_instance_->impl_->window.cursor_state();
     }
 
-    void App::set_active_scene(Scene& scene)
+
+    void App::set_target_fps(const float fps)
     {
-        if (!s_instance_) return;
-
-        s_instance_->impl_->active_scene = &scene;
-        s_instance_->impl_->game_loop.set_active_scene(s_instance_->impl_->active_scene);
-        s_instance_->impl_->rendering_system.set_active_scene(s_instance_->impl_->active_scene);
+        assert(s_instance_ != nullptr, "App instance does not exist");
+        s_instance_->impl_->game_loop.set_target_fps(fps);
     }
 
-    Scene* App::get_active_scene() { return s_instance_ ? s_instance_->impl_->active_scene : nullptr; }
-
-    void App::set_primary_camera(Camera& camera)
+    float App::get_target_fps()
     {
-        if (!s_instance_) return;
-
-        s_instance_->impl_->primary_camera = &camera;
-        s_instance_->impl_->rendering_system.set_primary_camera(&camera);
+        assert(s_instance_ != nullptr, "App instance does not exist");
+        return s_instance_->impl_->game_loop.get_target_fps();
     }
-
-    Camera* App::get_primary_camera()
-    {
-        return s_instance_ ? s_instance_->impl_->primary_camera : nullptr;
-    }
-
-    Scene& App::create_scene(const std::string_view name)
-    {
-        assert(s_instance_ && "App instance not created");
-
-        auto [it, inserted] = s_instance_->impl_->scenes.emplace(name, Scene(name));
-        return it->second;
-    }
-
-    Scene* App::get_scene(const std::string_view name)
-    {
-        if (!s_instance_) return nullptr;
-
-        auto it = s_instance_->impl_->scenes.find(name);
-        return it != s_instance_->impl_->scenes.end() ? &it->second : nullptr;
-    }
-
-    void App::set_target_fps(const float fps) { if (s_instance_) s_instance_->impl_->game_loop.set_target_fps(fps); }
-    float App::get_target_fps() { return s_instance_ ? s_instance_->impl_->game_loop.get_target_fps() : 0.0f; }
 }

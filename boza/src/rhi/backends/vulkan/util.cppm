@@ -1,11 +1,8 @@
-module;
-
-#include <cassert>
-
 export module boza.rhi.vulkan:util;
 
 import <vk_all>;
 import boza.gfx;
+import boza.core;
 import :resources;
 import :vk_macro_wrap;
 
@@ -483,7 +480,6 @@ namespace boza::rhi::vk
         if (stages & ShaderStage::TessControl) result |= VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
         if (stages & ShaderStage::TessEvaluation) result |= VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
         if (stages & ShaderStage::Geometry) result |= VK_SHADER_STAGE_GEOMETRY_BIT;
-        if (stages & ShaderStage::All) result |= VK_SHADER_STAGE_ALL;
 
         return result;
     }
@@ -532,7 +528,7 @@ namespace boza::rhi::vk
             case ShaderDataType::BVec4:  return VK_FORMAT_R32G32B32A32_UINT;
 
             default:
-                assert(false && "to_vk(ShaderDataType): unknown/unsupported ShaderDataType for VkFormat");
+                assert(false, "to_vk(ShaderDataType): unknown/unsupported ShaderDataType for VkFormat");
                 return VK_FORMAT_UNDEFINED;
         }
     }

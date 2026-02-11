@@ -29,7 +29,11 @@ target_include_directories(boza_engine PRIVATE
 )
 
 # === Engine Definitions ===
-target_compile_definitions(boza_engine PRIVATE
+target_compile_definitions(boza_engine
+        PUBLIC
+        BOZA_PROJECT_ROOT=\"${CMAKE_SOURCE_DIR}\"
+
+        PRIVATE
         BOZAENGINE_EXPORTS
         BOZA_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
         BOZA_VERSION_MINOR=${PROJECT_VERSION_MINOR}
@@ -46,7 +50,7 @@ target_compile_definitions(boza_engine PRIVATE
 # === Core Dependencies ===
 find_package(glm CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
-find_package(EnTT CONFIG REQUIRED)
+find_package(flecs CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 
 target_sources(boza_engine
@@ -56,7 +60,7 @@ target_sources(boza_engine
 )
 
 target_link_libraries(boza_engine PUBLIC
-        EnTT::EnTT
+        flecs::flecs
         spdlog::spdlog
         glfw
 )
@@ -65,7 +69,7 @@ target_link_libraries(boza_engine PUBLIC
 set(include_dir ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include)
 add_header_unit_library(boza_engine_header_units)
 
-target_add_header_unit(boza_engine_header_units ${include_dir} entt/entt.hpp COMPILE_DEFINITIONS ${ENTT_STANDARD_CPP})
+target_add_header_unit(boza_engine_header_units ${include_dir} flecs.h)
 target_add_header_unit(boza_engine_header_units ${include_dir} gtl/phmap.hpp)
 target_add_header_unit(boza_engine_header_units ${include_dir} nlohmann/json.hpp)
 target_add_header_unit(boza_engine_header_units ${include_dir} stb_image.h)
@@ -118,7 +122,7 @@ if (BOZA_ENABLE_VULKAN)
     )
 
     # Vulkan header units
-    set(vk_defs
+    set(VK_DEFS
             VK_NO_PROTOTYPES
             VMA_STATIC_VULKAN_FUNCTIONS=0
             VMA_DYNAMIC_VULKAN_FUNCTIONS=1
@@ -126,7 +130,7 @@ if (BOZA_ENABLE_VULKAN)
 
     target_add_header_unit(boza_engine_header_units
             ${CMAKE_CURRENT_BINARY_DIR}/include vk_all
-            COMPILE_DEFINITIONS ${vk_defs}
+            COMPILE_DEFINITIONS ${VK_DEFS}
             INCLUDE_DIRECTORIES ${include_dir}
     )
 endif ()

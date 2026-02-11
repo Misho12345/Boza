@@ -29,13 +29,23 @@ namespace sp
             const spirv_cross::Compiler& compiler,
             const spirv_cross::SmallVector<spirv_cross::Resource>& resources,
             const std::string&                                     type_name,
-            json&                                                  metadata);
+            json&                                                  metadata,
+            json&                                                  struct_types,
+            std::unordered_set<std::uint32_t>&                     reflected_struct_ids);
 
         static void reflect_push_constants(
             const spirv_cross::Compiler&        compiler,
             const spirv_cross::ShaderResources& resources,
             json&                               metadata,
-            const std::string&                  shader_type);
+            const std::string&                  shader_type,
+            json&                               struct_types,
+            std::unordered_set<std::uint32_t>&  reflected_struct_ids);
+
+        static void reflect_struct_type(
+            const spirv_cross::Compiler& compiler,
+            const spirv_cross::SPIRType& type,
+            json&                        struct_types,
+            std::unordered_set<std::uint32_t>& reflected_struct_ids);
 
         static void reflect_compute_work_group_size(
             const spirv_cross::Compiler& compiler,

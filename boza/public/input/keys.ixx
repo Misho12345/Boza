@@ -92,10 +92,7 @@ export namespace boza
         explicit KeyCombo(const Key key) : keys{ key } {}
         explicit KeyCombo(std::vector<Key> k) : keys{ std::move(k) } {}
 
-        bool contains(const Key key) const
-        {
-            return std::ranges::find(keys, key) != keys.end();
-        }
+        bool contains(const Key key) const { return std::ranges::find(keys, key) != keys.end(); }
 
         bool empty() const { return keys.empty(); }
         std::size_t size() const { return keys.size(); }
@@ -113,72 +110,17 @@ export namespace boza
         bool empty() const { return combos.empty(); }
     };
 
-    inline KeyCombo operator&(const Key lhs, const Key rhs)
-    {
-        return KeyCombo{ std::vector{ lhs, rhs } };
-    }
+    KeyCombo operator&(Key lhs, Key rhs);
+    KeyCombo operator&(KeyCombo lhs, Key rhs);
+    KeyCombo operator&(Key lhs, KeyCombo rhs);
 
-    inline KeyCombo operator&(KeyCombo lhs, const Key rhs)
-    {
-        lhs.keys.push_back(rhs);
-        return lhs;
-    }
-
-    inline KeyCombo operator&(const Key lhs, KeyCombo rhs)
-    {
-        rhs.keys.insert(rhs.keys.begin(), lhs);
-        return rhs;
-    }
-
-    inline KeyBinding operator|(const Key lhs, const Key rhs)
-    {
-        return KeyBinding{ std::vector{ KeyCombo{ lhs }, KeyCombo{ rhs } } };
-    }
-
-    inline KeyBinding operator|(KeyCombo lhs, const Key rhs)
-    {
-        return KeyBinding{ std::vector{ std::move(lhs), KeyCombo{ rhs } } };
-    }
-
-    inline KeyBinding operator|(const Key lhs, KeyCombo rhs)
-    {
-        return KeyBinding{ std::vector{ KeyCombo{ lhs }, std::move(rhs) } };
-    }
-
-    inline KeyBinding operator|(KeyCombo lhs, KeyCombo rhs)
-    {
-        return KeyBinding{ std::vector{ std::move(lhs), std::move(rhs) } };
-    }
-
-    inline KeyBinding operator|(KeyBinding lhs, const Key rhs)
-    {
-        lhs.combos.push_back(KeyCombo{ rhs });
-        return lhs;
-    }
-
-    inline KeyBinding operator|(KeyBinding lhs, KeyCombo rhs)
-    {
-        lhs.combos.push_back(std::move(rhs));
-        return lhs;
-    }
-
-    inline KeyBinding operator|(const Key lhs, KeyBinding rhs)
-    {
-        rhs.combos.insert(rhs.combos.begin(), KeyCombo{ lhs });
-        return rhs;
-    }
-
-    inline KeyBinding operator|(KeyCombo lhs, KeyBinding rhs)
-    {
-        rhs.combos.insert(rhs.combos.begin(), std::move(lhs));
-        return rhs;
-    }
-
-    inline KeyBinding operator|(KeyBinding lhs, KeyBinding rhs)
-    {
-        lhs.combos.insert(lhs.combos.end(),
-            std::make_move_iterator(rhs.combos.begin()),
-            std::make_move_iterator(rhs.combos.end()));
-        return lhs;
-    }
+    KeyBinding operator|(Key lhs, Key rhs);
+    KeyBinding operator|(KeyCombo lhs, Key rhs);
+    KeyBinding operator|(Key lhs, KeyCombo rhs);
+    KeyBinding operator|(KeyCombo lhs, KeyCombo rhs);
+    KeyBinding operator|(KeyBinding lhs, Key rhs);
+    KeyBinding operator|(KeyBinding lhs, KeyCombo rhs);
+    KeyBinding operator|(Key lhs, KeyBinding rhs);
+    KeyBinding operator|(KeyCombo lhs, KeyBinding rhs);
+    KeyBinding operator|(KeyBinding lhs, KeyBinding rhs);
 }

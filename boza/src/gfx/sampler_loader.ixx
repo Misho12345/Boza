@@ -63,7 +63,7 @@ export namespace boza::gfx
         Sampler& create(const SamplerDefinition& def);
         void destroy(std::string_view name);
 
-        node_map<std::string, Sampler> samplers_;
+        mt::node_map<std::string, Sampler> samplers_;
         bool initialized_{ false };
 
         friend class Sampler;

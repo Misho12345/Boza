@@ -13,7 +13,7 @@
     "libsndfile",
     "openal-soft",
     "glm",
-    "entt",
+    "flecs",
     "stb",
     "spdlog",
     "gtl",

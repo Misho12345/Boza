@@ -192,20 +192,17 @@ namespace boza::platform
 
     void Window::set_cursor_state(const CursorState state)
     {
-        desired_cursor_state_.store(state);
-    }
+        assert(window_ != nullptr, "Cannot set cursor state before window creation");
+        if (!window_) return;
 
-    void Window::apply_cursor_state_if_needed()
-    {
-        const CursorState desired = desired_cursor_state_.load();
-        if (desired == current_cursor_state_) return;
+        if (state == current_cursor_state_) return;
 
-        if (current_cursor_state_ == CursorState::Normal || desired == CursorState::Normal)
+        if (current_cursor_state_ == CursorState::Normal || state == CursorState::Normal)
         {
             Input::reset_cursor_tracking();
         }
 
-        switch (desired)
+        switch (state)
         {
         case CursorState::Normal:
             glfwSetInputMode(window_, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
@@ -228,7 +225,7 @@ namespace boza::platform
             break;
         }
 
-        current_cursor_state_ = desired;
+        current_cursor_state_ = state;
     }
 
     bool Window::has_resized()

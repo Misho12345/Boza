@@ -1,11 +1,8 @@
-module;
-
-#include <cassert>
-
 module boza.gfx.sampler_loader;
 
 import boza.gfx;
 import boza.detail;
+import boza.core;
 
 namespace boza::gfx
 {
@@ -21,17 +18,20 @@ namespace boza::gfx
     {
         if (initialized_) return;
 
-        Sampler default_sampler{
+        auto [it, inserted] = samplers_.try_emplace(
             "boza_default_sampler",
-            SamplerFilter::Linear,
-            SamplerWrap::Repeat,
-            SamplerWrap::Repeat,
-            SamplerWrap::Repeat,
-            SamplerFilter::Linear,
-            0.0f, 0.0f, 1000.0f, 1.0f
-        };
-
-        auto [it, inserted] = samplers_.try_emplace("boza_default_sampler", std::move(default_sampler));
+            Sampler{
+                "boza_default_sampler",
+                SamplerFilter::Linear,
+                SamplerWrap::Repeat,
+                SamplerWrap::Repeat,
+                SamplerWrap::Repeat,
+                SamplerFilter::Linear,
+                0.0f,
+                0.0f,
+                1000.0f,
+                1.0f
+            });
 
         if (!inserted || !it->second.rhi_handle()) Log::error("Failed to create default sampler");
 
@@ -48,26 +48,11 @@ namespace boza::gfx
 
     bool SamplerLoader::load_and_create_samplers()
     {
-        const auto samplers_dir = detail::AssetPaths::samplers_dir();
-
-        if (!exists(samplers_dir))
-        {
-            Log::warn("Samplers directory not found: {}", samplers_dir.string());
-            return true;
-        }
-
-        std::vector<fs::path> sampler_files;
-        for (const auto& entry : fs::directory_iterator(samplers_dir))
-        {
-            if (entry.is_regular_file() &&
-                entry.path().extension() == ".json" &&
-                entry.path().stem().extension() == ".smpl")
-                sampler_files.push_back(entry.path());
-        }
+        const auto sampler_files = detail::AssetPaths::all_sampler_files();
 
         if (sampler_files.empty())
         {
-            Log::info("No sampler files found in {}", samplers_dir.string());
+            Log::info("No sampler files found in {}", detail::AssetPaths::samplers_dir().string());
             return true;
         }
 
@@ -112,32 +97,18 @@ namespace boza::gfx
             return SamplerWrap::Repeat;
         };
 
-        if (j.contains("filter") && j["filter"].is_string())
-            def.filter = parse_filter(j["filter"].get<std::string>());
+        if (j.contains("filter") && j["filter"].is_string()) def.filter = parse_filter(j["filter"].get<std::string>());
+        if (j.contains("wrap_u") && j["wrap_u"].is_string()) def.wrap_u = parse_wrap(j["wrap_u"].get<std::string>());
+        if (j.contains("wrap_v") && j["wrap_v"].is_string()) def.wrap_v = parse_wrap(j["wrap_v"].get<std::string>());
+        if (j.contains("wrap_w") && j["wrap_w"].is_string()) def.wrap_w = parse_wrap(j["wrap_w"].get<std::string>());
 
-        if (j.contains("wrap_u") && j["wrap_u"].is_string())
-            def.wrap_u = parse_wrap(j["wrap_u"].get<std::string>());
+        if (j.contains("mipmap_mode") && j["mipmap_mode"].is_string()) def.mipmap_mode = parse_filter(j["mipmap_mode"].get<std::string>());
+        if (j.contains("mip_lod_bias") && j["mip_lod_bias"].is_number()) def.mip_lod_bias = j["mip_lod_bias"].get<float>();
 
-        if (j.contains("wrap_v") && j["wrap_v"].is_string())
-            def.wrap_v = parse_wrap(j["wrap_v"].get<std::string>());
+        if (j.contains("min_lod") && j["min_lod"].is_number()) def.min_lod = j["min_lod"].get<float>();
+        if (j.contains("max_lod") && j["max_lod"].is_number()) def.max_lod = j["max_lod"].get<float>();
 
-        if (j.contains("wrap_w") && j["wrap_w"].is_string())
-            def.wrap_w = parse_wrap(j["wrap_w"].get<std::string>());
-
-        if (j.contains("mipmap_mode") && j["mipmap_mode"].is_string())
-            def.mipmap_mode = parse_filter(j["mipmap_mode"].get<std::string>());
-
-        if (j.contains("mip_lod_bias") && j["mip_lod_bias"].is_number())
-            def.mip_lod_bias = j["mip_lod_bias"].get<float>();
-
-        if (j.contains("min_lod") && j["min_lod"].is_number())
-            def.min_lod = j["min_lod"].get<float>();
-
-        if (j.contains("max_lod") && j["max_lod"].is_number())
-            def.max_lod = j["max_lod"].get<float>();
-
-        if (j.contains("max_anisotropy") && j["max_anisotropy"].is_number())
-            def.max_anisotropy = j["max_anisotropy"].get<float>();
+        if (j.contains("max_anisotropy") && j["max_anisotropy"].is_number()) def.max_anisotropy = j["max_anisotropy"].get<float>();
 
         return def;
     }
@@ -237,7 +208,7 @@ namespace boza::gfx
     Sampler& SamplerLoader::default_sampler()
     {
         auto it = samplers_.find("boza_default_sampler");
-        assert(it != samplers_.end() && "Default sampler not initialized");
+        assert(it != samplers_.end(), "Default sampler not initialized");
         return it->second;
     }
 }

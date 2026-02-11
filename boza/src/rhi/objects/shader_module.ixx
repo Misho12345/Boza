@@ -59,6 +59,15 @@ export namespace boza::rhi
             ShaderDataType data_type{ ShaderDataType::Unknown };
             std::uint32_t offset{ 0 };
             std::uint32_t size{ 0 };
+            bool is_runtime_array{ false };
+            std::uint32_t array_size{ 0 };
+            std::uint32_t array_stride{ 0 };
+        };
+
+        struct StructType
+        {
+            std::uint32_t size{ 0 };
+            std::vector<PushConstantMember> members;
         };
 
         struct ShaderResource
@@ -84,6 +93,7 @@ export namespace boza::rhi
 
         struct MetaData
         {
+            flat_map<std::string, StructType> struct_types;
             flat_map<std::string, ShaderResource> uniform_buffers;
             flat_map<std::string, ShaderResource> storage_buffers;
             flat_map<std::string, ShaderResource> stage_inputs;

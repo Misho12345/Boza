@@ -53,8 +53,33 @@ export namespace boza::rhi
             std::vector<DescriptorSetLayout*> descriptor_set_layouts;
         };
 
+        struct ComputePipelineKey
+        {
+            std::string compute_shader;
+
+            bool operator==(const ComputePipelineKey&) const = default;
+
+            struct Hash
+            {
+                size_t operator()(const ComputePipelineKey& key) const noexcept
+                {
+                    return std::hash<std::string>{}(key.compute_shader);
+                }
+            };
+        };
+
+        struct CachedComputePipeline
+        {
+            ComputePipeline* pipeline{ nullptr };
+            PipelineLayout* layout{ nullptr };
+            std::vector<DescriptorSetLayout*> descriptor_set_layouts;
+        };
+
         CachedPipeline* get_cached_pipeline(const std::string& vert, const std::string& frag, std::size_t settings_hash = 0);
         void cache_pipeline(const std::string& vert, const std::string& frag, std::size_t settings_hash, const CachedPipeline& cached);
+
+        CachedComputePipeline* get_cached_compute_pipeline(const std::string& compute_shader);
+        void cache_compute_pipeline(const std::string& compute_shader, const CachedComputePipeline& cached);
 
         void clear();
 
@@ -80,10 +105,12 @@ export namespace boza::rhi
         flat_map<ShaderKey, std::weak_ptr<ShaderModule>, ShaderKey::Hash> shader_cache_;
         flat_map<std::string, std::weak_ptr<Texture>> texture_cache_;
         flat_map<PipelineKey, CachedPipeline, PipelineKey::Hash> pipeline_cache_;
+        flat_map<ComputePipelineKey, CachedComputePipeline, ComputePipelineKey::Hash> compute_pipeline_cache_;
 
         mutable std::mutex shader_mutex_;
         mutable std::mutex texture_mutex_;
         mutable std::mutex pipeline_mutex_;
+        mutable std::mutex compute_pipeline_mutex_;
 
         template<typename T, typename KeyType, typename MapType>
         std::shared_ptr<T> get_or_create(

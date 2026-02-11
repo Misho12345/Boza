@@ -245,8 +245,8 @@ namespace boza
         decltype(auto) call_getter_by_type_impl(method_pack<First, Rest...>)
         {
             using ret_type = method_traits<decltype(First)>::return_type;
-            using ret_type_no_ref = std::remove_cvref_t<ret_type>;
-            using R_no_ref = std::remove_cvref_t<R>;
+            using ret_type_no_ref = std::remove_reference_t<ret_type>;
+            using R_no_ref = std::remove_reference_t<R>;
 
             if constexpr (std::same_as<ret_type_no_ref, R_no_ref> && std::is_invocable_v<decltype(First), Owner&>)
             {
@@ -400,13 +400,22 @@ namespace boza
         template<typename... Args>
         static consteval auto find_best_setter() { return best_setter_helper<Args...>::find_best(setter_seq{}); }
 
-        template<auto First, auto... Rest>
-        static consteval auto get_first_getter_return_type(method_pack<First, Rest...>)
-        {
-            return std::type_identity<typename method_traits<decltype(First)>::return_type>{};
-        }
+        template <typename GetterSeq>
+        struct first_getter_return_type_helper;
 
-        using first_getter_return_t = decltype(get_first_getter_return_type(getter_seq{}))::type;
+        template <auto First, auto... Rest>
+        struct first_getter_return_type_helper<method_pack<First, Rest...>>
+        {
+            using type = method_traits<decltype(First)>::return_type;
+        };
+
+        template <>
+        struct first_getter_return_type_helper<method_pack<>>
+        {
+            using type = void;
+        };
+
+        using first_getter_return_t = first_getter_return_type_helper<getter_seq>::type;
 
         /**
          * @brief Unified getter method that handles all ref-qualifier combinations using deducing this.
@@ -775,16 +784,11 @@ namespace boza
             return *std::forward<Self>(self).get();
         }
 
-        decltype(auto) operator&() requires (getter_count > 0)
-        {
-            if constexpr (has_ref_getter) return &get_ref();
-            else return &get();
-        }
-
         template<typename Self>
         decltype(auto) operator&(this Self&& self) requires (getter_count > 0 && is_self_const<Self>)
         {
-            return &std::forward<Self>(self).get();
+            if constexpr (!is_self_const<Self> && has_ref_getter) return &self.get_ref();
+            else return &std::forward<Self>(self).get();
         }
 
         /// Compound assignment operators using the abstracted helper
@@ -824,7 +828,7 @@ namespace boza
             {
                 decltype(auto) result = std::forward<Self>(self).get();
                 if constexpr (std::is_pointer_v<std::remove_cvref_t<decltype(result)>>) return result;
-                else return &result;
+                else static_assert(false, "Cannot return address of a temporary");
             }
         }
     };

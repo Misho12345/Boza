@@ -5,7 +5,8 @@
   "settings": {
     "depth_compare": "less_or_equal",
     "depth_write": false,
-    "cull_mode": "front"
+    "cull_mode": "front",
+    "cpu_cull": false
   },
   "textures": {
     "skybox_map": {

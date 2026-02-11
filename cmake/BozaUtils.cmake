@@ -1,23 +1,5 @@
 include_guard(GLOBAL)
 
-# Collect source files from directories
-function(boza_get_sources out_var)
-    set(sources "")
-    foreach (dir IN LISTS ARGN)
-        if (IS_DIRECTORY "${dir}")
-            file(GLOB_RECURSE dir_sources CONFIGURE_DEPENDS
-                    "${dir}/*.hpp" "${dir}/*.hh" "${dir}/*.h"
-                    "${dir}/*.inl" "${dir}/*.ipp"
-                    "${dir}/*.cpp" "${dir}/*.cc" "${dir}/*.cxx"
-            )
-            list(APPEND sources ${dir_sources})
-        else ()
-            message(WARNING "Skipping '${dir}': not a valid directory")
-        endif ()
-    endforeach ()
-    set(${out_var} ${sources} PARENT_SCOPE)
-endfunction()
-
 # Collect module interface files
 function(boza_get_modules out_var)
     set(modules "")
@@ -68,4 +50,26 @@ function(boza_setup_module_target target base_dir)
     if (ARG_SOURCES)
         target_sources(${target} PRIVATE ${ARG_SOURCES})
     endif ()
+endfunction()
+
+# snake_case to PascalCase conversion
+function(boza_snake_to_pascal out_var in_text)
+    string(REPLACE "_" ";" word_list "${in_text}")
+
+    set(result "")
+    foreach (word IN LISTS word_list)
+        if (word)
+            string(SUBSTRING "${word}" 0 1 first_char)
+            string(TOUPPER "${first_char}" first_char)
+            string(LENGTH "${word}" word_len)
+            if (word_len GREATER 1)
+                string(SUBSTRING "${word}" 1 -1 rest)
+                string(APPEND result "${first_char}${rest}")
+            else ()
+                string(APPEND result "${first_char}")
+            endif ()
+        endif ()
+    endforeach ()
+
+    set(${out_var} "${result}" PARENT_SCOPE)
 endfunction()

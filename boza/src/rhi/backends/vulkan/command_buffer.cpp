@@ -182,6 +182,9 @@ namespace boza::rhi::vk
         if (static_cast<uint8_t>(stage) & static_cast<uint8_t>(ShaderStage::Vertex)) stage_flags |= VK_SHADER_STAGE_VERTEX_BIT;
         if (static_cast<uint8_t>(stage) & static_cast<uint8_t>(ShaderStage::Fragment)) stage_flags |= VK_SHADER_STAGE_FRAGMENT_BIT;
         if (static_cast<uint8_t>(stage) & static_cast<uint8_t>(ShaderStage::Compute)) stage_flags |= VK_SHADER_STAGE_COMPUTE_BIT;
+        if (static_cast<uint8_t>(stage) & static_cast<uint8_t>(ShaderStage::TessControl)) stage_flags |= VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
+        if (static_cast<uint8_t>(stage) & static_cast<uint8_t>(ShaderStage::TessEvaluation)) stage_flags |= VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+        if (static_cast<uint8_t>(stage) & static_cast<uint8_t>(ShaderStage::Geometry)) stage_flags |= VK_SHADER_STAGE_GEOMETRY_BIT;
 
         vkCmdPushConstants(vk_command_buffer_, vk_layout->vk_pipeline_layout(), stage_flags, offset, size, data);
     }

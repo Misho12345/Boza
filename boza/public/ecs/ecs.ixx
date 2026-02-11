@@ -1,14 +1,16 @@
 export module boza.ecs;
 
+export import :tags;
+
 export import :game_object;
 export import :scene;
 
-export import :component;
-export import :behaviour;
-
 export import :transform;
 export import :camera;
-export import :mesh_renderer;
 
-export import :tag;
-export import :layer;
+export import :common;
+export import :system_registry;
+export import :system_stage;
+export import :component_list;
+
+export import :transform_system;

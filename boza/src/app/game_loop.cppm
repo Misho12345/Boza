@@ -1,62 +1,25 @@
-module boza.app:game_loop;
-
-import std;
-import boza.ecs;
-import boza.core;
-import boza.common;
-
-import boza.platform;
-
-import boza.gfx.rendering_system;
+export module boza.app:game_loop;
 
 namespace boza::app
 {
-    struct GameLoopConfig
+    export struct GameLoopConfig final
     {
-        gfx::RenderingSystem* rendering_system;
-        platform::Window* window;
-
-        float target_fps{ 0.0f };
-        float fixed_update_rate{ 60.0f };
-        float input_poll_rate{ 240.0f };
-        bool  vsync{ true };
+        float target_fps{ 60.0f };
+        float physics_update_rate{ 60.0f };
     };
 
-    class GameLoop
+    export class GameLoop final
     {
     public:
         void init(const GameLoopConfig& config);
-
-        void start();
-        void stop();
-
-        [[nodiscard]] bool is_running() const;
-
-        [[nodiscard]]
-        Scene* get_active_scene();
-        void set_active_scene(Scene* scene);
+        [[nodiscard]] bool run_engine_begin_stages() const;
+        void run() const;
 
         [[nodiscard]]
         float get_target_fps() const;
         void set_target_fps(float fps);
 
-        void wait_for_window_close();
-
     private:
-        void        rendering_loop();
-        void        physics_loop();
-        static void update_scene(Scene* scene);
-
         GameLoopConfig config_{};
-
-        std::atomic_bool running_{ false };
-
-        Scene* active_scene_{ nullptr };
-
-        std::thread rendering_thread_;
-        std::thread physics_thread_;
-
-        std::mutex scene_mutex_;
     };
 }
-

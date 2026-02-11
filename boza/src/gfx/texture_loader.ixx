@@ -49,7 +49,7 @@ export namespace boza::gfx
 
         static std::string make_texture_key(std::string_view filepath, TextureType type);
 
-        node_map<std::string, Texture> textures_;
+        mt::node_map<std::string, Texture> textures_;
         Texture* error_texture_{ nullptr };
         bool initialized_{ false };
 

@@ -2,6 +2,7 @@ export module boza.rhi.render_context;
 
 import std;
 import boza.rhi;
+import boza.platform;
 
 export namespace boza::rhi
 {
@@ -20,13 +21,16 @@ export namespace boza::rhi
             DescriptorPool* descriptor_pool,
             GraphicsApi     api);
 
+        static void set_window(platform::Window* window) { instance().window_ = window; }
+
         static void set_current_command_buffer(CommandBuffer* command_buffer)
         {
             instance().command_buffer_ = command_buffer;
         }
 
-        [[nodiscard]] static Device*    device() { return instance().device_; }
-        [[nodiscard]] static Swapchain* swapchain() { return instance().swapchain_; }
+        [[nodiscard]] static platform::Window* window() { return instance().window_; }
+        [[nodiscard]] static Device*           device() { return instance().device_; }
+        [[nodiscard]] static Swapchain*        swapchain() { return instance().swapchain_; }
 
         [[nodiscard]] static ResourceCache*  resource_cache() { return instance().resource_cache_; }
         [[nodiscard]] static DescriptorPool* descriptor_pool() { return instance().descriptor_pool_; }
@@ -42,8 +46,9 @@ export namespace boza::rhi
         RenderContext() = default;
         static RenderContext& instance();
 
-        Device*    device_{ nullptr };
-        Swapchain* swapchain_{ nullptr };
+        platform::Window* window_{ nullptr };
+        Device*           device_{ nullptr };
+        Swapchain*        swapchain_{ nullptr };
 
         ResourceCache*  resource_cache_{ nullptr };
         DescriptorPool* descriptor_pool_{ nullptr };

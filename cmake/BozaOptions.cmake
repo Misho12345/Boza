@@ -3,7 +3,6 @@ include_guard(GLOBAL)
 # === Build Options ===
 option(BOZA_BUILD_TESTS "Build Boza unit tests" OFF)
 option(BOZA_USE_MIMALLOC "Use mimalloc for memory allocation" ON)
-option(BOZA_ENABLE_LTO "Enable Link Time Optimization" OFF)
 option(BOZA_ENABLE_PROFILING "Enable profiling support" OFF)
 
 # === Graphics Backends ===
@@ -130,18 +129,6 @@ if (MSVC)
     )
 else ()
     add_compile_options(-fvisibility=hidden)
-endif ()
-
-# === Link Time Optimization ===
-if (BOZA_ENABLE_LTO)
-    include(CheckIPOSupported)
-    check_ipo_supported(RESULT lto_supported OUTPUT lto_error)
-    if (lto_supported)
-        message(STATUS "LTO enabled")
-        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-    else ()
-        message(WARNING "LTO not supported: ${lto_error}")
-    endif ()
 endif ()
 
 # === Profiling ===

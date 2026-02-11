@@ -52,10 +52,10 @@ namespace boza::rhi::vk
         flat_map<uint32_t, const rhi::ShaderModule::ShaderResource*> location_to_input;
         for (const auto* shader : desc_.shaders)
         {
-            if (shader->stage() == ShaderStage::Vertex)
+            if (shader->stage() != ShaderStage::Vertex) continue;
+            for (const auto& input : shader->meta_data().stage_inputs | std::views::values)
             {
-                for (const auto& input : shader->meta_data().stage_inputs | std::views::values) location_to_input[input.
-                    location] = &input;
+                location_to_input[input.location] = &input;
             }
         }
 

@@ -5,31 +5,9 @@
     "title": "Boza Engine Showcase",
     "fullscreen": false
   },
-  "graphics": {
-    "target_fps": 0,
-    "vsync": false
-  },
-  "physics": {
-    "fixed_update_rate": 60.0
-  },
-  "input": {
-    "poll_rate": 100.0
-  },
-  "tags": {
-    "None": 0,
-    "Player": 1,
-    "Enemy": 2,
-    "Bullet": 3,
-    "Pickup": 4,
-    "Environment": 5
-  },
-  "layers": {
-    "Default": 0,
-    "Ground": 1,
-    "Wall": 2,
-    "Soft": 3,
-    "Player": 4,
-    "Enemy": 5,
-    "Projectile": 6
+  "gameplay": {
+    "target_fps": 0.0,
+    "vsync": false,
+    "physics_update_rate": 60.0
   }
 }

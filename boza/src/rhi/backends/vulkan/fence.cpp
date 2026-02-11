@@ -40,13 +40,14 @@ namespace boza::rhi::vk
     bool Fence::wait(const uint64_t timeout)
     {
         const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
+        const VkResult result = vkWaitForFences(vk_device, 1, &vk_fence_, true, timeout);
 
-        if (!vk_check(
-            vkWaitForFences(vk_device, 1, &vk_fence_, true, timeout),
-            "Failed to wait for fence"))
-            return false;
+        if (result == VK_SUCCESS) return true;
+        if (result == VK_TIMEOUT) return false;
 
-        return true;
+        if (!vk_check(result, "Failed to wait for fence")) return false;
+
+        return false;
     }
 
     bool Fence::reset()

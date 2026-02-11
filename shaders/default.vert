@@ -13,16 +13,35 @@ layout(set = 0, binding = 0) uniform CameraUBO {
     mat4 proj;
 } cameraUBO;
 
-layout(push_constant) uniform PushConstants {
+struct DrawData {
     mat4 model;
+};
+
+layout(set = 0, binding = 5) readonly buffer PcInstances {
+    DrawData items[];
+} pc_instances;
+
+layout(push_constant) uniform PushConstants {
+    DrawData payload;
+    uint use_instancing;
 } pc;
 
+mat4 resolve_model_matrix() {
+    if (pc.use_instancing != 0u) {
+        return pc_instances.items[gl_InstanceIndex].model;
+    }
+
+    return pc.payload.model;
+}
+
 void main() {
-    vec4 worldPos = pc.model * vec4(inPosition, 1.0);
+    mat4 model_matrix = resolve_model_matrix();
+
+    vec4 worldPos = model_matrix * vec4(inPosition, 1.0);
     gl_Position = cameraUBO.proj * cameraUBO.view * worldPos;
     fragPosWorld = worldPos.xyz;
 
-    mat3 normalMatrix = transpose(inverse(mat3(pc.model)));
+    mat3 normalMatrix = transpose(inverse(mat3(model_matrix)));
     fragNormal = normalize(normalMatrix * inNormal);
 
     fragTexCoord = inTexCoord;

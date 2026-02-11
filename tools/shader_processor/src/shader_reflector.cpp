@@ -7,6 +7,17 @@ using nlohmann::json;
 
 namespace sp
 {
+    static std::string get_struct_type_name(const spirv_cross::Compiler& compiler, const uint32_t type_id)
+    {
+        std::string type_name = compiler.get_name(type_id);
+        if (type_name.empty())
+        {
+            type_name = std::format("anon_struct_{}", type_id);
+        }
+
+        return type_name;
+    }
+
     static std::string get_image_format_name(const spv::ImageFormat format)
     {
         switch (format)
@@ -66,7 +77,7 @@ namespace sp
             case spirv_cross::SPIRType::UInt: type_str = "uint"; break;
             case spirv_cross::SPIRType::Float: type_str = "float"; break;
             case spirv_cross::SPIRType::Double: type_str = "double"; break;
-            case spirv_cross::SPIRType::Struct: return compiler.get_name(type.self);
+            case spirv_cross::SPIRType::Struct: return get_struct_type_name(compiler, type.self);
             case spirv_cross::SPIRType::Image:
             case spirv_cross::SPIRType::SampledImage:
             {
@@ -132,16 +143,29 @@ namespace sp
         json metadata;
         metadata["shader_type"] = shader_type;
 
+        json struct_types = json::object();
+        std::unordered_set<std::uint32_t> reflected_struct_ids{};
+
         const spirv_cross::Compiler        compiler{ spirv };
         const spirv_cross::ShaderResources resources{ compiler.get_shader_resources() };
 
-        reflect_resources(compiler, resources.uniform_buffers, "uniform_buffers", metadata);
-        reflect_resources(compiler, resources.storage_buffers, "storage_buffers", metadata);
-        reflect_resources(compiler, resources.stage_inputs, "stage_inputs", metadata);
-        reflect_resources(compiler, resources.stage_outputs, "stage_outputs", metadata);
-        reflect_resources(compiler, resources.sampled_images, "sampled_images", metadata);
-        reflect_resources(compiler, resources.storage_images, "storage_images", metadata);
-        reflect_push_constants(compiler, resources, metadata, shader_type);
+        reflect_resources(compiler, resources.uniform_buffers, "uniform_buffers", metadata, struct_types, reflected_struct_ids);
+        reflect_resources(compiler, resources.storage_buffers, "storage_buffers", metadata, struct_types, reflected_struct_ids);
+        reflect_resources(compiler, resources.stage_inputs, "stage_inputs", metadata, struct_types, reflected_struct_ids);
+        reflect_resources(compiler, resources.stage_outputs, "stage_outputs", metadata, struct_types, reflected_struct_ids);
+        reflect_resources(compiler, resources.sampled_images, "sampled_images", metadata, struct_types, reflected_struct_ids);
+        reflect_resources(compiler, resources.storage_images, "storage_images", metadata, struct_types, reflected_struct_ids);
+        reflect_push_constants(compiler, resources, metadata, shader_type, struct_types, reflected_struct_ids);
+
+        if (!struct_types.empty())
+        {
+            json struct_types_array = json::array();
+            for (const auto& struct_type : struct_types.items())
+            {
+                struct_types_array.push_back(struct_type.value());
+            }
+            metadata["struct_types"] = struct_types_array;
+        }
 
         if (shader_type == "compute") reflect_compute_work_group_size(compiler, metadata);
 
@@ -152,7 +176,9 @@ namespace sp
         const spirv_cross::Compiler&                           compiler,
         const spirv_cross::SmallVector<spirv_cross::Resource>& resources,
         const std::string&                                     type_name,
-        json&                                                  metadata)
+        json&                                                  metadata,
+        json&                                                  struct_types,
+        std::unordered_set<std::uint32_t>&                     reflected_struct_ids)
     {
         if (resources.empty()) return;
         json j_resources = json::array();
@@ -162,6 +188,11 @@ namespace sp
             json j_resource;
 
             const auto& buffer_type = compiler.get_type(resource.base_type_id);
+            if (buffer_type.basetype == spirv_cross::SPIRType::Struct)
+            {
+                reflect_struct_type(compiler, buffer_type, struct_types, reflected_struct_ids);
+            }
+
             std::string resource_name = compiler.get_name(resource.id);
             if (resource_name.empty())
             {
@@ -214,6 +245,11 @@ namespace sp
                     member["type"] = get_type_name(compiler, member_type);
                     member["offset"] = compiler.get_member_decoration(buffer_type.self, i, spv::DecorationOffset);
 
+                    if (member_type.basetype == spirv_cross::SPIRType::Struct)
+                    {
+                        reflect_struct_type(compiler, member_type, struct_types, reflected_struct_ids);
+                    }
+
                     size_t member_size = compiler.get_declared_struct_member_size(buffer_type, i);
 
                     // Handle arrays
@@ -234,6 +270,7 @@ namespace sp
                             {
                                 // For struct arrays, get the struct size
                                 const auto& element_type = compiler.get_type(member_type.self);
+                                reflect_struct_type(compiler, element_type, struct_types, reflected_struct_ids);
                                 stride = static_cast<uint32_t>(compiler.get_declared_struct_size(element_type));
                             }
                             else
@@ -294,7 +331,9 @@ namespace sp
         const spirv_cross::Compiler&        compiler,
         const spirv_cross::ShaderResources& resources,
         json&                               metadata,
-        const std::string&                  shader_type)
+        const std::string&                  shader_type,
+        json&                               struct_types,
+        std::unordered_set<std::uint32_t>&  reflected_struct_ids)
     {
         if (resources.push_constant_buffers.empty()) return;
         json push_constants_array = json::array();
@@ -304,8 +343,19 @@ namespace sp
             json        j_pc;
             const auto& type = compiler.get_type(push_constant_resource.base_type_id);
 
-            j_pc["name"] = compiler.get_name(push_constant_resource.id);
-            j_pc["type"] = compiler.get_name(type.self);
+            if (type.basetype == spirv_cross::SPIRType::Struct)
+            {
+                reflect_struct_type(compiler, type, struct_types, reflected_struct_ids);
+            }
+
+            std::string push_constant_name = compiler.get_name(push_constant_resource.id);
+            if (push_constant_name.empty())
+            {
+                push_constant_name = "pc";
+            }
+
+            j_pc["name"] = push_constant_name;
+            j_pc["type"] = get_struct_type_name(compiler, type.self);
             j_pc["shader_stage"] = shader_type;
             j_pc["offset"] = 0;
             j_pc["size"] = compiler.get_declared_struct_size(type);
@@ -315,6 +365,12 @@ namespace sp
             {
                 json member;
                 const auto& member_type = compiler.get_type(type.member_types[i]);
+
+                if (member_type.basetype == spirv_cross::SPIRType::Struct)
+                {
+                    reflect_struct_type(compiler, member_type, struct_types, reflected_struct_ids);
+                }
+
                 member["name"]   = compiler.get_member_name(type.self, i);
                 member["type"]   = get_type_name(compiler, member_type);
                 member["offset"] = compiler.get_member_decoration(type.self, i, spv::DecorationOffset);
@@ -327,6 +383,83 @@ namespace sp
         }
 
         metadata["push_constants"] = push_constants_array;
+    }
+
+    void ShaderReflector::reflect_struct_type(
+        const spirv_cross::Compiler& compiler,
+        const spirv_cross::SPIRType& type,
+        json&                        struct_types,
+        std::unordered_set<std::uint32_t>& reflected_struct_ids)
+    {
+        if (type.basetype != spirv_cross::SPIRType::Struct) return;
+
+        if (reflected_struct_ids.contains(type.self)) return;
+        reflected_struct_ids.insert(type.self);
+
+        const std::string struct_name = get_struct_type_name(compiler, type.self);
+
+        json struct_json;
+        struct_json["name"] = struct_name;
+        struct_json["size"] = compiler.get_declared_struct_size(type);
+
+        json members = json::array();
+        for (uint32_t i = 0; i < type.member_types.size(); ++i)
+        {
+            json member;
+            const auto& member_type = compiler.get_type(type.member_types[i]);
+
+            member["name"] = compiler.get_member_name(type.self, i);
+            member["type"] = get_type_name(compiler, member_type);
+            member["offset"] = compiler.get_member_decoration(type.self, i, spv::DecorationOffset);
+
+            const size_t member_size = compiler.get_declared_struct_member_size(type, i);
+
+            if (!member_type.array.empty())
+            {
+                const uint32_t array_size = member_type.array[0];
+                if (array_size == 0)
+                {
+                    member["is_runtime_array"] = true;
+                    member["array_size"] = 0;
+                    member["size"] = 0;
+
+                    uint32_t stride = 0;
+                    if (member_type.basetype == spirv_cross::SPIRType::Struct)
+                    {
+                        const auto& element_type = compiler.get_type(member_type.self);
+                        reflect_struct_type(compiler, element_type, struct_types, reflected_struct_ids);
+                        stride = static_cast<uint32_t>(compiler.get_declared_struct_size(element_type));
+                    }
+                    else
+                    {
+                        stride = member_type.width / 8 * member_type.vecsize;
+                        if (member_type.columns > 1) stride *= member_type.columns;
+                    }
+
+                    member["array_stride"] = stride;
+                }
+                else
+                {
+                    member["is_runtime_array"] = false;
+                    member["array_size"] = array_size;
+                    member["size"] = member_size;
+                }
+            }
+            else
+            {
+                member["size"] = member_size;
+            }
+
+            members.push_back(member);
+
+            if (member_type.basetype == spirv_cross::SPIRType::Struct)
+            {
+                reflect_struct_type(compiler, member_type, struct_types, reflected_struct_ids);
+            }
+        }
+
+        struct_json["members"] = members;
+        struct_types[struct_name] = struct_json;
     }
 
     void ShaderReflector::reflect_compute_work_group_size(

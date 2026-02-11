@@ -184,8 +184,8 @@ export namespace boza
         static decltype(auto) call_getter_by_type_impl(method_pack<First, Rest...>)
         {
             using ret_type        = global_function_traits<decltype(First)>::return_type;
-            using ret_type_no_ref = std::remove_cvref_t<ret_type>;
-            using R_no_ref        = std::remove_cvref_t<R>;
+            using ret_type_no_ref = std::remove_reference_t<ret_type>;
+            using R_no_ref        = std::remove_reference_t<R>;
 
             if constexpr (std::same_as<ret_type_no_ref, R_no_ref>)
             {
@@ -304,16 +304,22 @@ export namespace boza
             }(getter_seq{});
         }
 
-        template<auto First, auto... Rest>
-        static consteval auto get_first_getter_return_type(method_pack<First, Rest...>)
+        template<typename GetterSeq>
+        struct first_getter_return_type_helper;
+
+        template<>
+        struct first_getter_return_type_helper<method_pack<>>
         {
-            return std::type_identity<typename global_function_traits<decltype(First)>::return_type>{};
-        }
+            using type = void;
+        };
 
-        template<auto...>
-        static consteval auto get_first_getter_return_type(method_pack<>) { return std::type_identity<void>{}; }
+        template<auto First, auto... Rest>
+        struct first_getter_return_type_helper<method_pack<First, Rest...>>
+        {
+            using type = global_function_traits<decltype(First)>::return_type;
+        };
 
-        using first_getter_return_t = decltype(get_first_getter_return_type(getter_seq{}))::type;
+        using first_getter_return_t = first_getter_return_type_helper<getter_seq>::type;
 
         /**
          * @brief Unified getter method that handles all ref-qualifier combinations using deducing this.
@@ -685,7 +691,7 @@ export namespace boza
             {
                 decltype(auto) result = get();
                 if constexpr (std::is_pointer_v<std::remove_cvref_t<decltype(result)>>) return result;
-                else return &result;
+                else static_assert(false, "Cannot return address of a temporary");
             }
         }
     };

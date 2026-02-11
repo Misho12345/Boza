@@ -50,11 +50,11 @@ export namespace boza
     {
         std::string vertex_shader;
         std::string fragment_shader;
-        CompareOp depth_compare_op{ CompareOp::Less };
-        bool      depth_test_enable{ true };
-        bool      depth_write_enable{ true };
-        CullMode  cull_mode{ CullMode::Back };
-        FrontFace front_face{ FrontFace::CounterClockwise };
+        CompareOp   depth_compare_op{ CompareOp::Less };
+        bool        depth_test_enable{ true };
+        bool        depth_write_enable{ true };
+        CullMode    cull_mode{ CullMode::Back };
+        FrontFace   front_face{ FrontFace::CounterClockwise };
 
         bool operator==(const MaterialSettings&) const = default;
 
@@ -91,7 +91,7 @@ export namespace boza
             : material_(material),
               name_(std::move(name)) {}
 
-        template<typename T> requires requires
+        template <typename T> requires requires
         {
             requires !std::same_as<std::remove_cvref_t<T>, Texture>;
             requires !std::same_as<std::remove_cvref_t<T>, Buffer>;
@@ -112,7 +112,7 @@ export namespace boza
     {
     public:
         static Material& create(
-            std::string_view name,
+            std::string_view        name,
             const MaterialSettings& settings);
 
         static Material& get(std::string_view name);
@@ -122,7 +122,7 @@ export namespace boza
 
         ~Material();
 
-        Material(const Material&) = delete;
+        Material(const Material&)            = delete;
         Material& operator=(const Material&) = delete;
         Material(Material&&) noexcept;
         Material& operator=(Material&&) noexcept;
@@ -131,13 +131,13 @@ export namespace boza
 
         void bind() const;
 
-        template<typename T>
+        template <typename T>
         void push_constants(const std::string& name, const T& value)
         {
             push_constants(name, &value, sizeof(T), get_shader_data_type<T>());
         }
 
-        template<typename T>
+        template <typename T>
         void update_property(const std::string& name, const T& value)
         {
             update_property(name, &value, sizeof(T), get_shader_data_type<T>());
@@ -151,18 +151,26 @@ export namespace boza
 
         [[nodiscard]] std::size_t        descriptor_set_count() const;
         [[nodiscard]] void*              rhi_descriptor_set_handle(std::size_t index) const;
+        [[nodiscard]] void*              rhi_pipeline_layout_handle() const { return pipeline_layout_; }
+        [[nodiscard]] const void*        reflection_handle() const { return reflection_; }
+        [[nodiscard]] std::span<const std::uint8_t> push_constant_staging() const { return push_constant_staging_; }
         [[nodiscard]] const std::string& name() const { return name_; }
+
+        [[nodiscard]]
+        bool cpu_cull_enabled() const { return cpu_cull_enabled_; }
+        void set_cpu_cull_enabled(const bool enabled) { cpu_cull_enabled_ = enabled; }
 
     private:
         explicit Material(std::string_view name);
-        void cleanup();
+        void     cleanup();
 
         std::string name_;
 
-        void* pipeline_{ nullptr };
-        void* pipeline_layout_{ nullptr };
-        std::vector<void*> descriptor_set_layouts_;
-        std::vector<void*> descriptor_sets_;
+        void*                     pipeline_{ nullptr };
+        void*                     pipeline_layout_{ nullptr };
+        std::vector<void*>        descriptor_set_layouts_;
+        std::vector<void*>        descriptor_sets_;
+        std::vector<std::vector<void*>> descriptor_sets_per_frame_;
         std::vector<std::uint8_t> push_constant_staging_;
 
         void* reflection_{ nullptr };
@@ -170,11 +178,12 @@ export namespace boza
         flat_map<std::uint32_t, bool> dirty_sets_;
 
         flat_map<std::uint32_t, std::vector<std::uint8_t>> uniform_buffer_staging_;
-        flat_map<std::uint32_t, void*> uniform_buffers_;
+        flat_map<std::uint32_t, void*>                     uniform_buffers_;
 
         flat_map<std::string, Sampler*> default_samplers_;
 
         void* descriptor_pool_{ nullptr };
+        bool  cpu_cull_enabled_{ true };
 
         void mark_set_dirty(std::uint32_t set);
 
@@ -192,9 +201,10 @@ export namespace boza
 
         friend class PropertyBinder;
         friend class gfx::MaterialLoader;
+        friend struct RenderingSystem;
     };
 
-    template<typename T> requires requires
+    template <typename T> requires requires
     {
         requires !std::same_as<std::remove_cvref_t<T>, Texture>;
         requires !std::same_as<std::remove_cvref_t<T>, Buffer>;

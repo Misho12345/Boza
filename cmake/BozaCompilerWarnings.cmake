@@ -6,12 +6,13 @@ function(boza_enable_warnings target)
                 /W4
                 /WX
                 /permissive-
-                /wd4702  # unreachable code
-                /wd4065  # switch with 'default' but no 'case'
-                /wd4251  # DLL-interface warning
-                /wd5050  # modules compatibility
-                /wd4127  # conditional expression is constant
-                /wd4324  # structure was padded due to alignment specifier
+                /wd4702 # unreachable code
+                /wd4065 # switch with 'default' but no 'case'
+                /wd4251 # DLL-interface warning
+                /wd5050 # modules compatibility
+                /wd4127 # conditional expression is constant
+                /wd4324 # structure was padded due to alignment specifier
+                /wd4244 # implicit conversion with possible loss of data
         )
 
         if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "19.30")

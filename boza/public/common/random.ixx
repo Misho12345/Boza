@@ -67,7 +67,7 @@ export namespace boza
         {
             auto s = std::span{ r };
             if (s.empty()) return nullptr;
-            return &s[number(s.size())];
+            return &s[number(s.size() - 1)];
         }
 
         /// Pick a random element from a span, returns pointer or nullptr if empty
@@ -75,7 +75,7 @@ export namespace boza
         static T* pick(std::span<T> s) noexcept
         {
             if (s.empty()) return nullptr;
-            return &s[number(s.size())];
+            return &s[number(s.size() - 1)];
         }
 
         /// Pick a random element from a const span, returns pointer or nullptr if empty
@@ -83,7 +83,7 @@ export namespace boza
         static const T* pick(std::span<const T> s) noexcept
         {
             if (s.empty()) return nullptr;
-            return &s[number(s.size())];
+            return &s[number(s.size() - 1)];
         }
 
         /**
@@ -133,8 +133,7 @@ export namespace boza
         static E pick_enum(std::initializer_list<E> values) noexcept
         {
             if (values.size() == 0) return E{};
-            const auto idx = number(values.size());
-            return *(values.begin() + idx);
+            return *(values.begin() + number(values.size() - 1));
         }
 
         /// Pick a random enum value from a span
@@ -142,7 +141,7 @@ export namespace boza
         static E pick_enum(std::span<const E> values) noexcept
         {
             if (values.empty()) return E{};
-            return values[number(values.size())];
+            return values[number(values.size() - 1)];
         }
 
         /**
