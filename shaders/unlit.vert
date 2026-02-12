@@ -36,5 +36,5 @@ void main() {
     mat4 model_matrix = resolve_model_matrix();
 
     gl_Position = cameraUBO.proj * cameraUBO.view * model_matrix * vec4(inPosition, 1.0);
-    fragTexCoord = inTexCoord + clamp(inNormal.x, 0.0f, 1.0f) * 0.0f;
+    fragTexCoord = inTexCoord + clamp(0.0f, inNormal.y, inNormal.z) * inNormal.x;
 }

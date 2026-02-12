@@ -28,6 +28,8 @@ include(BozaCompilerWarnings)
 include(BozaUtils)
 include(BozaAssets)
 include(BozaHeaderUnits)
+include(BozaHeaderPatches)
+boza_enable_vcpkg_header_fixes()
 include(BozaExecutable)
 
 # === Subdirectories ===
@@ -36,3 +38,4 @@ add_subdirectory(shaders)
 add_subdirectory(boza)
 add_subdirectory(examples/material_showcase)
 add_subdirectory(examples/instancing_example)
+

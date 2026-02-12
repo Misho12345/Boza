@@ -109,6 +109,10 @@ function(target_add_header_unit library_name header_include_dir header_rel_path)
 
     add_custom_target(${target_name} ALL DEPENDS "${out_file}")
 
+    if (TARGET boza_vcpkg_header_fixes)
+        add_dependencies(${target_name} boza_vcpkg_header_fixes)
+    endif ()
+
     # Store header unit info (now including library_name for path resolution)
     get_target_property(hu_list ${library_name} BOZA_HEADER_UNITS)
     if (NOT hu_list OR hu_list STREQUAL "hu_list-NOTFOUND")

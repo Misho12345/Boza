@@ -4,9 +4,9 @@ import std;
 import boza;
 using namespace boza;
 
-constexpr std::uint32_t terrain_cells     = 128;
-constexpr float         terrain_extent    = 250.0f;
-constexpr std::uint32_t grass_blade_count = 100'000;
+constexpr std::uint32_t terrain_cells     = 32;
+constexpr float         terrain_extent    = 100.0f;
+constexpr std::uint32_t grass_blade_count = 50'000;
 
 [[nodiscard]]
 float hash01(const int x, const int z)

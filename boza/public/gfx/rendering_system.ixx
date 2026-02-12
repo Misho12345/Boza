@@ -44,7 +44,7 @@ namespace boza
             static void execute();
         };
 
-        struct BeginFrame : PreRenderStage<BeginFrame>
+        struct BeginFrame : EngineRenderStage<BeginFrame>
         {
             static void execute();
         };
@@ -59,7 +59,7 @@ namespace boza
             static SystemStageConfig config()
             {
                 return {
-                    .run_after = { BeginFrame::stage_info.system },
+                    .run_after  = { BeginFrame::stage_info.system },
                     .run_before = { EndFrame::stage_info.system }
                 };
             }
@@ -76,7 +76,7 @@ namespace boza
             static SystemStageConfig config()
             {
                 return {
-                    .run_after = { BeginFrame::stage_info.system },
+                    .run_after  = { BeginFrame::stage_info.system },
                     .run_before = { Render::stage_info.system }
                 };
             }

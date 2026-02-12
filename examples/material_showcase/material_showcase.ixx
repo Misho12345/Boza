@@ -47,7 +47,7 @@ private:
     {
         GameObject camera_obj = GameObject::create("MainCamera");
         auto& t = camera_obj.get_component<Transform>();
-        t.local_position = glm::vec3{ -165.0f, 145.0f, 120.0f };
+        t.local_position = glm::vec3{ -85.0f, 55.0f, 85.0f };
         t.look_at(glm::vec3{ 0.0f, 0.0f, 0.0f });
 
         auto& camera     = camera_obj.add_component<Camera>();

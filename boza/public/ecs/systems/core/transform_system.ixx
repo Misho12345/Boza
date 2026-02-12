@@ -14,41 +14,28 @@ export namespace boza
             static void execute(GameObject go)
             {
                 if (!go.valid()) return;
-                if (!go.has_component<Transform>())
-                {
-                    go.remove_component<tags::TransformDirty>();
-                    return;
-                }
+                if (!go.has_component<tags::TransformDirty>()) return;
 
                 const GameObject parent = go.parent();
                 if (parent.valid() && parent.has_component<tags::TransformDirty>()) return;
 
-                update_subtree(go, true);
+                update_subtree(go);
             }
 
         private:
-            static void update_subtree(GameObject go, const bool parent_world_changed)
+            static void update_subtree(GameObject go, const bool parent_world_changed = true)
             {
                 if (!go.valid()) return;
 
-                bool world_changed = parent_world_changed;
+                auto& transform = go.get_component<Transform>();
 
-                if (go.has_component<Transform>())
-                {
-                    auto& transform = go.get_component<Transform>();
+                const bool should_evaluate = transform.dirty_ || parent_world_changed;
+                if (should_evaluate) transform.evaluate_world_transform();
 
-                    const bool should_evaluate = transform.dirty_ || parent_world_changed;
-                    if (should_evaluate)
-                    {
-                        transform.evaluate_world_transform();
-                    }
-
-                    transform.dirty_ = false;
-                    world_changed = should_evaluate;
-                }
+                transform.dirty_ = false;
 
                 go.remove_component<tags::TransformDirty>();
-                go.for_each_child([world_changed](GameObject child) { update_subtree(child, world_changed); });
+                go.for_each_child([should_evaluate](GameObject child) { update_subtree(child, should_evaluate); });
             }
         };
     };

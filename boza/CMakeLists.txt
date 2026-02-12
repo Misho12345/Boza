@@ -76,13 +76,12 @@ target_add_header_unit(boza_engine_header_units ${include_dir} stb_image.h)
 target_add_header_unit(boza_engine_header_units ${include_dir} stb_image_write.h)
 
 # === STB Implementation ===
-boza_generate_impl(boza_engine
-        "#define STB_IMAGE_IMPLEMENTATION
-        #include <stb_image.h>
-        #define STB_IMAGE_WRITE_IMPLEMENTATION
-        #include <stb_image_write.h>"
-
-        "stb_impl.cpp")
+boza_generate_impl(boza_engine [[
+    #define STB_IMAGE_IMPLEMENTATION
+    #include <stb_image.h>
+    #define STB_IMAGE_WRITE_IMPLEMENTATION
+    #include <stb_image_write.h>
+]] "stb_impl.cpp")
 
 # === Graphics Backends ===
 if (BOZA_ENABLE_VULKAN)
@@ -91,28 +90,28 @@ if (BOZA_ENABLE_VULKAN)
     find_package(volk CONFIG REQUIRED)
 
     # VMA implementation
-    boza_generate_impl(boza_engine
-            "#define VMA_IMPLEMENTATION
-            #if __has_include(<vma/vk_mem_alloc.h>)
-            #include <vma/vk_mem_alloc.h>
-            #elif __has_include(<vk_mem_alloc.h>)
-            #include <vk_mem_alloc.h>
-            #else
-            #error \"Cannot find vk_mem_alloc.h\"
-            #endif"
-
-            "vma_impl.cpp")
+    boza_generate_impl(boza_engine [[
+        #define VMA_IMPLEMENTATION
+        #if __has_include(<vma/vk_mem_alloc.h>)
+        #include <vma/vk_mem_alloc.h>
+        #elif __has_include(<vk_mem_alloc.h>)
+        #include <vk_mem_alloc.h>
+        #else
+        #error "Cannot find vk_mem_alloc.h"
+        #endif
+    ]] "vma_impl.cpp")
 
     # Unified Vulkan header
-    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/include/vk_all
-            "#if __has_include(<vma/vk_mem_alloc.h>)
-            #include <vma/vk_mem_alloc.h>
-            #elif __has_include(<vk_mem_alloc.h>)
-            #include <vk_mem_alloc.h>
-            #else
-            #error \"Cannot find vk_mem_alloc.h\"
-            #endif
-            #include <volk.h>")
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/include/vk_all [[
+        #if __has_include(<vma/vk_mem_alloc.h>)
+        #include <vma/vk_mem_alloc.h>
+        #elif __has_include(<vk_mem_alloc.h>)
+        #include <vk_mem_alloc.h>
+        #else
+        #error "Cannot find vk_mem_alloc.h"
+        #endif
+        #include <volk.h>
+    ]])
 
     target_link_libraries(boza_engine PUBLIC
             Vulkan::Headers

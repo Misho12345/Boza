@@ -155,7 +155,7 @@ export struct OscillatorSystem
 {
     struct Start : StartStage<Start, With<Transform>, With<Oscillator>>
     {
-        static void execute(GameObject, Transform& t, Oscillator& osc)
+        static void execute(Transform& t, Oscillator& osc)
         {
             osc.base_local_position = t.local_position;
         }
@@ -163,7 +163,7 @@ export struct OscillatorSystem
 
     struct Update : UpdateStage<Update, With<Transform>, With<Oscillator>>
     {
-        static void execute(GameObject, Transform& t, Oscillator& osc)
+        static void execute(Transform& t, Oscillator& osc)
         {
             osc.phase += Time::delta_time() * osc.speed;
 
@@ -178,7 +178,7 @@ struct OrbiterSystem
 {
     struct Start : StartStage<Start, With<Transform>, With<const Orbiter>>
     {
-        static void execute(GameObject, Transform& t, const Orbiter& orb)
+        static void execute(Transform& t, const Orbiter& orb)
         {
             const glm::vec3 local_position = get_local_position_on_orbit(orb, glm::radians(orb.angle));
             t.local_position = local_position;
@@ -231,7 +231,7 @@ struct ColorPulserSystem
 {
     struct Start : StartStage<Start, With<ColorPulser>, With<MeshRenderer>>
     {
-        static void execute(GameObject, ColorPulser& cp, MeshRenderer& mr)
+        static void execute(ColorPulser& cp, MeshRenderer& mr)
         {
             cp.material = mr.material();
         }
@@ -239,7 +239,7 @@ struct ColorPulserSystem
 
     struct Update : UpdateStage<Update, With<Transform>, With<ColorPulser>>
     {
-        static void execute(GameObject, Transform& t, ColorPulser& cp)
+        static void execute(Transform& t, ColorPulser& cp)
         {
             if (!cp.material) return;
 
