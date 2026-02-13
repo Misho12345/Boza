@@ -1,0 +1,18 @@
+{
+  "vertex_shader": "unlit",
+  "fragment_shader": "unlit",
+  "load_strategy": "on_demand",
+  "textures": {
+    "albedo_map": {
+      "texture": "default.png",
+      "sampler": "default"
+    }
+  },
+  "UBOs": {
+    "material": {
+      "albedo_color": [0.2, 0.8, 1.0, 1.0],
+      "properties": [0.0, 0.0, 0.0, 0.0]
+    }
+  }
+}
+

@@ -1,0 +1,18 @@
+{
+  "vertex_shader": "skybox",
+  "fragment_shader": "skybox",
+  "load_strategy": "game_load",
+  "settings": {
+    "depth_compare": "less_or_equal",
+    "depth_write": false,
+    "cull_mode": "front",
+    "cpu_cull": false
+  },
+  "textures": {
+    "skybox_map": {
+      "texture": "skybox.jpg",
+      "sampler": "skybox"
+    }
+  }
+}
+

@@ -1,0 +1,13 @@
+{
+  "window": {
+    "width": 1280,
+    "height": 720,
+    "title": "Boza Engine Showcase",
+    "fullscreen": false
+  },
+  "gameplay": {
+    "target_fps": 0.0,
+    "vsync": false,
+    "physics_update_rate": 60.0
+  }
+}

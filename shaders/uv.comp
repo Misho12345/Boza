@@ -1,0 +1,17 @@
+#version 450
+
+layout(binding = 0, rgba8) writeonly uniform image2D outImage;
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+void main()
+{
+    ivec2 gid = ivec2(gl_GlobalInvocationID.xy);
+
+    ivec2 size = imageSize(outImage);
+    if (gid.x >= size.x || gid.y >= size.y) return;
+
+    vec2 uv = vec2(gid) / vec2(size);
+    vec4 color = vec4(uv.xy, 0.0, 1.0);
+    imageStore(outImage, gid, color);
+}

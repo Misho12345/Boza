@@ -1,0 +1,11 @@
+{
+  "filter": "linear",
+  "wrap_u": "clamp_to_edge",
+  "wrap_v": "clamp_to_edge",
+  "wrap_w": "clamp_to_edge",
+  "mipmap_mode": "linear",
+  "mip_lod_bias": 0.0,
+  "min_lod": 0.0,
+  "max_lod": 1000.0,
+  "max_anisotropy": 1.0
+}
