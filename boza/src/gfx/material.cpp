@@ -147,6 +147,11 @@ namespace boza
         return gfx::MaterialLoader::instance().try_get_material(name);
     }
 
+    bool Material::exists(const Material* ptr)
+    {
+        return gfx::MaterialLoader::instance().exists(ptr);
+    }
+
     void Material::destroy(std::string_view name)
     {
         gfx::MaterialLoader::instance().destroy(name);
@@ -451,26 +456,26 @@ namespace boza
 
         const auto& info = binding_info.value();
 
-        const auto update_set = [&buffer, &info](void* set_handle, const std::uint32_t frame_index) -> bool
+        const auto update_set = [&buffer, &info](void* set_handle) -> bool
         {
-            auto* buffer_handle = static_cast<rhi::Buffer*>(buffer.rhi_handle(frame_index));
+            auto* buffer_handle = static_cast<rhi::Buffer*>(buffer.rhi_handle());
             if (!buffer_handle) return false;
 
             rhi::DescriptorWrite write{
-                .binding = info.binding,
+                .binding       = info.binding,
                 .array_element = 0,
-                .type = info.descriptor_type,
-                .info = info.descriptor_type == rhi::DescriptorType::UniformBuffer
-                            ? rhi::DescriptorInfo(rhi::UniformBuffer{
-                                .buffer = buffer_handle,
-                                .offset = 0,
-                                .range = static_cast<std::uint32_t>(buffer.size())
-                            })
-                            : rhi::DescriptorInfo(rhi::StorageBuffer{
-                                .buffer = buffer_handle,
-                                .offset = 0,
-                                .range = static_cast<std::uint32_t>(buffer.size())
-                            })
+                .type          = info.descriptor_type,
+                .info          = info.descriptor_type == rhi::DescriptorType::UniformBuffer
+                                     ? rhi::DescriptorInfo(rhi::UniformBuffer{
+                                         .buffer = buffer_handle,
+                                         .offset = 0,
+                                         .range  = static_cast<std::uint32_t>(buffer.size())
+                                     })
+                                     : rhi::DescriptorInfo(rhi::StorageBuffer{
+                                         .buffer = buffer_handle,
+                                         .offset = 0,
+                                         .range  = static_cast<std::uint32_t>(buffer.size())
+                                     })
             };
 
             static_cast<rhi::DescriptorSet*>(set_handle)->update({ &write, 1 });
@@ -478,7 +483,7 @@ namespace boza
         };
 
         const bool has_per_frame_sets = !descriptor_sets_per_frame_.empty();
-        const bool dynamic_buffer = buffer.access_mode == ResourceAccessMode::Dynamic;
+        const bool dynamic_buffer     = buffer.access_mode == ResourceAccessMode::Dynamic;
 
         if (has_per_frame_sets)
         {
@@ -493,9 +498,10 @@ namespace boza
                 frame_index %= static_cast<std::uint32_t>(descriptor_sets_per_frame_.size());
 
                 const auto& frame_sets = descriptor_sets_per_frame_[frame_index];
-                if (info.set < frame_sets.size() && !update_set(frame_sets[info.set], frame_index))
+                if (info.set < frame_sets.size() && !update_set(frame_sets[info.set]))
                 {
-                    Log::error("Cannot update dynamic buffer '{}': invalid RHI buffer handle for frame {}", name, frame_index);
+                    Log::error("Cannot update dynamic buffer '{}': invalid RHI buffer handle for frame {}", name,
+                               frame_index);
                     return;
                 }
             }
@@ -504,7 +510,7 @@ namespace boza
                 for (const auto& frame_sets : descriptor_sets_per_frame_)
                 {
                     if (info.set >= frame_sets.size()) continue;
-                    if (!update_set(frame_sets[info.set], 0))
+                    if (!update_set(frame_sets[info.set]))
                     {
                         Log::error("Cannot update buffer '{}': invalid static RHI buffer handle", name);
                         return;
@@ -518,9 +524,7 @@ namespace boza
 
         if (info.set < descriptor_sets_.size())
         {
-            const std::uint32_t frame_index = dynamic_buffer ? 0u : 0u;
-
-            if (!update_set(descriptor_sets_[info.set], frame_index))
+            if (!update_set(descriptor_sets_[info.set]))
             {
                 Log::error("Cannot update buffer '{}': invalid RHI buffer handle", name);
                 return;

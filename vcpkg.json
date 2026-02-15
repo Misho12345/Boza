@@ -10,19 +10,15 @@
     "shaderc",
     "spirv-cross",
     "spirv-tools",
-    "libsndfile",
-    "openal-soft",
     "glm",
     "flecs",
     "stb",
     "spdlog",
     "gtl",
     "nlohmann-json",
-    "tracy",
     {
       "name": "mimalloc",
       "features": ["override"]
-    },
-    "gtest"
+    }
   ]
 }

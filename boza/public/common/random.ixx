@@ -13,6 +13,18 @@ export namespace boza
      */
     class BOZA_API Random final
     {
+        template<class T>
+        using ptr_t = std::add_pointer_t<T>;
+
+        template<class R>
+        using range_ref_t = std::ranges::range_reference_t<R>;
+
+        template<class R>
+        using range_elem_t = std::remove_reference_t<range_ref_t<R>>;
+
+        template<class R>
+        using range_ptr_t = ptr_t<range_elem_t<R>>;
+
     public:
         Random() = delete;
 
@@ -23,11 +35,11 @@ export namespace boza
 
         /// Generate a random integer in range [0, max]
         template<std::integral T>
-        static T number(T max = std::numeric_limits<T>::max()) noexcept { return range<T>(0, max); }
+        static T number(T max = std::numeric_limits<T>::max()) noexcept { return range<T>(T{ 0 }, max); }
 
         /// Generate a random float in range [0, max]
         template<std::floating_point T>
-        static T number(T max = 1) noexcept { return range<T>(T{ 0 }, max); }
+        static T number(T max = T{ 1 }) noexcept { return range<T>(T{ 0 }, max); }
 
         /// Generate a random integer in range [min, max]
         template<std::integral T>
@@ -63,27 +75,27 @@ export namespace boza
 
         /// Pick a random element from a range, returns pointer or nullptr if empty
         template<class R> requires std::ranges::contiguous_range<R> && std::ranges::sized_range<R>
-        static std::add_pointer_t<std::remove_reference_t<std::ranges::range_reference_t<R>>> pick(R&& r) noexcept
+        static range_ptr_t<R> pick(R&& r) noexcept
         {
             auto s = std::span{ r };
             if (s.empty()) return nullptr;
-            return &s[number(s.size() - 1)];
+            return std::addressof(s[number<std::size_t>(s.size() - 1)]);
         }
 
         /// Pick a random element from a span, returns pointer or nullptr if empty
         template<class T>
-        static T* pick(std::span<T> s) noexcept
+        static ptr_t<T> pick(std::span<T> s) noexcept
         {
             if (s.empty()) return nullptr;
-            return &s[number(s.size() - 1)];
+            return std::addressof(s[number<std::size_t>(s.size() - 1)]);
         }
 
         /// Pick a random element from a const span, returns pointer or nullptr if empty
         template<class T>
-        static const T* pick(std::span<const T> s) noexcept
+        static ptr_t<const T> pick(std::span<const T> s) noexcept
         {
             if (s.empty()) return nullptr;
-            return &s[number(s.size() - 1)];
+            return std::addressof(s[number<std::size_t>(s.size() - 1)]);
         }
 
         /**
@@ -100,7 +112,10 @@ export namespace boza
             std::string result;
             result.reserve(length);
 
-            for (std::size_t i = 0; i < length; ++i) { result += charset[number(charset.size())]; }
+            for (std::size_t i = 0; i < length; ++i)
+            {
+                result += charset[number<std::size_t>(charset.size() - 1)];
+            }
 
             return result;
         }
@@ -133,7 +148,7 @@ export namespace boza
         static E pick_enum(std::initializer_list<E> values) noexcept
         {
             if (values.size() == 0) return E{};
-            return *(values.begin() + number(values.size() - 1));
+            return *(values.begin() + number<std::size_t>(values.size() - 1));
         }
 
         /// Pick a random enum value from a span
@@ -141,7 +156,7 @@ export namespace boza
         static E pick_enum(std::span<const E> values) noexcept
         {
             if (values.empty()) return E{};
-            return values[number(values.size() - 1)];
+            return values[number<std::size_t>(values.size() - 1)];
         }
 
         /**

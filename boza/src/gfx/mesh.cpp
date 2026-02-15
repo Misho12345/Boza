@@ -1,6 +1,7 @@
 module boza.gfx;
 
 import :mesh;
+import :rendering_system;
 import boza.core;
 
 namespace boza
@@ -43,7 +44,16 @@ namespace boza
     {
         mesh.name = name;
         mesh.recalculate_bounds();
-        registry_[name] = std::move(mesh);
+
+        const std::string key{ name };
+        if (const auto it = registry_.find(key); it != registry_.end())
+        {
+            RenderingSystem::on_mesh_destroyed(&it->second);
+            valid_pointers_.erase(&it->second);
+        }
+
+        auto& stored = (registry_[key] = std::move(mesh));
+        valid_pointers_.insert(&stored);
     }
 
     Mesh& Mesh::get(const std::string_view name)
@@ -65,5 +75,10 @@ namespace boza
     bool Mesh::exists(const std::string_view name)
     {
         return registry_.contains(name);
+    }
+
+    bool Mesh::exists(const Mesh* ptr)
+    {
+        return ptr && valid_pointers_.contains(ptr);
     }
 }

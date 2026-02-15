@@ -53,26 +53,10 @@ export namespace boza::rhi
         [[nodiscard]]
         std::optional<BindingInfo> lookup(std::string_view name) const;
 
-        [[nodiscard]]
-        const flat_map<std::string, BindingInfo>& bindings() const { return bindings_; }
-
-        [[nodiscard]]
-        const flat_map<std::string, PushConstantRangeInfo>& push_constant_ranges() const
-        {
-            return push_constant_ranges_;
-        }
-
-        [[nodiscard]]
-        const flat_map<std::string, ResourceInfo>& storage_buffers() const
-        {
-            return storage_buffers_;
-        }
-
-        [[nodiscard]]
-        const flat_map<std::string, StructTypeInfo>& struct_types() const
-        {
-            return struct_types_;
-        }
+        [[nodiscard]] const flat_map<std::string, BindingInfo>& bindings() const { return bindings_; }
+        [[nodiscard]] const flat_map<std::string, PushConstantRangeInfo>& push_constant_ranges() const { return push_constant_ranges_; }
+        [[nodiscard]] const flat_map<std::string, ResourceInfo>& storage_buffers() const { return storage_buffers_; }
+        [[nodiscard]] const flat_map<std::string, StructTypeInfo>& struct_types() const { return struct_types_; }
 
     private:
         flat_map<std::string, BindingInfo> bindings_;

@@ -56,6 +56,7 @@ namespace boza::gfx
 
         if (error_texture_ && error_texture_->is_valid())
         {
+            valid_pointers_.insert(error_texture_);
             static constexpr std::array<std::uint8_t, 4> magenta{ 255, 0, 255, 255 };
             error_texture_->upload(magenta.data(), magenta.size());
         }
@@ -71,6 +72,7 @@ namespace boza::gfx
     {
         if (!initialized_) return;
 
+        valid_pointers_.clear();
         textures_.clear();
 
         error_texture_ = nullptr;
@@ -126,7 +128,8 @@ namespace boza::gfx
             return *error_texture_;
         }
 
-        texture.upload(image_data.data, image_data.size, 0);
+        valid_pointers_.insert(&texture);
+        texture.upload(image_data.data, image_data.size);
 
         return texture;
     }
@@ -224,6 +227,7 @@ namespace boza::gfx
         extract_face(3, 1);
         texture.upload_layer(face_data.data(), face_size, 5);
 
+        valid_pointers_.insert(&texture);
         return texture;
     }
 
@@ -271,6 +275,7 @@ namespace boza::gfx
 
         dst_texture.upload(data.data(), data.size());
 
+        valid_pointers_.insert(&dst_texture);
         return dst_texture;
     }
 
@@ -296,6 +301,7 @@ namespace boza::gfx
         }
 
         // Log::trace("Created texture: {}", name_str);
+        valid_pointers_.insert(&it->second);
         return it->second;
     }
 
@@ -312,6 +318,7 @@ namespace boza::gfx
         const auto it = textures_.find(name_str);
         if (it != textures_.end())
         {
+            valid_pointers_.erase(&it->second);
             // Log::trace("Destroyed texture: {}", name_str);
             textures_.erase(it);
         }
@@ -323,6 +330,11 @@ namespace boza::gfx
         const std::string name_str{ name };
         const auto it = textures_.find(name_str);
         return it != textures_.end() ? &it->second : nullptr;
+    }
+
+    bool TextureLoader::exists(const Texture* ptr) const
+    {
+        return ptr && valid_pointers_.contains(ptr);
     }
 
     std::string TextureLoader::make_texture_key(const std::string_view filepath, const TextureType type)

@@ -21,7 +21,7 @@ export namespace boza
     {
         [[nodiscard]]
         std::string_view get_name() const;
-        void             set_name(std::string_view name) const;
+        void             set_name(std::string_view scene_name) const;
 
         [[nodiscard]]
         bool get_active() const;
@@ -32,9 +32,11 @@ export namespace boza
         static void  set_main_scene(const Scene& scene);
 
         [[nodiscard]]
-        static Scene get_persistent_scene();
+        static Scene& get_persistent_scene();
 
     public:
+        Scene() = default;
+
         static Scene create(std::string_view name, bool active = true);
         void destroy() const;
 
@@ -43,8 +45,8 @@ export namespace boza
         Scene& operator=(const Scene& other);
         Scene& operator=(Scene&& other) noexcept;
 
-        [[nodiscard]]
-        GameObject root() const;
+        [[nodiscard]] GameObject& root() { return root_; }
+        [[nodiscard]] const GameObject& root() const { return root_; }
 
         [[nodiscard]]
         static Scene get(std::string_view name);
@@ -60,20 +62,35 @@ export namespace boza
         > persistent;
 
 
+        [[msvc::no_unique_address]]
+        Property<
+            Scene,
+            &Scene::get_name,
+            &Scene::set_name
+        > name{ this };
+
+        [[msvc::no_unique_address]]
+        Property<
+            Scene,
+            &Scene::get_active,
+            &Scene::set_active
+        > active{ this };
+
+        bool operator==(const Scene& other) const { return root_ == other.root_; }
+        bool operator!=(const Scene& other) const { return !(*this == other); }
+
         [[nodiscard]]
-        bool valid() const { return root_.is_valid(); }
-        operator bool() const { return valid(); }
+        bool valid() const { return root_.valid(); }
 
     private:
-        explicit Scene(const flecs::entity root) : root_{ root } {}
+        explicit Scene(const GameObject& root) : root_{ root } {}
 
         static void remove_objects_for_destruction();
 
         static flecs::world& world();
-        flecs::entity root_;
+        GameObject root_;
 
         static inline flecs::entity main_scene_;
-        static inline flecs::entity persistent_scene_;
 
 
         friend class GameObject;

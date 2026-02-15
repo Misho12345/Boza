@@ -42,12 +42,18 @@ export namespace boza
         /// @return Pointer to the mesh, or nullptr if not found
         static Mesh* try_get(std::string_view name);
 
-        /// Checks if a mesh is registered
+        /// Checks if a mesh is registered by name
         /// @param name The name of the mesh
         /// @return true if the mesh exists
         static bool exists(std::string_view name);
 
+        /// Checks if a mesh pointer is valid (points to a registered mesh)
+        /// @param ptr The mesh pointer to validate
+        /// @return true if the pointer is valid
+        static bool exists(const Mesh* ptr);
+
     private:
         static inline node_map<std::string, Mesh> registry_;
+        static inline flat_set<const Mesh*> valid_pointers_;
     };
 }

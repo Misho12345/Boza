@@ -5,10 +5,10 @@ import :transform;
 import :camera;
 import :common;
 
-namespace boza { class Scene; }
-
 export namespace boza
 {
+    class Scene;
+
     class GameObject
     {
         [[nodiscard]]
@@ -27,9 +27,11 @@ export namespace boza
         void       set_parent(const GameObject& obj_parent) const;
 
     public:
-        static GameObject create(std::string_view obj_name, bool obj_active = true);
-        static GameObject create(std::string_view obj_name, const GameObject& obj_parent, bool obj_active = true);
+        GameObject() = default;
+
         static GameObject create(std::string_view obj_name, const Scene& obj_scene, bool obj_active = true);
+        static GameObject create(std::string_view obj_name, const GameObject& obj_parent, bool obj_active = true);
+        static GameObject create(std::string_view obj_name, bool obj_active = true);
 
         void destroy() const;
 
@@ -115,10 +117,8 @@ export namespace boza
             &GameObject::set_parent
         > parent{ this };
 
-
         [[nodiscard]]
         bool valid() const { return entity_.is_valid(); }
-        operator bool() const { return valid(); }
 
         bool operator==(const GameObject& other) const { return entity_.id() == other.entity_.id(); }
         bool operator!=(const GameObject& other) const { return !(*this == other); }
@@ -130,7 +130,7 @@ export namespace boza
         flecs::entity entity_;
 
     private:
-        void update_active_hierarchy() const;
+        void update_active_hierarchy(bool parent_should_be_active = true) const;
 
         friend class Scene;
         template <typename>
@@ -143,23 +143,38 @@ export namespace boza
     template <typename C, typename... Args>
     C& GameObject::add_component(Args&&... args)
     {
-        entity_.emplace<C>(std::forward<Args>(args)...);
-        C& comp = entity_.get_mut<C>();
+        if constexpr (std::is_empty_v<C>)
+        {
+            (void)entity_.add<C>();
+            static C empty_tag;
+            return empty_tag;
+        }
+        else
+        {
+            entity_.emplace<C>(std::forward<Args>(args)...);
+            C& comp = entity_.get_mut<C>();
 
-        if constexpr (requires { std::declval<C&>().entity_ = std::declval<flecs::entity>(); }) comp.entity_ = entity_;
-        else if constexpr (requires { std::declval<C&>().entity = std::declval<flecs::entity>(); }) comp.entity = entity_;
+            if constexpr (requires { std::declval<C&>().entity_ = std::declval<flecs::entity>(); }) comp.entity_ = entity_;
+            else if constexpr (requires { std::declval<C&>().entity = std::declval<flecs::entity>(); }) comp.entity = entity_;
 
-        if constexpr (requires { std::declval<C&>().game_object_ = std::declval<GameObject>(); }) comp.game_object_ = *this;
-        else if constexpr (requires { std::declval<C&>().game_object = std::declval<GameObject>(); }) comp.game_object = *this;
+            if constexpr (requires { std::declval<C&>().game_object_ = std::declval<GameObject>(); }) comp.game_object_ = *this;
+            else if constexpr (requires { std::declval<C&>().game_object = std::declval<GameObject>(); }) comp.game_object = *this;
 
-        return comp;
+            return comp;
+        }
     }
 
     template <typename C, typename... Args>
     C& GameObject::ensure_component(Args&&... args)
     {
-        if (C* comp = try_get_component<C>()) return *comp;
-        return add_component<C>(std::forward<Args>(args)...);
+        if constexpr (std::is_empty_v<C>) {
+            if (!entity_.has<C>()) entity_.add<C>();
+            static C empty_tag;
+            return empty_tag;
+        } else {
+            if (C* comp = try_get_component<C>()) return *comp;
+            return add_component<C>(std::forward<Args>(args)...);
+        }
     }
 
 

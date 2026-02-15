@@ -91,6 +91,7 @@ export namespace boza::gfx
 
         Material& get_or_create_material(std::string_view name, const MaterialSettings& settings);
         Material* try_get_material(std::string_view name);
+        [[nodiscard]] bool exists(const Material* ptr) const;
 
         void bind_engine_resources(const Material* material) const;
 
@@ -121,6 +122,7 @@ export namespace boza::gfx
 
         flat_map<std::string, MaterialDefinition> definitions_;
         mt::node_map<std::string, Material> materials_;
+        flat_set<const Material*> valid_pointers_;
 
         std::optional<Buffer> camera_ubo_;
         std::optional<Buffer> light_ubo_;
