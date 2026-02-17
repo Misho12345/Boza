@@ -175,7 +175,7 @@ private:
                 auto cube = GameObject::create(std::format("OrbitingCube({}-{})", i, j), parent);
                 auto& mr = cube.add_component<MeshRenderer>();
                 mr.mesh_name = "cube";
-                mr.material_name = *Random::pick(material_pool);
+                mr.material_name = Random::pick(material_pool);
                 cube.add_component<Orbiter>(axis, (i + 2) * 2.0f, 10.0f + i * 3.0f, j * (360.0f / per_orbit_count));
             }
         }

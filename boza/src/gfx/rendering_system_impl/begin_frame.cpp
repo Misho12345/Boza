@@ -24,17 +24,10 @@ namespace boza
             return;
         }
 
-        const std::uint32_t image_idx = swapchain_->current_image_index();
-        rhi::CommandBuffer* cmd = swapchain_->current_command_buffer();
+        rhi::RenderContext::set_current_command_buffer(swapchain_->current_command_buffer());
+        gfx::MaterialLoader::instance().update_time_ubo(Time::time(), Time::delta_time());
 
-        rhi::RenderContext::set_current_command_buffer(cmd);
-
-        const float dt = Time::delta_time();
-        static float accumulated_time = 0.0f;
-        accumulated_time += dt;
-        gfx::MaterialLoader::instance().update_time_ubo(accumulated_time, dt);
-
-        swapchain_->begin_render_pass(image_idx);
+        swapchain_->begin_render_pass(swapchain_->current_image_index());
         frame_active_ = true;
     }
 }

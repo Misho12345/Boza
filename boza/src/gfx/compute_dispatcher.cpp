@@ -25,6 +25,9 @@ namespace boza
         std::vector<std::uint8_t>              push_constant_staging;
 
         flat_map<std::uint32_t, bool> dirty_sets;
+
+        std::uint32_t push_constant_size{ 0 };
+        bool          has_push_constants{ false };
     };
 
 
@@ -158,6 +161,17 @@ namespace boza
         impl_->reflection.build_from_shaders({ &shader, 1 });
 
         work_group_size_ = shader->meta_data().work_group_size;
+
+        const auto& metadata = shader->meta_data();
+        if (!metadata.push_constants.empty())
+        {
+            impl_->has_push_constants = true;
+            for (const auto& [name, pc] : metadata.push_constants)
+            {
+                const std::uint32_t end = pc.offset + pc.size;
+                impl_->push_constant_size = std::max(impl_->push_constant_size, end);
+            }
+        }
 
         // Log::trace("ComputeDispatcher created for shader: {}", shader_name);
     }
@@ -351,6 +365,17 @@ namespace boza
         if (!impl_->descriptor_sets.empty())
         {
             cmd->bind_descriptor_sets(impl_->pipeline->get_layout(), impl_->descriptor_sets, 0);
+        }
+
+        if (impl_->has_push_constants && impl_->push_constant_size > 0)
+        {
+            cmd->push_constants(
+                impl_->pipeline_layout,
+                rhi::ShaderStage::Compute,
+                0,
+                impl_->push_constant_size,
+                impl_->push_constant_staging.data()
+            );
         }
 
         cmd->dispatch(x, y, z);

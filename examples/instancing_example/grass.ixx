@@ -4,17 +4,17 @@ import std;
 import boza;
 using namespace boza;
 
-export [[nodiscard]] Mesh create_grass_blade_mesh()
+export Mesh create_grass_blade_mesh()
 {
     Mesh mesh{};
 
     constexpr int   num_segments    = 5;      // Number of rectangular segments
-    constexpr float base_width      = 0.035f; // Width at the bottom (much thinner)
+    constexpr float base_width      = 0.1f;   // Width at the bottom
     constexpr float tip_width_ratio = 0.4f;   // Top segments are 40% of base width
-    constexpr float total_height    = 1.6f;   // Total blade height
+    constexpr float total_height    = 2.2f;   // Total blade height
     constexpr float curve_amount    = 0.15f;  // How much the blade curves backward
 
-    const float segment_height = total_height / static_cast<float>(num_segments + 1); // +1 for triangle tip
+    constexpr float segment_height = total_height / static_cast<float>(num_segments + 1); // +1 for triangle tip
 
     mesh.vertices.reserve((num_segments + 1) * 2 + 1); // Each segment has 2 verts, plus tip vertex
     mesh.indices.reserve(num_segments * 6 + 3);        // 2 triangles per segment, 1 for tip
@@ -59,8 +59,8 @@ export [[nodiscard]] Mesh create_grass_blade_mesh()
     }
 
     // Add the tip vertex (triangle at the very top)
-    const float tip_y     = total_height;
-    const float tip_curve = -curve_amount; // Maximum curve at the tip
+    constexpr float tip_y     = total_height;
+    constexpr float tip_curve = -curve_amount; // Maximum curve at the tip
     mesh.vertices.push_back({
         .position  = glm::vec3(0.0f, tip_y, tip_curve),
         .normal    = glm::vec3(0.0f, 0.0f, 1.0f),

@@ -1,0 +1,63 @@
+#version 450
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+struct Vertex
+{
+    vec4 pos_xyz_norm_x;
+    vec4 norm_yz_uv;
+};
+
+layout(set = 0, binding = 0, std430) buffer VerticesBuf
+{
+    Vertex v[];
+} vertices;
+
+layout(push_constant) uniform PC
+{
+    uint width;
+    uint height;
+} pc;
+
+uint vid(uint x, uint y) { return y * pc.width + x; }
+
+uvec2 clamp_xy(int x, int y)
+{
+    x = clamp(x, 0, int(pc.width  - 1u));
+    y = clamp(y, 0, int(pc.height - 1u));
+    return uvec2(x, y);
+}
+
+vec3 pos_at(int x, int y)
+{
+    uvec2 c = clamp_xy(x, y);
+    return vertices.v[vid(c.x, c.y)].pos_xyz_norm_x.xyz;
+}
+
+void main()
+{
+    uvec2 gid = gl_GlobalInvocationID.xy;
+    uint x = gid.x;
+    uint y = gid.y;
+
+    if (x >= pc.width || y >= pc.height) return;
+
+    vec3 pL = pos_at(int(x) - 1, int(y));
+    vec3 pR = pos_at(int(x) + 1, int(y));
+    vec3 pD = pos_at(int(x), int(y) - 1);
+    vec3 pU = pos_at(int(x), int(y) + 1);
+
+    vec3 dx = pR - pL;
+    vec3 dz = pU - pD;
+
+    vec3 n = normalize(cross(dz, dx)); // +Y for flat plane
+
+    uint idx = vid(x, y);
+    Vertex vv = vertices.v[idx];
+
+    // keep pos + uv, update normal
+    vv.pos_xyz_norm_x.w = n.x;
+    vv.norm_yz_uv.xy    = n.yz;
+
+    vertices.v[idx] = vv;
+}
