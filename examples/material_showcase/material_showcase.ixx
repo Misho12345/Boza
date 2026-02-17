@@ -236,7 +236,7 @@ private:
                 .fragment_shader = "default"
             });
 
-            mat["albedo_map"]            = Texture::get_or_load("default.png");
+            mat["albedo_map"]            = { Texture::get_or_load("default.png"), Sampler::get("default") };
             mat["material.albedo_color"] = glm::vec4{ 1.0f, 0.0f, 0.0f, 1.0f };
             mat["material.properties"]   = glm::vec4{ 0.0f, 0.8f, 0.2f, 0.0f };
         }

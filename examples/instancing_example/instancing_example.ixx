@@ -48,7 +48,7 @@ private:
             });
 
         grass["albedo_map"]                   = Texture::get_or_load("default.png");
-        grass["material.albedo_color"]        = glm::vec4{ 0.23f, 0.76f, 0.30f, 1.0f };
+        grass["material.albedo_color"]        = glm::vec4{ 0.12f, 0.32f, 0.1f, 1.0f };
         grass["material.properties"]          = glm::vec4{ 0.0f, 0.92f, 0.0f, 0.0f };
         grass["grassSettings.sway_direction"] = glm::normalize(glm::vec2{ 0.8f, 1.0f });
         grass["grassSettings.sway_strength"]  = 1.0f;
@@ -88,8 +88,11 @@ private:
 
     static void setup_grass_field()
     {
-        const auto  field        = GameObject::create("GrassField");
-        const Mesh& terrain_mesh = Mesh::get("terrain_patch");
+        const auto  field = GameObject::create("GrassField");
+
+        const Texture& terrain_height_map = Texture::get("height_map");
+        auto data = terrain_height_map.read_back();
+        Texture::destroy("height_map");
 
         constexpr float half_extent = terrain_extent * 0.5f;
 
@@ -130,7 +133,7 @@ private:
             x = glm::clamp(x, -half_extent, half_extent);
             z = glm::clamp(z, -half_extent, half_extent);
 
-            const float y = sample_terrain_height(terrain_mesh, x, z);
+            const float y = sample_terrain_height(data, x, z);
 
             const std::string blade_name = "GrassBlade_" + std::to_string(i);
             GameObject        blade      = GameObject::create(blade_name, field);

@@ -19,6 +19,8 @@ layout(set = 0, binding = 1, std430) writeonly buffer IndicesBuf
     uint i[];
 } indices;
 
+layout(set = 0, binding = 2, r8) uniform writeonly image2D height_map;
+
 layout(push_constant) uniform PC
 {
     uint  width;
@@ -67,6 +69,7 @@ void main()
     ) * pc.height_scale;
 
     vec3 pos = vec3(fx, h, fz);
+    imageStore(height_map, ivec2(gid), vec4(h / pc.height_scale * 0.5f + 0.5f, 0.0f, 0.0f, 0.0f));
 
     // temporary normal (will be overwritten in stage 2)
     vec3 nrm = vec3(0.0, 1.0, 0.0);
