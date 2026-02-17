@@ -7,16 +7,20 @@ import <flecs.h>;
 namespace boza
 {
     GameObject::GameObject(const std::string_view obj_name, const GameObject& obj_parent, const bool obj_active)
-        : GameObject{ Scene::world().scope(obj_parent.entity_).entity(obj_name.data()) }
+        : GameObject{
+            obj_parent.valid()
+                ? Scene::world().scope(obj_parent.entity_).entity(obj_name.data())
+                : Scene::world().entity(obj_name.data())
+        }
     {
         set_active_self(obj_active);
-        auto& transform = add_component<Transform>();
-        transform.mark_dirty();
+        ensure_component<Transform>().mark_dirty();
     }
 
-    GameObject GameObject::create(const std::string_view obj_name, const bool obj_active)
+
+    GameObject GameObject::create(const std::string_view obj_name, const Scene& obj_scene, const bool obj_active)
     {
-        return GameObject{ obj_name, Scene::main().root(), obj_active };
+        return create(obj_name, obj_scene.root(), obj_active);
     }
 
     GameObject GameObject::create(const std::string_view obj_name, const GameObject& obj_parent, const bool obj_active)
@@ -24,9 +28,9 @@ namespace boza
         return GameObject{ obj_name, obj_parent, obj_active };
     }
 
-    GameObject GameObject::create(const std::string_view obj_name, const Scene& obj_scene, const bool obj_active)
+    GameObject GameObject::create(const std::string_view obj_name, const bool obj_active)
     {
-        return create(obj_name, obj_scene.root(), obj_active);
+        return GameObject{ obj_name, Scene::main().root(), obj_active };
     }
 
 
@@ -79,7 +83,7 @@ namespace boza
         if (obj_active_self) (void)entity_.remove<tags::DisabledSelf>();
         else (void)entity_.add<tags::DisabledSelf>();
 
-        update_active_hierarchy();
+        update_active_hierarchy(obj_active_self && (!parent().valid() || parent().is_active()));
     }
 
 
@@ -107,35 +111,20 @@ namespace boza
         {
             const flecs::entity current = stack.back();
             stack.pop_back();
-
-            if (current.has<Transform>())
-            {
-                if (auto* transform = current.try_get_mut<Transform>())
-                {
-                    transform->mark_dirty();
-                }
-            }
-
-            current.children([&stack](const flecs::entity child)
-            {
-                stack.push_back(child);
-            });
+            current.get_mut<Transform>().mark_dirty();
+            current.children([&stack](const flecs::entity child) { stack.push_back(child); });
         }
     }
 
 
-    void GameObject::update_active_hierarchy() const
+    void GameObject::update_active_hierarchy(const bool should_be_active) const
     {
-        const flecs::entity p = entity_.parent();
+        if (should_be_active != is_active())
+        {
+            if (should_be_active) (void)entity_.enable();
+            else (void)entity_.disable();
+        }
 
-        const bool parent_active    = p.is_valid() ? p.enabled() : true;
-        const bool should_be_active = is_active_self() && parent_active;
-
-        if (should_be_active == entity_.enabled()) return;
-
-        if (should_be_active) (void)entity_.enable();
-        else (void)entity_.disable();
-
-        entity_.children([](const flecs::entity child) { GameObject{ child }.update_active_hierarchy(); });
+        for_each_child([=](const GameObject obj) { obj.update_active_hierarchy(should_be_active && obj.is_active_self()); });
     }
 }

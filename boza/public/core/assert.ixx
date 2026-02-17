@@ -1,7 +1,3 @@
-module;
-
-#include "api.hpp"
-
 export module boza.core:assert;
 
 import std;

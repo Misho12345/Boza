@@ -1,5 +1,7 @@
 #version 450
 
+#include "fbm.glsl"
+
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inNormal;
 layout(location = 2) in vec2 inTexCoord;
@@ -27,6 +29,11 @@ layout(set = 0, binding = 5) readonly buffer PcInstances {
     GrassData blades[];
 } pc_instances;
 
+layout(set = 0, binding = 6) uniform GrassSettingsUBO {
+    vec2 sway_direction;
+    float sway_strength;
+} grassSettings;
+
 layout(push_constant) uniform PushConstants {
     GrassData pc_data;
     uint use_instancing;
@@ -43,33 +50,58 @@ mat4 resolve_model_matrix()
 
 void main()
 {
-    mat4 model_matrix = resolve_model_matrix();
+    mat4 modelMatrix = resolve_model_matrix();
 
-    vec3 local_pos = inPosition;
+    vec3 bladeWorldPos = vec3(modelMatrix[3][0], modelMatrix[3][1], modelMatrix[3][2]);
 
-    vec3 instance_origin = model_matrix[3].xyz;
-    float height_factor = clamp(inPosition.y, 0.0, 1.0);
-    float stiffness = height_factor * height_factor;
+    float heightFactor = inPosition.y / 1.6;
+    float heightFactorQuad = heightFactor * heightFactor;
 
-    vec2 wind_dir = normalize(vec2(0.82, 0.57));
-    float phase = dot(instance_origin.xz, vec2(0.11, 0.07));
+    vec2 noiseCoord = bladeWorldPos.xz * 0.15;
+    float noiseBasis = perlin2(noiseCoord, 12345u) * 0.5 + 0.5;
 
-    float gust = sin(timeUBO.time * 1.9 + phase * 6.28318);
-    float flutter = sin(timeUBO.time * 5.2 + phase * 13.0 + inPosition.y * 4.0);
+    float timeWave = sin(timeUBO.time * 1.5) * 0.25 + 0.75;
 
-    float sway = (gust * 0.11 + flutter * 0.035) * stiffness;
+    float timeOffset = perlin2(bladeWorldPos.xz * 0.08 + vec2(timeUBO.time * 0.1), 54321u);
+    float irregularWave = sin((timeUBO.time + timeOffset * 2.0) * 1.3) * 0.25 + 0.75;
 
-    local_pos.x += wind_dir.x * sway;
-    local_pos.z += wind_dir.y * sway;
+    float swayMultiplier = mix(timeWave, irregularWave, noiseBasis);
 
-    vec4 world_pos = model_matrix * vec4(local_pos, 1.0);
+    float noiseX = perlin2(noiseCoord + vec2(0.0, timeUBO.time * 0.25), 11111u);
+    float noiseZ = perlin2(noiseCoord + vec2(100.0, timeUBO.time * 0.25), 22222u);
 
-    gl_Position = cameraUBO.proj * cameraUBO.view * world_pos;
-    fragPosWorld = world_pos.xyz;
+    vec2 noisyDirection = grassSettings.sway_direction + vec2(noiseX, noiseZ) * 0.3;
+    noisyDirection = normalize(noisyDirection);
 
-    vec3 bent_normal = normalize(inNormal + vec3(wind_dir.x, 0.0, wind_dir.y) * (sway * 3.0));
-    mat3 normal_matrix = transpose(inverse(mat3(model_matrix)));
-    fragNormal = normalize(normal_matrix * bent_normal);
+    float baseSway = swayMultiplier * grassSettings.sway_strength * heightFactorQuad;
+
+    float waveFrequency = 0.7;
+    float waveSpeed = 3.0;
+
+    float bladePhase = perlin2(bladeWorldPos.xz * 0.2, 99999u) * 6.28318;
+
+    float wavePhase = heightFactor * waveFrequency * 6.28318 - timeUBO.time * waveSpeed + bladePhase;
+    float wave = sin(wavePhase) * 0.05;
+
+    float waveFactor = smoothstep(0.2, 0.8, heightFactor);
+
+    float totalSway = baseSway * (1.0 + wave * waveFactor);
+
+    vec3 swayOffset = vec3(
+        noisyDirection.x * totalSway,
+        0.0,
+        noisyDirection.y * totalSway
+    );
+
+    vec3 swayedPosition = inPosition + swayOffset;
+
+    vec4 worldPos = modelMatrix * vec4(swayedPosition, 1.0);
+    fragPosWorld = worldPos.xyz;
+
+    gl_Position = cameraUBO.proj * cameraUBO.view * worldPos;
+
+    mat3 normalMatrix = mat3(transpose(inverse(modelMatrix)));
+    fragNormal = normalize(normalMatrix * inNormal);
 
     fragTexCoord = inTexCoord;
 }

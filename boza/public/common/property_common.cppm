@@ -24,15 +24,27 @@ consteval int param_match_score()
     using ParamNoRef = std::remove_cvref_t<Param>;
     using ArgNoRef = std::remove_cvref_t<Arg>;
 
-    if constexpr (!std::is_same_v<ParamNoRef, ArgNoRef>) return -1;
-    if constexpr (std::is_same_v<Param, Arg>) return 100;
-    if constexpr (std::is_rvalue_reference_v<Param> && std::is_rvalue_reference_v<Arg>) return 90;
-    if constexpr (
-        std::is_lvalue_reference_v<Param> && !std::is_const_v<std::remove_reference_t<Param>> &&
-        std::is_lvalue_reference_v<Arg> && !std::is_const_v<std::remove_reference_t<Arg>>)
-        return 80;
-    if constexpr (std::is_lvalue_reference_v<Param> && std::is_const_v<std::remove_reference_t<Param>>) return 50;
-    if constexpr (!std::is_reference_v<Param> && std::constructible_from<Param, Arg>) return 10;
+    if constexpr (std::is_same_v<ParamNoRef, ArgNoRef>)
+    {
+        if constexpr (std::is_same_v<Param, Arg>) return 100;
+        if constexpr (std::is_rvalue_reference_v<Param> && std::is_rvalue_reference_v<Arg>) return 90;
+        if constexpr (
+            std::is_lvalue_reference_v<Param> && !std::is_const_v<std::remove_reference_t<Param>> &&
+            std::is_lvalue_reference_v<Arg> && !std::is_const_v<std::remove_reference_t<Arg>>)
+            return 80;
+        if constexpr (std::is_lvalue_reference_v<Param> && std::is_const_v<std::remove_reference_t<Param>>) return 50;
+        if constexpr (!std::is_reference_v<Param> && std::constructible_from<Param, Arg>) return 10;
+    }
+
+    if constexpr (std::is_reference_v<Param>)
+    {
+        if constexpr (std::is_const_v<std::remove_reference_t<Param>> && std::convertible_to<Arg, ParamNoRef>)
+            return 20;
+    }
+    else if constexpr (std::constructible_from<Param, Arg>)
+    {
+        return 10;
+    }
 
     return -1;
 }

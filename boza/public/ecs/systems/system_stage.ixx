@@ -48,6 +48,7 @@ namespace boza
 
             if (cfg.multi_threaded) builder.multi_threaded();
             if (cfg.interval > 0.0f) builder.interval(cfg.interval);
+            if (cfg.include_disabled) builder.with(flecs::Disabled).optional();
 
             flecs::system system{};
 

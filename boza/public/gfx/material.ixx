@@ -117,6 +117,7 @@ export namespace boza
 
         static Material& get(std::string_view name);
         static Material* try_get(std::string_view name);
+        static bool exists(const Material* ptr);
 
         static void destroy(std::string_view name);
 
@@ -152,6 +153,7 @@ export namespace boza
         [[nodiscard]] std::size_t        descriptor_set_count() const;
         [[nodiscard]] void*              rhi_descriptor_set_handle(std::size_t index) const;
         [[nodiscard]] void*              rhi_pipeline_layout_handle() const { return pipeline_layout_; }
+        [[nodiscard]] void*              rhi_pipeline_handle() const { return pipeline_; }
         [[nodiscard]] const void*        reflection_handle() const { return reflection_; }
         [[nodiscard]] std::span<const std::uint8_t> push_constant_staging() const { return push_constant_staging_; }
         [[nodiscard]] const std::string& name() const { return name_; }

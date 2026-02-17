@@ -154,52 +154,50 @@ namespace boza
         return gfx::TextureLoader::instance().try_get_texture(name);
     }
 
+    bool Texture::exists(const Texture* ptr)
+    {
+        return gfx::TextureLoader::instance().exists(ptr);
+    }
+
     void Texture::destroy(std::string_view name)
     {
         gfx::TextureLoader::instance().destroy(name);
     }
 
-    void Texture::upload(const void* data, const std::size_t data_size, const std::uint32_t frame_index) const
+    void Texture::upload(const void* data, const std::size_t data_size) const
     {
-        upload_layer(data, data_size, 0, frame_index);
+        upload_layer(data, data_size, 0);
     }
 
-    void Texture::upload_layer(const void* data, const std::size_t data_size, const std::uint32_t layer, const std::uint32_t frame_index) const
+    void Texture::upload_layer(const void* data, const std::size_t data_size, const std::uint32_t layer) const
     {
-        if (!is_valid())
+        if (auto* texture = static_cast<rhi::Texture*>(get_validated_texture()))
         {
-            Log::error("Cannot upload to invalid texture");
-            return;
+            texture->upload(data, data_size, layer);
         }
-
-        const std::uint32_t texture_index = resolve_texture_index(frame_index);
-        static_cast<rhi::Texture*>(rhi_textures_[texture_index])->upload(data, data_size, layer);
     }
 
-    std::vector<std::uint8_t> Texture::read_back(const std::uint32_t frame_index) const
+    std::vector<std::uint8_t> Texture::read_back() const
     {
-        if (!is_valid())
+        if (auto* texture = static_cast<rhi::Texture*>(get_validated_texture()))
         {
-            Log::error("Cannot save invalid texture to file");
-            return {};
-        }
-
-        const std::uint32_t texture_index = resolve_texture_index(frame_index);
-        const std::size_t   data_size     =
+            const std::size_t data_size =
                 settings_.width *
                 settings_.height *
                 settings_.depth *
                 channels_for_format(settings_.format);
 
-        std::vector<std::uint8_t> data(data_size);
+            std::vector<std::uint8_t> data(data_size);
+            texture->read_back(data.data(), data_size, 0);
+            return data;
+        }
 
-        static_cast<rhi::Texture*>(rhi_textures_[texture_index])->read_back(data.data(), data_size, 0);
-        return data;
+        return {};
     }
 
-    bool Texture::save_to_file(const std::string& filepath, const std::uint32_t frame_index) const
+    bool Texture::save_to_file(const std::string& filepath) const
     {
-        auto data = read_back(frame_index);
+        auto data = read_back();
         if (data.empty()) return false;
 
         if (settings_.type != TextureType::Texture2D)
@@ -226,39 +224,41 @@ namespace boza
         return true;
     }
 
-    void* Texture::rhi_handle(const std::uint32_t frame_index) const
+    void* Texture::rhi_handle() const
     {
-        if (!is_valid()) return nullptr;
-        return rhi_textures_[resolve_texture_index(frame_index)];
+        if (rhi_textures_.empty()) return nullptr;
+
+        const std::uint32_t frame_index = rhi::RenderContext::swapchain()->current_frame();
+        const std::uint32_t texture_index = settings_.access_mode == ResourceAccessMode::Dynamic ? frame_index : 0;
+
+        if (texture_index >= rhi_textures_.size())
+        {
+            Log::error("Invalid frame index {} for texture with {} textures", frame_index, rhi_textures_.size());
+            return nullptr;
+        }
+
+        return rhi_textures_[texture_index];
+    }
+
+    void* Texture::get_validated_texture() const
+    {
+        if (rhi_textures_.empty())
+        {
+            Log::error("Cannot access invalid texture");
+            return nullptr;
+        }
+
+        return rhi_handle();
     }
 
 
     void Texture::transition_layout(
         const TextureLayout old_layout,
-        const TextureLayout new_layout,
-        const std::uint32_t frame_index) const
+        const TextureLayout new_layout) const
     {
-        if (!is_valid())
+        if (auto* texture = static_cast<rhi::Texture*>(get_validated_texture()))
         {
-            Log::error("Cannot transition layout of invalid texture");
-            return;
+            texture->transition_layout(old_layout, new_layout);
         }
-
-        const std::uint32_t texture_index = resolve_texture_index(frame_index);
-        static_cast<rhi::Texture*>(rhi_textures_[texture_index])->transition_layout(old_layout, new_layout);
-    }
-
-
-    std::uint32_t Texture::resolve_texture_index(const std::uint32_t frame_index) const
-    {
-        const std::uint32_t index = settings_.access_mode == ResourceAccessMode::Dynamic ? frame_index : 0;
-
-        if (index >= rhi_textures_.size())
-        {
-            Log::error("Invalid frame index {} for texture with {} textures", frame_index, rhi_textures_.size());
-            return 0;
-        }
-
-        return index;
     }
 }

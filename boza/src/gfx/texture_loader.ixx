@@ -32,6 +32,7 @@ export namespace boza::gfx
             ResourceAccessMode access_mode);
 
         [[nodiscard]] Texture* try_get_texture(std::string_view name);
+        [[nodiscard]] bool exists(const Texture* ptr) const;
 
         [[nodiscard]] Texture& error_texture() { return *error_texture_; }
 
@@ -50,6 +51,7 @@ export namespace boza::gfx
         static std::string make_texture_key(std::string_view filepath, TextureType type);
 
         mt::node_map<std::string, Texture> textures_;
+        flat_set<const Texture*> valid_pointers_;
         Texture* error_texture_{ nullptr };
         bool initialized_{ false };
 

@@ -127,6 +127,7 @@ namespace boza::gfx
 
                 if (inserted)
                 {
+                    valid_pointers_.insert(&it->second);
                     it->second.set_cpu_cull_enabled(def.cpu_cull_enabled);
                     bind_engine_resources(&it->second);
                     setup(&it->second, def);
@@ -304,60 +305,64 @@ namespace boza::gfx
 
     void MaterialLoader::bind_engine_resources(const Material* material) const
     {
-        if (material->descriptor_set_count() == 0) return;
+        if (!material || material->descriptor_set_count() == 0) return;
 
-        std::vector<rhi::DescriptorWrite> writes;
+        const bool has_per_frame_sets = !material->descriptor_sets_per_frame_.empty();
+
+        std::uint32_t frame_index = 0;
+        if (has_per_frame_sets)
+        {
+            if (const auto* swapchain = rhi::RenderContext::swapchain())
+                frame_index = swapchain->current_frame();
+
+            frame_index %= static_cast<std::uint32_t>(material->descriptor_sets_per_frame_.size());
+        }
 
         auto try_bind_ubo = [&](const std::string& ubo_name, const std::optional<Buffer>& buffer_opt, const std::size_t size)
         {
-            if (!buffer_opt) return false;
+            if (!buffer_opt) return;
 
             const auto info = material->lookup_binding(ubo_name);
-            if (info.has_value() && info->descriptor_type == static_cast<std::uint32_t>(rhi::DescriptorType::UniformBuffer))
+            if (!info.has_value() ||
+                info->descriptor_type != static_cast<std::uint32_t>(rhi::DescriptorType::UniformBuffer))
+                return;
+
+            auto* rhi_buffer = static_cast<rhi::Buffer*>(buffer_opt->rhi_handle());
+            if (!rhi_buffer) return;
+
+            const rhi::DescriptorWrite write{
+                .binding = info->binding,
+                .array_element = 0,
+                .type = rhi::DescriptorType::UniformBuffer,
+                .info = rhi::UniformBuffer{
+                    .buffer = rhi_buffer,
+                    .offset = 0,
+                    .range = static_cast<std::uint32_t>(size)
+                }
+            };
+
+            if (has_per_frame_sets)
             {
-                auto* rhi_buffer = static_cast<rhi::Buffer*>(buffer_opt->rhi_handle());
-                if (!rhi_buffer) return false;
+                const auto& frame_sets = material->descriptor_sets_per_frame_[frame_index];
+                if (info->set >= frame_sets.size()) return;
 
-                writes.emplace_back(
-                    info->binding,
-                    0,
-                    rhi::DescriptorType::UniformBuffer,
-                    rhi::UniformBuffer{
-                        .buffer = rhi_buffer,
-                        .offset = 0,
-                        .range = static_cast<std::uint32_t>(size)
-                    }
-                );
+                auto* frame_set = static_cast<rhi::DescriptorSet*>(frame_sets[info->set]);
+                if (!frame_set) return;
 
-                return true;
+                std::array writes{ write };
+                frame_set->update(writes);
+                return;
             }
 
-            return false;
+            auto* desc_set = static_cast<rhi::DescriptorSet*>(material->rhi_descriptor_set_handle(info->set));
+            if (!desc_set) return;
+            std::array writes{ write };
+            desc_set->update(writes);
         };
 
         try_bind_ubo("cameraUBO", camera_ubo_, sizeof(CameraUBO));
         try_bind_ubo("lightUBO", light_ubo_, sizeof(LightUBO));
         try_bind_ubo("timeUBO", time_ubo_, sizeof(TimeUBO));
-
-        if (writes.empty()) return;
-
-        if (!material->descriptor_sets_per_frame_.empty())
-        {
-            for (const auto& frame_sets : material->descriptor_sets_per_frame_)
-            {
-                if (frame_sets.empty()) continue;
-
-                auto* frame_set = static_cast<rhi::DescriptorSet*>(frame_sets[0]);
-                if (!frame_set) continue;
-                frame_set->update(writes);
-            }
-
-            return;
-        }
-
-        auto* desc_set = static_cast<rhi::DescriptorSet*>(material->rhi_descriptor_set_handle(0));
-        if (!desc_set) return;
-        desc_set->update(writes);
     }
 
     void MaterialLoader::setup(Material* material, const MaterialDefinition& def)
@@ -486,6 +491,7 @@ namespace boza::gfx
 
             if (inserted && new_it->second.pipeline_)
             {
+                valid_pointers_.insert(&new_it->second);
                 new_it->second.set_cpu_cull_enabled(def.cpu_cull_enabled);
                 bind_engine_resources(&new_it->second);
                 setup(&new_it->second, def);
@@ -516,6 +522,7 @@ namespace boza::gfx
             std::abort();
         }
 
+        valid_pointers_.insert(&it->second);
         bind_engine_resources(&it->second);
         return it->second;
     }
@@ -525,10 +532,17 @@ namespace boza::gfx
         const auto it = materials_.find(name);
         if (it != materials_.end())
         {
+            RenderingSystem::on_material_destroyed(&it->second);
+            valid_pointers_.erase(&it->second);
             Log::trace("Destroyed material: {}", name);
             materials_.erase(it);
         }
         else Log::warn("Attempted to destroy non-existent material: {}", name);
+    }
+
+    bool MaterialLoader::exists(const Material* ptr) const
+    {
+        return ptr && valid_pointers_.contains(ptr);
     }
 
     Material MaterialLoader::create(

@@ -78,47 +78,48 @@ namespace boza
     void Buffer::upload(
         const void*         data,
         const std::size_t   data_size,
-        const std::size_t   offset,
-        const std::uint32_t frame_index) const
+        const std::size_t   offset) const
     {
-        auto* buffer = static_cast<rhi::Buffer*>(get_validated_buffer(frame_index, offset, data_size));
-        if (!buffer) return;
-
-        buffer->upload(data, data_size, offset);
+        if (auto* buffer = static_cast<rhi::Buffer*>(get_validated_buffer(offset, data_size)))
+        {
+            buffer->upload(data, data_size, offset);
+        }
     }
 
     void Buffer::read_back(
-        void*               data,
-        const std::size_t   data_size,
-        const std::size_t   offset,
-        const std::uint32_t frame_index) const
+        void*             data,
+        const std::size_t data_size,
+        const std::size_t offset) const
     {
-        auto* buffer = static_cast<rhi::Buffer*>(get_validated_buffer(frame_index, offset, data_size));
-        if (!buffer) return;
-
-        buffer->read_back(data, data_size, offset);
+        if (auto* buffer = static_cast<rhi::Buffer*>(get_validated_buffer(offset, data_size)))
+        {
+            buffer->read_back(data, data_size, offset);
+        }
     }
 
-    void* Buffer::map(const std::uint32_t frame_index) const
+    std::vector<std::uint8_t> Buffer::read_back() const
     {
-        auto* buffer = static_cast<rhi::Buffer*>(get_validated_buffer(frame_index));
-        if (!buffer) return nullptr;
-
-        return buffer->map();
+        std::vector<std::uint8_t> result(size_);
+        read_back(result.data(), size_);
+        return result;
     }
 
-    void Buffer::unmap(const std::uint32_t frame_index) const
+    void* Buffer::map() const
     {
-        auto* buffer = static_cast<rhi::Buffer*>(get_validated_buffer(frame_index));
-        if (!buffer) return;
-
-        buffer->unmap();
+        if (auto* buffer = static_cast<rhi::Buffer*>(get_validated_buffer())) return buffer->map();
+        return nullptr;
     }
 
-    void* Buffer::rhi_handle(const std::uint32_t frame_index) const
+    void Buffer::unmap() const
     {
-        if (rhi_buffers_.empty()) { return nullptr; }
+        if (auto* buffer = static_cast<rhi::Buffer*>(get_validated_buffer())) buffer->unmap();
+    }
 
+    void* Buffer::rhi_handle() const
+    {
+        if (rhi_buffers_.empty()) return nullptr;
+
+        const std::uint32_t frame_index = rhi::RenderContext::swapchain()->current_frame();
         const std::uint32_t buffer_index = access_mode_ == ResourceAccessMode::Dynamic ? frame_index : 0;
 
         if (buffer_index >= rhi_buffers_.size())
@@ -145,7 +146,6 @@ namespace boza
     }
 
     void* Buffer::get_validated_buffer(
-        const std::uint32_t frame_index,
         const std::size_t   offset,
         const std::size_t   data_size) const
     {
@@ -161,14 +161,6 @@ namespace boza
             return nullptr;
         }
 
-        const std::uint32_t buffer_index = access_mode_ == ResourceAccessMode::Dynamic ? frame_index : 0;
-
-        if (buffer_index >= rhi_buffers_.size())
-        {
-            Log::error("Invalid frame index {} for buffer with {} buffers", frame_index, rhi_buffers_.size());
-            return nullptr;
-        }
-
-        return static_cast<rhi::Buffer*>(rhi_buffers_[buffer_index]);
+        return rhi_handle();
     }
 }

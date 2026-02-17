@@ -48,6 +48,7 @@ export namespace boza
     struct SystemStageConfig final
     {
         bool  multi_threaded{ false };
+        bool  include_disabled{ false };
         float interval{ 0.0f };
 
         std::vector<flecs::system> run_after{};

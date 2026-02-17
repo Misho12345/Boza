@@ -8,6 +8,14 @@ import :mesh;
 import :material;
 
 import boza.common;
+import boza.ecs;
+
+namespace boza::tags
+{
+    struct MeshChanged {};
+    struct MaterialChanged {};
+    struct RenderCacheInvalidated {};
+}
 
 namespace boza
 {
@@ -52,19 +60,26 @@ namespace boza
         > material_name{ this };
 
     private:
-        void invalidate_render_cache() const;
-
         std::string mesh_name_{};
         std::string material_name_{};
 
         mutable Mesh* mesh_{ nullptr };
         mutable Material* material_{ nullptr };
 
-        mutable Mesh*     cached_group_mesh_{ nullptr };
-        mutable Material* cached_group_material_{ nullptr };
-        mutable void*     cached_draw_group_{ nullptr };
+        // Cache keys: the mesh/material pointers the entity was inserted under
+        // in the render cache. Used by remove_from_render_cache to locate the entry.
+        mutable Mesh* cached_mesh_{ nullptr };
+        mutable Material* cached_material_{ nullptr };
+
+        mutable bool dirty_mesh_{ true };
+        mutable bool dirty_material_{ true };
+        mutable bool in_render_cache_{ false };
+        mutable bool in_unresolved_cache_{ false };
+
+        GameObject game_object_{};
 
         friend struct RenderingSystem;
+        friend class GameObject;
     };
 }
 

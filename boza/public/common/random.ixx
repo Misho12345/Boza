@@ -61,29 +61,29 @@ export namespace boza
         template<class T>
         static void shuffle(std::span<T> s) noexcept { std::shuffle(s.begin(), s.end(), engine()); }
 
-        /// Pick a random element from a range, returns pointer or nullptr if empty
+        /// Pick a random element from a range, returns reference (asserts if empty)
         template<class R> requires std::ranges::contiguous_range<R> && std::ranges::sized_range<R>
-        static std::add_pointer_t<std::remove_reference_t<std::ranges::range_reference_t<R>>> pick(R&& r) noexcept
+        static std::ranges::range_reference_t<R> pick(R&& r) noexcept
         {
             auto s = std::span{ r };
-            if (s.empty()) return nullptr;
-            return &s[number(s.size() - 1)];
+            assert(!s.empty(), "Random::pick called on empty range");
+            return s[number(s.size() - 1)];
         }
 
-        /// Pick a random element from a span, returns pointer or nullptr if empty
+        /// Pick a random element from a span, returns reference (asserts if empty)
         template<class T>
-        static T* pick(std::span<T> s) noexcept
+        static T& pick(std::span<T> s) noexcept
         {
-            if (s.empty()) return nullptr;
-            return &s[number(s.size() - 1)];
+            assert(!s.empty(), "Random::pick called on empty span");
+            return s[number(s.size() - 1)];
         }
 
-        /// Pick a random element from a const span, returns pointer or nullptr if empty
+        /// Pick a random element from a const span, returns const reference (asserts if empty)
         template<class T>
-        static const T* pick(std::span<const T> s) noexcept
+        static const T& pick(std::span<const T> s) noexcept
         {
-            if (s.empty()) return nullptr;
-            return &s[number(s.size() - 1)];
+            assert(!s.empty(), "Random::pick called on empty const span");
+            return s[number(s.size() - 1)];
         }
 
         /**
@@ -100,7 +100,10 @@ export namespace boza
             std::string result;
             result.reserve(length);
 
-            for (std::size_t i = 0; i < length; ++i) { result += charset[number(charset.size())]; }
+            for (std::size_t i = 0; i < length; ++i)
+            {
+                result += charset[number(charset.size() - 1)];
+            }
 
             return result;
         }
@@ -251,5 +254,7 @@ export namespace boza
             thread_local std::mt19937_64 eng = make_engine(make_seed_entropy());
             return eng;
         }
+
+        static void assert(bool cond, const char* msg);
     };
 }

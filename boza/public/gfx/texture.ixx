@@ -126,16 +126,17 @@ export namespace boza
 
         static Texture& get(std::string_view name);
         static Texture* try_get(std::string_view name);
+        static bool exists(const Texture* ptr);
 
         static void destroy(std::string_view name);
 
-        void upload(const void* data, std::size_t data_size, std::uint32_t frame_index = 0) const;
-        void upload_layer(const void* data, std::size_t data_size, std::uint32_t layer, std::uint32_t frame_index = 0) const;
+        void upload(const void* data, std::size_t data_size) const;
+        void upload_layer(const void* data, std::size_t data_size, std::uint32_t layer) const;
 
-        [[nodiscard]] std::vector<std::uint8_t> read_back(std::uint32_t frame_index = 0) const;
-        [[nodiscard]] bool save_to_file(const std::string& filepath, std::uint32_t frame_index = 0) const;
+        [[nodiscard]] std::vector<std::uint8_t> read_back() const;
+        [[nodiscard]] bool save_to_file(const std::string& filepath) const;
 
-        void transition_layout(TextureLayout old_layout, TextureLayout new_layout, std::uint32_t frame_index = 0) const;
+        void transition_layout(TextureLayout old_layout, TextureLayout new_layout) const;
 
         [[msvc::no_unique_address]] Property<Texture, &Texture::get_width>  width{ this };
         [[msvc::no_unique_address]] Property<Texture, &Texture::get_height> height{ this };
@@ -143,7 +144,7 @@ export namespace boza
         [[msvc::no_unique_address]] Property<Texture, &Texture::get_type>   type{ this };
         [[msvc::no_unique_address]] Property<Texture, &Texture::get_format> format{ this };
 
-        [[nodiscard]] void* rhi_handle(std::uint32_t frame_index = 0) const;
+        [[nodiscard]] void* rhi_handle() const;
         [[nodiscard]] bool  is_valid() const { return !rhi_textures_.empty(); }
         [[nodiscard]] std::string_view name() const { return name_; }
 
@@ -151,7 +152,7 @@ export namespace boza
         Texture(std::string_view name, const TextureSettings& settings);
         void cleanup();
 
-        [[nodiscard]] std::uint32_t resolve_texture_index(std::uint32_t frame_index) const;
+        [[nodiscard]] void* get_validated_texture() const;
 
         std::string name_;
         TextureSettings settings_;

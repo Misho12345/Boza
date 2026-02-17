@@ -18,22 +18,22 @@ export namespace boza
         constexpr Flags(const Flags& other) noexcept = default;
 
         /// Bitwise OR - combines two flag sets
-        constexpr Flags operator|(const Flags& other) const noexcept { return Flags{ bits_ | other.bits_ }; }
+        constexpr Flags operator|(const Flags& other) const noexcept { return Flags{ static_cast<UnderlyingType>(bits_ | other.bits_) }; }
         /// Bitwise OR - adds a single flag
         constexpr Flags operator|(T flag) const noexcept { return Flags{ static_cast<UnderlyingType>(bits_ | static_cast<UnderlyingType>(flag)) }; }
 
         /// Bitwise AND - finds common flags
-        constexpr Flags operator&(const Flags& other) const noexcept { return Flags{ bits_ & other.bits_ }; }
+        constexpr Flags operator&(const Flags& other) const noexcept { return Flags{ static_cast<UnderlyingType>(bits_ & other.bits_) }; }
         /// Bitwise AND - tests a single flag
         constexpr Flags operator&(T flag) const noexcept { return Flags{ static_cast<UnderlyingType>(bits_ & static_cast<UnderlyingType>(flag)) }; }
 
         /// Bitwise XOR - finds symmetric difference
-        constexpr Flags operator^(const Flags& other) const noexcept { return Flags{ bits_ ^ other.bits_ }; }
+        constexpr Flags operator^(const Flags& other) const noexcept { return Flags{ static_cast<UnderlyingType>(bits_ ^ other.bits_) }; }
         /// Bitwise XOR - toggles a single flag
         constexpr Flags operator^(T flag) const noexcept { return Flags{ static_cast<UnderlyingType>(bits_ ^ static_cast<UnderlyingType>(flag)) }; }
 
         /// Bitwise NOT - inverts all flags
-        constexpr Flags operator~() const noexcept { return Flags{ ~bits_ }; }
+        constexpr Flags operator~() const noexcept { return Flags{ static_cast<UnderlyingType>(~bits_) }; }
 
         /// Bitwise OR assignment - adds flags to this set
         Flags& operator|=(const Flags& other) noexcept

@@ -494,7 +494,11 @@ namespace boza::rhi::vk
             return;
         }
 
-        transition_layout_internal(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+        const VkImageLayout current_layout = desc_.usage & TextureUsage::Storage
+                                                 ? VK_IMAGE_LAYOUT_GENERAL
+                                                 : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        transition_layout_internal(current_layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 
         auto* cmd_pool = device->command_pool(device->queue_family_indices().graphics_family);
         auto* cmd_buffer = cmd_pool->begin_single_time_commands();
@@ -526,7 +530,7 @@ namespace boza::rhi::vk
 
         staging_buffer.read_back(data, size, 0);
 
-        transition_layout_internal(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        transition_layout_internal(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, current_layout);
 
         staging_buffer.destroy();
     }
