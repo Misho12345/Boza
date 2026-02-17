@@ -53,7 +53,8 @@ export namespace boza::detail
 
         static void write(const fs::path& path, const std::span<const std::uint8_t> data)
         {
-            if (!exists(path.parent_path())) create_directories(path.parent_path());
+            const fs::path p = absolute(path);
+            if (!exists(p.parent_path())) create_directories(p.parent_path());
             std::ofstream file{ path, std::ios::binary };
             file.write(reinterpret_cast<const char*>(data.data()), data.size());
         }

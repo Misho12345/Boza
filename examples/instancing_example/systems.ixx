@@ -122,11 +122,10 @@ export struct CameraControllerSystem
                 Time::delta_time(),
                 smooth_time);
 
-            transform.local_position = transform.local_position +
-                    controller.current_velocity * Time::delta_time();
+            transform.local_position += controller.current_velocity * Time::delta_time();
 
             if (controller.yaw == controller.target_yaw &&
-                controller.pitch == controller.target_pitch) { return; }
+                controller.pitch == controller.target_pitch) return;
 
             if (controller.rotation_smooth_time > 0.0f)
             {
