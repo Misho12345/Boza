@@ -2,7 +2,6 @@ export module boza.ecs:game_object;
 
 import :tags;
 import :transform;
-import :camera;
 import :common;
 
 export namespace boza
@@ -133,8 +132,6 @@ export namespace boza
         void update_active_hierarchy(bool parent_should_be_active = true) const;
 
         friend class Scene;
-        template <typename>
-        friend struct StageRegistrar;
 
         template <typename, Phase, typename...>
         friend struct SystemStage;

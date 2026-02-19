@@ -102,9 +102,6 @@ namespace boza
 
         friend class SystemRegistry;
 
-        template <typename>
-        friend struct StageRegistrar;
-
         template <typename, Phase, typename...>
         friend struct SystemStage;
 

@@ -72,11 +72,12 @@ namespace boza
         phase_entities[phase_index(Phase::EnginePhysics)] = make_phase("EnginePhysics", to_underlying_phase(Phase::PostStart));
         phase_entities[phase_index(Phase::Physics)] = make_phase("Physics", to_underlying_phase(Phase::EnginePhysics));
 
-        phase_entities[phase_index(Phase::EngineUpdate)] = make_phase("EngineUpdate", to_underlying_phase(Phase::PostUpdate));
-        phase_entities[phase_index(Phase::PreUpdate)] = make_phase("PreUpdate", to_underlying_phase(Phase::PostStart));
+        phase_entities[phase_index(Phase::EngineUpdate)] = make_phase("EngineUpdate", to_underlying_phase(Phase::PostStart));
+        phase_entities[phase_index(Phase::PreUpdate)] = make_phase("PreUpdate", to_underlying_phase(Phase::EngineUpdate));
         phase_entities[phase_index(Phase::Update)] = make_phase("Update", to_underlying_phase(Phase::PreUpdate));
         phase_entities[phase_index(Phase::PostUpdate)] = make_phase("PostUpdate", to_underlying_phase(Phase::Update));
-        phase_entities[phase_index(Phase::PreRender)] = make_phase("PreRender", to_underlying_phase(Phase::EngineUpdate));
+
+        phase_entities[phase_index(Phase::PreRender)] = make_phase("PreRender", to_underlying_phase(Phase::PostUpdate));
         phase_entities[phase_index(Phase::EngineRender)] = make_phase("EngineRender", to_underlying_phase(Phase::PreRender));
     }
 

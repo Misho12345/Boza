@@ -9,6 +9,7 @@ import boza.input;
 import :mesh;
 import :buffer;
 import :mesh_renderer;
+import :camera;
 
 namespace boza
 {
