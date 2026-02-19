@@ -10,8 +10,8 @@ export class InstancingExample : public App
 public:
     void setup() override
     {
-        Mesh::register_mesh("terrain_patch", create_terrain_mesh());
-        Mesh::register_mesh("grass_blade", create_grass_blade_mesh());
+        create_terrain_mesh();
+        create_grass_blade_mesh();
 
         create_materials();
 
@@ -82,7 +82,7 @@ private:
         GameObject terrain = GameObject::create("Terrain");
 
         auto& renderer         = terrain.add_component<MeshRenderer>();
-        renderer.mesh_name     = "terrain_patch";
+        renderer.mesh_name     = "terrain";
         renderer.material_name = "terrain";
     }
 

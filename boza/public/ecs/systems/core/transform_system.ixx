@@ -9,7 +9,7 @@ export namespace boza
 {
     struct TransformSystem
     {
-        struct Update : EngineUpdateStage<Update, With<const tags::TransformDirty>>
+        struct Update : PreRenderStage<Update, With<const tags::TransformDirty>>
         {
             static void execute(GameObject go)
             {
