@@ -47,6 +47,86 @@ struct method_traits<R(O::*)(Args...) const noexcept>
     static constexpr std::size_t arity = sizeof...(Args);
 };
 
+template<typename R, typename O, typename... Args>
+struct method_traits<R(O::*)(Args...) &>
+{
+    using return_type = R;
+    using owner_type = O;
+    using params = std::tuple<Args...>;
+    static constexpr bool is_const = false;
+    static constexpr std::size_t arity = sizeof...(Args);
+};
+
+template<typename R, typename O, typename... Args>
+struct method_traits<R(O::*)(Args...) const &>
+{
+    using return_type = R;
+    using owner_type = O;
+    using params = std::tuple<Args...>;
+    static constexpr bool is_const = true;
+    static constexpr std::size_t arity = sizeof...(Args);
+};
+
+template<typename R, typename O, typename... Args>
+struct method_traits<R(O::*)(Args...) &&>
+{
+    using return_type = R;
+    using owner_type = O;
+    using params = std::tuple<Args...>;
+    static constexpr bool is_const = false;
+    static constexpr std::size_t arity = sizeof...(Args);
+};
+
+template<typename R, typename O, typename... Args>
+struct method_traits<R(O::*)(Args...) const &&>
+{
+    using return_type = R;
+    using owner_type = O;
+    using params = std::tuple<Args...>;
+    static constexpr bool is_const = true;
+    static constexpr std::size_t arity = sizeof...(Args);
+};
+
+template<typename R, typename O, typename... Args>
+struct method_traits<R(O::*)(Args...) & noexcept>
+{
+    using return_type = R;
+    using owner_type = O;
+    using params = std::tuple<Args...>;
+    static constexpr bool is_const = false;
+    static constexpr std::size_t arity = sizeof...(Args);
+};
+
+template<typename R, typename O, typename... Args>
+struct method_traits<R(O::*)(Args...) const & noexcept>
+{
+    using return_type = R;
+    using owner_type = O;
+    using params = std::tuple<Args...>;
+    static constexpr bool is_const = true;
+    static constexpr std::size_t arity = sizeof...(Args);
+};
+
+template<typename R, typename O, typename... Args>
+struct method_traits<R(O::*)(Args...) && noexcept>
+{
+    using return_type = R;
+    using owner_type = O;
+    using params = std::tuple<Args...>;
+    static constexpr bool is_const = false;
+    static constexpr std::size_t arity = sizeof...(Args);
+};
+
+template<typename R, typename O, typename... Args>
+struct method_traits<R(O::*)(Args...) const && noexcept>
+{
+    using return_type = R;
+    using owner_type = O;
+    using params = std::tuple<Args...>;
+    static constexpr bool is_const = true;
+    static constexpr std::size_t arity = sizeof...(Args);
+};
+
 /// A getter has no parameters and returns non-void
 template<auto Method>
 concept is_getter = method_traits<decltype(Method)>::arity == 0 &&
@@ -245,8 +325,8 @@ namespace boza
         decltype(auto) call_getter_by_type_impl(method_pack<First, Rest...>)
         {
             using ret_type = method_traits<decltype(First)>::return_type;
-            using ret_type_no_ref = std::remove_reference_t<ret_type>;
-            using R_no_ref = std::remove_reference_t<R>;
+            using ret_type_no_ref = std::remove_cvref_t<ret_type>;
+            using R_no_ref = std::remove_cvref_t<R>;
 
             if constexpr (std::same_as<ret_type_no_ref, R_no_ref> && std::is_invocable_v<decltype(First), Owner&>)
             {
@@ -513,7 +593,6 @@ namespace boza
          * Implements the pattern:
          * 1. If setter available: result = get() op value; set(result)
          * 2. Else if ref getter available: get_ref() op= value
-         * 3. Else: get() op= value
          *
          * This abstraction allows all compound assignment operators (+=, -=, etc.) to share
          * the same implementation logic while only varying the binary operation.
@@ -544,15 +623,6 @@ namespace boza
                 {
                     auto& ref = get_ref();
                     return ref = op(ref, std::forward<T>(rhs));
-                });
-            }
-            // Fallback: just apply operation to returned value
-            else
-            {
-                return invoke_and_maybe_return([&]() -> decltype(auto)
-                {
-                    auto result = get();
-                    return result = op(result, std::forward<T>(rhs));
                 });
             }
         }
@@ -673,8 +743,7 @@ namespace boza
             requires (getter_count > 0 && (
                 (incrementable_by_one<first_getter_return_t> && setter_count > 0 &&
                  has_setter_for_v<decltype(std::declval<first_getter_return_t>() + 1)>) ||
-                (has_ref_getter && pre_incrementable<first_getter_return_t>) ||
-                pre_incrementable<first_getter_return_t>
+                (has_ref_getter && pre_incrementable<first_getter_return_t>)
             ))
         {
             using getter_ret = decltype(get());
@@ -683,16 +752,14 @@ namespace boza
                 setter_count > 0 &&
                 has_setter_for_v<decltype(get() + 1)>)
                 return set(get() + 1);
-            else if constexpr (has_ref_getter && pre_incrementable<getter_ret>) return ++get_ref();
-            else return ++get();
+            else return ++get_ref();
         }
 
         decltype(auto) operator--()
             requires (getter_count > 0 && (
                 (decrementable_by_one<first_getter_return_t> && setter_count > 0 &&
                  has_setter_for_v<decltype(std::declval<first_getter_return_t>() - 1)>) ||
-                (has_ref_getter && pre_decrementable<first_getter_return_t>) ||
-                pre_decrementable<first_getter_return_t>
+                (has_ref_getter && pre_decrementable<first_getter_return_t>)
             ))
         {
             using getter_ret = decltype(get());
@@ -701,8 +768,7 @@ namespace boza
                 setter_count > 0 &&
                 has_setter_for_v<decltype(get() - 1)>)
                 return set(get() - 1);
-            else if constexpr (has_ref_getter && pre_decrementable<getter_ret>) return --get_ref();
-            else return --get();
+            else return --get_ref();
         }
 
         /// Post-increment/decrement operators
@@ -710,8 +776,7 @@ namespace boza
             requires (getter_count > 0 && (
                 (incrementable_by_one<first_getter_return_t> && setter_count > 0 &&
                  has_setter_for_v<decltype(std::declval<first_getter_return_t>() + 1)>) ||
-                (has_ref_getter && post_incrementable<first_getter_return_t>) ||
-                post_incrementable<first_getter_return_t>
+                (has_ref_getter && post_incrementable<first_getter_return_t>)
             ))
         {
             using getter_ret = decltype(get());
@@ -723,16 +788,14 @@ namespace boza
                 set(old_value + 1);
                 return old_value;
             }
-            else if constexpr (has_ref_getter && post_incrementable<getter_ret>) return get_ref()++;
-            else return get()++;
+            else return get_ref()++;
         }
 
         decltype(auto) operator--(int)
             requires (getter_count > 0 && (
                 (decrementable_by_one<first_getter_return_t> && setter_count > 0 &&
                  has_setter_for_v<decltype(std::declval<first_getter_return_t>() - 1)>) ||
-                (has_ref_getter && post_decrementable<first_getter_return_t>) ||
-                post_decrementable<first_getter_return_t>
+                (has_ref_getter && post_decrementable<first_getter_return_t>)
             ))
         {
             using getter_ret = decltype(get());
@@ -744,52 +807,37 @@ namespace boza
                 set(old_value - 1);
                 return old_value;
             }
-            else if constexpr (has_ref_getter && post_decrementable<getter_ret>) return get_ref()--;
-            else return get()--;
+            else return get_ref()--;
         }
 
         /// Unary operators using deducing this
-        template<typename Self>
-        decltype(auto) operator+(this Self&& self)
-            requires (getter_count > 0 && unary_plusable<first_getter_return_t>)
+        template <typename Self>
+        decltype(auto) operator+(this Self&& self) requires (getter_count > 0 && unary_plusable<first_getter_return_t>)
         {
             return +std::forward<Self>(self).get();
         }
 
-        template<typename Self>
-        decltype(auto) operator-(this Self&& self)
-            requires (getter_count > 0 && unary_negatable<first_getter_return_t>)
+        template <typename Self>
+        decltype(auto) operator-(this Self&& self) requires (getter_count > 0 && unary_negatable<first_getter_return_t>)
         {
             return -std::forward<Self>(self).get();
         }
 
-        template<typename Self>
-        decltype(auto) operator~(this Self&& self)
-            requires (getter_count > 0 && bitwise_negatable<first_getter_return_t>)
-        {
-            return ~std::forward<Self>(self).get();
-        }
+        template <typename Self>
+        decltype(auto) operator~(this Self&& self) requires (getter_count > 0 && bitwise_negatable<
+            first_getter_return_t>) { return ~std::forward<Self>(self).get(); }
 
-        template<typename Self>
-        decltype(auto) operator!(this Self&& self)
-            requires (getter_count > 0 && logical_negatable<first_getter_return_t>)
-        {
-            return !std::forward<Self>(self).get();
-        }
+        template <typename Self>
+        decltype(auto) operator!(this Self&& self) requires (getter_count > 0 && logical_negatable<
+            first_getter_return_t>) { return !std::forward<Self>(self).get(); }
 
-        template<typename Self>
-        decltype(auto) operator*(this Self&& self)
-            requires (getter_count > 0 && dereferenceable<first_getter_return_t>)
+        template <typename Self>
+        decltype(auto) operator*(this Self&& self) requires (getter_count > 0 && dereferenceable<first_getter_return_t>)
         {
             return *std::forward<Self>(self).get();
         }
 
-        template<typename Self>
-        decltype(auto) operator&(this Self&& self) requires (getter_count > 0 && is_self_const<Self>)
-        {
-            if constexpr (!is_self_const<Self> && has_ref_getter) return &self.get_ref();
-            else return &std::forward<Self>(self).get();
-        }
+        decltype(auto) operator&() requires (getter_count > 0 && has_ref_getter) { return &get_ref(); }
 
         /// Compound assignment operators using the abstracted helper
         #define BOZA_DEFINE_COMPOUND_OP(op) \
@@ -799,8 +847,7 @@ namespace boza
                 (requires(first_getter_return_t l, T&& r) { l op std::forward<T>(r); } && \
                  setter_count > 0 && \
                  has_setter_for_v<decltype(std::declval<first_getter_return_t>() op std::declval<T&&>())>) || \
-                (has_ref_getter && requires(first_getter_return_t l, T&& r) { l op##= std::forward<T>(r); }) || \
-                requires(first_getter_return_t l, T&& r) { l op##= std::forward<T>(r); } \
+                (has_ref_getter && requires(first_getter_return_t l, T&& r) { l op##= std::forward<T>(r); }) \
             )) \
         { \
             return compound_assign([](auto&& l, auto&& r) { return l op r; }, std::forward<T>(rhs)); \
@@ -819,18 +866,13 @@ namespace boza
 
         #undef BOZA_DEFINE_COMPOUND_OP
 
-        /// Arrow operator using deducing this
-        template<typename Self>
-        decltype(auto) operator->(this Self&& self) requires (getter_count > 0)
-        {
-            if constexpr (has_ref_getter && !is_self_const<Self>) return &self.get_ref();
-            else
-            {
-                decltype(auto) result = std::forward<Self>(self).get();
-                if constexpr (std::is_pointer_v<std::remove_cvref_t<decltype(result)>>) return result;
-                else static_assert(false, "Cannot return address of a temporary");
-            }
-        }
+        /// Arrow operator
+        decltype(auto) operator->() requires (getter_count > 0 && has_ref_getter) { return &get_ref(); }
+
+        template <typename Self>
+        decltype(auto) operator->(this Self&& self) requires (
+            getter_count > 0 &&
+            std::is_pointer_v<std::remove_cvref_t<first_getter_return_t>>) { return std::forward<Self>(self).get(); }
     };
 }
 
@@ -875,18 +917,18 @@ export BOZA_DEFINE_FREE_BINARY_OP(!=)
 template<typename Owner, auto... Methods, typename CharT>
     requires requires(const boza::Property<Owner, Methods...>& p)
     {
-        p.get();
-        requires std::formattable<std::remove_cvref_t<decltype(p.get())>, CharT>;
+        p();
+        requires std::formattable<std::remove_cvref_t<decltype(p())>, CharT>;
     }
 struct std::formatter<boza::Property<Owner, Methods...>, CharT>
 {
     using prop_t = boza::Property<Owner, Methods...>;
-    using value_t = std::remove_cvref_t<decltype(std::declval<const prop_t&>().get())>;
+    using value_t = std::remove_cvref_t<decltype(std::declval<const prop_t&>()())>;
 
     std::formatter<value_t, CharT> inner;
 
     constexpr auto parse(std::basic_format_parse_context<CharT>& ctx) { return inner.parse(ctx); }
 
     template<typename FormatContext>
-    auto format(const prop_t& p, FormatContext& ctx) const { return inner.format(p.get(), ctx); }
+    auto format(const prop_t& p, FormatContext& ctx) const { return inner.format(p(), ctx); }
 };

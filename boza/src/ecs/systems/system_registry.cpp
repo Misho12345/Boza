@@ -45,8 +45,6 @@ namespace boza
 
     float SystemRegistry::resolve_interval(const Phase phase, const float configured_interval) const
     {
-        assert(configured_interval >= 0.0f, "System stage interval cannot be negative");
-
         if (configured_interval > 0.0f) return configured_interval;
 
         if (is_physics_phase(phase))

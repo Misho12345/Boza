@@ -61,8 +61,8 @@ namespace boza
     bool  Scene::get_active() const { return root_.is_active_self(); }
     void  Scene::set_active(const bool value) const { root_.set_active_self(value); }
 
-    Scene Scene::get_main_scene() { return Scene{ GameObject{ main_scene_ } }; }
-    void  Scene::set_main_scene(const Scene& scene) { main_scene_ = scene.root_.entity_; }
+    Scene& Scene::get_main_scene() { return main_scene_; }
+    void   Scene::set_main_scene(const Scene& scene) { main_scene_ = scene; }
 
     Scene& Scene::get_persistent_scene()
     {

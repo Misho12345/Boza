@@ -5,7 +5,7 @@ function(boza_link_assets target)
     set(asset_output_dir "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/assets")
     set(asset_source_dir "${CMAKE_SOURCE_DIR}/assets")
 
-    if (EXISTS "${asset_output_dir}" OR NOT EXISTS "${asset_source_dir}")
+    if (EXISTS "${asset_output_dir}")
         return()
     endif ()
 
