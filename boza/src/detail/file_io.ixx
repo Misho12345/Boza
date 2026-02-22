@@ -41,14 +41,8 @@ export namespace boza::detail
             const auto text = read_text(path);
             if (text.empty()) return std::nullopt;
 
-            try
-            {
-                return json::parse(text);
-            }
-            catch (const json::parse_error&)
-            {
-                return std::nullopt;
-            }
+            try { return json::parse(text); }
+            catch (const json::parse_error&) { return std::nullopt; }
         }
 
         static void write(const fs::path& path, const std::span<const std::uint8_t> data)

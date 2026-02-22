@@ -10,7 +10,7 @@ constexpr float         terrain_extent    = 400.0f;
 
 namespace
 {
-    constexpr std::uint32_t terrain_cells  = 128;
+    constexpr std::uint32_t terrain_cells  = 2047;
     constexpr std::uint32_t verts_per_axis = terrain_cells + 1;
 
     constexpr std::size_t vertex_count = verts_per_axis * verts_per_axis;

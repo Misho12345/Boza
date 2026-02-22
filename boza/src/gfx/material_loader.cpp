@@ -682,7 +682,7 @@ namespace boza::gfx
 
             descriptor_set_layouts = builder.get_descriptor_set_layouts();
 
-            resource_cache->cache_pipeline(
+            resource_cache->cache_graphics_pipeline(
                 settings.vertex_shader, settings.fragment_shader, settings_hash, {
                     .pipeline = pipeline,
                     .layout = pipeline_layout,

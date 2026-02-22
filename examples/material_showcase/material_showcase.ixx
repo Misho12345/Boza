@@ -44,6 +44,7 @@ public:
             auto& t = showcase_obj_.get_component<Transform>();
             t.local_scale = glm::vec3{ 25.0f };
             t.local_position = glm::vec3{ 0.0f, -20.0f, 0.0f };
+
             showcase_obj_.add_component<Rotator>().rotation_axis = glm::vec3{ 0.0f, 1.0f, 0.0f };
 
             auto& mr = showcase_obj_.add_component<MeshRenderer>();
@@ -51,8 +52,8 @@ public:
             mr.material_name = materials_[current_material_];
 
             auto& ic = showcase_obj_.add_component<InputCapture>();
-            ic.on<Action::Press>(Key::M, [] { cycle_mesh(); });
-            ic.on<Action::Press>(Key::N, [] { cycle_material(); });
+            ic.on<Action::Press>(Key::M, &cycle_mesh);
+            ic.on<Action::Press>(Key::N, &cycle_material);
         }
     }
 
@@ -131,7 +132,7 @@ private:
             if (cursor_state != CursorState::Normal) cursor_state = CursorState::Normal;
             else quit();
         });
-        ic.on<Action::Press>(Key::Enter, [] { toggle_scene(); });
+        ic.on<Action::Press>(Key::Enter, &toggle_scene);
     }
 
     static void setup_skybox()

@@ -59,8 +59,5 @@ export namespace boza::detail
 
             return files;
         }
-
-    private:
-        static inline fs::path base_dir_{};
     };
 }

@@ -26,17 +26,17 @@ export namespace boza::rhi
             const std::string& path,
             const std::function<Texture*(const std::string&)>& factory);
 
-        struct PipelineKey
+        struct GraphicsPipelineKey
         {
             std::string vertex_shader;
             std::string fragment_shader;
             std::size_t settings_hash{ 0 };
 
-            bool operator==(const PipelineKey&) const = default;
+            bool operator==(const GraphicsPipelineKey&) const = default;
 
             struct Hash
             {
-                size_t operator()(const PipelineKey& key) const noexcept
+                size_t operator()(const GraphicsPipelineKey& key) const noexcept
                 {
                     const size_t h1 = std::hash<std::string>{}(key.vertex_shader);
                     const size_t h2 = std::hash<std::string>{}(key.fragment_shader);
@@ -46,7 +46,7 @@ export namespace boza::rhi
             };
         };
 
-        struct CachedPipeline
+        struct CachedGraphicsPipeline
         {
             GraphicsPipeline* pipeline{ nullptr };
             PipelineLayout* layout{ nullptr };
@@ -75,8 +75,8 @@ export namespace boza::rhi
             std::vector<DescriptorSetLayout*> descriptor_set_layouts;
         };
 
-        CachedPipeline* get_cached_pipeline(const std::string& vert, const std::string& frag, std::size_t settings_hash = 0);
-        void cache_pipeline(const std::string& vert, const std::string& frag, std::size_t settings_hash, const CachedPipeline& cached);
+        CachedGraphicsPipeline* get_cached_pipeline(const std::string& vert, const std::string& frag, std::size_t settings_hash = 0);
+        void cache_graphics_pipeline(const std::string& vert, const std::string& frag, std::size_t settings_hash, const CachedGraphicsPipeline& cached);
 
         CachedComputePipeline* get_cached_compute_pipeline(const std::string& compute_shader);
         void cache_compute_pipeline(const std::string& compute_shader, const CachedComputePipeline& cached);
@@ -104,7 +104,7 @@ export namespace boza::rhi
 
         flat_map<ShaderKey, std::weak_ptr<ShaderModule>, ShaderKey::Hash> shader_cache_;
         flat_map<std::string, std::weak_ptr<Texture>> texture_cache_;
-        flat_map<PipelineKey, CachedPipeline, PipelineKey::Hash> pipeline_cache_;
+        flat_map<GraphicsPipelineKey, CachedGraphicsPipeline, GraphicsPipelineKey::Hash> pipeline_cache_;
         flat_map<ComputePipelineKey, CachedComputePipeline, ComputePipelineKey::Hash> compute_pipeline_cache_;
 
         mutable std::mutex shader_mutex_;
@@ -121,8 +121,7 @@ export namespace boza::rhi
         {
             std::lock_guard lock{ mutex };
 
-            auto it = cache.find(key);
-            if (it != cache.end())
+            if (auto it = cache.find(key); it != cache.end())
             {
                 if (auto shared = it->second.lock()) return shared;
             }

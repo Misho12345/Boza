@@ -101,8 +101,8 @@ private:
 
         std::vector<glm::vec2> patch_centers;
 
-        const float grid_extent = half_extent - patch_radius;
-        const float spacing     = (2.0f * grid_extent) / static_cast<float>(patches_per_row - 1);
+        constexpr float grid_extent = half_extent - patch_radius;
+        constexpr float spacing     = (2.0f * grid_extent) / static_cast<float>(patches_per_row - 1);
 
         for (int row = 0; row < patches_per_row; ++row)
         {

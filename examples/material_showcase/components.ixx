@@ -26,14 +26,6 @@ export struct Rotator
     glm::vec3 rotation_axis{ 0.0f, 1.0f, 0.0f };
 };
 
-export struct Oscillator
-{
-    float     speed{ 1.0f };
-    float     amplitude{ 1.0f };
-    float     phase{ 0.0f };
-    glm::vec3 axis{ 0.0f, 1.0f, 0.0f };
-    glm::vec3 base_local_position{ 0.0f };
-};
 
 export struct Orbiter
 {
@@ -41,13 +33,4 @@ export struct Orbiter
     float     distance_from_target{ 5.0f };
     float     orbit_speed{ 50.0f };
     float     angle{ 0.0f };
-};
-
-export struct ColorPulser
-{
-    float           speed{ 0.2f };
-    float           cooldown{ 0.0f };
-    glm::vec3       color_a{ 0.0f };
-    glm::vec3       color_b{ 1.0f };
-    boza::Material* material{ nullptr };
 };

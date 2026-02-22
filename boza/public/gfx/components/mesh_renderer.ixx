@@ -66,8 +66,6 @@ namespace boza
         mutable Mesh* mesh_{ nullptr };
         mutable Material* material_{ nullptr };
 
-        // Cache keys: the mesh/material pointers the entity was inserted under
-        // in the render cache. Used by remove_from_render_cache to locate the entry.
         mutable Mesh* cached_mesh_{ nullptr };
         mutable Material* cached_material_{ nullptr };
 

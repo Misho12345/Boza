@@ -48,8 +48,7 @@ namespace boza::rhi
                 layout_bindings.reserve(bindings.size());
 
                 for (const auto& [binding, type, stages, count] : bindings)
-                    layout_bindings.emplace_back(
-                        binding, type, stages, count);
+                    layout_bindings.emplace_back(binding, type, stages, count);
             }
 
             auto* layout = create_descriptor_set_layout(

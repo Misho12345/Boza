@@ -151,29 +151,6 @@ export struct RotatorSystem : UpdateStage<RotatorSystem, With<Transform>, With<c
     }
 };
 
-export struct OscillatorSystem
-{
-    struct Start : StartStage<Start, With<Transform>, With<Oscillator>>
-    {
-        static void execute(Transform& t, Oscillator& osc)
-        {
-            osc.base_local_position = t.local_position;
-        }
-    };
-
-    struct Update : UpdateStage<Update, With<Transform>, With<Oscillator>>
-    {
-        static void execute(Transform& t, Oscillator& osc)
-        {
-            osc.phase += Time::delta_time() * osc.speed;
-
-            const float     s      = glm::sin(osc.phase);
-            const glm::vec3 offset = normalize(osc.axis) * (s * osc.amplitude);
-            t.local_position       = osc.base_local_position + offset;
-        }
-    };
-};
-
 struct OrbiterSystem
 {
     struct Start : StartStage<Start, With<Transform>, With<const Orbiter>>
@@ -227,40 +204,37 @@ private:
     }
 };
 
-struct ColorPulserSystem
+struct ColorPulserSystem : UpdateStage<ColorPulserSystem>
 {
-    struct Start : StartStage<Start, With<ColorPulser>, With<MeshRenderer>>
+    static inline float cooldown{ 0.0f };
+    static inline float speed{ 1.0f };
+    static inline glm::vec3 color_a{ 0.0f };
+    static inline glm::vec3 color_b{ 1.0f };
+    static inline Material* material{ nullptr };
+
+    static void execute()
     {
-        static void execute(ColorPulser& cp, MeshRenderer& mr)
+        if (!material)
         {
-            cp.material = mr.material();
+            material = Material::try_get("pulsing");
+            if (!material) return;
         }
-    };
 
-    struct Update : UpdateStage<Update, With<Transform>, With<ColorPulser>>
-    {
-        static void execute(Transform& t, ColorPulser& cp)
+        cooldown += Time::delta_time() * speed;
+        if (cooldown > 1.0f)
         {
-            if (!cp.material) return;
-
-            cp.cooldown += Time::delta_time() * cp.speed;
-            if (cp.cooldown > 1.0f)
-            {
-                cp.cooldown = 0.0f;
-                cp.color_a  = cp.color_b;
-                cp.color_b  = glm::vec3{
-                    Random::number<float>(),
-                    Random::number<float>(),
-                    Random::number<float>()
-                };
-            }
-
-            const glm::vec3 color                   = mix(cp.color_a, cp.color_b, cp.cooldown);
-            (*cp.material)["material.albedo_color"] = glm::vec4{ color, 1.0f };
-
-            t.local_scale = glm::vec3{ glm::sin((cp.cooldown + 0.5f) * glm::half_pi<float>()) * 2.0f };
+            cooldown = 0.0f;
+            color_a  = color_b;
+            color_b  = glm::vec3{
+                Random::number<float>(),
+                Random::number<float>(),
+                Random::number<float>()
+            };
         }
-    };
+
+        const glm::vec3 color                = mix(color_a, color_b, cooldown);
+        (*material)["material.albedo_color"] = glm::vec4{ color, 1.0f };
+    }
 };
 
 struct FPSLoggerSystem : UpdateStage<FPSLoggerSystem>
