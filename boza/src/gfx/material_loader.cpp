@@ -240,9 +240,9 @@ namespace boza::gfx
             }
         }
 
-        if (j.contains("UBOs") && j["UBOs"].is_object())
+        if (j.contains("params") && j["params"].is_object())
         {
-            for (const auto& [ubo_name, ubo_obj] : j["UBOs"].items())
+            for (const auto& [ubo_name, ubo_obj] : j["params"].items())
             {
                 if (!ubo_obj.is_object()) continue;
 
