@@ -8,17 +8,17 @@ namespace boza
 {
     void Mesh::recalculate_bounds()
     {
-        if (vertices.empty())
+        if (vertices_.empty())
         {
-            bounds.center = glm::vec3{ 0.0f };
-            bounds.radius = 0.0f;
+            bounds_.center = glm::vec3{ 0.0f };
+            bounds_.radius = 0.0f;
             return;
         }
 
-        glm::vec3 min_position = vertices.front().position;
-        glm::vec3 max_position = vertices.front().position;
+        glm::vec3 min_position = vertices_.front().position;
+        glm::vec3 max_position = vertices_.front().position;
 
-        for (const Vertex& vertex : vertices)
+        for (const Vertex& vertex : vertices_)
         {
             min_position = min(min_position, vertex.position);
             max_position = max(max_position, vertex.position);
@@ -27,7 +27,7 @@ namespace boza
         const glm::vec3 center = (min_position + max_position) * 0.5f;
 
         float radius_squared = 0.0f;
-        for (const Vertex& vertex : vertices)
+        for (const Vertex& vertex : vertices_)
         {
             radius_squared = std::max(
                 radius_squared,
@@ -35,26 +35,59 @@ namespace boza
             );
         }
 
-        bounds.center = center;
-        bounds.radius = std::sqrt(radius_squared);
+        bounds_.center = center;
+        bounds_.radius = std::sqrt(radius_squared);
     }
 
 
-    void Mesh::register_mesh(const std::string_view name, Mesh mesh)
-    {
-        mesh.name = name;
-        mesh.recalculate_bounds();
+    Mesh::Mesh(Mesh&& other) noexcept
+        : name_{ std::move(other.name_) },
+          vertices_{ std::move(other.vertices_) },
+          indices_{ std::move(other.indices_) },
+          bounds_{ other.bounds_ } {}
 
-        const std::string key{ name };
-        if (const auto it = registry_.find(key); it != registry_.end())
+    Mesh& Mesh::operator=(Mesh&& other) noexcept
+    {
+        if (this == &other) return *this;
+
+        name_ = std::move(other.name_);
+        vertices_ = std::move(other.vertices_);
+        indices_ = std::move(other.indices_);
+        bounds_ = std::exchange(other.bounds_, {});
+
+        return *this;
+    }
+
+    Mesh& Mesh::create(
+            std::string_view           name,
+            std::vector<Vertex>        vertices,
+            std::vector<std::uint32_t> indices)
+    {
+        if (const auto it = registry_.find(name); it != registry_.end())
         {
             RenderingSystem::on_mesh_destroyed(&it->second);
             valid_pointers_.erase(&it->second);
         }
 
-        auto& stored = (registry_[key] = std::move(mesh));
-        valid_pointers_.insert(&stored);
+        auto [it, inserted] = registry_.try_emplace(
+            name,
+            Mesh{
+                name,
+                std::move(vertices),
+                std::move(indices)
+            });
+        
+        if (!inserted)
+        {
+            Log::warn("Mesh '{}' already exists, returning existing mesh", name);
+            return it->second;
+        }
+        
+        it->second.recalculate_bounds();
+        valid_pointers_.insert(&it->second);
+        return it->second;
     }
+
 
     Mesh& Mesh::get(const std::string_view name)
     {
@@ -72,13 +105,6 @@ namespace boza
         return nullptr;
     }
 
-    bool Mesh::exists(const std::string_view name)
-    {
-        return registry_.contains(name);
-    }
-
-    bool Mesh::exists(const Mesh* ptr)
-    {
-        return ptr && valid_pointers_.contains(ptr);
-    }
+    bool Mesh::exists(const std::string_view name) { return registry_.contains(name); }
+    bool Mesh::exists(const Mesh* ptr) { return ptr && valid_pointers_.contains(ptr); }
 }

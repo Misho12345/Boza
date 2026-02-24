@@ -240,9 +240,9 @@ namespace boza::gfx
             }
         }
 
-        if (j.contains("UBOs") && j["UBOs"].is_object())
+        if (j.contains("params") && j["params"].is_object())
         {
-            for (const auto& [ubo_name, ubo_obj] : j["UBOs"].items())
+            for (const auto& [ubo_name, ubo_obj] : j["params"].items())
             {
                 if (!ubo_obj.is_object()) continue;
 
@@ -682,7 +682,7 @@ namespace boza::gfx
 
             descriptor_set_layouts = builder.get_descriptor_set_layouts();
 
-            resource_cache->cache_pipeline(
+            resource_cache->cache_graphics_pipeline(
                 settings.vertex_shader, settings.fragment_shader, settings_hash, {
                     .pipeline = pipeline,
                     .layout = pipeline_layout,

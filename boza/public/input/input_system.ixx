@@ -52,12 +52,12 @@ namespace boza
             static void execute();
         };
 
-        struct Input final : PreUpdateStage<Input>
+        struct Input final : EngineUpdateStage<Input>
         {
             static void execute();
         };
 
-        struct Update final : PreUpdateStage<Update, With<InputCapture>>
+        struct Update final : EngineUpdateStage<Update, With<InputCapture>>
         {
             static SystemStageConfig config()
             {

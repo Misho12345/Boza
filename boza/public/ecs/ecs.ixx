@@ -6,7 +6,6 @@ export import :game_object;
 export import :scene;
 
 export import :transform;
-export import :camera;
 
 export import :common;
 export import :system_registry;

@@ -12,48 +12,57 @@ export namespace boza
         glm::vec2 tex_coord;
     };
 
-    struct Mesh final
+    struct BoundingSphere final
     {
-        struct BoundingSphere final
-        {
-            glm::vec3 center{ 0.0f };
-            float radius{ 0.0f };
-        };
+        glm::vec3 center{ 0.0f };
+        float     radius{ 0.0f };
+    };
 
-        std::vector<Vertex> vertices;
-        std::vector<std::uint32_t> indices;
-        std::string name;
-        BoundingSphere bounds{};
+    class Mesh final
+    {
+        const std::vector<Vertex>& get_vertices() const { return vertices_; }
+        const std::vector<std::uint32_t>& get_indices() const { return indices_; }
+        const std::string& get_name() const { return name_; }
+        const BoundingSphere& get_bounds() const { return bounds_; }
+
+    public:
+        Mesh(Mesh&& other) noexcept;
+        Mesh& operator=(Mesh&& other) noexcept;
+        Mesh(const Mesh&) = delete;
+        Mesh& operator=(const Mesh&) = delete;
+
+        static Mesh& create(
+            std::string_view           name,
+            std::vector<Vertex>        vertices,
+            std::vector<std::uint32_t> indices);
+
+        static Mesh& get(std::string_view name);
+        static Mesh* try_get(std::string_view name);
+
+        static bool exists(std::string_view name);
+        static bool exists(const Mesh* ptr);
+
+        [[msvc::no_unique_address]] Property<Mesh, &Mesh::get_name> name{ this };
+        [[msvc::no_unique_address]] Property<Mesh, &Mesh::get_vertices> vertices{ this };
+        [[msvc::no_unique_address]] Property<Mesh, &Mesh::get_indices> indices{ this };
+        [[msvc::no_unique_address]] Property<Mesh, &Mesh::get_bounds> bounds{ this };
+
+    private:
+        Mesh(std::string_view          mesh_name,
+            std::vector<Vertex>        mesh_vertices,
+            std::vector<std::uint32_t> mesh_indices)
+            : name_{ mesh_name },
+              vertices_{ std::move(mesh_vertices) },
+              indices_{ std::move(mesh_indices) } {}
 
         void recalculate_bounds();
 
-        /// Registers a mesh with the given name
-        /// @param name The name to register the mesh under
-        /// @param mesh The mesh to register
-        static void register_mesh(std::string_view name, Mesh mesh);
+        std::string                name_;
+        std::vector<Vertex>        vertices_;
+        std::vector<std::uint32_t> indices_;
+        BoundingSphere             bounds_{};
 
-        /// Gets a mesh by name
-        /// @param name The name of the mesh
-        /// @return Reference to the mesh (throws if not found)
-        static Mesh& get(std::string_view name);
-
-        /// Tries to get a mesh by name
-        /// @param name The name of the mesh
-        /// @return Pointer to the mesh, or nullptr if not found
-        static Mesh* try_get(std::string_view name);
-
-        /// Checks if a mesh is registered by name
-        /// @param name The name of the mesh
-        /// @return true if the mesh exists
-        static bool exists(std::string_view name);
-
-        /// Checks if a mesh pointer is valid (points to a registered mesh)
-        /// @param ptr The mesh pointer to validate
-        /// @return true if the pointer is valid
-        static bool exists(const Mesh* ptr);
-
-    private:
         static inline node_map<std::string, Mesh> registry_;
-        static inline flat_set<const Mesh*> valid_pointers_;
+        static inline flat_set<const Mesh*>       valid_pointers_;
     };
 }

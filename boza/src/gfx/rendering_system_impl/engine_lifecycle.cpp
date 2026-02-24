@@ -232,8 +232,8 @@ namespace boza
             return nullptr;
         }
 
-        const std::size_t vertex_buffer_size = mesh->vertices.size() * sizeof(Vertex);
-        const std::size_t index_buffer_size = mesh->indices.size() * sizeof(std::uint32_t);
+        const std::size_t vertex_buffer_size = mesh->vertices->size() * sizeof(Vertex);
+        const std::size_t index_buffer_size = mesh->indices->size() * sizeof(std::uint32_t);
 
         if (vertex_buffer_size == 0 || index_buffer_size == 0)
         {
@@ -257,14 +257,14 @@ namespace boza
                     BufferUsage::Index,
                     ResourceAccessMode::Static
                 },
-                .index_count = static_cast<std::uint32_t>(mesh->indices.size())
+                .index_count = static_cast<std::uint32_t>(mesh->indices->size())
             }
         );
 
         if (inserted)
         {
-            it->second.vertex_buffer.upload(mesh->vertices.data(), vertex_buffer_size, 0);
-            it->second.index_buffer.upload(mesh->indices.data(), index_buffer_size, 0);
+            it->second.vertex_buffer.upload(mesh->vertices->data(), vertex_buffer_size, 0);
+            it->second.index_buffer.upload(mesh->indices->data(), index_buffer_size, 0);
         }
 
         return &it->second;

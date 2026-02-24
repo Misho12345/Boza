@@ -27,7 +27,7 @@ namespace boza
     void MeshRenderer::set_mesh(Mesh& new_mesh)
     {
         mesh_       = &new_mesh;
-        mesh_name_  = new_mesh.name;
+        mesh_name_  = new_mesh.name();
         dirty_mesh_ = true;
         if (game_object_.valid())
             game_object_.add_component<tags::MeshChanged>();

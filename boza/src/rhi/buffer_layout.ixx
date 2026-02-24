@@ -15,21 +15,12 @@ export namespace boza::rhi
     enum class ShaderValueType : std::uint8_t
     {
         Float,
-        Int,
-        Uint,
+        Int, Uint,
         Bool,
-        Vec2,
-        Vec3,
-        Vec4,
-        IVec2,
-        IVec3,
-        IVec4,
-        UVec2,
-        UVec3,
-        UVec4,
-        Mat2,
-        Mat3,
-        Mat4
+        Vec2, Vec3, Vec4,
+        IVec2, IVec3, IVec4,
+        UVec2, UVec3, UVec4,
+        Mat2, Mat3, Mat4
     };
 
     struct BufferLayoutRules

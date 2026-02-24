@@ -8,7 +8,7 @@
       "sampler": "default"
     }
   },
-  "UBOs": {
+  "params": {
     "material": {
       "albedo_color": [0.2, 0.8, 1.0, 1.0],
       "properties": [0.0, 0.0, 0.0, 0.0]

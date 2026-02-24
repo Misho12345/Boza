@@ -16,9 +16,9 @@ public:
         generate_compute_texture();
         create_materials();
 
-        Mesh::register_mesh("cube", create_cube_mesh());
-        Mesh::register_mesh("plane", create_plane_mesh());
-        Mesh::register_mesh("pyramid", create_pyramid_mesh());
+        create_cube_mesh();
+        create_plane_mesh();
+        create_pyramid_mesh();
 
         setup_camera();
         setup_skybox();
@@ -44,6 +44,7 @@ public:
             auto& t = showcase_obj_.get_component<Transform>();
             t.local_scale = glm::vec3{ 25.0f };
             t.local_position = glm::vec3{ 0.0f, -20.0f, 0.0f };
+
             showcase_obj_.add_component<Rotator>().rotation_axis = glm::vec3{ 0.0f, 1.0f, 0.0f };
 
             auto& mr = showcase_obj_.add_component<MeshRenderer>();
@@ -51,8 +52,8 @@ public:
             mr.material_name = materials_[current_material_];
 
             auto& ic = showcase_obj_.add_component<InputCapture>();
-            ic.on<Action::Press>(Key::M, [] { cycle_mesh(); });
-            ic.on<Action::Press>(Key::N, [] { cycle_material(); });
+            ic.on<Action::Press>(Key::M, &cycle_mesh);
+            ic.on<Action::Press>(Key::N, &cycle_material);
         }
     }
 
@@ -131,7 +132,7 @@ private:
             if (cursor_state != CursorState::Normal) cursor_state = CursorState::Normal;
             else quit();
         });
-        ic.on<Action::Press>(Key::Enter, [] { toggle_scene(); });
+        ic.on<Action::Press>(Key::Enter, &toggle_scene);
     }
 
     static void setup_skybox()
@@ -243,71 +244,65 @@ private:
     }
 
 
-    static Mesh create_cube_mesh()
+    static void create_cube_mesh()
     {
-        Mesh mesh;
+        Mesh::create(
+            "cube",
+            std::vector<Vertex>
+            {
+                { { -0.5f, -0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } },
+                { { 0.5f, -0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f } },
+                { { 0.5f, 0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f } },
+                { { -0.5f, 0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f } },
 
-        mesh.vertices = {
-            { { -0.5f, -0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } },
-            { { 0.5f, -0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f } },
-            { { 0.5f, 0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f } },
-            { { -0.5f, 0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f } },
+                { { 0.5f, -0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 0.0f, 0.0f } },
+                { { -0.5f, -0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 1.0f, 0.0f } },
+                { { -0.5f, 0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 1.0f, 1.0f } },
+                { { 0.5f, 0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 0.0f, 1.0f } },
 
-            { { 0.5f, -0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 0.0f, 0.0f } },
-            { { -0.5f, -0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 1.0f, 0.0f } },
-            { { -0.5f, 0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 1.0f, 1.0f } },
-            { { 0.5f, 0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 0.0f, 1.0f } },
+                { { -0.5f, 0.5f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
+                { { 0.5f, 0.5f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
+                { { 0.5f, 0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f } },
+                { { -0.5f, 0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } },
 
-            { { -0.5f, 0.5f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
-            { { 0.5f, 0.5f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
-            { { 0.5f, 0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f } },
-            { { -0.5f, 0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } },
+                { { -0.5f, -0.5f, -0.5f }, { 0.0f, -1.0f, 0.0f }, { 0.0f, 0.0f } },
+                { { 0.5f, -0.5f, -0.5f }, { 0.0f, -1.0f, 0.0f }, { 1.0f, 0.0f } },
+                { { 0.5f, -0.5f, 0.5f }, { 0.0f, -1.0f, 0.0f }, { 1.0f, 1.0f } },
+                { { -0.5f, -0.5f, 0.5f }, { 0.0f, -1.0f, 0.0f }, { 0.0f, 1.0f } },
 
-            { { -0.5f, -0.5f, -0.5f }, { 0.0f, -1.0f, 0.0f }, { 0.0f, 0.0f } },
-            { { 0.5f, -0.5f, -0.5f }, { 0.0f, -1.0f, 0.0f }, { 1.0f, 0.0f } },
-            { { 0.5f, -0.5f, 0.5f }, { 0.0f, -1.0f, 0.0f }, { 1.0f, 1.0f } },
-            { { -0.5f, -0.5f, 0.5f }, { 0.0f, -1.0f, 0.0f }, { 0.0f, 1.0f } },
+                { { 0.5f, -0.5f, 0.5f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
+                { { 0.5f, -0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f } },
+                { { 0.5f, 0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f } },
+                { { 0.5f, 0.5f, 0.5f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f } },
 
-            { { 0.5f, -0.5f, 0.5f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
-            { { 0.5f, -0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f } },
-            { { 0.5f, 0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f } },
-            { { 0.5f, 0.5f, 0.5f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f } },
-
-            { { -0.5f, -0.5f, -0.5f }, { -1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
-            { { -0.5f, -0.5f, 0.5f }, { -1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f } },
-            { { -0.5f, 0.5f, 0.5f }, { -1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f } },
-            { { -0.5f, 0.5f, -0.5f }, { -1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f } },
-        };
-
-        mesh.indices = {
-            0, 2, 1, 0, 3, 2, 4, 6, 5, 4, 7, 6,
-            8, 10, 9, 8, 11, 10, 12, 14, 13, 12, 15, 14,
-            16, 18, 17, 16, 19, 18, 20, 22, 21, 20, 23, 22
-        };
-
-        return mesh;
+                { { -0.5f, -0.5f, -0.5f }, { -1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
+                { { -0.5f, -0.5f, 0.5f }, { -1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f } },
+                { { -0.5f, 0.5f, 0.5f }, { -1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f } },
+                { { -0.5f, 0.5f, -0.5f }, { -1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f } },
+            },
+            std::vector<std::uint32_t>
+            {
+                0, 2, 1, 0, 3, 2, 4, 6, 5, 4, 7, 6,
+                8, 10, 9, 8, 11, 10, 12, 14, 13, 12, 15, 14,
+                16, 18, 17, 16, 19, 18, 20, 22, 21, 20, 23, 22
+            });
     }
 
-    static Mesh create_plane_mesh()
+    static void create_plane_mesh()
     {
-        Mesh mesh;
-
-        mesh.vertices = {
-            { { -0.5f, 0.0f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
-            { { 0.5f, 0.0f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
-            { { 0.5f, 0.0f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f } },
-            { { -0.5f, 0.0f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } },
-        };
-
-        mesh.indices = { 0, 1, 2, 0, 2, 3 };
-
-        return mesh;
+        Mesh::create(
+            "plane",
+            {
+                { { -0.5f, 0.0f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
+                { { 0.5f, 0.0f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
+                { { 0.5f, 0.0f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f } },
+                { { -0.5f, 0.0f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } },
+            },
+            { 0, 1, 2, 0, 2, 3 });
     }
 
-    static Mesh create_pyramid_mesh()
+    static void create_pyramid_mesh()
     {
-        Mesh mesh;
-
         const glm::vec3 apex{ 0.0f, 1.0f, 0.0f };
         const glm::vec3 bl{ -0.5f, 0.0f, 0.5f };
         const glm::vec3 br{ 0.5f, 0.0f, 0.5f };
@@ -325,38 +320,37 @@ private:
         const glm::vec3 n_left  = face_normal(tl, apex, bl);
         const glm::vec3 n_bottom{ 0.0f, -1.0f, 0.0f };
 
-        mesh.vertices = {
-            { bl, n_front, { 0.0f, 0.0f } },
-            { apex, n_front, { 0.5f, 1.0f } },
-            { br, n_front, { 1.0f, 0.0f } },
+        Mesh::create(
+            "pyramid",
+            {
+                { bl, n_front, { 0.0f, 0.0f } },
+                { apex, n_front, { 0.5f, 1.0f } },
+                { br, n_front, { 1.0f, 0.0f } },
 
-            { br, n_right, { 0.0f, 0.0f } },
-            { apex, n_right, { 0.5f, 1.0f } },
-            { tr, n_right, { 1.0f, 0.0f } },
+                { br, n_right, { 0.0f, 0.0f } },
+                { apex, n_right, { 0.5f, 1.0f } },
+                { tr, n_right, { 1.0f, 0.0f } },
 
-            { tr, n_back, { 0.0f, 0.0f } },
-            { apex, n_back, { 0.5f, 1.0f } },
-            { tl, n_back, { 1.0f, 0.0f } },
+                { tr, n_back, { 0.0f, 0.0f } },
+                { apex, n_back, { 0.5f, 1.0f } },
+                { tl, n_back, { 1.0f, 0.0f } },
 
-            { tl, n_left, { 0.0f, 0.0f } },
-            { apex, n_left, { 0.5f, 1.0f } },
-            { bl, n_left, { 1.0f, 0.0f } },
+                { tl, n_left, { 0.0f, 0.0f } },
+                { apex, n_left, { 0.5f, 1.0f } },
+                { bl, n_left, { 1.0f, 0.0f } },
 
-            { bl, n_bottom, { 0.0f, 0.0f } },
-            { tl, n_bottom, { 0.0f, 1.0f } },
-            { tr, n_bottom, { 1.0f, 1.0f } },
-            { br, n_bottom, { 1.0f, 0.0f } },
-        };
-
-        mesh.indices = {
-            0, 1, 2,
-            3, 4, 5,
-            6, 7, 8,
-            9, 10, 11,
-            12, 13, 14,
-            12, 14, 15
-        };
-
-        return mesh;
+                { bl, n_bottom, { 0.0f, 0.0f } },
+                { tl, n_bottom, { 0.0f, 1.0f } },
+                { tr, n_bottom, { 1.0f, 1.0f } },
+                { br, n_bottom, { 1.0f, 0.0f } },
+            },
+            {
+                0, 1, 2,
+                3, 4, 5,
+                6, 7, 8,
+                9, 10, 11,
+                12, 13, 14,
+                12, 14, 15
+            });
     }
 };

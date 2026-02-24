@@ -38,14 +38,14 @@ namespace boza
                     const glm::mat4 model_matrix = transform->world_matrix();
 
                     const glm::vec3 world_center =
-                        glm::vec3(model_matrix * glm::vec4{ mesh_ptr->bounds.center, 1.0f });
+                        glm::vec3(model_matrix * glm::vec4{ mesh_ptr->bounds->center, 1.0f });
 
                     const float scale_x = length(glm::vec3{ model_matrix[0] });
                     const float scale_y = length(glm::vec3{ model_matrix[1] });
                     const float scale_z = length(glm::vec3{ model_matrix[2] });
 
                     const float world_radius =
-                        mesh_ptr->bounds.radius * std::max({ scale_x, scale_y, scale_z });
+                        mesh_ptr->bounds->radius * std::max({ scale_x, scale_y, scale_z });
 
                     if (frustum_.sphere_visible(world_center, world_radius))
                     {

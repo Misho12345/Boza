@@ -38,13 +38,9 @@ consteval int param_match_score()
 
     if constexpr (std::is_reference_v<Param>)
     {
-        if constexpr (std::is_const_v<std::remove_reference_t<Param>> && std::convertible_to<Arg, ParamNoRef>)
-            return 20;
+        if constexpr (std::is_const_v<std::remove_reference_t<Param>> && std::convertible_to<Arg, ParamNoRef>) return 20;
     }
-    else if constexpr (std::constructible_from<Param, Arg>)
-    {
-        return 10;
-    }
+    else if constexpr (std::constructible_from<Param, Arg>) return 10;
 
     return -1;
 }

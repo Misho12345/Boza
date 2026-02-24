@@ -17,7 +17,7 @@ namespace boza::rhi
             if (!shader) continue;
 
             const auto& metadata = shader->meta_data();
-            const Flags<ShaderStage> stage_flags{ shader->stage() };
+            const Flags stage_flags{ shader->stage() };
 
             merge_struct_types(metadata.struct_types);
 

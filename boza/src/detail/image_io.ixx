@@ -90,8 +90,8 @@ export namespace boza::detail
 
         static bool write(const fs::path& path, const ImageData& image_data)
         {
-            if (!exists(path.parent_path()))
-                create_directories(path.parent_path());
+            const fs::path p = absolute(path);
+            if (!exists(p.parent_path())) create_directories(p.parent_path());
 
             if (!image_data.data ||
                 image_data.width <= 0 ||
@@ -100,7 +100,7 @@ export namespace boza::detail
                 return false;
 
             std::string       ext = path.extension().string();
-            const std::string p   = path.string();
+            const std::string s   = path.string();
 
             std::ranges::transform(ext, ext.begin(), [](const char c) {
                 return static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
@@ -109,7 +109,7 @@ export namespace boza::detail
             if (ext == ".png")
             {
                 return stbi_write_png(
-                    p.c_str(),
+                    s.c_str(),
                     image_data.width,
                     image_data.height,
                     image_data.channels,
@@ -121,7 +121,7 @@ export namespace boza::detail
             if (ext == ".jpg" || ext == ".jpeg")
             {
                 return stbi_write_jpg(
-                    p.c_str(),
+                    s.c_str(),
                     image_data.width,
                     image_data.height,
                     image_data.channels,
@@ -133,7 +133,7 @@ export namespace boza::detail
             if (ext == ".bmp")
             {
                 return stbi_write_bmp(
-                    p.c_str(),
+                    s.c_str(),
                     image_data.width,
                     image_data.height,
                     image_data.channels,
@@ -144,7 +144,7 @@ export namespace boza::detail
             if (ext == ".tga")
             {
                 return stbi_write_tga(
-                    p.c_str(),
+                    s.c_str(),
                     image_data.width,
                     image_data.height,
                     image_data.channels,

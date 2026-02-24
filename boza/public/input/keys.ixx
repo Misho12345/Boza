@@ -92,7 +92,7 @@ export namespace boza
         explicit KeyCombo(const Key key) : keys{ key } {}
         explicit KeyCombo(std::vector<Key> k) : keys{ std::move(k) } {}
 
-        bool contains(const Key key) const { return std::ranges::find(keys, key) != keys.end(); }
+        bool contains(const Key key) const { return std::ranges::contains(keys, key); }
 
         bool empty() const { return keys.empty(); }
         std::size_t size() const { return keys.size(); }

@@ -29,7 +29,6 @@ namespace boza::rhi::vk
         };
 
         VmaAllocationCreateInfo allocation_create_info{};
-        allocation_create_info.usage = VMA_MEMORY_USAGE_AUTO;
 
         switch (desc_.memory_type)
         {

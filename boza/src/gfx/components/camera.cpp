@@ -1,4 +1,4 @@
-module boza.ecs;
+module boza.gfx;
 
 import :camera;
 

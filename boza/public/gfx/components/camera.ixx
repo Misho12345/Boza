@@ -2,7 +2,7 @@ module;
 
 #include "api.hpp"
 
-export module boza.ecs:camera;
+export module boza.gfx:camera;
 
 import boza.common;
 import <flecs.h>;

@@ -15,9 +15,9 @@ namespace boza
     namespace gfx { class RenderingSystem; }
 }
 
-export namespace boza
+namespace boza
 {
-    class Scene final
+    export class Scene final
     {
         [[nodiscard]]
         std::string_view get_name() const;
@@ -28,8 +28,8 @@ export namespace boza
         void set_active(bool value) const;
 
         [[nodiscard]]
-        static Scene get_main_scene();
-        static void  set_main_scene(const Scene& scene);
+        static Scene& get_main_scene();
+        static void   set_main_scene(const Scene& scene);
 
         [[nodiscard]]
         static Scene& get_persistent_scene();
@@ -90,7 +90,7 @@ export namespace boza
         static flecs::world& world();
         GameObject root_;
 
-        static inline flecs::entity main_scene_;
+        static Scene main_scene_;
 
 
         friend class GameObject;
@@ -102,13 +102,12 @@ export namespace boza
 
         friend class SystemRegistry;
 
-        template <typename>
-        friend struct StageRegistrar;
-
         template <typename, Phase, typename...>
         friend struct SystemStage;
 
         template <auto...>
         friend class GlobalProperty;
     };
+
+    inline Scene Scene::main_scene_{};
 }

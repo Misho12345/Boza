@@ -10,7 +10,7 @@ constexpr float         terrain_extent    = 400.0f;
 
 namespace
 {
-    constexpr std::uint32_t terrain_cells  = 128;
+    constexpr std::uint32_t terrain_cells  = 2047;
     constexpr std::uint32_t verts_per_axis = terrain_cells + 1;
 
     constexpr std::size_t vertex_count = verts_per_axis * verts_per_axis;
@@ -19,7 +19,7 @@ namespace
     constexpr float height_scale = 45.0f;
 }
 
-export Mesh create_terrain_mesh()
+export bool create_terrain_mesh()
 {
     const Buffer vertices
     {
@@ -71,7 +71,7 @@ export Mesh create_terrain_mesh()
     if (failed)
     {
         Log::error("Compute dispatch for terrain generation failed");
-        return Mesh{};
+        return false;
     }
 
     ComputeDispatcher{ "terrain_normals", failed }
@@ -84,17 +84,16 @@ export Mesh create_terrain_mesh()
     if (failed)
     {
         Log::error("Compute dispatch for terrain normal generation failed");
-        return Mesh{};
+        return false;
     }
 
-    Mesh mesh{};
+    std::vector<Vertex> vertices_data(vertex_count);
+    std::vector<std::uint32_t> indices_data(index_count);
+    vertices.read_back(vertices_data.data(), vertices.size());
+    indices.read_back(indices_data.data(), indices.size());
+    Mesh::create("terrain", std::move(vertices_data), std::move(indices_data));
 
-    mesh.vertices.resize(vertex_count);
-    mesh.indices.resize(index_count);
-    vertices.read_back(mesh.vertices.data(), vertices.size());
-    indices.read_back(mesh.indices.data(), indices.size());
-
-    return mesh;
+    return true;
 }
 
 export float sample_terrain_height(const std::span<std::uint8_t> terrain_height_map, const float x, const float z)

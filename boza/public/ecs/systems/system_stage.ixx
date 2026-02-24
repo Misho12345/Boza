@@ -17,81 +17,25 @@ import boza.core;
 
 namespace boza
 {
-    template <typename Stage>
-    concept is_singleton_stage = Stage::CList::is_singleton;
-
-    template <typename Stage>
-    struct StageRegistrar
-    {
-        static SystemStageConfig resolve_config()
-        {
-            auto cfg = Stage::config();
-            assert(cfg.interval >= 0.0f, "System stage interval cannot be negative");
-            cfg.interval = SystemRegistry::instance().resolve_interval(Stage::phase, cfg.interval);
-            if constexpr (is_physics_phase(Stage::phase))
-            {
-                assert(cfg.interval > 0.0f, "Physics stages require a positive interval");
-            }
-            return cfg;
-        }
-
-        static flecs::system create_system()
-        {
-            auto builder = Scene::world().system();
-            const auto cfg = resolve_config();
-            const flecs::entity_t engine_kind = to_underlying_phase(Stage::phase);
-
-            if constexpr (Stage::phase == Phase::None) builder.kind(flecs::OnUpdate);
-            else if (engine_kind != 0) builder.kind(engine_kind);
-
-            apply_specs_to_builder(builder, static_cast<Stage::CList*>(nullptr));
-
-            if (cfg.multi_threaded) builder.multi_threaded();
-            if (cfg.interval > 0.0f) builder.interval(cfg.interval);
-            if (cfg.include_disabled) builder.with(flecs::Disabled).optional();
-
-            flecs::system system{};
-
-            if constexpr (is_singleton_stage<Stage>)
-            {
-                system = builder.run([](flecs::iter& it) { while (it.next()) Stage::execute(); });
-            }
-            else
-            {
-                system = builder.run([](flecs::iter& it)
-                {
-                    while (it.next())
-                    {
-                        for (const auto row : it)
-                        {
-                            invoke_execute<Stage, typename Stage::CList>(it, row, GameObject{ it.entity(row) });
-                        }
-                    }
-                });
-            }
-
-            if constexpr (is_lifecycle_phase(Stage::phase)) system.disable();
-
-            return system;
-        }
-    };
-
-
     export template <typename Derived, Phase P, typename... Specs>
     struct SystemStage
     {
         using CList = ComponentList<Specs...>;
 
         static constexpr Phase phase = P;
+
+        static SystemStageConfig resolve_config();
+        static flecs::system     create_system();
+
         static SystemStageInfo& init_stage_info()
         {
             static SystemStageInfo info
             {
-                .system = flecs::system(),
-                .config = {},
-                .phase = phase,
-                .create_system = &StageRegistrar<Derived>::create_system,
-                .resolve_config = &StageRegistrar<Derived>::resolve_config
+                .system         = flecs::system(),
+                .config         = {},
+                .phase          = phase,
+                .create_system  = &SystemStage::create_system,
+                .resolve_config = &SystemStage::resolve_config
             };
 
             [[maybe_unused]]
@@ -107,6 +51,61 @@ namespace boza
         static inline SystemStageInfo& stage_info = init_stage_info();
         static SystemStageConfig config() { return SystemStageConfig{}; }
     };
+
+
+    template <typename Derived, Phase P, typename... Specs>
+    SystemStageConfig SystemStage<Derived, P, Specs...>::resolve_config()
+    {
+        auto cfg = Derived::config();
+        assert(cfg.interval >= 0.0f, "System stage interval cannot be negative");
+        cfg.interval = SystemRegistry::instance().resolve_interval(P, cfg.interval);
+        if constexpr (is_physics_phase(P))
+        {
+            assert(cfg.interval > 0.0f, "Physics stages require a positive interval");
+        }
+        return cfg;
+    }
+
+    template <typename Derived, Phase P, typename... Specs>
+    flecs::system SystemStage<Derived, P, Specs...>::create_system()
+    {
+        auto builder = Scene::world().system();
+        const auto cfg = resolve_config();
+        const flecs::entity_t engine_kind = to_underlying_phase(P);
+
+        if constexpr (P == Phase::None) builder.kind(flecs::OnUpdate);
+        else if (engine_kind != 0) builder.kind(engine_kind);
+
+        apply_specs_to_builder(builder, static_cast<CList*>(nullptr));
+
+        if (cfg.multi_threaded)   builder.multi_threaded();
+        if (cfg.interval > 0.0f)  builder.interval(cfg.interval);
+        if (cfg.include_disabled) builder.with(flecs::Disabled).optional();
+
+        flecs::system system{};
+
+        if constexpr (CList::is_singleton)
+        {
+            system = builder.run([](flecs::iter& it) { while (it.next()) Derived::execute(); });
+        }
+        else
+        {
+            system = builder.run([](flecs::iter& it)
+            {
+                while (it.next())
+                {
+                    for (const auto row : it)
+                    {
+                        invoke_execute<Derived, CList>(it, row, GameObject{ it.entity(row) });
+                    }
+                }
+            });
+        }
+
+        if constexpr (is_lifecycle_phase(P)) system.disable();
+
+        return system;
+    }
 
 
     export template <typename Derived, typename... Specs>

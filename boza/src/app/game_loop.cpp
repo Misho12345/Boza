@@ -33,8 +33,6 @@ namespace boza::app
 
     void GameLoop::run() const
     {
-        if (!run_engine_begin_stages()) return;
-
         const auto& registry = SystemRegistry::instance();
         registry.call_startup_stages();
 

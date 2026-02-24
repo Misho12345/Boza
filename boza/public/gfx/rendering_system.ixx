@@ -9,6 +9,7 @@ import boza.input;
 import :mesh;
 import :buffer;
 import :mesh_renderer;
+import :camera;
 
 namespace boza
 {
@@ -224,12 +225,14 @@ namespace boza
             const MaterialRenderGroup& mat_group,
             void* render_info,
             std::size_t max_instance_index);
+
         static bool try_instanced_draw(
             rhi::CommandBuffer* cmd,
             Material* material,
             const MeshBucket& bucket,
             void* render_info,
             GpuMesh* gpu_mesh);
+
         static void draw_elements_individually(
             rhi::CommandBuffer* cmd,
             Material* material,

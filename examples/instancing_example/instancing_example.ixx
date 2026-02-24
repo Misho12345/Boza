@@ -10,8 +10,8 @@ export class InstancingExample : public App
 public:
     void setup() override
     {
-        Mesh::register_mesh("terrain_patch", create_terrain_mesh());
-        Mesh::register_mesh("grass_blade", create_grass_blade_mesh());
+        create_terrain_mesh();
+        create_grass_blade_mesh();
 
         create_materials();
 
@@ -82,7 +82,7 @@ private:
         GameObject terrain = GameObject::create("Terrain");
 
         auto& renderer         = terrain.add_component<MeshRenderer>();
-        renderer.mesh_name     = "terrain_patch";
+        renderer.mesh_name     = "terrain";
         renderer.material_name = "terrain";
     }
 
@@ -101,8 +101,8 @@ private:
 
         std::vector<glm::vec2> patch_centers;
 
-        const float grid_extent = half_extent - patch_radius;
-        const float spacing     = (2.0f * grid_extent) / static_cast<float>(patches_per_row - 1);
+        constexpr float grid_extent = half_extent - patch_radius;
+        constexpr float spacing     = (2.0f * grid_extent) / static_cast<float>(patches_per_row - 1);
 
         for (int row = 0; row < patches_per_row; ++row)
         {
