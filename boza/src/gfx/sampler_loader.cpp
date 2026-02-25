@@ -77,8 +77,12 @@ namespace boza::gfx
         const auto& j = json_opt.value();
         SamplerDefinition def;
 
-        const std::string filename = path.stem().string();
-        def.name = filename.ends_with(".smpl") ? filename.substr(0, filename.size() - 5) : filename;
+        def.name = detail::AssetPaths::sampler_id_from_path(path);
+        if (def.name.empty())
+        {
+            Log::error("Failed to derive sampler id from path: {}", path.string());
+            return std::nullopt;
+        }
 
         auto parse_filter = [](const std::string& str) -> SamplerFilter
         {

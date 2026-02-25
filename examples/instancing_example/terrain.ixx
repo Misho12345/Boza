@@ -50,7 +50,7 @@ export bool create_terrain_mesh()
     static std::uint32_t seed = Random::number(std::numeric_limits<std::uint32_t>::max());
 
     bool failed;
-    ComputeDispatcher{ "terrain_gen", failed }
+    ComputeDispatcher{ "instancing_example/terrain_gen", failed }
            .set("vertices", vertices)
            .set("indices", indices)
            .set("height_map", height_map)
@@ -74,7 +74,7 @@ export bool create_terrain_mesh()
         return false;
     }
 
-    ComputeDispatcher{ "terrain_normals", failed }
+    ComputeDispatcher{ "instancing_example/terrain_normals", failed }
            .set("vertices", vertices)
            .set("pc.width", verts_per_axis)
            .set("pc.height", verts_per_axis)

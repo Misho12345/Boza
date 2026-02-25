@@ -191,8 +191,7 @@ namespace boza::rhi
 
     bool ShaderModule::get_meta_data()
     {
-        const fs::path shader_dir = AssetPaths::shaders_dir();
-        const fs::path shader_subdir = shader_dir / desc_.filename;
+        const fs::path shader_subdir = AssetPaths::shader(desc_.filename);
 
         const fs::path shader_name = fs::path(desc_.filename).stem();
         const fs::path meta_path = shader_subdir / (shader_name.string() + ".meta.json");

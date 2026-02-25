@@ -58,11 +58,10 @@ namespace boza
     {
         auto cfg = Derived::config();
         assert(cfg.interval >= 0.0f, "System stage interval cannot be negative");
+
         cfg.interval = SystemRegistry::instance().resolve_interval(P, cfg.interval);
-        if constexpr (is_physics_phase(P))
-        {
-            assert(cfg.interval > 0.0f, "Physics stages require a positive interval");
-        }
+        if constexpr (is_physics_phase(P)) assert(cfg.interval > 0.0f, "Physics stages require a positive interval");
+
         return cfg;
     }
 

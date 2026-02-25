@@ -1,5 +1,5 @@
 {
-  "vertex_shader": "wave",
+  "vertex_shader": "material_showcase/wave",
   "fragment_shader": "default",
   "load_strategy": "on_demand",
   "textures": {

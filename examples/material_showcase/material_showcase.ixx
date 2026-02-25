@@ -32,7 +32,7 @@ public:
 
             auto& mr = obj.add_component<MeshRenderer>();
             mr.mesh_name = "cube";
-            mr.material_name = "dancho";
+            mr.material_name = "material_showcase/dancho";
 
             setup_orbiting_cubes(obj, 32, 32);
         }
@@ -71,9 +71,11 @@ private:
 
     static constexpr std::array materials_
     {
-        "dancho", "red", "green", "blue_metallic",
-        "default", "pulsing", "unlit_orange", "unlit_cyan",
-        "wave", "custom_compute"
+        "material_showcase/dancho", "material_showcase/red",
+        "material_showcase/green", "material_showcase/blue_metallic",
+        "material_showcase/unlit_orange",
+        "material_showcase/unlit_cyan", "material_showcase/wave",
+        "pulsing", "default", "custom_compute"
     };
 
     static inline std::size_t current_mesh_{ 0 };
@@ -149,20 +151,6 @@ private:
         const std::uint32_t orbits,
         const std::uint32_t per_orbit_count)
     {
-        static constexpr std::array material_pool
-        {
-            "default",
-            "custom_compute",
-            "pulsing",
-            "blue_metallic",
-            "dancho",
-            "red",
-            "green",
-            "unlit_orange",
-            "unlit_cyan",
-            "wave"
-        };
-
         for (std::uint32_t i = 0; i < orbits; ++i)
         {
             const glm::vec3 axis = normalize(glm::vec3{
@@ -176,7 +164,7 @@ private:
                 auto cube = GameObject::create(std::format("OrbitingCube({}-{})", i, j), parent);
                 auto& mr = cube.add_component<MeshRenderer>();
                 mr.mesh_name = "cube";
-                mr.material_name = Random::pick(material_pool);
+                mr.material_name = Random::pick(materials_);
                 cube.add_component<Orbiter>(axis, (i + 2) * 2.0f, 10.0f + i * 3.0f, j * (360.0f / per_orbit_count));
             }
         }
@@ -201,7 +189,7 @@ private:
         bool failed = false;
 
         {
-            ComputeDispatcher dispatcher{ "uv", failed };
+            ComputeDispatcher dispatcher{ "material_showcase/uv", failed };
             dispatcher
                   .set("outImage", compute_texture_)
                   .dispatch(tex_size, tex_size, 1)

@@ -31,8 +31,9 @@ set(shader_out_base ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders)
 foreach (shader_path ${SHADER_FILES})
     get_filename_component(shader_name ${shader_path} NAME)
     get_filename_component(shader_name_we ${shader_path} NAME_WE)
+    file(RELATIVE_PATH shader_rel ${CMAKE_CURRENT_SOURCE_DIR} ${shader_path})
 
-    set(out_dir ${shader_out_base}/${shader_name})
+    set(out_dir ${shader_out_base}/${shader_rel})
     set(outputs "")
 
     # Always generate SPIR-V and metadata

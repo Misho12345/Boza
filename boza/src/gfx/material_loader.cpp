@@ -155,23 +155,36 @@ namespace boza::gfx
 
         MaterialDefinition def;
 
-        const std::string filename = path.stem().string();
-
-        def.name = filename.ends_with(".mat") ? filename.substr(0, filename.size() - 4) : filename;
+        def.name = detail::AssetPaths::material_id_from_path(path);
+        if (def.name.empty())
+        {
+            Log::error("Failed to derive material id from path: {}", path.string());
+            return std::nullopt;
+        }
 
         if (!j.contains("vertex_shader") || !j["vertex_shader"].is_string())
         {
             Log::error("Material {} missing 'vertex_shader' string", def.name);
             return std::nullopt;
         }
-        def.vertex_shader = j["vertex_shader"].get<std::string>();
+        def.vertex_shader = detail::AssetPaths::normalize_resource_id(j["vertex_shader"].get<std::string>());
+        if (def.vertex_shader.empty())
+        {
+            Log::error("Material {} has invalid 'vertex_shader' path", def.name);
+            return std::nullopt;
+        }
 
         if (!j.contains("fragment_shader") || !j["fragment_shader"].is_string())
         {
             Log::error("Material {} missing 'fragment_shader' string", def.name);
             return std::nullopt;
         }
-        def.fragment_shader = j["fragment_shader"].get<std::string>();
+        def.fragment_shader = detail::AssetPaths::normalize_resource_id(j["fragment_shader"].get<std::string>());
+        if (def.fragment_shader.empty())
+        {
+            Log::error("Material {} has invalid 'fragment_shader' path", def.name);
+            return std::nullopt;
+        }
 
         if (j.contains("load_strategy") && j["load_strategy"].is_string())
         {
@@ -232,8 +245,18 @@ namespace boza::gfx
 
                 if (val.is_object())
                 {
-                    if (val.contains("texture") && val["texture"].is_string()) info.texture_file = val["texture"].get<std::string>();
-                    if (val.contains("sampler") && val["sampler"].is_string()) info.sampler_file = val["sampler"].get<std::string>();
+                    if (val.contains("texture") && val["texture"].is_string())
+                    {
+                        info.texture_file = detail::AssetPaths::normalize_resource_id(val["texture"].get<std::string>());
+                        if (info.texture_file.empty())
+                            Log::warn("Material {} has invalid texture path for '{}'", def.name, key);
+                    }
+                    if (val.contains("sampler") && val["sampler"].is_string())
+                    {
+                        info.sampler_file = detail::AssetPaths::normalize_resource_id(val["sampler"].get<std::string>());
+                        if (info.sampler_file.empty())
+                            Log::warn("Material {} has invalid sampler path for '{}'", def.name, key);
+                    }
                 }
 
                 def.textures[key] = info;
@@ -551,7 +574,10 @@ namespace boza::gfx
     {
         Material material{ name };
 
-        if (settings.vertex_shader.empty() || settings.fragment_shader.empty())
+        const std::string vertex_shader_id = detail::AssetPaths::normalize_resource_id(settings.vertex_shader);
+        const std::string fragment_shader_id = detail::AssetPaths::normalize_resource_id(settings.fragment_shader);
+
+        if (vertex_shader_id.empty() || fragment_shader_id.empty())
         {
             Log::error("Material '{}': vertex or fragment shader name is empty", name);
             return material;
@@ -582,13 +608,13 @@ namespace boza::gfx
 
         const rhi::ShaderModuleDesc vert_desc{
             .device = device,
-            .filename = settings.vertex_shader + ".vert",
+            .filename = vertex_shader_id + ".vert",
             .stage = rhi::ShaderStage::Vertex
         };
 
         const rhi::ShaderModuleDesc frag_desc{
             .device = device,
-            .filename = settings.fragment_shader + ".frag",
+            .filename = fragment_shader_id + ".frag",
             .stage = rhi::ShaderStage::Fragment
         };
 
@@ -598,7 +624,7 @@ namespace boza::gfx
 
         if (!vert_shader_shared)
         {
-            Log::error("Failed to load vertex shader: {}", settings.vertex_shader);
+            Log::error("Failed to load vertex shader: {}", vertex_shader_id);
             return material;
         }
 
@@ -608,7 +634,7 @@ namespace boza::gfx
 
         if (!frag_shader_shared)
         {
-            Log::error("Failed to load fragment shader: {}", settings.fragment_shader);
+            Log::error("Failed to load fragment shader: {}", fragment_shader_id);
             return material;
         }
 
@@ -621,7 +647,7 @@ namespace boza::gfx
         std::vector<rhi::DescriptorSetLayout*> descriptor_set_layouts;
 
         const std::size_t settings_hash = settings.hash();
-        const auto* cached = resource_cache->get_cached_pipeline(settings.vertex_shader, settings.fragment_shader, settings_hash);
+        const auto* cached = resource_cache->get_cached_pipeline(vertex_shader_id, fragment_shader_id, settings_hash);
 
         if (cached)
         {
@@ -683,7 +709,7 @@ namespace boza::gfx
             descriptor_set_layouts = builder.get_descriptor_set_layouts();
 
             resource_cache->cache_graphics_pipeline(
-                settings.vertex_shader, settings.fragment_shader, settings_hash, {
+                vertex_shader_id, fragment_shader_id, settings_hash, {
                     .pipeline = pipeline,
                     .layout = pipeline_layout,
                     .descriptor_set_layouts = descriptor_set_layouts

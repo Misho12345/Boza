@@ -9,8 +9,7 @@ namespace boza::rhi::vk
 
     bool ShaderModule::init()
     {
-        const fs::path shader_dir = AssetPaths::shaders_dir();
-        const fs::path shader_subdir = shader_dir / desc_.filename;
+        const fs::path shader_subdir = AssetPaths::shader(desc_.filename);
 
         const fs::path shader_name = fs::path(desc_.filename).stem();
         const fs::path spv_path = shader_subdir / (shader_name.string() + ".spv");
