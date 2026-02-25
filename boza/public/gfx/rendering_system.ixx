@@ -55,15 +55,8 @@ namespace boza
 
     export struct RenderingSystem final
     {
-        struct EngineBegin : EngineBeginStage<EngineBegin>
+        struct EngineBegin : EngineBeginStage<EngineBegin, RunBefore<InputSystem::Begin>>
         {
-            static SystemStageConfig config()
-            {
-                return {
-                    .run_before = { InputSystem::Begin::stage_info.system }
-                };
-            }
-
             static void execute();
         };
 
@@ -72,101 +65,52 @@ namespace boza
             static void execute();
         };
 
-        struct ProcessMeshChanged : EngineRenderStage<
-            ProcessMeshChanged,
+        struct ProcessMeshChanged : EngineRenderStage<ProcessMeshChanged,
+            RunAfter<SanityCheck>,
             With<MeshRenderer>,
             With<tags::MeshChanged>>
         {
-            static SystemStageConfig config()
-            {
-                return {
-                    .run_after = { SanityCheck::stage_info.system }
-                };
-            }
-
             static void execute(GameObject go, MeshRenderer& mr);
         };
 
-        struct ProcessMaterialChanged : EngineRenderStage<
-            ProcessMaterialChanged,
+        struct ProcessMaterialChanged : EngineRenderStage<ProcessMaterialChanged,
+            RunAfter<ProcessMeshChanged>,
             With<MeshRenderer>,
             With<tags::MaterialChanged>>
         {
-            static SystemStageConfig config()
-            {
-                return {
-                    .run_after = { ProcessMeshChanged::stage_info.system }
-                };
-            }
-
             static void execute(GameObject go, MeshRenderer& mr);
         };
 
-        struct ProcessInvalidated : EngineRenderStage<
-            ProcessInvalidated,
+        struct ProcessInvalidated : EngineRenderStage<ProcessInvalidated,
+            RunAfter<ProcessMaterialChanged>,
             With<MeshRenderer>,
             With<tags::RenderCacheInvalidated>>
         {
-            static SystemStageConfig config()
-            {
-                return {
-                    .include_disabled = true,
-                    .run_after = { ProcessMaterialChanged::stage_info.system }
-                };
-            }
-
+            static SystemStageConfig config() { return { .include_disabled = true }; }
             static void execute(GameObject go, MeshRenderer& mr);
         };
 
-        struct BeginFrame : EngineRenderStage<BeginFrame>
+        struct BeginFrame : EngineRenderStage<BeginFrame, RunAfter<ProcessInvalidated>>
         {
-            static SystemStageConfig config()
-            {
-                return {
-                    .run_after = { ProcessInvalidated::stage_info.system }
-                };
-            }
-
             static void execute();
         };
 
-        struct CameraUboUpdate : EngineRenderStage<
-            CameraUboUpdate,
+        struct CameraUboUpdate : EngineRenderStage<CameraUboUpdate,
+            RunAfter<BeginFrame>,
             With<const Camera>,
             With<const Transform>,
             With<tags::PrimaryCamera>>
         {
-            static SystemStageConfig config()
-            {
-                return {
-                    .run_after = { BeginFrame::stage_info.system }
-                };
-            }
-
             static void execute(const Camera& cam, const Transform& transform);
         };
 
-        struct CullEntities : EngineRenderStage<CullEntities>
+        struct CullEntities : EngineRenderStage<CullEntities, RunAfter<CameraUboUpdate>>
         {
-            static SystemStageConfig config()
-            {
-                return {
-                    .run_after = { CameraUboUpdate::stage_info.system }
-                };
-            }
-
             static void execute();
         };
 
-        struct EndFrame : EngineRenderStage<EndFrame>
+        struct EndFrame : EngineRenderStage<EndFrame, RunAfter<CullEntities>>
         {
-            static SystemStageConfig config()
-            {
-                return {
-                    .run_after = { CullEntities::stage_info.system }
-                };
-            }
-
             static void execute();
         };
 

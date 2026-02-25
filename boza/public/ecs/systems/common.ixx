@@ -50,17 +50,15 @@ export namespace boza
         bool  multi_threaded{ false };
         bool  include_disabled{ false };
         float interval{ 0.0f };
-
-        std::vector<flecs::system> run_after{};
-        std::vector<flecs::system> run_before{};
     };
 
     struct SystemStageInfo final
     {
-        flecs::system     system{};
-        SystemStageConfig config{};
-        Phase             phase{};
-        flecs::system   (*create_system)() = nullptr;
-        SystemStageConfig (*resolve_config)() = nullptr;
+        flecs::system       system{};
+        SystemStageConfig   config{};
+        Phase               phase{};
+        flecs::system     (*create_system)(){};
+        SystemStageConfig (*resolve_config)(){};
+        void              (*apply_ordering)(){};
     };
 }

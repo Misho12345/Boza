@@ -20,22 +20,24 @@ namespace boza
     export template <typename Derived, Phase P, typename... Specs>
     struct SystemStage
     {
-        using CList = ComponentList<Specs...>;
+        using CList = filter_to_component_list<Specs...>;
 
         static constexpr Phase phase = P;
 
-        static SystemStageConfig resolve_config();
         static flecs::system     create_system();
+        static SystemStageConfig resolve_config();
+        static void              apply_ordering();
 
         static SystemStageInfo& init_stage_info()
         {
             static SystemStageInfo info
             {
-                .system         = flecs::system(),
+                .system         = flecs::system{},
                 .config         = {},
                 .phase          = phase,
                 .create_system  = &SystemStage::create_system,
-                .resolve_config = &SystemStage::resolve_config
+                .resolve_config = &SystemStage::resolve_config,
+                .apply_ordering = &SystemStage::apply_ordering
             };
 
             [[maybe_unused]]
@@ -104,6 +106,19 @@ namespace boza
         if constexpr (is_lifecycle_phase(P)) system.disable();
 
         return system;
+    }
+
+    template <typename Derived, Phase P, typename ... Specs>
+    void SystemStage<Derived, P, Specs...>::apply_ordering()
+    {
+        ([]
+        {
+            if constexpr (ordering_spec<Specs>)
+            {
+                if constexpr (Specs::is_after) Derived::stage_info.system.depends_on(Specs::type::stage_info.system);
+                else Specs::type::stage_info.system.depends_on(Derived::stage_info.system);
+            }
+        }(), ...);
     }
 
 

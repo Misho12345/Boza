@@ -3,6 +3,7 @@ module boza.ecs;
 import std;
 import <flecs.h>;
 
+import :scene;
 import :system_registry;
 import :transform_system;
 
@@ -20,9 +21,27 @@ namespace boza
         return static_cast<std::size_t>(phase);
     }
 
+    static flecs::entity_t create_lifecycle_pipeline(const flecs::world& world, const Phase phase)
+    {
+        if (!is_lifecycle_phase(phase)) return 0;
+
+        const flecs::entity_t phase_entity = to_underlying_phase(phase);
+        if (phase_entity == 0) return 0;
+
+        return world.pipeline()
+            .with(flecs::System)
+            .with(phase_entity)
+            .with(flecs::DependsOn)
+                .src()
+                .cascade(flecs::DependsOn)
+                .optional()
+            .build()
+            .id();
+    }
+
     flecs::entity_t to_underlying_phase(const Phase phase)
     {
-        if (is_shutdown_phase(phase) || phase == Phase::None) return 0;
+        if (phase == Phase::None) return 0;
         return phase_entities[phase_index(phase)];
     }
 
@@ -79,27 +98,55 @@ namespace boza
 
         phase_entities[phase_index(Phase::PreRender)] = make_phase("PreRender", to_underlying_phase(Phase::PostUpdate));
         phase_entities[phase_index(Phase::EngineRender)] = make_phase("EngineRender", to_underlying_phase(Phase::PreRender));
+
+        phase_entities[phase_index(Phase::Destroy)] = make_phase("Destroy", to_underlying_phase(Phase::EngineRender));
+        phase_entities[phase_index(Phase::EngineDestroy)] = make_phase("EngineDestroy", to_underlying_phase(Phase::Destroy));
     }
 
-    void SystemRegistry::create_all_systems()
+    void SystemRegistry::create_all_systems() const
     {
-        for (auto& stage_ref : stages_)
+        for (std::size_t i = 0; i < stages_.size(); ++i)
         {
-            auto& info = stage_ref.get();
+            auto& info = stages_[i].get();
             if (!info.create_system || info.system.is_valid()) continue;
             info.system = info.create_system();
             info.create_system = nullptr;
         }
     }
 
-    void SystemRegistry::resolve_all_configs()
+    void SystemRegistry::initialize_lifecycle_pipelines(const flecs::world& world)
     {
-        for (auto& stage_ref : stages_)
+        static constexpr std::array lifecycle_phases{
+            Phase::EngineBegin,
+            Phase::Start,
+            Phase::PostStart,
+            Phase::Destroy,
+            Phase::EngineDestroy
+        };
+
+        for (const Phase phase : lifecycle_phases)
         {
-            auto& info = stage_ref.get();
+            lifecycle_pipelines_[phase_index(phase)] = create_lifecycle_pipeline(world, phase);
+        }
+    }
+
+    void SystemRegistry::resolve_all_configs() const
+    {
+        for (std::size_t i = 0; i < stages_.size(); ++i)
+        {
+            auto& info = stages_[i].get();
             if (!info.resolve_config) continue;
             info.config = info.resolve_config();
             info.resolve_config = nullptr;
+        }
+    }
+
+    void SystemRegistry::apply_all_ordering() const
+    {
+        for (std::size_t i = 0; i < stages_.size(); ++i)
+        {
+            const auto& info = stages_[i].get();
+            if (info.apply_ordering) info.apply_ordering();
         }
     }
 
@@ -111,13 +158,23 @@ namespace boza
 
         initialize_phases(world);
 
-        create_all_systems();
-        resolve_all_configs();
-
-        for (const auto& stage_ref : stages_)
+        constexpr std::size_t max_registration_passes = 64;
+        for (std::size_t pass = 0; pass < max_registration_passes; ++pass)
         {
-            apply_dependencies(stage_ref.get());
+            const std::size_t size_before = stages_.size();
+
+            create_all_systems();
+            resolve_all_configs();
+            apply_all_ordering();
+
+            if (stages_.size() == size_before) break;
+            if (pass + 1 == max_registration_passes)
+            {
+                Log::warn("System stage registration exceeded stabilization pass budget");
+            }
         }
+
+        initialize_lifecycle_pipelines(world);
 
         engine_begin_stages_completed_ = false;
         startup_stages_completed_ = false;
@@ -128,109 +185,35 @@ namespace boza
 
     void SystemRegistry::run_stage_phase(const Phase phase) const
     {
-        const std::array phases{ phase };
-        run_stage_phases(phases);
+        run_stage_phases({ &phase, 1 });
     }
 
     void SystemRegistry::run_stage_phases(const std::span<const Phase> phases) const
     {
-        std::vector<SystemStageInfo*> phase_stages{};
-        phase_stages.reserve(stages_.size());
-
         for (const Phase phase : phases)
         {
-            for (const auto& stage_ref : stages_)
+            if (!is_lifecycle_phase(phase)) continue;
+
+            const flecs::entity_t pipeline = lifecycle_pipelines_[phase_index(phase)];
+            if (pipeline == 0) continue;
+
+            std::vector<std::reference_wrapper<SystemStageInfo>> phase_stages{};
+            phase_stages.reserve(stages_.size());
+
+            for (auto& stage_ref : stages_)
             {
                 auto& info = stage_ref.get();
                 if (info.phase != phase || !info.system.is_valid()) continue;
-                phase_stages.push_back(&info);
+                info.system.enable();
+                phase_stages.emplace_back(info);
             }
-        }
 
-        if (phase_stages.empty()) return;
+            if (!phase_stages.empty()) Scene::world().run_pipeline(pipeline, 0.0f);
 
-        std::vector<std::vector<std::size_t>> outgoing_edges(phase_stages.size());
-        std::vector<std::size_t> indegree(phase_stages.size(), 0);
-
-        const auto find_stage_index = [&phase_stages](const flecs::system dependency) -> std::optional<std::size_t>
-        {
-            for (std::size_t i = 0; i < phase_stages.size(); ++i)
+            for (auto& stage_ref : phase_stages)
             {
-                if (phase_stages[i]->system == dependency) return i;
+                stage_ref.get().system.disable();
             }
-
-            return std::nullopt;
-        };
-
-        const auto add_edge = [&outgoing_edges, &indegree](const std::size_t from, const std::size_t to)
-        {
-            auto& neighbors = outgoing_edges[from];
-            if (std::ranges::find(neighbors, to) != neighbors.end()) return;
-
-            neighbors.push_back(to);
-            ++indegree[to];
-        };
-
-        for (std::size_t stage_index = 0; stage_index < phase_stages.size(); ++stage_index)
-        {
-            const auto& stage = *phase_stages[stage_index];
-
-            for (const auto dependency : stage.config.run_after)
-            {
-                if (const auto dependency_index = find_stage_index(dependency); dependency_index.has_value())
-                {
-                    add_edge(*dependency_index, stage_index);
-                }
-            }
-
-            for (const auto dependency : stage.config.run_before)
-            {
-                if (const auto dependency_index = find_stage_index(dependency); dependency_index.has_value())
-                {
-                    add_edge(stage_index, *dependency_index);
-                }
-            }
-        }
-
-        std::deque<std::size_t> ready{};
-        for (std::size_t i = 0; i < indegree.size(); ++i)
-        {
-            if (indegree[i] == 0) ready.push_back(i);
-        }
-
-        std::vector<std::size_t> execution_order{};
-        execution_order.reserve(phase_stages.size());
-
-        while (!ready.empty())
-        {
-            const std::size_t stage_index = ready.front();
-            ready.pop_front();
-
-            execution_order.push_back(stage_index);
-
-            for (const std::size_t dependent_index : outgoing_edges[stage_index])
-            {
-                if (--indegree[dependent_index] == 0) ready.push_back(dependent_index);
-            }
-        }
-
-        if (execution_order.size() != phase_stages.size())
-        {
-            Log::warn("Detected lifecycle stage dependency cycle; falling back to registration order");
-
-            for (std::size_t i = 0; i < phase_stages.size(); ++i)
-            {
-                if (std::ranges::find(execution_order, i) == execution_order.end()) execution_order.push_back(i);
-            }
-        }
-
-        for (const std::size_t stage_index : execution_order)
-        {
-            auto& stage = *phase_stages[stage_index];
-
-            stage.system.enable();
-            stage.system.run();
-            stage.system.disable();
         }
     }
 
@@ -246,9 +229,8 @@ namespace boza
     {
         if (startup_stages_completed_) return;
 
-        constexpr std::array startup_phases{ Phase::Start, Phase::PostStart };
+        static constexpr std::array startup_phases{ Phase::Start, Phase::PostStart };
         run_stage_phases(startup_phases);
-
         startup_stages_completed_ = true;
     }
 
@@ -256,26 +238,8 @@ namespace boza
     {
         if (destroy_stages_completed_) return;
 
-        const std::array destroy_phases{ Phase::Destroy, Phase::EngineDestroy };
+        static constexpr std::array destroy_phases{ Phase::Destroy, Phase::EngineDestroy };
         run_stage_phases(destroy_phases);
-
         destroy_stages_completed_ = true;
-    }
-
-    void SystemRegistry::apply_dependencies(const SystemStageInfo& info) const
-    {
-        if (!info.system.is_valid()) return;
-
-        for (auto dependency : info.config.run_after)
-        {
-            if (!dependency.is_valid() || dependency == info.system) continue;
-            info.system.depends_on(dependency);
-        }
-
-        for (auto dependency : info.config.run_before)
-        {
-            if (!dependency.is_valid() || dependency == info.system) continue;
-            dependency.depends_on(info.system);
-        }
     }
 }

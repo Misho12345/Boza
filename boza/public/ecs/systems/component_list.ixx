@@ -11,27 +11,43 @@ namespace boza
     struct With
     {
         using type = T;
-        static constexpr bool required = true, optional = false, filter = false;
+        static constexpr bool is_ordering = false, required = true, optional = false, filter = false;
     };
 
     export template <typename T>
     struct Opt
     {
         using type = T;
-        static constexpr bool required = false, optional = true, filter = false;
+        static constexpr bool is_ordering = false, required = false, optional = true, filter = false;
     };
 
     export template <typename T>
     struct Without
     {
         using type = T;
-        static constexpr bool required = false, optional = false, filter = true;
+        static constexpr bool is_ordering = false, required = false, optional = false, filter = true;
+    };
+
+    export template <typename T>
+    struct RunAfter
+    {
+        using type = T;
+        static constexpr bool is_ordering = true, is_after = true;
+    };
+
+    export template <typename T>
+    struct RunBefore
+    {
+        using type = T;
+        static constexpr bool is_ordering = true, is_after = false;
     };
 
     template <typename S> concept with_spec = requires { typename S::type; } && S::required;
     template <typename S> concept opt_spec = requires { typename S::type; } && S::optional;
     template <typename S> concept without_spec = requires { typename S::type; } && S::filter;
+    template <typename S> concept ordering_spec = requires { typename S::type; } && S::is_ordering;
     template <typename S> concept param_spec = with_spec<S> || opt_spec<S>;
+    template <typename S> concept component_spec = param_spec<S> || without_spec<S>;
 
     template <typename S>
     using unwrap_t = S::type;
@@ -43,9 +59,7 @@ namespace boza
         std::tuple<>
     >;
 
-    export template <typename... Specs> requires (
-        (sizeof...(Specs) == 0) ||
-        ((param_spec<Specs> || without_spec<Specs>) && ...))
+    export template <typename... Specs> requires ((sizeof...(Specs) == 0) || (component_spec<Specs> && ...))
     struct ComponentList
     {
         static constexpr std::size_t spec_count = sizeof...(Specs);
@@ -56,6 +70,11 @@ namespace boza
         static constexpr bool        is_singleton = spec_count == 0;
     };
 
+    template <typename... Specs>
+    using filter_to_component_list = decltype(
+        []<typename... Ts>(std::tuple<Ts...>) -> ComponentList<Ts...> { return {}; }
+        (std::tuple_cat(std::declval<std::conditional_t<component_spec<Specs>, std::tuple<Specs>, std::tuple<>>>()...))
+    );
 
     template <typename Spec, typename Builder>
     void apply_spec(Builder& builder)

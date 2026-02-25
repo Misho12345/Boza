@@ -24,18 +24,21 @@ namespace boza
         void call_destroy_stages() const;
 
     private:
+        static constexpr std::size_t phase_count = static_cast<std::size_t>(Phase::None) + 1;
+
         SystemRegistry() = default;
 
         void initialize_phases(const flecs::world& world);
-        void create_all_systems();
-        void resolve_all_configs();
+        void initialize_lifecycle_pipelines(const flecs::world& world);
+        void create_all_systems() const;
+        void resolve_all_configs() const;
+        void apply_all_ordering() const;
 
         void run_stage_phase(Phase phase) const;
         void run_stage_phases(std::span<const Phase> phases) const;
 
-        void apply_dependencies(const SystemStageInfo& info) const;
-
         std::vector<std::reference_wrapper<SystemStageInfo>> stages_{};
+        std::array<flecs::entity_t, phase_count> lifecycle_pipelines_{};
 
         float physics_interval_{ 0.0f };
 

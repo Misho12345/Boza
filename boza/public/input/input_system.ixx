@@ -57,15 +57,8 @@ namespace boza
             static void execute();
         };
 
-        struct Update final : EngineUpdateStage<Update, With<InputCapture>>
+        struct Update final : EngineUpdateStage<Update, RunAfter<Input>, With<InputCapture>>
         {
-            static SystemStageConfig config()
-            {
-                return {
-                    .run_after = { Input::stage_info.system }
-                };
-            }
-
             static void execute(InputCapture& capture);
         };
 
