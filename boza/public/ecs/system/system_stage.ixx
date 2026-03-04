@@ -4,7 +4,7 @@ import std;
 import <flecs.h>;
 
 import :scene;
-import :common;
+import :system_common;
 import :component_list;
 import :system_registry;
 import :game_object;
@@ -15,43 +15,38 @@ import boza.core;
 #undef assert
 #endif
 
-namespace boza
+export namespace boza
 {
-    export template <typename Derived, Phase P, typename... Specs>
+    template <typename Derived, Phase P, typename... Specs>
     struct SystemStage
     {
         using CList = filter_to_component_list<Specs...>;
 
         static constexpr Phase phase = P;
 
+    private:
         static flecs::system     create_system();
         static SystemStageConfig resolve_config();
         static void              apply_ordering();
 
-        static SystemStageInfo& init_stage_info()
+        static SystemStageConfig config() { return {}; }
+
+        static inline auto& stage_info = [] -> SystemStageInfo&
         {
             static SystemStageInfo info
             {
-                .system         = flecs::system{},
-                .config         = {},
                 .phase          = phase,
                 .create_system  = &SystemStage::create_system,
                 .resolve_config = &SystemStage::resolve_config,
                 .apply_ordering = &SystemStage::apply_ordering
             };
 
-            [[maybe_unused]]
-            static const bool registrar = []
-            {
-                SystemRegistry::instance().register_stage(info);
-                return true;
-            }();
-
+            SystemRegistry::instance().register_stage(info);
             return info;
-        }
+        }();
 
-        static inline SystemStageInfo& stage_info = init_stage_info();
-        static SystemStageConfig config() { return SystemStageConfig{}; }
+        template <typename, Phase, typename...>
+        friend struct SystemStage;
     };
 
 
@@ -71,7 +66,7 @@ namespace boza
     flecs::system SystemStage<Derived, P, Specs...>::create_system()
     {
         auto builder = Scene::world().system();
-        const auto cfg = resolve_config();
+        const auto [multi_threaded, include_disabled, interval] = resolve_config();
         const flecs::entity_t engine_kind = to_underlying_phase(P);
 
         if constexpr (P == Phase::None) builder.kind(flecs::OnUpdate);
@@ -79,9 +74,9 @@ namespace boza
 
         apply_specs_to_builder(builder, static_cast<CList*>(nullptr));
 
-        if (cfg.multi_threaded)   builder.multi_threaded();
-        if (cfg.interval > 0.0f)  builder.interval(cfg.interval);
-        if (cfg.include_disabled) builder.with(flecs::Disabled).optional();
+        if (multi_threaded)   builder.multi_threaded();
+        if (interval > 0.0f)  builder.interval(interval);
+        if (include_disabled) builder.with(flecs::Disabled).optional();
 
         flecs::system system{};
 
@@ -122,45 +117,45 @@ namespace boza
     }
 
 
-    export template <typename Derived, typename... Specs>
+    template <typename Derived, typename... Specs>
     using EngineBeginStage = SystemStage<Derived, Phase::EngineBegin, Specs...>;
 
-    export template <typename Derived, typename... Specs>
+    template <typename Derived, typename... Specs>
     using StartStage = SystemStage<Derived, Phase::Start, Specs...>;
 
-    export template <typename Derived, typename... Specs>
+    template <typename Derived, typename... Specs>
     using PostStartStage = SystemStage<Derived, Phase::PostStart, Specs...>;
 
-    export template <typename Derived, typename... Specs>
+    template <typename Derived, typename... Specs>
     using EnginePhysicsStage = SystemStage<Derived, Phase::EnginePhysics, Specs...>;
 
-    export template <typename Derived, typename... Specs>
+    template <typename Derived, typename... Specs>
     using PhysicsStage = SystemStage<Derived, Phase::Physics, Specs...>;
 
-    export template <typename Derived, typename... Specs>
+    template <typename Derived, typename... Specs>
     using EngineUpdateStage = SystemStage<Derived, Phase::EngineUpdate, Specs...>;
 
-    export template <typename Derived, typename... Specs>
+    template <typename Derived, typename... Specs>
     using PreUpdateStage = SystemStage<Derived, Phase::PreUpdate, Specs...>;
 
-    export template <typename Derived, typename... Specs>
+    template <typename Derived, typename... Specs>
     using UpdateStage = SystemStage<Derived, Phase::Update, Specs...>;
 
-    export template <typename Derived, typename... Specs>
+    template <typename Derived, typename... Specs>
     using PostUpdateStage = SystemStage<Derived, Phase::PostUpdate, Specs...>;
 
-    export template <typename Derived, typename... Specs>
+    template <typename Derived, typename... Specs>
     using PreRenderStage = SystemStage<Derived, Phase::PreRender, Specs...>;
 
-    export template <typename Derived, typename... Specs>
+    template <typename Derived, typename... Specs>
     using EngineRenderStage = SystemStage<Derived, Phase::EngineRender, Specs...>;
 
-    export template <typename Derived, typename... Specs>
+    template <typename Derived, typename... Specs>
     using DestroyStage = SystemStage<Derived, Phase::Destroy, Specs...>;
 
-    export template <typename Derived, typename... Specs>
+    template <typename Derived, typename... Specs>
     using EngineDestroyStage = SystemStage<Derived, Phase::EngineDestroy, Specs...>;
 
-    export template <typename Derived, typename... Specs>
+    template <typename Derived, typename... Specs>
     using StandaloneStage = SystemStage<Derived, Phase::None, Specs...>;
 }

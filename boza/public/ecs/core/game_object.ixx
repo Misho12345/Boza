@@ -2,7 +2,7 @@ export module boza.ecs:game_object;
 
 import :tags;
 import :transform;
-import :common;
+import :system_common;
 
 export namespace boza
 {

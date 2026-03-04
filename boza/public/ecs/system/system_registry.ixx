@@ -2,15 +2,16 @@ export module boza.ecs:system_registry;
 
 import std;
 import <flecs.h>;
-import :common;
+import :system_common;
 
 namespace boza
 {
+    namespace app { class GameLoop; }
+
     flecs::entity_t to_underlying_phase(Phase phase);
 
     export class SystemRegistry final
     {
-    public:
         static SystemRegistry& instance();
 
         void register_stage(SystemStageInfo& stage_info);
@@ -20,10 +21,8 @@ namespace boza
 
         void call_engine_begin_stages() const;
         void call_startup_stages() const;
-
         void call_destroy_stages() const;
 
-    private:
         static constexpr std::size_t phase_count = static_cast<std::size_t>(Phase::None) + 1;
 
         SystemRegistry() = default;
@@ -47,5 +46,10 @@ namespace boza
         mutable bool destroy_stages_completed_{ false };
 
         bool initialized_{ false };
+
+        template<typename, Phase, typename...>
+        friend class SystemStage;
+
+        friend class app::GameLoop;
     };
 }

@@ -58,7 +58,7 @@ namespace boza::app
     void  GameLoop::set_target_fps(const float fps)
     {
         config_.target_fps = fps;
-        auto& world = Scene::world();
+        const auto& world = Scene::world();
         world.set_target_fps(config_.target_fps > 0.0f ? config_.target_fps : 0.0f);
         world.reset_clock();
     }

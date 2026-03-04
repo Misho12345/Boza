@@ -1,4 +1,4 @@
-export module boza.ecs:common;
+export module boza.ecs:system_common;
 
 import std;
 import <flecs.h>;
@@ -15,14 +15,22 @@ export namespace boza
         None
     };
 
-    constexpr bool is_engine_phase(const Phase phase)
+    struct SystemStageConfig final
     {
-        return phase == Phase::EngineBegin ||
-                phase == Phase::EnginePhysics ||
-                phase == Phase::EngineUpdate ||
-                phase == Phase::EngineRender ||
-                phase == Phase::EngineDestroy;
-    }
+        bool  multi_threaded{ false };
+        bool  include_disabled{ false };
+        float interval{ 0.0f };
+    };
+
+    struct SystemStageInfo final
+    {
+        flecs::system       system{};
+        SystemStageConfig   config{};
+        Phase               phase{};
+        flecs::system     (*create_system)(){};
+        SystemStageConfig (*resolve_config)(){};
+        void              (*apply_ordering)(){};
+    };
 
     constexpr bool is_shutdown_phase(const Phase phase)
     {
@@ -43,22 +51,4 @@ export namespace boza
     {
         return phase == Phase::EnginePhysics || phase == Phase::Physics;
     }
-
-
-    struct SystemStageConfig final
-    {
-        bool  multi_threaded{ false };
-        bool  include_disabled{ false };
-        float interval{ 0.0f };
-    };
-
-    struct SystemStageInfo final
-    {
-        flecs::system       system{};
-        SystemStageConfig   config{};
-        Phase               phase{};
-        flecs::system     (*create_system)(){};
-        SystemStageConfig (*resolve_config)(){};
-        void              (*apply_ordering)(){};
-    };
 }
