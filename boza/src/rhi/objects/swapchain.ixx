@@ -60,7 +60,7 @@ export namespace boza::rhi
         virtual std::uint32_t image_count() const = 0;
         virtual std::uint32_t current_frame() const = 0;
         virtual std::uint32_t current_image_index() const = 0;
-        virtual std::uint32_t format() const = 0;
+        virtual TextureFormat format() const = 0;
         virtual DepthFormat   depth_format() const = 0;
         virtual std::uint32_t max_frames_in_flight() const = 0;
 

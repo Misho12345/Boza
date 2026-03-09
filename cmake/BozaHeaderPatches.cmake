@@ -21,6 +21,7 @@ function(boza_enable_vcpkg_header_fixes)
             "${_inc}/flecs/addons/cpp/mixins/pipeline/decl.hpp"
             "${_inc}/flecs/addons/cpp/c_types.hpp"
             "${_inc}/flecs/addons/cpp/mixins/meta/decl.hpp"
+            "${_inc}/vulkan/vulkan_core.h"
     )
 
     set(_gtl_file "${_inc}/gtl/gtl_base.hpp")

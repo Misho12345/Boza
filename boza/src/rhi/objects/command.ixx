@@ -131,7 +131,11 @@ export namespace boza::rhi
         virtual void bind_vertex_buffer(Buffer* buffer, std::uint32_t binding = 0, std::uint64_t offset = 0) = 0;
         virtual void bind_index_buffer(Buffer* buffer, std::uint64_t offset = 0, bool use_uint16 = false) = 0;
 
-        virtual void bind_descriptor_set(PipelineLayout* layout, DescriptorSet* set, std::uint32_t set_index) = 0;
+        virtual void bind_descriptor_set(PipelineLayout* layout, DescriptorSet* set, const std::uint32_t set_index)
+        {
+            bind_descriptor_sets(layout, { &set, 1 }, set_index);
+        }
+
         virtual void bind_descriptor_sets(
             PipelineLayout*           layout,
             std::span<DescriptorSet*> sets,
@@ -168,12 +172,50 @@ export namespace boza::rhi
         All      = 0b1111
     };
 
+    enum class PipelineStage : std::uint32_t
+    {
+        None                   = 0,
+        TopOfPipe              = 1 << 0,
+        DrawIndirect           = 1 << 1,
+        VertexInput            = 1 << 2,
+        VertexShader           = 1 << 3,
+        FragmentShader         = 1 << 4,
+        EarlyFragmentTests     = 1 << 5,
+        LateFragmentTests      = 1 << 6,
+        ColorAttachmentOutput  = 1 << 7,
+        ComputeShader          = 1 << 8,
+        Transfer               = 1 << 9,
+        BottomOfPipe           = 1 << 10,
+        Host                   = 1 << 11,
+        AllGraphics            = 1 << 12,
+        AllCommands            = 1 << 13
+    };
+
+    constexpr Flags<PipelineStage> operator|(const PipelineStage left, const PipelineStage right) noexcept
+    {
+        return Flags(left) | Flags(right);
+    }
+
+    constexpr Flags<PipelineStage> operator&(const PipelineStage left, const PipelineStage right) noexcept
+    {
+        return Flags(left) & Flags(right);
+    }
+
+    constexpr Flags<PipelineStage> operator^(const PipelineStage left, const PipelineStage right) noexcept
+    {
+        return Flags(left) ^ Flags(right);
+    }
+
+    constexpr Flags<PipelineStage> operator~(const PipelineStage value) noexcept { return ~Flags(value); }
+
     struct SubmitInfo
     {
         std::vector<CommandBuffer*> command_buffers;
         std::vector<Semaphore*>     wait_semaphores;
-        std::vector<std::uint32_t>  wait_stages;
+        std::vector<Flags<PipelineStage>> wait_stages;
+        std::vector<std::uint64_t>  wait_values;
         std::vector<Semaphore*>     signal_semaphores;
+        std::vector<std::uint64_t>  signal_values;
         Fence*                      signal_fence{ nullptr };
     };
 
@@ -207,13 +249,31 @@ export namespace boza::rhi
         virtual bool submit(const SubmitInfo& submit_info) = 0;
         virtual bool submit(
             const std::vector<CommandBuffer*>& command_buffers,
-            Fence*                             signal_fence = nullptr) = 0;
+            Fence*                             signal_fence = nullptr)
+        {
+            return submit({
+                .command_buffers = command_buffers,
+                .wait_semaphores = {},
+                .wait_stages = {},
+                .wait_values = {},
+                .signal_semaphores = {},
+                .signal_values = {},
+                .signal_fence = signal_fence
+            });
+        }
 
         virtual PresentResult present(const PresentInfo& present_info) = 0;
         virtual PresentResult present(
             Swapchain*                     swapchain,
             std::uint32_t                  image_index,
-            const std::vector<Semaphore*>& wait_semaphores = {}) = 0;
+            const std::vector<Semaphore*>& wait_semaphores = {})
+        {
+            return present({
+                .swapchains = { swapchain },
+                .image_indices = { image_index },
+                .wait_semaphores = wait_semaphores
+            });
+        }
 
         virtual bool wait_idle() = 0;
 

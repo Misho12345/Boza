@@ -34,7 +34,7 @@ export namespace boza::rhi::vk
         Fence*         current_fence() override;
 
         [[nodiscard]] VkSwapchainKHR vk_swapchain() const;
-        [[nodiscard]] uint32_t format() const override { return static_cast<uint32_t>(surface_format_.format); }
+        [[nodiscard]] TextureFormat format() const override;
         [[nodiscard]] DepthFormat depth_format() const override { return depth_format_; }
         [[nodiscard]] uint32_t max_frames_in_flight() const override { return desc_.max_frames_in_flight; }
 

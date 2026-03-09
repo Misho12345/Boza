@@ -65,7 +65,6 @@ export namespace boza::rhi::vk
         void bind_vertex_buffer(Buffer* buffer, std::uint32_t binding = 0, std::uint64_t offset = 0) override;
         void bind_index_buffer(Buffer* buffer, std::uint64_t offset = 0, bool use_uint16 = false) override;
 
-        void bind_descriptor_set(PipelineLayout* layout, DescriptorSet* set, std::uint32_t set_index) override;
         void bind_descriptor_sets(PipelineLayout* layout, std::span<DescriptorSet*> sets, std::uint32_t first_set) override;
 
         void push_constants(PipelineLayout* layout, ShaderStage stage, std::uint32_t offset, std::uint32_t size, const void* data) override;
@@ -77,10 +76,10 @@ export namespace boza::rhi::vk
             VkImageLayout old_layout,
             VkImageLayout new_layout,
 
-            std::uint32_t src_stage_mask,
-            std::uint32_t src_access_mask,
-            std::uint32_t dst_stage_mask,
-            std::uint32_t dst_access_mask,
+            VkPipelineStageFlags2 src_stage_mask,
+            VkAccessFlags2        src_access_mask,
+            VkPipelineStageFlags2 dst_stage_mask,
+            VkAccessFlags2        dst_access_mask,
 
             VkImageAspectFlags aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT,
             std::uint32_t base_mip_level   = 0,
@@ -103,19 +102,14 @@ export namespace boza::rhi::vk
     class CommandQueue final : public rhi::CommandQueue
     {
     public:
+        using rhi::CommandQueue::submit;
+        using rhi::CommandQueue::present;
+
         bool init() override;
         void destroy() override;
 
         bool submit(const SubmitInfo& submit_info) override;
-        bool submit(
-            const std::vector<rhi::CommandBuffer*>& command_buffers,
-            Fence*                                  signal_fence = nullptr) override;
-
         PresentResult present(const PresentInfo& present_info) override;
-        PresentResult present(
-            Swapchain*                     swapchain,
-            std::uint32_t                  image_index,
-            const std::vector<Semaphore*>& wait_semaphores) override;
 
         bool wait_idle() override;
 

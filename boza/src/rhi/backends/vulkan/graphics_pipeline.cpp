@@ -212,7 +212,7 @@ namespace boza::rhi::vk
         color_formats.reserve(desc_.color_attachment_formats.size());
         for (const auto format : desc_.color_attachment_formats)
         {
-            color_formats.push_back(static_cast<VkFormat>(format));
+            color_formats.push_back(to_vk(format));
         }
 
         VkPipelineRenderingCreateInfo rendering_info
@@ -223,7 +223,7 @@ namespace boza::rhi::vk
             .colorAttachmentCount = static_cast<uint32_t>(color_formats.size()),
             .pColorAttachmentFormats = color_formats.empty() ? nullptr : color_formats.data(),
             .depthAttachmentFormat = to_vk(desc_.depth_attachment_format),
-            .stencilAttachmentFormat = static_cast<VkFormat>(desc_.stencil_attachment_format)
+            .stencilAttachmentFormat = to_vk(desc_.stencil_attachment_format)
         };
 
         const VkGraphicsPipelineCreateInfo pipeline_info

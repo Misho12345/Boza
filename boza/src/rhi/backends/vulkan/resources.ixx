@@ -20,8 +20,8 @@ export namespace boza::rhi::vk
         void* map() override;
         void  unmap() override;
 
-        [[nodiscard]]
-        size_t size() const override;
+        [[nodiscard]] std::unique_ptr<rhi::Buffer> stage(size_t size = 0) const override;
+
         void   upload(const void* data, size_t size, size_t offset) override;
         void   read_back(void* data, size_t size, size_t offset) override;
 
@@ -47,6 +47,8 @@ export namespace boza::rhi::vk
         [[nodiscard]]
         bool init() override;
         void destroy() override;
+
+        [[nodiscard]] std::unique_ptr<rhi::Buffer> stage(size_t size) const override;
 
         void upload(const void* data, size_t size, std::uint32_t layer) override;
         void read_back(void* data, size_t size, std::uint32_t layer) override;

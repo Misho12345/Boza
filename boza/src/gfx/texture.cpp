@@ -51,9 +51,10 @@ namespace boza
 
         rhi_textures_.reserve(texture_count);
 
-        const bool is_cube = settings_.type == TextureType::TextureCube ||
-                             settings_.type == TextureType::TextureCubeArray;
-        const std::uint32_t array_layers = is_cube ? 1 : settings_.depth;
+        const bool is_cube =
+                settings_.type == TextureType::TextureCube ||
+                settings_.type == TextureType::TextureCubeArray ||
+                settings_.type == TextureType::Texture3D;
 
         for (std::uint32_t i = 0; i < texture_count; ++i)
         {
@@ -65,15 +66,17 @@ namespace boza
                     .usage = settings_.usage_flags,
                     .width = settings_.width,
                     .height = settings_.height,
-                    .array_layers = array_layers,
+                    .depth = settings_.depth,
+                    .array_layers = is_cube ? 1 : settings_.depth,
                 });
 
             if (!rhi_texture)
             {
-                Log::error("Failed to create texture {} of {} ({}x{})",
+                Log::error("Failed to create texture {} of {} ({}x{}x{})",
                            i, texture_count,
                            settings_.width,
-                           settings_.height);
+                           settings_.height,
+                           settings_.depth);
                 cleanup();
                 return;
             }

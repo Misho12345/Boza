@@ -4,8 +4,6 @@ import std;
 import boza;
 import :components;
 
-import <flecs.h>;
-
 using namespace boza;
 
 float exp_alpha(const float dt, const float smooth_time)

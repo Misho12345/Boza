@@ -92,7 +92,25 @@ namespace boza::rhi::vk
         vmaUnmapMemory(allocator, allocation_);
     }
 
-    size_t Buffer::size() const { return desc_.size; }
+    std::unique_ptr<rhi::Buffer> Buffer::stage(const size_t size) const
+    {
+        const BufferDesc staging_desc
+        {
+            .device = desc_.device,
+            .size = size > 0 ? size : desc_.size,
+            .usage = BufferUsage::Staging,
+            .memory_type = BufferMemoryType::HostCoherent
+        };
+
+        auto* staging_buffer = create<Buffer>(staging_desc);
+        if (!staging_buffer)
+        {
+            Log::error("Failed to create staging buffer");
+            return nullptr;
+        }
+
+        return std::unique_ptr<rhi::Buffer>(staging_buffer);
+    }
 
     void Buffer::upload(const void* data, const size_t size, const size_t offset)
     {
@@ -103,32 +121,16 @@ namespace boza::rhi::vk
         {
             const auto* device = reinterpret_cast<Device*>(desc_.device);
 
-            const BufferDesc staging_desc
-            {
-                .device = desc_.device,
-                .size = size,
-                .usage = BufferUsage::Staging,
-                .memory_type = BufferMemoryType::HostCoherent
-            };
-
-            const std::unique_ptr<Buffer> staging_buffer{ static_cast<Buffer*>(create<Buffer>(staging_desc)) };
+            const std::unique_ptr<rhi::Buffer> staging_buffer = stage(size);
 
             if (!staging_buffer)
             {
-                Log::error("Failed to create staging buffer");
                 return;
             }
 
-            if (auto* mapped_data = staging_buffer->map())
-            {
-                std::memcpy(mapped_data, data, size);
-                staging_buffer->unmap();
-            }
-            else
-            {
-                Log::error("Failed to map staging buffer");
-                return;
-            }
+            staging_buffer->upload(data, size, 0);
+
+            const auto* vk_staging_buffer = static_cast<Buffer*>(staging_buffer.get());
 
             std::uint32_t transfer_family = device->queue_family_indices().transfer_family;
             auto* command_pool = static_cast<CommandPool*>(device->command_pool(transfer_family));
@@ -153,7 +155,7 @@ namespace boza::rhi::vk
             };
 
             auto* vk_cmd = reinterpret_cast<CommandBuffer*>(cmd_buffer)->vk_command_buffer();
-            vkCmdCopyBuffer(vk_cmd, staging_buffer->vk_buffer(), buffer_, 1, &copy_region);
+            vkCmdCopyBuffer(vk_cmd, vk_staging_buffer->vk_buffer(), buffer_, 1, &copy_region);
 
             if (!command_pool->end_single_time_commands(cmd_buffer))
             {

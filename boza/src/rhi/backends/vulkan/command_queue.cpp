@@ -44,52 +44,133 @@ namespace boza::rhi::vk
             vk_signal_semaphores.push_back(reinterpret_cast<Semaphore*>(sem)->vk_semaphore());
         }
 
-        std::vector<VkPipelineStageFlags> vk_wait_stages;
-        vk_wait_stages.reserve(submit_info.wait_stages.size());
-        for (const uint32_t stage : submit_info.wait_stages)
+        std::vector<VkPipelineStageFlags2> vk_wait_stages;
+        vk_wait_stages.reserve(vk_wait_semaphores.size());
+
+        if (!submit_info.wait_stages.empty() && submit_info.wait_stages.size() != vk_wait_semaphores.size())
         {
-            vk_wait_stages.push_back(static_cast<VkPipelineStageFlags>(stage));
+            Log::critical("Wait semaphore count must match wait stage count");
+            return false;
+        }
+
+        if (submit_info.wait_stages.empty())
+        {
+            vk_wait_stages.resize(vk_wait_semaphores.size(), to_vk(Flags<PipelineStage>{ PipelineStage::AllCommands }));
+        }
+        else
+        {
+            for (const auto stage_mask : submit_info.wait_stages)
+            {
+                VkPipelineStageFlags2 vk_stage_mask = to_vk(stage_mask);
+                if (vk_stage_mask == VK_PIPELINE_STAGE_2_NONE) vk_stage_mask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+                vk_wait_stages.push_back(vk_stage_mask);
+            }
+        }
+
+        if (!submit_info.wait_values.empty() && submit_info.wait_values.size() != vk_wait_semaphores.size())
+        {
+            Log::critical("Wait semaphore count must match wait value count");
+            return false;
+        }
+
+        if (!submit_info.signal_values.empty() && submit_info.signal_values.size() != vk_signal_semaphores.size())
+        {
+            Log::critical("Signal semaphore count must match signal value count");
+            return false;
         }
 
         const VkFence vk_fence = submit_info.signal_fence ? reinterpret_cast<Fence*>(submit_info.signal_fence)->vk_fence() : nullptr;
 
-        const VkSubmitInfo vk_submit_info
+        std::vector<VkSemaphoreSubmitInfo> vk_wait_infos;
+        vk_wait_infos.reserve(vk_wait_semaphores.size());
+        for (std::size_t i = 0; i < vk_wait_semaphores.size(); ++i)
         {
-            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            .pNext = nullptr,
-            .waitSemaphoreCount = static_cast<uint32_t>(vk_wait_semaphores.size()),
-            .pWaitSemaphores = vk_wait_semaphores.empty() ? nullptr : vk_wait_semaphores.data(),
-            .pWaitDstStageMask = vk_wait_stages.empty() ? nullptr : vk_wait_stages.data(),
-            .commandBufferCount = static_cast<uint32_t>(vk_cmd_buffers.size()),
-            .pCommandBuffers = vk_cmd_buffers.data(),
-            .signalSemaphoreCount = static_cast<uint32_t>(vk_signal_semaphores.size()),
-            .pSignalSemaphores = vk_signal_semaphores.empty() ? nullptr : vk_signal_semaphores.data()
+            const SemaphoreType sem_type = submit_info.wait_semaphores[i]->type();
+            const bool is_timeline = sem_type == SemaphoreType::Timeline;
+            const std::uint64_t wait_value = submit_info.wait_values.empty() ? 0 : submit_info.wait_values[i];
+
+            if (is_timeline && submit_info.wait_values.empty())
+            {
+                Log::critical("Timeline wait semaphore at index {} requires a wait value", i);
+                return false;
+            }
+
+            if (!is_timeline && !submit_info.wait_values.empty() && wait_value != 0)
+            {
+                Log::critical("Binary wait semaphore at index {} must use value 0", i);
+                return false;
+            }
+
+            vk_wait_infos.push_back({
+                .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+                .pNext = nullptr,
+                .semaphore = vk_wait_semaphores[i],
+                .value = wait_value,
+                .stageMask = vk_wait_stages[i],
+                .deviceIndex = 0
+            });
+        }
+
+        std::vector<VkCommandBufferSubmitInfo> vk_cmd_buffer_infos;
+        vk_cmd_buffer_infos.reserve(vk_cmd_buffers.size());
+        for (const VkCommandBuffer vk_cmd_buffer : vk_cmd_buffers)
+        {
+            vk_cmd_buffer_infos.push_back({
+                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+                .pNext = nullptr,
+                .commandBuffer = vk_cmd_buffer,
+                .deviceMask = 0
+            });
+        }
+
+        std::vector<VkSemaphoreSubmitInfo> vk_signal_infos;
+        vk_signal_infos.reserve(vk_signal_semaphores.size());
+        for (std::size_t i = 0; i < vk_signal_semaphores.size(); ++i)
+        {
+            const SemaphoreType sem_type = submit_info.signal_semaphores[i]->type();
+            const bool is_timeline = sem_type == SemaphoreType::Timeline;
+            const std::uint64_t signal_value = submit_info.signal_values.empty() ? 0 : submit_info.signal_values[i];
+
+            if (is_timeline && submit_info.signal_values.empty())
+            {
+                Log::critical("Timeline signal semaphore at index {} requires a signal value", i);
+                return false;
+            }
+
+            if (!is_timeline && !submit_info.signal_values.empty() && signal_value != 0)
+            {
+                Log::critical("Binary signal semaphore at index {} must use value 0", i);
+                return false;
+            }
+
+            vk_signal_infos.push_back({
+                .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+                .pNext = nullptr,
+                .semaphore = vk_signal_semaphores[i],
+                .value = signal_value,
+                .stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                .deviceIndex = 0
+            });
+        }
+
+        const VkSubmitInfo2 vk_submit_info
+        {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+            .waitSemaphoreInfoCount = static_cast<uint32_t>(vk_wait_infos.size()),
+            .pWaitSemaphoreInfos = vk_wait_infos.empty() ? nullptr : vk_wait_infos.data(),
+            .commandBufferInfoCount = static_cast<uint32_t>(vk_cmd_buffer_infos.size()),
+            .pCommandBufferInfos = vk_cmd_buffer_infos.data(),
+            .signalSemaphoreInfoCount = static_cast<uint32_t>(vk_signal_infos.size()),
+            .pSignalSemaphoreInfos = vk_signal_infos.empty() ? nullptr : vk_signal_infos.data()
         };
 
         if (!vk_check(
-            vkQueueSubmit(vk_queue_, 1, &vk_submit_info, vk_fence),
+            vkQueueSubmit2(vk_queue_, 1, &vk_submit_info, vk_fence),
             "Failed to submit command buffers to queue"))
             return false;
 
         return true;
     }
-
-    bool CommandQueue::submit(
-        const std::vector<rhi::CommandBuffer*>& command_buffers,
-        rhi::Fence*                             signal_fence)
-    {
-        const SubmitInfo submit_info
-        {
-            .command_buffers = command_buffers,
-            .wait_semaphores = {},
-            .wait_stages = {},
-            .signal_semaphores = {},
-            .signal_fence = signal_fence
-        };
-
-        return submit(submit_info);
-    }
-
 
     PresentResult CommandQueue::present(const PresentInfo& present_info)
     {
@@ -138,22 +219,6 @@ namespace boza::rhi::vk
 
         return PresentResult::Success;
     }
-
-    PresentResult CommandQueue::present(
-        rhi::Swapchain* swapchain,
-        const uint32_t image_index,
-        const std::vector<rhi::Semaphore*>& wait_semaphores)
-    {
-        const PresentInfo present_info
-        {
-            .swapchains = { swapchain },
-            .image_indices = { image_index },
-            .wait_semaphores = wait_semaphores
-        };
-
-        return present(present_info);
-    }
-
 
     bool CommandQueue::wait_idle()
     {

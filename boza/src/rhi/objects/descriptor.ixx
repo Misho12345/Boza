@@ -72,12 +72,24 @@ export namespace boza::rhi
     class DescriptorPool : public GraphicsObject<DescriptorPool, DescriptorPoolDesc>
     {
     public:
-        virtual DescriptorSet*              allocate_descriptor_set(DescriptorSetLayout* layout) = 0;
+        virtual DescriptorSet* allocate_descriptor_set(DescriptorSetLayout* layout)
+        {
+            if (!layout) return nullptr;
+
+            const auto sets = allocate_descriptor_sets(1, { &layout, 1 });
+            return sets.empty() ? nullptr : sets.front();
+        }
+
         virtual std::vector<DescriptorSet*> allocate_descriptor_sets(
             std::uint32_t                   count,
             std::span<DescriptorSetLayout*> layouts) = 0;
 
-        virtual void free_descriptor_set(DescriptorSet* set) = 0;
+        virtual void free_descriptor_set(DescriptorSet* set)
+        {
+            if (!set) return;
+            free_descriptor_sets({ &set, 1 });
+        }
+
         virtual void free_descriptor_sets(std::span<DescriptorSet*> sets) = 0;
 
         virtual bool reset() = 0;

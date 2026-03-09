@@ -173,10 +173,9 @@ export namespace boza::rhi
         ColorBlendState    color_blend;
         MultisampleState   multisample;
 
-        // Dynamic rendering format info
-        std::vector<std::uint32_t> color_attachment_formats; // VkFormat values
+        std::vector<TextureFormat> color_attachment_formats;
         DepthFormat                depth_attachment_format{ DepthFormat::None };
-        std::uint32_t              stencil_attachment_format{ 0 };
+        DepthFormat                stencil_attachment_format{ DepthFormat::None };
     };
 
     class GraphicsPipeline : public GraphicsObject<GraphicsPipeline, GraphicsPipelineDesc>

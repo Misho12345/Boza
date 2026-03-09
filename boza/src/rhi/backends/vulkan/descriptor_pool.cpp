@@ -46,14 +46,6 @@ namespace boza::rhi::vk
         }
     }
 
-
-    rhi::DescriptorSet* DescriptorPool::allocate_descriptor_set(rhi::DescriptorSetLayout* layout)
-    {
-        // Log::trace("Allocating single descriptor set");
-
-        return allocate_descriptor_sets(1, { &layout, 1 })[0];
-    }
-
     std::vector<rhi::DescriptorSet*> DescriptorPool::allocate_descriptor_sets(
         const uint32_t                             count,
         const std::span<rhi::DescriptorSetLayout*> layouts)
@@ -101,13 +93,6 @@ namespace boza::rhi::vk
         }
 
         return result;
-    }
-
-
-    void DescriptorPool::free_descriptor_set(rhi::DescriptorSet* set)
-    {
-        // Log::trace("Freeing single descriptor set");
-        free_descriptor_sets({ &set, 1 });
     }
 
     void DescriptorPool::free_descriptor_sets(const std::span<rhi::DescriptorSet*> sets)

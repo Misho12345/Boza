@@ -90,7 +90,7 @@ namespace boza::rhi
     }
 
     GraphicsPipeline* PipelineBuilder::build_graphics_pipeline(
-        const std::vector<std::uint32_t>& color_attachment_formats,
+        const std::vector<TextureFormat>& color_attachment_formats,
         const DepthFormat                 depth_attachment_format,
         const RasterizationState&         rasterization,
         const DepthStencilState&          depth_stencil,
@@ -169,7 +169,7 @@ namespace boza::rhi
                 .color_blend = adjusted_color_blend,
                 .color_attachment_formats = color_attachment_formats,
                 .depth_attachment_format = depth_attachment_format,
-                .stencil_attachment_format = 0
+                .stencil_attachment_format = DepthFormat::None
             });
 
         if (!pipeline) return nullptr;

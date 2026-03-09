@@ -3,6 +3,7 @@ export module boza.rhi:pipeline_builder;
 import std;
 import boza.rhi.api;
 import boza.rhi.objects;
+import boza.gfx;
 import boza.common;
 
 export namespace boza::rhi
@@ -17,7 +18,7 @@ export namespace boza::rhi
         PipelineLayout* build_pipeline_layout();
 
         GraphicsPipeline* build_graphics_pipeline(
-            const std::vector<std::uint32_t>& color_attachment_formats,
+            const std::vector<TextureFormat>& color_attachment_formats,
             DepthFormat                       depth_attachment_format = DepthFormat::None,
             const RasterizationState&         rasterization           = {},
             const DepthStencilState&          depth_stencil           = {},

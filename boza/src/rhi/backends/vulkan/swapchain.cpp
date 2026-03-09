@@ -262,7 +262,7 @@ namespace boza::rhi::vk
         if (!device->graphics_queue()->submit({
             .command_buffers   = { cmd_buffer.get() },
             .wait_semaphores   = { image_available_semaphore.get() },
-            .wait_stages       = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT },
+            .wait_stages       = { PipelineStage::ColorAttachmentOutput },
             .signal_semaphores = { render_finished_semaphore.get() },
             .signal_fence      = in_flight_fence.get()
         }))
@@ -425,6 +425,8 @@ namespace boza::rhi::vk
         return true;
     }
 
+
+    TextureFormat Swapchain::format() const { return to_texture_format(surface_format_.format); }
 
     uint32_t Swapchain::width() const { return extent_.width; }
     uint32_t Swapchain::height() const { return extent_.height; }

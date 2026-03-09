@@ -30,12 +30,10 @@ export namespace boza::rhi::vk
         bool init() override;
         void destroy() override;
 
-        DescriptorSet*              allocate_descriptor_set(rhi::DescriptorSetLayout* layout) override;
         std::vector<DescriptorSet*> allocate_descriptor_sets(
             uint32_t                             count,
             std::span<rhi::DescriptorSetLayout*> layouts) override;
 
-        void free_descriptor_set(DescriptorSet* set) override;
         void free_descriptor_sets(std::span<DescriptorSet*> sets) override;
 
         bool reset() override;

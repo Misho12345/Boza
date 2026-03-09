@@ -111,15 +111,6 @@ namespace boza::rhi::vk
         current_pipeline_bind_point_ = VK_PIPELINE_BIND_POINT_COMPUTE;
     }
 
-    void CommandBuffer::bind_descriptor_set(
-        rhi::PipelineLayout* layout,
-        rhi::DescriptorSet*  set,
-        const uint32_t       set_index)
-    {
-        // Log::trace("Binding descriptor set at index {}", set_index);
-        bind_descriptor_sets(layout, { &set, 1 }, set_index);
-    }
-
     void CommandBuffer::bind_descriptor_sets(
         rhi::PipelineLayout*                 layout,
         const std::span<rhi::DescriptorSet*> sets,
@@ -200,8 +191,8 @@ namespace boza::rhi::vk
         auto [old_layout, src_stage] = state_to_layout_and_stage(old_state);
         auto [new_layout, dst_stage] = state_to_layout_and_stage(new_state);
 
-        const VkAccessFlags src_access = state_to_access(old_state);
-        const VkAccessFlags dst_access = state_to_access(new_state);
+        const VkAccessFlags2 src_access = state_to_access(old_state);
+        const VkAccessFlags2 dst_access = state_to_access(new_state);
 
         pipeline_image_barrier(
             vk_texture->vk_image(),
@@ -221,10 +212,10 @@ namespace boza::rhi::vk
         const VkImageLayout old_layout,
         const VkImageLayout new_layout,
 
-        const uint32_t src_stage_mask,
-        const uint32_t src_access_mask,
-        const uint32_t dst_stage_mask,
-        const uint32_t dst_access_mask,
+        const VkPipelineStageFlags2 src_stage_mask,
+        const VkAccessFlags2        src_access_mask,
+        const VkPipelineStageFlags2 dst_stage_mask,
+        const VkAccessFlags2        dst_access_mask,
 
         const VkImageAspectFlags aspect_mask,
         const uint32_t           base_mip_level,
@@ -238,10 +229,10 @@ namespace boza::rhi::vk
         {
             .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
             .pNext = nullptr,
-            .srcStageMask = static_cast<VkPipelineStageFlags2>(src_stage_mask),
-            .srcAccessMask = static_cast<VkAccessFlags2>(src_access_mask),
-            .dstStageMask = static_cast<VkPipelineStageFlags2>(dst_stage_mask),
-            .dstAccessMask = static_cast<VkAccessFlags2>(dst_access_mask),
+            .srcStageMask = src_stage_mask,
+            .srcAccessMask = src_access_mask,
+            .dstStageMask = dst_stage_mask,
+            .dstAccessMask = dst_access_mask,
             .oldLayout = old_layout,
             .newLayout = new_layout,
             .srcQueueFamilyIndex = vk_queue_family_ignored,

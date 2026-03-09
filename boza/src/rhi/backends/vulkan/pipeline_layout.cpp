@@ -51,11 +51,11 @@ namespace boza::rhi::vk
 
         for (const auto& pc : push_constants_ | std::views::values)
         {
-            VkPushConstantRange range{};
-            range.stageFlags = to_vk(pc.stage);
-            range.offset = pc.offset;
-            range.size = pc.size;
-            push_constant_ranges.push_back(range);
+            push_constant_ranges.emplace_back(
+                to_vk(Flags<ShaderStage>{ pc.stage }),
+                pc.offset,
+                pc.size
+            );
         }
 
         std::vector<VkDescriptorSetLayout> vk_set_layouts;
