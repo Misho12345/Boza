@@ -4,6 +4,7 @@ module;
 
 export module boza.rhi.factory;
 
+import std;
 import boza.rhi.api;
 import boza.rhi.objects;
 
@@ -29,15 +30,15 @@ import boza.rhi.dx12;
 
 
 #define FACTORY_FUNC(CLASS, CLASS_LOWER)                                                            \
-    CLASS* create_ ## CLASS_LOWER(const GraphicsApi api, const CLASS ## Desc& desc)                 \
+    std::unique_ptr<CLASS> create_ ## CLASS_LOWER(const GraphicsApi api, const CLASS ## Desc& desc) \
     {                                                                                               \
         switch (api)                                                                                \
         {                                                                                           \
-            BOZA_IF_OPENGL(case GraphicsApi::OpenGL:    return CLASS::create<gl::CLASS>(desc);)     \
-            BOZA_IF_VULKAN(case GraphicsApi::Vulkan:    return CLASS::create<vk::CLASS>(desc);)     \
-            BOZA_IF_METAL (case GraphicsApi::Metal:     return CLASS::create<ml::CLASS>(desc);)     \
-            BOZA_IF_DX11  (case GraphicsApi::DirectX11: return CLASS::create<dx11::CLASS>(desc);)   \
-            BOZA_IF_DX12  (case GraphicsApi::DirectX12: return CLASS::create<dx12::CLASS>(desc);)   \
+            BOZA_IF_OPENGL(case GraphicsApi::OpenGL:    return CLASS::create<gl::CLASS>(desc);)   \
+            BOZA_IF_VULKAN(case GraphicsApi::Vulkan:    return CLASS::create<vk::CLASS>(desc);)   \
+            BOZA_IF_METAL (case GraphicsApi::Metal:     return CLASS::create<ml::CLASS>(desc);)   \
+            BOZA_IF_DX11  (case GraphicsApi::DirectX11: return CLASS::create<dx11::CLASS>(desc);) \
+            BOZA_IF_DX12  (case GraphicsApi::DirectX12: return CLASS::create<dx12::CLASS>(desc);) \
             default: return nullptr;                                                                \
         }                                                                                           \
     }

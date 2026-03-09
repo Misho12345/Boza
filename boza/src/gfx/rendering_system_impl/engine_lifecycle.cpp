@@ -131,26 +131,26 @@ namespace boza
 
             window->create(api);
 
-            instance_.reset(create_instance(
+            instance_ = create_instance(
                 api, {
                     .app_name = "Boza Application",
                     .engine_name = "Boza",
                     .app_version = { 0, 0, 1 },
                     .engine_version = { BOZA_VERSION_MAJOR, BOZA_VERSION_MINOR, BOZA_VERSION_PATCH },
                     .window = window
-                }));
+                });
 
             if (!instance_) continue;
 
-            device_.reset(create_device(
+            device_ = create_device(
                 api, {
                     .instance = instance_.get(),
                     .window = window
-                }));
+                });
 
             if (!device_) continue;
 
-            swapchain_.reset(create_swapchain(
+            swapchain_ = create_swapchain(
                 api, {
                     .device = device_.get(),
                     .window = window,
@@ -163,11 +163,11 @@ namespace boza
                     .clear_color = { 0.1f, 0.1f, 0.15f, 1.0f },
                     .clear_depth = 1.0f,
                     .clear_stencil = 0
-                }));
+                });
 
             if (!swapchain_) continue;
 
-            descriptor_pool_.reset(create_descriptor_pool(
+            descriptor_pool_ = create_descriptor_pool(
                 api, {
                     .device = device_.get(),
                     .max_sets = 300,
@@ -177,7 +177,7 @@ namespace boza
                         { rhi::DescriptorType::StorageBuffer, 300 },
                         { rhi::DescriptorType::StorageImage, 100 }
                     }
-                }));
+                });
 
             if (!descriptor_pool_) continue;
 

@@ -37,7 +37,7 @@ namespace boza::gfx
     {
         if (initialized_) return;
 
-        auto [it, inserted] = textures_.try_emplace(
+        auto [it, _] = textures_.try_emplace(
             "boza_error_texture",
             Texture{
                 "boza_error_texture",
@@ -52,11 +52,10 @@ namespace boza::gfx
                 }
             });
 
-        error_texture_ = &it->second;
+        error_texture_ = it->second.get();
 
         if (error_texture_ && error_texture_->is_valid())
         {
-            valid_pointers_.insert(error_texture_);
             static constexpr std::array<std::uint8_t, 4> magenta{ 255, 0, 255, 255 };
             error_texture_->upload(magenta.data(), magenta.size());
         }
@@ -72,7 +71,6 @@ namespace boza::gfx
     {
         if (!initialized_) return;
 
-        valid_pointers_.clear();
         textures_.clear();
 
         error_texture_ = nullptr;
@@ -86,8 +84,8 @@ namespace boza::gfx
         const std::string name_str{ name };
         const std::string key = make_texture_key(name_str, type);
 
-        if (auto it = textures_.find(key); it != textures_.end()) return it->second;
-        if (auto it = textures_.find(name_str); it != textures_.end()) return it->second;
+        if (auto it = textures_.find(key); it != textures_.end()) return *it->second;
+        if (auto it = textures_.find(name_str); it != textures_.end()) return *it->second;
 
         if (!rhi::RenderContext::initialized())
         {
@@ -119,7 +117,7 @@ namespace boza::gfx
                 }
             });
 
-        Texture& texture = it->second;
+        Texture& texture = *it->second;
 
         if (!texture.is_valid())
         {
@@ -128,7 +126,6 @@ namespace boza::gfx
             return *error_texture_;
         }
 
-        valid_pointers_.insert(&texture);
         texture.upload(image_data.data, image_data.size);
 
         return texture;
@@ -140,7 +137,7 @@ namespace boza::gfx
         const std::string key = make_texture_key(name_str, TextureType::TextureCube);
 
         if (auto it = textures_.find(key); it != textures_.end())
-            return it->second;
+            return *it->second;
 
         if (!rhi::RenderContext::initialized())
         {
@@ -183,7 +180,7 @@ namespace boza::gfx
                 }
             });
 
-        Texture& texture = it->second;
+        Texture& texture = *it->second;
 
         if (!texture.is_valid())
         {
@@ -227,7 +224,6 @@ namespace boza::gfx
         extract_face(3, 1);
         texture.upload_layer(face_data.data(), face_size, 5);
 
-        valid_pointers_.insert(&texture);
         return texture;
     }
 
@@ -246,7 +242,7 @@ namespace boza::gfx
             std::abort();
         }
 
-        const Texture& src_texture = it->second;
+        const Texture& src_texture = *it->second;
 
         const auto data = src_texture.read_back();
 
@@ -264,7 +260,7 @@ namespace boza::gfx
                     .usage_flags = TextureUsage::Sampled | TextureUsage::TransferDst
             }});
 
-        Texture& dst_texture = dst_it->second;
+        Texture& dst_texture = *dst_it->second;
 
         if (!dst_texture.is_valid())
         {
@@ -275,7 +271,6 @@ namespace boza::gfx
 
         dst_texture.upload(data.data(), data.size());
 
-        valid_pointers_.insert(&dst_texture);
         return dst_texture;
     }
 
@@ -293,7 +288,7 @@ namespace boza::gfx
 
         auto [it, inserted] = textures_.try_emplace(name_str, std::move(Texture{ name, settings }));
 
-        if (!inserted || !it->second.is_valid())
+        if (!inserted || !it->second->is_valid())
         {
             Log::error("Failed to create texture: {}", name_str);
             if (inserted) textures_.erase(it);
@@ -301,8 +296,7 @@ namespace boza::gfx
         }
 
         // Log::trace("Created texture: {}", name_str);
-        valid_pointers_.insert(&it->second);
-        return it->second;
+        return *it->second;
     }
 
     void TextureLoader::destroy(const std::string_view name)
@@ -318,24 +312,15 @@ namespace boza::gfx
         const auto it = textures_.find(name_str);
         if (it != textures_.end())
         {
-            valid_pointers_.erase(&it->second);
             // Log::trace("Destroyed texture: {}", name_str);
             textures_.erase(it);
         }
         else Log::warn("Attempted to destroy non-existent texture: {}", name_str);
     }
 
-    Texture* TextureLoader::try_get_texture(const std::string_view name)
-    {
-        const std::string name_str{ name };
-        const auto it = textures_.find(name_str);
-        return it != textures_.end() ? &it->second : nullptr;
-    }
+    Texture* TextureLoader::try_get_texture(const std::string_view name) { return textures_.find_ptr(name); }
 
-    bool TextureLoader::exists(const Texture* ptr) const
-    {
-        return ptr && valid_pointers_.contains(ptr);
-    }
+    bool TextureLoader::exists(const Texture* ptr) const { return textures_.exists(ptr); }
 
     std::string TextureLoader::make_texture_key(const std::string_view filepath, const TextureType type)
     {

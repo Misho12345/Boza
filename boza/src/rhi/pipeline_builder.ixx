@@ -15,9 +15,12 @@ export namespace boza::rhi
 
         bool build_descriptor_set_layouts();
 
-        PipelineLayout* build_pipeline_layout();
+        [[nodiscard]]
+        std::unique_ptr<PipelineLayout> build_pipeline_layout() const;
 
-        GraphicsPipeline* build_graphics_pipeline(
+        [[nodiscard]]
+        std::unique_ptr<GraphicsPipeline> build_graphics_pipeline(
+            PipelineLayout*                   pipeline_layout,
             const std::vector<TextureFormat>& color_attachment_formats,
             DepthFormat                       depth_attachment_format = DepthFormat::None,
             const RasterizationState&         rasterization           = {},
@@ -25,7 +28,9 @@ export namespace boza::rhi
             const ColorBlendState&            color_blend             = {},
             PrimitiveTopology                 topology                = PrimitiveTopology::TriangleList) const;
 
-        GraphicsPipeline* build_graphics_pipeline(
+        [[nodiscard]]
+        std::unique_ptr<GraphicsPipeline> build_graphics_pipeline(
+            PipelineLayout*          pipeline_layout,
             const Swapchain*          swapchain,
             DepthFormat               depth_attachment_format = DepthFormat::None,
             const RasterizationState& rasterization           = {},
@@ -34,16 +39,18 @@ export namespace boza::rhi
             PrimitiveTopology         topology                = PrimitiveTopology::TriangleList) const;
 
         [[nodiscard]]
-        ComputePipeline* build_compute_pipeline() const;
+        std::unique_ptr<ComputePipeline> build_compute_pipeline(PipelineLayout* pipeline_layout) const;
 
-        [[nodiscard]] const std::vector<DescriptorSetLayout*>& get_descriptor_set_layouts() const;
+        [[nodiscard]]
+        std::vector<std::unique_ptr<DescriptorSetLayout>> take_descriptor_set_layouts();
 
     private:
-        GraphicsApi                       api_;
-        Device*                           device_;
-        std::vector<ShaderModule*>        shaders_;
-        std::vector<DescriptorSetLayout*> descriptor_set_layouts_;
-        PipelineLayout*                   pipeline_layout_{ nullptr };
+        GraphicsApi                                api_;
+        Device*                                    device_;
+        std::vector<ShaderModule*>                 shaders_;
+        std::vector<std::unique_ptr<DescriptorSetLayout>> descriptor_set_layouts_;
+
+        [[nodiscard]] std::vector<DescriptorSetLayout*> get_descriptor_set_layouts() const;
 
         struct DescriptorBinding final
         {

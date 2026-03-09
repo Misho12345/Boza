@@ -7,6 +7,7 @@ export module boza.gfx:texture;
 import std;
 import boza.common;
 import :common;
+import :buffer;
 
 namespace boza::gfx
 {
@@ -132,6 +133,9 @@ export namespace boza
 
         void upload(const void* data, std::size_t data_size) const;
         void upload_layer(const void* data, std::size_t data_size, std::uint32_t layer) const;
+        void upload_from(const Buffer& staging_buffer, std::uint32_t layer = 0, std::size_t size = 0) const;
+
+        [[nodiscard]] Buffer stage(std::size_t size = 0, std::uint32_t layer = 0) const;
 
         [[nodiscard]] std::vector<std::uint8_t> read_back() const;
         [[nodiscard]] bool save_to_file(const std::string& filepath) const;
@@ -149,6 +153,10 @@ export namespace boza
         [[nodiscard]] std::string_view name() const { return name_; }
 
     private:
+        using RhiTextureHandle = std::unique_ptr<void, void(*)(void*)>;
+
+        static void destroy_rhi_texture(void* handle);
+
         Texture(std::string_view name, const TextureSettings& settings);
         void cleanup();
 
@@ -156,7 +164,7 @@ export namespace boza
 
         std::string name_;
         TextureSettings settings_;
-        std::vector<void*> rhi_textures_{};
+        std::vector<RhiTextureHandle> rhi_textures_{};
 
         friend class gfx::TextureLoader;
     };

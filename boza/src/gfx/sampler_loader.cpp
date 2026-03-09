@@ -33,7 +33,7 @@ namespace boza::gfx
                 1.0f
             });
 
-        if (!inserted || !it->second.rhi_handle()) Log::error("Failed to create default sampler");
+        if (!inserted || !it->second->rhi_handle()) Log::error("Failed to create default sampler");
 
         initialized_ = true;
     }
@@ -152,14 +152,14 @@ namespace boza::gfx
 
         auto [it, inserted] = samplers_.try_emplace(name_str, std::move(sampler));
 
-        if (!inserted || !it->second.rhi_handle())
+        if (!inserted || !it->second->rhi_handle())
         {
             Log::error("Failed to create sampler: {}", name_str);
             return default_sampler();
         }
 
         // Log::trace("Created sampler: {}", name_str);
-        return it->second;
+        return *it->second;
     }
 
     Sampler& SamplerLoader::create(const SamplerDefinition& def)
@@ -185,9 +185,7 @@ namespace boza::gfx
 
     Sampler* SamplerLoader::try_get_sampler(const std::string_view name)
     {
-        const std::string name_str{ name };
-        auto it = samplers_.find(name_str);
-        return it != samplers_.end() ? &it->second : nullptr;
+        return samplers_.find_ptr(name);
     }
 
     void SamplerLoader::destroy(const std::string_view name)
@@ -211,9 +209,9 @@ namespace boza::gfx
 
     Sampler& SamplerLoader::default_sampler()
     {
-        auto it = samplers_.find("boza_default_sampler");
-        assert(it != samplers_.end(), "Default sampler not initialized");
-        return it->second;
+        auto* sampler = samplers_.find_ptr("boza_default_sampler");
+        assert(sampler != nullptr, "Default sampler not initialized");
+        return *sampler;
     }
 }
 

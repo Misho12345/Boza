@@ -34,7 +34,7 @@ export namespace boza::rhi
         virtual void* map() = 0;
         virtual void  unmap() = 0;
 
-        [[nodiscard]] virtual std::unique_ptr<Buffer> stage(size_t size = 0) const = 0;
+        [[nodiscard]] virtual std::unique_ptr<Buffer> stage(size_t byte_size = 0) const = 0;
         [[nodiscard]] virtual size_t size() const { return desc_.size; }
 
         void upload(const std::span<const std::uint8_t> data, const size_t offset = 0)
@@ -52,6 +52,7 @@ export namespace boza::rhi
 
         virtual void   upload(const void* data, size_t size, size_t offset) = 0;
         virtual void   read_back(void* data, size_t size, size_t offset) = 0;
+        virtual bool   upload_from(Buffer* staging_buffer, size_t size = 0, size_t src_offset = 0, size_t dst_offset = 0) = 0;
 
     protected:
         explicit Buffer(const BufferDesc& desc) : GraphicsObject(desc) {}
@@ -107,7 +108,7 @@ export namespace boza::rhi
     class Texture : public GraphicsObject<Texture, TextureDesc>
     {
     public:
-        [[nodiscard]] virtual std::unique_ptr<Buffer> stage(size_t size) const = 0;
+        [[nodiscard]] virtual std::unique_ptr<Buffer> stage(size_t size = 0, std::uint32_t layer = 0) const = 0;
 
         void upload(const std::span<const std::uint8_t> data, const std::uint32_t layer = 0)
         {
@@ -123,6 +124,7 @@ export namespace boza::rhi
 
         virtual void upload(const void* data, size_t size, std::uint32_t layer) = 0;
         virtual void read_back(void* data, size_t size, std::uint32_t layer) = 0;
+        virtual bool upload_from(Buffer* staging_buffer, size_t size = 0, std::uint32_t layer = 0) = 0;
         virtual void transition_layout(TextureLayout old_layout, TextureLayout new_layout) = 0;
 
         [[nodiscard]] std::uint32_t width() const { return desc_.width; }

@@ -21,27 +21,7 @@ namespace boza
 
     void Material::cleanup()
     {
-        if (!uniform_buffers_.empty())
-        {
-            std::vector<rhi::Buffer*> buffers_to_delete;
-            buffers_to_delete.reserve(uniform_buffers_.size());
-
-            for (auto& buffer : uniform_buffers_ | std::views::values)
-            {
-                if (buffer)
-                {
-                    buffers_to_delete.push_back(static_cast<rhi::Buffer*>(buffer));
-                }
-            }
-
-            uniform_buffers_.clear();
-
-            for (auto* buffer : buffers_to_delete)
-            {
-                buffer->destroy();
-                delete buffer;
-            }
-        }
+        uniform_buffers_.clear();
 
         if (descriptor_pool_ && (!descriptor_sets_.empty() || !descriptor_sets_per_frame_.empty()))
         {
@@ -81,11 +61,7 @@ namespace boza
         descriptor_sets_.clear();
         descriptor_sets_per_frame_.clear();
 
-        if (reflection_)
-        {
-            delete static_cast<rhi::DescriptorReflection*>(reflection_);
-            reflection_ = nullptr;
-        }
+        reflection_.reset();
     }
 
     Material::Material(Material&& other) noexcept
@@ -96,7 +72,7 @@ namespace boza
           descriptor_sets_{ std::move(other.descriptor_sets_) },
           descriptor_sets_per_frame_{ std::move(other.descriptor_sets_per_frame_) },
           push_constant_staging_{ std::move(other.push_constant_staging_) },
-          reflection_{ std::exchange(other.reflection_, nullptr) },
+          reflection_{ std::move(other.reflection_) },
           dirty_sets_{ std::move(other.dirty_sets_) },
           uniform_buffer_staging_{ std::move(other.uniform_buffer_staging_) },
           uniform_buffers_{ std::move(other.uniform_buffers_) },
@@ -117,7 +93,7 @@ namespace boza
         descriptor_sets_ = std::move(other.descriptor_sets_);
         descriptor_sets_per_frame_ = std::move(other.descriptor_sets_per_frame_);
         push_constant_staging_ = std::move(other.push_constant_staging_);
-        reflection_ = std::exchange(other.reflection_, nullptr);
+        reflection_ = std::move(other.reflection_);
         dirty_sets_ = std::move(other.dirty_sets_);
         uniform_buffer_staging_ = std::move(other.uniform_buffer_staging_);
         uniform_buffers_ = std::move(other.uniform_buffers_);
@@ -217,7 +193,7 @@ namespace boza
             return;
         }
 
-        const auto binding_info = static_cast<rhi::DescriptorReflection*>(reflection_)->lookup(name);
+        const auto binding_info = static_cast<rhi::DescriptorReflection*>(reflection_.get())->lookup(name);
         if (!binding_info.has_value())
         {
             Log::warn("Material push constant '{}' not found in shader reflection", name);
@@ -273,7 +249,7 @@ namespace boza
             return;
         }
 
-        const auto binding_info = static_cast<rhi::DescriptorReflection*>(reflection_)->lookup(name);
+        const auto binding_info = static_cast<rhi::DescriptorReflection*>(reflection_.get())->lookup(name);
         if (!binding_info.has_value())
         {
             Log::warn("Material property '{}' not found in shader reflection", name);
@@ -320,10 +296,10 @@ namespace boza
 
         if (!uniform_buffers_.contains(binding_key))
         {
-            const auto        parent_info = static_cast<rhi::DescriptorReflection*>(reflection_)->lookup(name.substr(0, name.find('.')));
+            const auto parent_info = static_cast<rhi::DescriptorReflection*>(reflection_.get())->lookup(name.substr(0, name.find('.')));
             const std::size_t buffer_size = parent_info.has_value() ? parent_info->size : 256;
 
-            auto* buffer = create_buffer(
+            auto buffer = create_buffer(
                 rhi::RenderContext::api(), {
                     .device = rhi::RenderContext::device(),
                     .size = buffer_size,
@@ -333,7 +309,12 @@ namespace boza
 
             if (buffer)
             {
-                uniform_buffers_[binding_key] = buffer;
+                auto* raw_buffer = buffer.get();
+
+                uniform_buffers_.try_emplace(
+                    binding_key,
+                    buffer.release(),
+                    &Material::destroy_rhi_buffer);
                 uniform_buffer_staging_[binding_key].resize(buffer_size, 0);
 
                 rhi::DescriptorWrite write{
@@ -341,8 +322,7 @@ namespace boza
                     .array_element = 0,
                     .type = rhi::DescriptorType::UniformBuffer,
                     .info = rhi::UniformBuffer{
-                        .buffer = buffer,
-                        .offset = 0,
+                        .buffer = raw_buffer,
                         .range = static_cast<std::uint32_t>(buffer_size)
                     }
                 };
@@ -372,7 +352,7 @@ namespace boza
         {
             std::memcpy(staging.data() + info.offset, data, size);
 
-            auto* buffer = static_cast<rhi::Buffer*>(uniform_buffers_[binding_key]);
+            auto* buffer = static_cast<rhi::Buffer*>(uniform_buffers_.at(binding_key).get());
             if (buffer) buffer->upload(staging.data(), staging.size(), 0);
         }
         else
@@ -395,7 +375,7 @@ namespace boza
             return;
         }
 
-        const auto binding_info = static_cast<rhi::DescriptorReflection*>(reflection_)->lookup(name);
+        const auto binding_info = static_cast<rhi::DescriptorReflection*>(reflection_.get())->lookup(name);
         if (!binding_info.has_value())
         {
             Log::warn("Material texture property '{}' not found in shader reflection", name);
@@ -447,7 +427,7 @@ namespace boza
             return;
         }
 
-        const auto binding_info = static_cast<rhi::DescriptorReflection*>(reflection_)->lookup(name);
+        const auto binding_info = static_cast<rhi::DescriptorReflection*>(reflection_.get())->lookup(name);
         if (!binding_info.has_value())
         {
             Log::warn("Material buffer property '{}' not found in shader reflection", name);
@@ -547,7 +527,7 @@ namespace boza
     {
         if (!reflection_) return std::nullopt;
 
-        auto rhi_info = static_cast<rhi::DescriptorReflection*>(reflection_)->lookup(name);
+        auto rhi_info = static_cast<rhi::DescriptorReflection*>(reflection_.get())->lookup(name);
         if (!rhi_info.has_value()) return std::nullopt;
 
         const auto& [
@@ -583,5 +563,20 @@ namespace boza
     {
         material_->update_texture(name_, texture_sampler.first, texture_sampler.second);
         return *this;
+    }
+
+    void Material::destroy_rhi_buffer(void* handle)
+    {
+        if (!handle) return;
+
+        auto* buffer = static_cast<rhi::Buffer*>(handle);
+        buffer->destroy();
+        delete buffer;
+    }
+
+    void Material::destroy_reflection(void* handle)
+    {
+        if (!handle) return;
+        delete static_cast<rhi::DescriptorReflection*>(handle);
     }
 }

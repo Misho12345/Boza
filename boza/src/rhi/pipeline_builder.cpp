@@ -1,13 +1,10 @@
 module boza.rhi;
 
 import boza.core;
-import boza.detail;
 import :pipeline_builder;
 
 namespace boza::rhi
 {
-    using detail::AssetPaths;
-
      /// ----------------------------
     /// ===== Pipeline Builder =====
     /// ----------------------------
@@ -20,12 +17,6 @@ namespace boza::rhi
     bool PipelineBuilder::build_descriptor_set_layouts()
     {
         auto bindings_by_set = merge_descriptor_bindings();
-
-        for (auto* layout : descriptor_set_layouts_)
-        {
-            layout->destroy();
-            delete layout;
-        }
 
         descriptor_set_layouts_.clear();
 
@@ -51,7 +42,7 @@ namespace boza::rhi
                     layout_bindings.emplace_back(binding, type, stages, count);
             }
 
-            auto* layout = create_descriptor_set_layout(
+            auto layout = create_descriptor_set_layout(
                 api_, {
                     .device = device_,
                     .bindings = layout_bindings
@@ -63,33 +54,36 @@ namespace boza::rhi
                 return false;
             }
 
-            descriptor_set_layouts_.push_back(layout);
+            descriptor_set_layouts_.push_back(std::move(layout));
         }
 
         // Log::trace("Created {} descriptor set layout(s)", descriptor_set_layouts_.size());
         return true;
     }
 
-    PipelineLayout* PipelineBuilder::build_pipeline_layout()
+    std::unique_ptr<PipelineLayout> PipelineBuilder::build_pipeline_layout() const
     {
-        pipeline_layout_ = create_pipeline_layout(
+        const auto pipeline_layouts = get_descriptor_set_layouts();
+
+        auto pipeline_layout = create_pipeline_layout(
             api_, {
                 .device = device_,
                 .shaders = shaders_,
-                .set_layouts = descriptor_set_layouts_
+                .set_layouts = pipeline_layouts
             });
 
-        if (!pipeline_layout_)
+        if (!pipeline_layout)
         {
             Log::error("Failed to create pipeline layout");
             return nullptr;
         }
 
         // Log::trace("Created pipeline layout with {} descriptor set(s)", descriptor_set_layouts_.size());
-        return pipeline_layout_;
+        return pipeline_layout;
     }
 
-    GraphicsPipeline* PipelineBuilder::build_graphics_pipeline(
+    std::unique_ptr<GraphicsPipeline> PipelineBuilder::build_graphics_pipeline(
+        PipelineLayout*                   pipeline_layout,
         const std::vector<TextureFormat>& color_attachment_formats,
         const DepthFormat                 depth_attachment_format,
         const RasterizationState&         rasterization,
@@ -97,7 +91,7 @@ namespace boza::rhi
         const ColorBlendState&            color_blend,
         const PrimitiveTopology           topology) const
     {
-        if (!pipeline_layout_)
+        if (!pipeline_layout)
         {
             Log::error("Pipeline layout not created. Call build_pipeline_layout() first.");
             return nullptr;
@@ -156,11 +150,11 @@ namespace boza::rhi
             }
         }
 
-        auto* pipeline = create_graphics_pipeline(
+        auto pipeline = create_graphics_pipeline(
             api_, {
                 .device = device_,
                 .shaders = shaders_,
-                .layout = pipeline_layout_,
+                .layout = pipeline_layout,
                 .topology = topology,
                 .bindings = bindings,
                 .attributes = attributes,
@@ -178,15 +172,17 @@ namespace boza::rhi
         return pipeline;
     }
 
-    GraphicsPipeline* PipelineBuilder::build_graphics_pipeline(
-        const Swapchain*          swapchain,
-        const DepthFormat         depth_attachment_format,
+    std::unique_ptr<GraphicsPipeline> PipelineBuilder::build_graphics_pipeline(
+        PipelineLayout*          pipeline_layout,
+        const Swapchain*         swapchain,
+        const DepthFormat        depth_attachment_format,
         const RasterizationState& rasterization,
-        const DepthStencilState&  depth_stencil,
-        const ColorBlendState&    color_blend,
-        const PrimitiveTopology   topology) const
+        const DepthStencilState& depth_stencil,
+        const ColorBlendState&   color_blend,
+        const PrimitiveTopology  topology) const
     {
         return build_graphics_pipeline(
+            pipeline_layout,
             { swapchain->format() },
             depth_attachment_format,
             rasterization,
@@ -196,9 +192,9 @@ namespace boza::rhi
         );
     }
 
-    ComputePipeline* PipelineBuilder::build_compute_pipeline() const
+    std::unique_ptr<ComputePipeline> PipelineBuilder::build_compute_pipeline(PipelineLayout* pipeline_layout) const
     {
-        if (!pipeline_layout_)
+        if (!pipeline_layout)
         {
             Log::error("Pipeline layout not created. Call build_pipeline_layout() first.");
             return nullptr;
@@ -210,11 +206,11 @@ namespace boza::rhi
             return nullptr;
         }
 
-        auto* pipeline = create_compute_pipeline(
+        auto pipeline = create_compute_pipeline(
             api_, {
                 .device = device_,
                 .shader = shaders_[0],
-                .layout = pipeline_layout_
+                .layout = pipeline_layout
             });
 
         if (!pipeline)
@@ -226,9 +222,20 @@ namespace boza::rhi
         return pipeline;
     }
 
-    const std::vector<DescriptorSetLayout*>& PipelineBuilder::get_descriptor_set_layouts() const
+    std::vector<DescriptorSetLayout*> PipelineBuilder::get_descriptor_set_layouts() const
     {
-        return descriptor_set_layouts_;
+        std::vector<DescriptorSetLayout*> layouts;
+        layouts.reserve(descriptor_set_layouts_.size());
+
+        for (const auto& layout : descriptor_set_layouts_)
+            layouts.push_back(layout.get());
+
+        return layouts;
+    }
+
+    std::vector<std::unique_ptr<DescriptorSetLayout>> PipelineBuilder::take_descriptor_set_layouts()
+    {
+        return std::move(descriptor_set_layouts_);
     }
 
     flat_map<std::uint32_t, std::vector<PipelineBuilder::DescriptorBinding>>

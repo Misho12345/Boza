@@ -33,7 +33,7 @@ namespace boza::rhi::vk
             .device = this
         };
 
-        allocator_.reset(Allocator::create<Allocator>(allocator_desc));
+        allocator_ = Allocator::create<Allocator>(allocator_desc);
         if (!allocator_)
         {
             Log::critical("Failed to create allocator");

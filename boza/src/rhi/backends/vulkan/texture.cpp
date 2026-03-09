@@ -7,6 +7,39 @@ import <vk_all>;
 
 namespace boza::rhi::vk
 {
+    namespace
+    {
+        constexpr std::size_t bytes_per_pixel(const TextureFormat format)
+        {
+            switch (format)
+            {
+                case TextureFormat::R8: return 1;
+                case TextureFormat::RG8: return 2;
+                case TextureFormat::RGB8: return 3;
+                case TextureFormat::RGBA8: return 4;
+                case TextureFormat::BGRA8: return 4;
+                case TextureFormat::R16F: return 2;
+                case TextureFormat::RG16F: return 4;
+                case TextureFormat::RGB16F: return 6;
+                case TextureFormat::RGBA16F: return 8;
+                case TextureFormat::R32F: return 4;
+                case TextureFormat::RG32F: return 8;
+                case TextureFormat::RGB32F: return 12;
+                case TextureFormat::RGBA32F: return 16;
+                case TextureFormat::DEPTH24STENCIL8: return 4;
+                case TextureFormat::DEPTH32F: return 4;
+            }
+
+            return 4;
+        }
+
+        constexpr std::uint32_t copy_depth_for_type(const TextureType type, const std::uint32_t depth)
+        {
+            if (type == TextureType::Texture3D) return std::max(depth, 1u);
+            return 1u;
+        }
+    }
+
     bool Texture::init()
     {
         if (desc_.width == 0 || desc_.height == 0)
@@ -28,7 +61,7 @@ namespace boza::rhi::vk
             .arrayLayers = desc_.array_layers * (is_cube ? 6 : 1),
             .samples = to_vk(desc_.sample_count),
             .tiling = VK_IMAGE_TILING_OPTIMAL,
-            .usage = to_vk(desc_.usage) | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+            .usage = to_vk(desc_.usage) | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
             .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
         };
@@ -96,24 +129,100 @@ namespace boza::rhi::vk
         }
     }
 
-    std::unique_ptr<rhi::Buffer> Texture::stage(const size_t size) const
+    std::unique_ptr<rhi::Buffer> Texture::stage(const size_t size, const std::uint32_t layer) const
     {
+        const bool is_cube = desc_.type == TextureType::TextureCube || desc_.type == TextureType::TextureCubeArray;
+        const std::uint32_t total_layers = desc_.array_layers * (is_cube ? 6u : 1u);
+        if (layer >= total_layers)
+        {
+            Log::error("Texture staging layer {} out of bounds ({} layers)", layer, total_layers);
+            return nullptr;
+        }
+
+        const std::uint32_t copy_depth = copy_depth_for_type(desc_.type, desc_.depth);
+
+        const size_t required_size =
+            static_cast<size_t>(desc_.width) *
+            static_cast<size_t>(desc_.height) *
+            static_cast<size_t>(copy_depth) *
+            bytes_per_pixel(desc_.format);
+
+        const size_t stage_size = size > 0 ? size : required_size;
+        if (stage_size < required_size)
+        {
+            Log::error(
+                "Staging buffer size {} is too small for texture layer copy (required {})",
+                stage_size,
+                required_size);
+            return nullptr;
+        }
+
         const BufferDesc staging_desc
         {
             .device = desc_.device,
-            .size = size,
+            .size = stage_size,
             .usage = BufferUsage::Staging,
             .memory_type = BufferMemoryType::HostCoherent
         };
 
-        auto* staging_buffer = Buffer::create<Buffer>(staging_desc);
+        auto staging_buffer = Buffer::create<Buffer>(staging_desc);
         if (!staging_buffer)
         {
             Log::error("Failed to create staging buffer for texture operation");
             return nullptr;
         }
 
-        return std::unique_ptr<rhi::Buffer>(staging_buffer);
+        const VkImageLayout current_layout = desc_.usage & TextureUsage::Storage
+                                                 ? VK_IMAGE_LAYOUT_GENERAL
+                                                 : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        const VkImageAspectFlags aspect_mask = get_image_aspect_flags(desc_.usage);
+
+        transition_layout_internal(current_layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+        const auto* device = reinterpret_cast<Device*>(desc_.device);
+        auto* cmd_pool = device->command_pool(device->queue_family_indices().graphics_family);
+        auto* cmd_buffer = cmd_pool->begin_single_time_commands();
+        if (!cmd_buffer)
+        {
+            Log::error("Failed to begin single-time commands for texture staging");
+            transition_layout_internal(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, current_layout);
+            return nullptr;
+        }
+
+        const VkBufferImageCopy region{
+            .bufferOffset = 0,
+            .bufferRowLength = 0,
+            .bufferImageHeight = 0,
+            .imageSubresource = {
+                .aspectMask = aspect_mask,
+                .mipLevel = 0,
+                .baseArrayLayer = layer,
+                .layerCount = 1
+            },
+            .imageOffset = { 0, 0, 0 },
+            .imageExtent = { desc_.width, desc_.height, copy_depth }
+        };
+
+        vkCmdCopyImageToBuffer(
+            reinterpret_cast<CommandBuffer*>(cmd_buffer)->vk_command_buffer(),
+            image_,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            reinterpret_cast<Buffer*>(staging_buffer.get())->vk_buffer(),
+            1,
+            &region
+        );
+
+        if (!cmd_pool->end_single_time_commands(cmd_buffer))
+        {
+            Log::error("Failed to end single-time commands for texture staging");
+            transition_layout_internal(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, current_layout);
+            return nullptr;
+        }
+
+        transition_layout_internal(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, current_layout);
+
+        return staging_buffer;
     }
 
     void Texture::transition_layout_internal(const VkImageLayout old_layout, const VkImageLayout new_layout) const
@@ -354,6 +463,7 @@ namespace boza::rhi::vk
         }
 
         const auto* vk_cmd_buffer = reinterpret_cast<CommandBuffer*>(cmd_buffer);
+        const VkImageAspectFlags aspect_mask = get_image_aspect_flags(desc_.usage);
         vk_cmd_buffer->pipeline_image_barrier(
             image_,
             old_layout,
@@ -362,7 +472,7 @@ namespace boza::rhi::vk
             src_access,
             destination_stage,
             dst_access,
-            VK_IMAGE_ASPECT_COLOR_BIT,
+            aspect_mask,
             0,
             desc_.mip_levels,
             0,
@@ -375,9 +485,15 @@ namespace boza::rhi::vk
     {
         // Log::trace("Uploading {} bytes to texture layer {}", size, layer);
 
-        const auto* device = reinterpret_cast<Device*>(desc_.device);
+        const BufferDesc staging_desc
+        {
+            .device = desc_.device,
+            .size = size,
+            .usage = BufferUsage::Staging,
+            .memory_type = BufferMemoryType::HostCoherent
+        };
 
-        const std::unique_ptr<rhi::Buffer> staging_buffer = stage(size);
+        auto staging_buffer = Buffer::create<Buffer>(staging_desc);
         if (!staging_buffer)
         {
             return;
@@ -385,13 +501,65 @@ namespace boza::rhi::vk
 
         staging_buffer->upload(data, size, 0);
 
+        if (!upload_from(staging_buffer.get(), size, layer))
+        {
+            Log::error("Failed to upload texture data from staging buffer");
+        }
+    }
+
+    bool Texture::upload_from(rhi::Buffer* staging_buffer, const size_t size, const std::uint32_t layer)
+    {
+        if (!staging_buffer)
+        {
+            Log::error("Cannot upload texture from null staging buffer");
+            return false;
+        }
+
+        const bool is_cube = desc_.type == TextureType::TextureCube || desc_.type == TextureType::TextureCubeArray;
+        const std::uint32_t total_layers = desc_.array_layers * (is_cube ? 6u : 1u);
+        if (layer >= total_layers)
+        {
+            Log::error("Texture upload layer {} out of bounds ({} layers)", layer, total_layers);
+            return false;
+        }
+
+        const std::uint32_t copy_depth = copy_depth_for_type(desc_.type, desc_.depth);
+
+        const size_t required_size =
+            static_cast<size_t>(desc_.width) *
+            static_cast<size_t>(desc_.height) *
+            static_cast<size_t>(copy_depth) *
+            bytes_per_pixel(desc_.format);
+
+        const size_t transfer_size = size > 0 ? size : staging_buffer->size();
+        if (transfer_size < required_size)
+        {
+            Log::error(
+                "Staging upload size {} is too small for texture layer upload (required {})",
+                transfer_size,
+                required_size);
+            return false;
+        }
+
+        const auto* device = reinterpret_cast<Device*>(desc_.device);
+
         auto* cmd_pool = device->command_pool(device->queue_family_indices().graphics_family);
         auto* cmd_buffer = cmd_pool->begin_single_time_commands();
+        if (!cmd_buffer)
+        {
+            Log::error("Failed to begin single-time commands for texture upload");
+            return false;
+        }
 
         VkImageLayout current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
         if (desc_.usage & TextureUsage::Storage) current_layout = VK_IMAGE_LAYOUT_GENERAL;
 
+        const VkImageLayout final_layout = desc_.usage & TextureUsage::Storage
+                                               ? VK_IMAGE_LAYOUT_GENERAL
+                                               : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
         const auto* vk_cmd_buffer = reinterpret_cast<CommandBuffer*>(cmd_buffer);
+        const VkImageAspectFlags aspect_mask = get_image_aspect_flags(desc_.usage);
         vk_cmd_buffer->pipeline_image_barrier(
             image_,
             current_layout,
@@ -400,7 +568,7 @@ namespace boza::rhi::vk
             VK_ACCESS_2_NONE,
             VK_PIPELINE_STAGE_2_TRANSFER_BIT,
             VK_ACCESS_2_TRANSFER_WRITE_BIT,
-            VK_IMAGE_ASPECT_COLOR_BIT,
+            aspect_mask,
             0,
             1,
             layer,
@@ -411,18 +579,18 @@ namespace boza::rhi::vk
             .bufferRowLength = 0,
             .bufferImageHeight = 0,
             .imageSubresource = {
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .aspectMask = aspect_mask,
                 .mipLevel = 0,
                 .baseArrayLayer = layer,
                 .layerCount = 1
             },
             .imageOffset = { 0, 0, 0 },
-            .imageExtent = { desc_.width, desc_.height, 1 }
+            .imageExtent = { desc_.width, desc_.height, copy_depth }
         };
 
         vkCmdCopyBufferToImage(
             vk_cmd_buffer->vk_command_buffer(),
-            static_cast<Buffer*>(staging_buffer.get())->vk_buffer(),
+            static_cast<Buffer*>(staging_buffer)->vk_buffer(),
             image_,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             1,
@@ -432,69 +600,37 @@ namespace boza::rhi::vk
         vk_cmd_buffer->pipeline_image_barrier(
             image_,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            final_layout,
             VK_PIPELINE_STAGE_2_TRANSFER_BIT,
             VK_ACCESS_2_TRANSFER_WRITE_BIT,
-            VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-            VK_ACCESS_2_SHADER_READ_BIT,
-            VK_IMAGE_ASPECT_COLOR_BIT,
+            VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+            desc_.usage & TextureUsage::Storage ? (VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT) : VK_ACCESS_2_SHADER_READ_BIT,
+            aspect_mask,
             0,
             1,
             layer,
             1);
 
-        cmd_pool->end_single_time_commands(cmd_buffer);
+        if (!cmd_pool->end_single_time_commands(cmd_buffer))
+        {
+            Log::error("Failed to end single-time commands for texture upload");
+            return false;
+        }
+
+        return true;
     }
 
     void Texture::read_back(void* data, const size_t size, const std::uint32_t layer)
     {
         // Log::trace("Downloading {} bytes from texture", size);
 
-        const auto* device = reinterpret_cast<Device*>(desc_.device);
-
-        const std::unique_ptr<rhi::Buffer> staging_buffer = stage(size);
+        const std::unique_ptr<rhi::Buffer> staging_buffer = stage(size, layer);
         if (!staging_buffer)
         {
             return;
         }
 
-        const VkImageLayout current_layout = desc_.usage & TextureUsage::Storage
-                                                 ? VK_IMAGE_LAYOUT_GENERAL
-                                                 : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-        transition_layout_internal(current_layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-
-        auto* cmd_pool = device->command_pool(device->queue_family_indices().graphics_family);
-        auto* cmd_buffer = cmd_pool->begin_single_time_commands();
-
-        const VkBufferImageCopy region{
-            .bufferOffset = 0,
-            .bufferRowLength = 0,
-            .bufferImageHeight = 0,
-            .imageSubresource = {
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                .mipLevel = 0,
-                .baseArrayLayer = layer,
-                .layerCount = 1
-            },
-            .imageOffset = { 0, 0, 0 },
-            .imageExtent = { desc_.width, desc_.height, 1 }
-        };
-
-        vkCmdCopyImageToBuffer(
-            reinterpret_cast<CommandBuffer*>(cmd_buffer)->vk_command_buffer(),
-            image_,
-            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            static_cast<Buffer*>(staging_buffer.get())->vk_buffer(),
-            1,
-            &region
-        );
-
-        cmd_pool->end_single_time_commands(cmd_buffer);
-
         staging_buffer->read_back(data, size, 0);
-
-        transition_layout_internal(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, current_layout);
     }
 
     void Texture::transition_layout(const TextureLayout old_layout, const TextureLayout new_layout)

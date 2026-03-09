@@ -6,6 +6,7 @@ import boza.core;
 import boza.gfx;
 import boza.rhi;
 import boza.detail;
+import boza.gfx.resource_registry;
 
 export namespace boza::gfx
 {
@@ -121,8 +122,7 @@ export namespace boza::gfx
         rhi::GraphicsApi     api_{};
 
         flat_map<std::string, MaterialDefinition> definitions_;
-        mt::node_map<std::string, Material> materials_;
-        flat_set<const Material*> valid_pointers_;
+        ResourceRegistry<Material> materials_;
 
         std::optional<Buffer> camera_ubo_;
         std::optional<Buffer> light_ubo_;

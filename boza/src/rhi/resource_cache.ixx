@@ -10,6 +10,21 @@ export namespace boza::rhi
     class ResourceCache
     {
     public:
+        template<typename T>
+        struct GraphicsObjectDeleter
+        {
+            void operator()(T* ptr) const
+            {
+                if (ptr)
+                {
+                    ptr->destroy();
+                    delete ptr;
+                }
+            }
+        };
+
+        using OwnedDescriptorSetLayout = std::unique_ptr<DescriptorSetLayout, GraphicsObjectDeleter<DescriptorSetLayout>>;
+
         ResourceCache() = default;
         ~ResourceCache() { clear(); }
 
@@ -20,11 +35,11 @@ export namespace boza::rhi
 
         std::shared_ptr<ShaderModule> get_or_create_shader(
             const ShaderModuleDesc& desc,
-            const std::function<ShaderModule*(const ShaderModuleDesc&)>& factory);
+            const std::function<std::unique_ptr<ShaderModule>(const ShaderModuleDesc&)>& factory);
 
         std::shared_ptr<Texture> get_or_create_texture(
             const std::string& path,
-            const std::function<Texture*(const std::string&)>& factory);
+            const std::function<std::unique_ptr<Texture>(const std::string&)>& factory);
 
         struct GraphicsPipelineKey
         {
@@ -48,9 +63,9 @@ export namespace boza::rhi
 
         struct CachedGraphicsPipeline
         {
-            GraphicsPipeline* pipeline{ nullptr };
-            PipelineLayout* layout{ nullptr };
-            std::vector<DescriptorSetLayout*> descriptor_set_layouts;
+            std::unique_ptr<GraphicsPipeline> pipeline{};
+            std::unique_ptr<PipelineLayout> layout{};
+            std::vector<OwnedDescriptorSetLayout> descriptor_set_layouts{};
         };
 
         struct ComputePipelineKey
@@ -70,16 +85,16 @@ export namespace boza::rhi
 
         struct CachedComputePipeline
         {
-            ComputePipeline* pipeline{ nullptr };
-            PipelineLayout* layout{ nullptr };
-            std::vector<DescriptorSetLayout*> descriptor_set_layouts;
+            std::unique_ptr<ComputePipeline> pipeline{};
+            std::unique_ptr<PipelineLayout> layout{};
+            std::vector<OwnedDescriptorSetLayout> descriptor_set_layouts{};
         };
 
         CachedGraphicsPipeline* get_cached_pipeline(const std::string& vert, const std::string& frag, std::size_t settings_hash = 0);
-        void cache_graphics_pipeline(const std::string& vert, const std::string& frag, std::size_t settings_hash, const CachedGraphicsPipeline& cached);
+        void cache_graphics_pipeline(const std::string& vert, const std::string& frag, std::size_t settings_hash, CachedGraphicsPipeline cached);
 
         CachedComputePipeline* get_cached_compute_pipeline(const std::string& compute_shader);
-        void cache_compute_pipeline(const std::string& compute_shader, const CachedComputePipeline& cached);
+        void cache_compute_pipeline(const std::string& compute_shader, CachedComputePipeline cached);
 
         void clear();
 
@@ -117,7 +132,7 @@ export namespace boza::rhi
             const KeyType&             key,
             MapType&                   cache,
             std::mutex&                mutex,
-            const std::function<T*()>& factory)
+            const std::function<std::unique_ptr<T>()>& factory)
         {
             std::lock_guard lock{ mutex };
 
@@ -126,17 +141,10 @@ export namespace boza::rhi
                 if (auto shared = it->second.lock()) return shared;
             }
 
-            T* raw_ptr = factory();
-            if (!raw_ptr) return nullptr;
+            auto unique_ptr = factory();
+            if (!unique_ptr) return nullptr;
 
-            auto shared = std::shared_ptr<T>(raw_ptr, [](T* ptr)
-            {
-                if (ptr)
-                {
-                    ptr->destroy();
-                    delete ptr;
-                }
-            });
+            auto shared = std::shared_ptr<T>(unique_ptr.release(), GraphicsObjectDeleter<T>{});
 
             cache[key] = shared;
             return shared;

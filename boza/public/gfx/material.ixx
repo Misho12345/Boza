@@ -154,7 +154,7 @@ export namespace boza
         [[nodiscard]] void*              rhi_descriptor_set_handle(std::size_t index) const;
         [[nodiscard]] void*              rhi_pipeline_layout_handle() const { return pipeline_layout_; }
         [[nodiscard]] void*              rhi_pipeline_handle() const { return pipeline_; }
-        [[nodiscard]] const void*        reflection_handle() const { return reflection_; }
+        [[nodiscard]] const void*        reflection_handle() const { return reflection_.get(); }
         [[nodiscard]] std::span<const std::uint8_t> push_constant_staging() const { return push_constant_staging_; }
         [[nodiscard]] const std::string& name() const { return name_; }
 
@@ -163,6 +163,11 @@ export namespace boza
         void set_cpu_cull_enabled(const bool enabled) { cpu_cull_enabled_ = enabled; }
 
     private:
+        using RhiOwnedHandle = std::unique_ptr<void, void(*)(void*)>;
+
+        static void destroy_rhi_buffer(void* handle);
+        static void destroy_reflection(void* handle);
+
         explicit Material(std::string_view name);
         void     cleanup();
 
@@ -175,12 +180,12 @@ export namespace boza
         std::vector<std::vector<void*>> descriptor_sets_per_frame_;
         std::vector<std::uint8_t> push_constant_staging_;
 
-        void* reflection_{ nullptr };
+        RhiOwnedHandle reflection_{ nullptr, &Material::destroy_reflection };
 
         flat_map<std::uint32_t, bool> dirty_sets_;
 
         flat_map<std::uint32_t, std::vector<std::uint8_t>> uniform_buffer_staging_;
-        flat_map<std::uint32_t, void*>                     uniform_buffers_;
+        flat_map<std::uint32_t, RhiOwnedHandle>            uniform_buffers_;
 
         flat_map<std::string, Sampler*> default_samplers_;
 

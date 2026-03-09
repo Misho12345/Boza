@@ -667,10 +667,10 @@ namespace boza::rhi::vk
 
         for (uint32_t i = 0; i < frames_.size(); ++i)
         {
-            frames_[i].in_flight_fence.reset(Fence::create<Fence>({
+            frames_[i].in_flight_fence = Fence::create<Fence>({
                 .device = desc_.device,
                 .signaled = true
-            }));
+            });
 
             if (!frames_[i].in_flight_fence)
             {
@@ -678,14 +678,14 @@ namespace boza::rhi::vk
                 return false;
             }
 
-            frames_[i].image_available_semaphore.reset(Semaphore::create<Semaphore>({ desc_.device }));
+            frames_[i].image_available_semaphore = Semaphore::create<Semaphore>({ desc_.device });
             if (!frames_[i].image_available_semaphore)
             {
                 Log::critical("Failed to create image available semaphore for frame {}", i);
                 return false;
             }
 
-            frames_[i].render_finished_semaphore.reset(Semaphore::create<Semaphore>({ desc_.device }));
+            frames_[i].render_finished_semaphore = Semaphore::create<Semaphore>({ desc_.device });
             if (!frames_[i].render_finished_semaphore)
             {
                 Log::critical("Failed to create render finished semaphore for frame {}", i);

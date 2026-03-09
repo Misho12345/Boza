@@ -19,6 +19,7 @@ namespace boza::rhi::vk
         if (desc_.memory_type == BufferMemoryType::DeviceLocal)
         {
             usage_flags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+            usage_flags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
         }
 
         const VkBufferCreateInfo buffer_create_info
@@ -94,22 +95,71 @@ namespace boza::rhi::vk
 
     std::unique_ptr<rhi::Buffer> Buffer::stage(const size_t size) const
     {
+        const size_t stage_size = size > 0 ? size : desc_.size;
+
+        if (stage_size > desc_.size)
+        {
+            Log::error("Requested stage size {} exceeds buffer size {}", stage_size, desc_.size);
+            return nullptr;
+        }
+
         const BufferDesc staging_desc
         {
             .device = desc_.device,
-            .size = size > 0 ? size : desc_.size,
+            .size = stage_size,
             .usage = BufferUsage::Staging,
             .memory_type = BufferMemoryType::HostCoherent
         };
 
-        auto* staging_buffer = create<Buffer>(staging_desc);
+        auto staging_buffer = create<Buffer>(staging_desc);
         if (!staging_buffer)
         {
             Log::error("Failed to create staging buffer");
             return nullptr;
         }
 
-        return std::unique_ptr<rhi::Buffer>(staging_buffer);
+        if (desc_.memory_type == BufferMemoryType::DeviceLocal)
+        {
+            const auto* device = reinterpret_cast<Device*>(desc_.device);
+            const std::uint32_t transfer_family = device->queue_family_indices().transfer_family;
+            auto* command_pool = static_cast<CommandPool*>(device->command_pool(transfer_family));
+            if (!command_pool)
+            {
+                Log::error("Failed to get transfer command pool for family {}", transfer_family);
+                return nullptr;
+            }
+
+            auto* cmd_buffer = command_pool->begin_single_time_commands();
+            if (!cmd_buffer)
+            {
+                Log::error("Failed to begin single time commands for buffer staging");
+                return nullptr;
+            }
+
+            const VkBufferCopy copy_region
+            {
+                .srcOffset = 0,
+                .dstOffset = 0,
+                .size = stage_size
+            };
+
+            const auto* vk_staging_buffer = static_cast<Buffer*>(staging_buffer.get());
+            auto* vk_cmd = reinterpret_cast<CommandBuffer*>(cmd_buffer)->vk_command_buffer();
+            vkCmdCopyBuffer(vk_cmd, buffer_, vk_staging_buffer->vk_buffer(), 1, &copy_region);
+
+            if (!command_pool->end_single_time_commands(cmd_buffer))
+            {
+                Log::error("Failed to end single time commands for buffer staging");
+                return nullptr;
+            }
+        }
+        else if (const auto mapped_data = const_cast<Buffer*>(this)->map())
+        {
+            staging_buffer->upload(mapped_data, stage_size, 0);
+            const_cast<Buffer*>(this)->unmap();
+        }
+
+        return staging_buffer;
     }
 
     void Buffer::upload(const void* data, const size_t size, const size_t offset)
@@ -119,47 +169,26 @@ namespace boza::rhi::vk
         // For DeviceLocal buffers, use staging buffer with transfer queue
         if (desc_.memory_type == BufferMemoryType::DeviceLocal)
         {
-            const auto* device = reinterpret_cast<Device*>(desc_.device);
+            const BufferDesc staging_desc
+            {
+                .device = desc_.device,
+                .size = size,
+                .usage = BufferUsage::Staging,
+                .memory_type = BufferMemoryType::HostCoherent
+            };
 
-            const std::unique_ptr<rhi::Buffer> staging_buffer = stage(size);
-
+            const auto staging_buffer = create<Buffer>(staging_desc);
             if (!staging_buffer)
             {
+                Log::error("Failed to create staging buffer");
                 return;
             }
 
             staging_buffer->upload(data, size, 0);
 
-            const auto* vk_staging_buffer = static_cast<Buffer*>(staging_buffer.get());
-
-            std::uint32_t transfer_family = device->queue_family_indices().transfer_family;
-            auto* command_pool = static_cast<CommandPool*>(device->command_pool(transfer_family));
-            if (!command_pool)
+            if (!upload_from(staging_buffer.get(), size, 0, offset))
             {
-                Log::error("Failed to get transfer command pool for family {}", transfer_family);
-                return;
-            }
-
-            auto* cmd_buffer = command_pool->begin_single_time_commands();
-            if (!cmd_buffer)
-            {
-                Log::error("Failed to begin single time commands");
-                return;
-            }
-
-            const VkBufferCopy copy_region
-            {
-                .srcOffset = 0,
-                .dstOffset = offset,
-                .size = size
-            };
-
-            auto* vk_cmd = reinterpret_cast<CommandBuffer*>(cmd_buffer)->vk_command_buffer();
-            vkCmdCopyBuffer(vk_cmd, vk_staging_buffer->vk_buffer(), buffer_, 1, &copy_region);
-
-            if (!command_pool->end_single_time_commands(cmd_buffer))
-            {
-                Log::error("Failed to end single time commands");
+                Log::error("Failed to upload from staging buffer");
             }
         }
         else
@@ -175,17 +204,139 @@ namespace boza::rhi::vk
 
     void Buffer::read_back(void* data, const size_t size, const size_t offset)
     {
-        assert(
-            desc_.memory_type != BufferMemoryType::DeviceLocal,
-            "Cannot read back from device local buffer directly"
-        );
         assert(offset + size <= desc_.size, "Read back out of bounds");
+
+        if (desc_.memory_type == BufferMemoryType::DeviceLocal)
+        {
+            const BufferDesc staging_desc
+            {
+                .device = desc_.device,
+                .size = size,
+                .usage = BufferUsage::Staging,
+                .memory_type = BufferMemoryType::HostCoherent
+            };
+
+            auto staging_buffer = create<Buffer>(staging_desc);
+            if (!staging_buffer)
+            {
+                Log::error("Failed to create staging buffer for buffer read-back");
+                return;
+            }
+
+            const auto* device = reinterpret_cast<Device*>(desc_.device);
+            std::uint32_t transfer_family = device->queue_family_indices().transfer_family;
+            auto* command_pool = static_cast<CommandPool*>(device->command_pool(transfer_family));
+            if (!command_pool)
+            {
+                Log::error("Failed to get transfer command pool for family {}", transfer_family);
+                return;
+            }
+
+            auto* cmd_buffer = command_pool->begin_single_time_commands();
+            if (!cmd_buffer)
+            {
+                Log::error("Failed to begin single time commands for buffer read-back");
+                return;
+            }
+
+            const VkBufferCopy copy_region
+            {
+                .srcOffset = offset,
+                .dstOffset = 0,
+                .size = size
+            };
+
+            const auto* vk_staging_buffer = static_cast<Buffer*>(staging_buffer.get());
+            auto* vk_cmd = reinterpret_cast<CommandBuffer*>(cmd_buffer)->vk_command_buffer();
+            vkCmdCopyBuffer(vk_cmd, buffer_, vk_staging_buffer->vk_buffer(), 1, &copy_region);
+
+            if (!command_pool->end_single_time_commands(cmd_buffer))
+            {
+                Log::error("Failed to end single time commands for buffer read-back");
+                return;
+            }
+
+            staging_buffer->read_back(data, size, 0);
+            return;
+        }
 
         if (const auto mapped_data = map())
         {
             std::memcpy(data, static_cast<const char*>(mapped_data) + offset, size);
             unmap();
         }
+    }
+
+    bool Buffer::upload_from(
+        rhi::Buffer* staging_buffer,
+        const size_t size,
+        const size_t src_offset,
+        const size_t dst_offset)
+    {
+        if (!staging_buffer)
+        {
+            Log::error("Cannot upload from null staging buffer");
+            return false;
+        }
+
+        const size_t source_size = staging_buffer->size();
+        if (src_offset > source_size || dst_offset > desc_.size)
+        {
+            Log::error("Invalid source or destination offset for staging upload");
+            return false;
+        }
+
+        const size_t transfer_size = size > 0 ? size : std::min(source_size - src_offset, desc_.size - dst_offset);
+
+        if (transfer_size == 0) return true;
+
+        if (src_offset + transfer_size > source_size || dst_offset + transfer_size > desc_.size)
+        {
+            Log::error("Staging upload out of bounds");
+            return false;
+        }
+
+        if (desc_.memory_type != BufferMemoryType::DeviceLocal)
+        {
+            const auto src_data = staging_buffer->read_back(transfer_size, src_offset);
+            upload(src_data.data(), transfer_size, dst_offset);
+            return true;
+        }
+
+        const auto* device = reinterpret_cast<Device*>(desc_.device);
+        std::uint32_t transfer_family = device->queue_family_indices().transfer_family;
+        auto* command_pool = static_cast<CommandPool*>(device->command_pool(transfer_family));
+        if (!command_pool)
+        {
+            Log::error("Failed to get transfer command pool for family {}", transfer_family);
+            return false;
+        }
+
+        auto* cmd_buffer = command_pool->begin_single_time_commands();
+        if (!cmd_buffer)
+        {
+            Log::error("Failed to begin single time commands");
+            return false;
+        }
+
+        const VkBufferCopy copy_region
+        {
+            .srcOffset = src_offset,
+            .dstOffset = dst_offset,
+            .size = transfer_size
+        };
+
+        const auto* vk_staging_buffer = static_cast<Buffer*>(staging_buffer);
+        auto* vk_cmd = reinterpret_cast<CommandBuffer*>(cmd_buffer)->vk_command_buffer();
+        vkCmdCopyBuffer(vk_cmd, vk_staging_buffer->vk_buffer(), buffer_, 1, &copy_region);
+
+        if (!command_pool->end_single_time_commands(cmd_buffer))
+        {
+            Log::error("Failed to end single time commands");
+            return false;
+        }
+
+        return true;
     }
 
     VkBuffer Buffer::vk_buffer() const { return buffer_; }

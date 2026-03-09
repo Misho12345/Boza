@@ -11,6 +11,20 @@ import boza.detail;
 
 namespace boza::gfx
 {
+    static MaterialSettings settings_from_definition(const MaterialDefinition& def)
+    {
+        return MaterialSettings{
+            .vertex_shader = def.vertex_shader,
+            .fragment_shader = def.fragment_shader,
+            .depth_compare_op = def.settings.depth_compare_op,
+            .depth_test_enable = def.settings.depth_test_enable,
+            .depth_write_enable = def.settings.depth_write_enable,
+            .cull_mode = def.settings.cull_mode,
+            .front_face = def.settings.front_face
+        };
+    }
+
+
     MaterialLoader& MaterialLoader::instance()
     {
         static MaterialLoader instance;
@@ -112,25 +126,14 @@ namespace boza::gfx
         {
             if (def.load_strategy == LoadStrategy::GameLoad)
             {
-                MaterialSettings settings{
-                    .vertex_shader = def.vertex_shader,
-                    .fragment_shader = def.fragment_shader,
-                    .depth_compare_op = def.settings.depth_compare_op,
-                    .depth_test_enable = def.settings.depth_test_enable,
-                    .depth_write_enable = def.settings.depth_write_enable,
-                    .cull_mode = def.settings.cull_mode,
-                    .front_face = def.settings.front_face
-                };
-
-                Material mat = create(name, settings);
+                Material mat = create(name, settings_from_definition(def));
                 auto [it, inserted] = materials_.try_emplace(name, std::move(mat));
 
                 if (inserted)
                 {
-                    valid_pointers_.insert(&it->second);
-                    it->second.set_cpu_cull_enabled(def.cpu_cull_enabled);
-                    bind_engine_resources(&it->second);
-                    setup(&it->second, def);
+                    it->second->set_cpu_cull_enabled(def.cpu_cull_enabled);
+                    bind_engine_resources(it->second.get());
+                    setup(it->second.get(), def);
                 }
                 else
                 {
@@ -489,7 +492,7 @@ namespace boza::gfx
     Material* MaterialLoader::try_get_material(const std::string_view name)
     {
         auto it = materials_.find(name);
-        if (it != materials_.end()) return &it->second;
+        if (it != materials_.end()) return it->second.get();
 
         std::string name_str{ name };
 
@@ -499,26 +502,15 @@ namespace boza::gfx
             const auto& def = def_it->second;
             // Log::trace("Loading on-demand material: {}", name);
 
-            const MaterialSettings settings{
-                .vertex_shader = def.vertex_shader,
-                .fragment_shader = def.fragment_shader,
-                .depth_compare_op = def.settings.depth_compare_op,
-                .depth_test_enable = def.settings.depth_test_enable,
-                .depth_write_enable = def.settings.depth_write_enable,
-                .cull_mode = def.settings.cull_mode,
-                .front_face = def.settings.front_face
-            };
-
-            Material mat = create(name, settings);
+            Material mat = create(name, settings_from_definition(def));
             auto [new_it, inserted] = materials_.try_emplace(name_str, std::move(mat));
 
-            if (inserted && new_it->second.pipeline_)
+            if (inserted && new_it->second->pipeline_)
             {
-                valid_pointers_.insert(&new_it->second);
-                new_it->second.set_cpu_cull_enabled(def.cpu_cull_enabled);
-                bind_engine_resources(&new_it->second);
-                setup(&new_it->second, def);
-                return &new_it->second;
+                new_it->second->set_cpu_cull_enabled(def.cpu_cull_enabled);
+                bind_engine_resources(new_it->second.get());
+                setup(new_it->second.get(), def);
+                return new_it->second.get();
             }
 
             Log::error("Failed to create on-demand material: {}", name);
@@ -538,16 +530,15 @@ namespace boza::gfx
         std::string name_str{ name };
         auto [it, inserted] = materials_.try_emplace(name_str, std::move(mat));
 
-        if (!inserted || !it->second.pipeline_)
+        if (!inserted || !it->second->pipeline_)
         {
             Log::error("Failed to create material: {}", name);
             if (inserted) materials_.erase(it);
             std::abort();
         }
 
-        valid_pointers_.insert(&it->second);
-        bind_engine_resources(&it->second);
-        return it->second;
+        bind_engine_resources(it->second.get());
+        return *it->second;
     }
 
     void MaterialLoader::destroy(const std::string_view name)
@@ -555,8 +546,7 @@ namespace boza::gfx
         const auto it = materials_.find(name);
         if (it != materials_.end())
         {
-            RenderingSystem::on_material_destroyed(&it->second);
-            valid_pointers_.erase(&it->second);
+            RenderingSystem::on_material_destroyed(it->second.get());
             Log::trace("Destroyed material: {}", name);
             materials_.erase(it);
         }
@@ -565,7 +555,7 @@ namespace boza::gfx
 
     bool MaterialLoader::exists(const Material* ptr) const
     {
-        return ptr && valid_pointers_.contains(ptr);
+        return materials_.exists(ptr);
     }
 
     Material MaterialLoader::create(
@@ -651,9 +641,11 @@ namespace boza::gfx
 
         if (cached)
         {
-            pipeline               = cached->pipeline;
-            pipeline_layout        = cached->layout;
-            descriptor_set_layouts = cached->descriptor_set_layouts;
+            pipeline               = cached->pipeline.get();
+            pipeline_layout        = cached->layout.get();
+            descriptor_set_layouts.reserve(cached->descriptor_set_layouts.size());
+            for (const auto& layout : cached->descriptor_set_layouts)
+                descriptor_set_layouts.push_back(layout.get());
         }
         else
         {
@@ -665,12 +657,10 @@ namespace boza::gfx
                 return material;
             }
 
-            pipeline_layout = builder.build_pipeline_layout();
-            if (!pipeline_layout)
+            auto pipeline_layout_owner = builder.build_pipeline_layout();
+            if (!pipeline_layout_owner)
             {
                 Log::error("Failed to create pipeline layout for material");
-                const auto& layouts = builder.get_descriptor_set_layouts();
-                for (auto* layout : layouts) { if (layout) layout->destroy(); }
                 return material;
             }
 
@@ -678,9 +668,6 @@ namespace boza::gfx
             if (!swapchain)
             {
                 Log::error("Swapchain not available in graphics context. Cannot create material.");
-                if (pipeline_layout) pipeline_layout->destroy();
-                const auto& layouts = builder.get_descriptor_set_layouts();
-                for (auto* layout : layouts) { if (layout) layout->destroy(); }
                 return material;
             }
 
@@ -695,25 +682,40 @@ namespace boza::gfx
                 .depth_compare_op = settings.depth_compare_op
             };
 
-            pipeline = builder.build_graphics_pipeline(swapchain, swapchain->depth_format(), raster_state, depth_state);
+            auto pipeline_owner = builder.build_graphics_pipeline(
+                pipeline_layout_owner.get(),
+                swapchain,
+                swapchain->depth_format(),
+                raster_state,
+                depth_state);
 
-            if (!pipeline)
+            if (!pipeline_owner)
             {
                 Log::error("Failed to create graphics pipeline for material");
-                if (pipeline_layout) pipeline_layout->destroy();
-                const auto& layouts = builder.get_descriptor_set_layouts();
-                for (auto* layout : layouts) { if (layout) layout->destroy(); }
                 return material;
             }
 
-            descriptor_set_layouts = builder.get_descriptor_set_layouts();
+            auto built_descriptor_set_layouts = builder.take_descriptor_set_layouts();
+            rhi::ResourceCache::CachedGraphicsPipeline cached_pipeline;
+            cached_pipeline.pipeline = std::move(pipeline_owner);
+            cached_pipeline.layout = std::move(pipeline_layout_owner);
+
+            pipeline = cached_pipeline.pipeline.get();
+            pipeline_layout = cached_pipeline.layout.get();
+
+            descriptor_set_layouts.reserve(built_descriptor_set_layouts.size());
+            cached_pipeline.descriptor_set_layouts.reserve(built_descriptor_set_layouts.size());
+            for (auto& layout : built_descriptor_set_layouts)
+            {
+                descriptor_set_layouts.push_back(layout.get());
+                cached_pipeline.descriptor_set_layouts.emplace_back(layout.release());
+            }
 
             resource_cache->cache_graphics_pipeline(
-                vertex_shader_id, fragment_shader_id, settings_hash, {
-                    .pipeline = pipeline,
-                    .layout = pipeline_layout,
-                    .descriptor_set_layouts = descriptor_set_layouts
-                });
+                vertex_shader_id,
+                fragment_shader_id,
+                settings_hash,
+                std::move(cached_pipeline));
         }
 
         const std::uint32_t frame_count = std::max<std::uint32_t>(rhi::RenderContext::frames_in_flight(), 1u);
@@ -771,7 +773,7 @@ namespace boza::gfx
         auto* reflection = new rhi::DescriptorReflection();
         std::array shaders{ vert_shader, frag_shader };
         reflection->build_from_shaders(shaders);
-        material.reflection_ = reflection;
+        material.reflection_.reset(reflection);
 
         return material;
     }

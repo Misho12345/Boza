@@ -16,16 +16,10 @@ export namespace boza::rhi
         template<typename Concrete>
             requires (std::same_as<Derived, Concrete> ||
                 std::is_base_of_v<Derived, Concrete> && std::is_abstract_v<Derived>)
-        static Derived* create(const Desc& desc)
+        static std::unique_ptr<Derived> create(const Desc& desc)
         {
-            const auto ptr = new Concrete(desc);
-
-            if (!ptr->init())
-            {
-                delete ptr;
-                return nullptr;
-            }
-
+            std::unique_ptr<Derived> ptr{ new Concrete(desc) };
+            if (!ptr->init()) return nullptr;
             return ptr;
         }
 

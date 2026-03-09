@@ -20,7 +20,6 @@ namespace boza
 
         rhi::DescriptorReflection reflection{};
 
-        std::vector<rhi::DescriptorSetLayout*> descriptor_set_layouts;
         std::vector<rhi::DescriptorSet*>       descriptor_sets;
         std::vector<std::uint8_t>              push_constant_staging;
 
@@ -92,9 +91,11 @@ namespace boza
         const auto* cached = resource_cache->get_cached_compute_pipeline(shader_name);
         if (cached)
         {
-            pipeline               = cached->pipeline;
-            pipeline_layout        = cached->layout;
-            descriptor_set_layouts = cached->descriptor_set_layouts;
+            pipeline               = cached->pipeline.get();
+            pipeline_layout        = cached->layout.get();
+            descriptor_set_layouts.reserve(cached->descriptor_set_layouts.size());
+            for (const auto& layout : cached->descriptor_set_layouts)
+                descriptor_set_layouts.push_back(layout.get());
         }
         else
         {
@@ -107,31 +108,39 @@ namespace boza
                 return;
             }
 
-            pipeline_layout = builder.build_pipeline_layout();
-            if (!pipeline_layout)
+            auto pipeline_layout_owner = builder.build_pipeline_layout();
+            if (!pipeline_layout_owner)
             {
                 Log::error("Failed to create pipeline layout for compute shader: {}", shader_name);
                 failed = true;
                 return;
             }
 
-            pipeline = builder.build_compute_pipeline();
-            if (!pipeline)
+            auto pipeline_owner = builder.build_compute_pipeline(pipeline_layout_owner.get());
+            if (!pipeline_owner)
             {
                 Log::error("Failed to create compute pipeline for shader: {}", shader_name);
                 failed = true;
                 return;
             }
 
-            descriptor_set_layouts = builder.get_descriptor_set_layouts();
+            auto built_descriptor_set_layouts = builder.take_descriptor_set_layouts();
+            rhi::ResourceCache::CachedComputePipeline cached_pipeline;
+            cached_pipeline.pipeline = std::move(pipeline_owner);
+            cached_pipeline.layout = std::move(pipeline_layout_owner);
 
-            resource_cache->cache_compute_pipeline(
-                shader_name,
-                {
-                    .pipeline = pipeline,
-                    .layout = pipeline_layout,
-                    .descriptor_set_layouts = descriptor_set_layouts
-                });
+            pipeline = cached_pipeline.pipeline.get();
+            pipeline_layout = cached_pipeline.layout.get();
+
+            descriptor_set_layouts.reserve(built_descriptor_set_layouts.size());
+            cached_pipeline.descriptor_set_layouts.reserve(built_descriptor_set_layouts.size());
+            for (auto& layout : built_descriptor_set_layouts)
+            {
+                descriptor_set_layouts.push_back(layout.get());
+                cached_pipeline.descriptor_set_layouts.emplace_back(layout.release());
+            }
+
+            resource_cache->cache_compute_pipeline(shader_name, std::move(cached_pipeline));
         }
 
         std::vector<rhi::DescriptorSet*> descriptor_sets;
@@ -154,7 +163,6 @@ namespace boza
         impl_->pipeline               = pipeline;
         impl_->pipeline_layout        = pipeline_layout;
         impl_->shader                 = shader;
-        impl_->descriptor_set_layouts = descriptor_set_layouts;
         impl_->descriptor_sets        = std::move(descriptor_sets);
         impl_->descriptor_pool        = descriptor_pool;
 

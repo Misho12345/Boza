@@ -11,6 +11,8 @@ import boza.common;
 
 export namespace boza
 {
+    class Texture;
+
     enum class BufferUsage : std::uint8_t
     {
         Vertex,
@@ -39,6 +41,11 @@ export namespace boza
         Buffer& operator=(Buffer&&) noexcept;
 
         void upload(const void* data, std::size_t data_size, std::size_t offset = 0) const;
+        void upload_from(
+            const Buffer& staging_buffer,
+            std::size_t   byte_size = 0,
+            std::size_t   src_offset = 0,
+            std::size_t   dst_offset = 0) const;
         void read_back(void* data, std::size_t data_size, std::size_t offset = 0) const;
 
         template <typename T>
@@ -46,6 +53,8 @@ export namespace boza
 
         template <typename T>
         void upload(std::span<T> data) { upload(data.data(), data.size() * sizeof(T), 0); }
+
+        [[nodiscard]] Buffer stage(std::size_t byte_size = 0) const;
 
         std::vector<std::uint8_t> read_back() const;
 
@@ -59,6 +68,9 @@ export namespace boza
         [[nodiscard]] void* rhi_handle() const;
 
     private:
+        using RhiBufferHandle = std::unique_ptr<void, void(*)(void*)>;
+
+        static void destroy_rhi_buffer(void* handle);
         void destroy();
 
         [[nodiscard]]
@@ -66,8 +78,15 @@ export namespace boza
             std::size_t offset = 0,
             std::size_t data_size = 0) const;
 
-        std::vector<void*> rhi_buffers_;
+        Buffer(
+            std::vector<RhiBufferHandle>&& rhi_buffers,
+            std::size_t                    buffer_size,
+            ResourceAccessMode             buffer_access_mode);
+
+        std::vector<RhiBufferHandle> rhi_buffers_;
         std::size_t size_;
         ResourceAccessMode access_mode_;
+
+        friend class Texture;
     };
 }

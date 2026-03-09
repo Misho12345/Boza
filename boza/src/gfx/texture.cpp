@@ -1,6 +1,7 @@
 module boza.gfx;
 
 import :texture;
+import :buffer;
 
 import boza.common;
 import boza.core;
@@ -35,6 +36,48 @@ namespace boza
         }
     }
 
+    constexpr std::size_t bytes_per_pixel_for_format(const TextureFormat format)
+    {
+        switch (format)
+        {
+            case TextureFormat::R8: return 1;
+            case TextureFormat::RG8: return 2;
+            case TextureFormat::RGB8: return 3;
+            case TextureFormat::RGBA8:
+            case TextureFormat::BGRA8: return 4;
+
+            case TextureFormat::R16F: return 2;
+            case TextureFormat::RG16F: return 4;
+            case TextureFormat::RGB16F: return 6;
+            case TextureFormat::RGBA16F: return 8;
+
+            case TextureFormat::R32F: return 4;
+            case TextureFormat::RG32F: return 8;
+            case TextureFormat::RGB32F: return 12;
+            case TextureFormat::RGBA32F: return 16;
+
+            case TextureFormat::DEPTH24STENCIL8: return 4;
+            case TextureFormat::DEPTH32F: return 4;
+
+            default: return 4;
+        }
+    }
+
+    constexpr std::uint32_t depth_extent_for_copy(const TextureType type, const std::uint32_t depth)
+    {
+        if (type == TextureType::Texture3D) return std::max(depth, 1u);
+        return 1u;
+    }
+
+    constexpr std::size_t copy_size_for_settings(const TextureSettings& settings)
+    {
+        return
+            static_cast<std::size_t>(settings.width) *
+            static_cast<std::size_t>(settings.height) *
+            static_cast<std::size_t>(depth_extent_for_copy(settings.type, settings.depth)) *
+            bytes_per_pixel_for_format(settings.format);
+    }
+
     Texture::Texture(const std::string_view name, const TextureSettings& settings)
         : name_{ name },
           settings_{ settings }
@@ -58,7 +101,7 @@ namespace boza
 
         for (std::uint32_t i = 0; i < texture_count; ++i)
         {
-            void* rhi_texture = create_texture(
+            auto rhi_texture = create_texture(
                 rhi::RenderContext::api(), {
                     .device = (rhi::RenderContext::device()),
                     .type = settings_.type,
@@ -81,7 +124,7 @@ namespace boza
                 return;
             }
 
-            rhi_textures_.push_back(rhi_texture);
+            rhi_textures_.emplace_back(rhi_texture.release(), &Texture::destroy_rhi_texture);
         }
     }
 
@@ -89,16 +132,6 @@ namespace boza
 
     void Texture::cleanup()
     {
-        for (auto* rhi_texture : rhi_textures_)
-        {
-            if (rhi_texture)
-            {
-                auto* texture = static_cast<rhi::Texture*>(rhi_texture);
-                texture->destroy();
-                delete texture;
-            }
-        }
-
         rhi_textures_.clear();
     }
 
@@ -180,15 +213,88 @@ namespace boza
         }
     }
 
+    void Texture::upload_from(const Buffer& staging_buffer, const std::uint32_t layer, const std::size_t size) const
+    {
+        auto* texture = static_cast<rhi::Texture*>(get_validated_texture());
+        auto* staging = static_cast<rhi::Buffer*>(staging_buffer.rhi_handle());
+        if (!texture || !staging)
+        {
+            Log::error("Cannot upload texture from invalid staging buffer");
+            return;
+        }
+
+        const std::size_t transfer_size = size > 0 ? size : staging_buffer.size;
+        if (!texture->upload_from(staging, transfer_size, layer))
+        {
+            Log::error("Failed to upload texture from staging buffer");
+        }
+    }
+
+    Buffer Texture::stage(const std::size_t size, const std::uint32_t layer) const
+    {
+        const std::size_t default_size = copy_size_for_settings(settings_);
+
+        const std::size_t stage_size = size > 0 ? size : default_size;
+
+        if (rhi_textures_.empty())
+        {
+            Log::error("Cannot stage an invalid texture");
+            return Buffer(stage_size, BufferUsage::Staging, ResourceAccessMode::Static);
+        }
+
+        std::vector<Buffer::RhiBufferHandle> staged_rhi_buffers;
+        staged_rhi_buffers.reserve(rhi_textures_.size());
+
+        for (const auto& handle : rhi_textures_)
+        {
+            auto* source_texture = static_cast<rhi::Texture*>(handle.get());
+            if (!source_texture)
+            {
+                Log::error("Cannot stage invalid texture");
+                staged_rhi_buffers.clear();
+                break;
+            }
+
+            auto staged = source_texture->stage(stage_size, layer);
+            if (!staged)
+            {
+                Log::error("Failed to stage texture data for layer {}", layer);
+                staged_rhi_buffers.clear();
+                break;
+            }
+
+            staged_rhi_buffers.emplace_back(staged.release(), &Buffer::destroy_rhi_buffer);
+        }
+
+        if (staged_rhi_buffers.size() == rhi_textures_.size())
+        {
+            return Buffer(std::move(staged_rhi_buffers), stage_size, settings_.access_mode);
+        }
+
+        Buffer fallback_staging_buffer{
+            stage_size,
+            BufferUsage::Staging,
+            ResourceAccessMode::Static
+        };
+
+        if (void* mapped_data = fallback_staging_buffer.map())
+        {
+            if (auto* texture = static_cast<rhi::Texture*>(get_validated_texture()))
+            {
+                texture->read_back(mapped_data, fallback_staging_buffer.size, layer);
+            }
+            fallback_staging_buffer.unmap();
+        }
+
+        return fallback_staging_buffer;
+    }
+
     std::vector<std::uint8_t> Texture::read_back() const
     {
         if (auto* texture = static_cast<rhi::Texture*>(get_validated_texture()))
         {
             const std::size_t data_size =
-                settings_.width *
-                settings_.height *
-                settings_.depth *
-                channels_for_format(settings_.format);
+                copy_size_for_settings(settings_);
 
             std::vector<std::uint8_t> data(data_size);
             texture->read_back(data.data(), data_size, 0);
@@ -240,7 +346,7 @@ namespace boza
             return nullptr;
         }
 
-        return rhi_textures_[texture_index];
+        return rhi_textures_[texture_index].get();
     }
 
     void* Texture::get_validated_texture() const
@@ -252,6 +358,15 @@ namespace boza
         }
 
         return rhi_handle();
+    }
+
+    void Texture::destroy_rhi_texture(void* handle)
+    {
+        if (!handle) return;
+
+        auto* texture = static_cast<rhi::Texture*>(handle);
+        texture->destroy();
+        delete texture;
     }
 
 

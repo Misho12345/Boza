@@ -4,6 +4,7 @@ import std;
 import boza.common;
 import boza.core;
 import boza.gfx;
+import boza.gfx.resource_registry;
 
 export namespace boza::gfx
 {
@@ -50,8 +51,7 @@ export namespace boza::gfx
 
         static std::string make_texture_key(std::string_view filepath, TextureType type);
 
-        mt::node_map<std::string, Texture> textures_;
-        flat_set<const Texture*> valid_pointers_;
+        ResourceRegistry<Texture> textures_;
         Texture* error_texture_{ nullptr };
         bool initialized_{ false };
 
