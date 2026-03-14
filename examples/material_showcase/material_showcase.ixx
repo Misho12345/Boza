@@ -189,11 +189,12 @@ private:
         bool failed = false;
 
         {
-            ComputeDispatcher dispatcher{ "material_showcase/uv", failed };
+            ComputeDispatcher dispatcher{ "material_showcase/uv" };
             dispatcher
                   .set("outImage", compute_texture_)
                   .dispatch(tex_size, tex_size, 1)
                   .wait();
+            failed = dispatcher.failed();
         }
 
         if (failed)

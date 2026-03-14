@@ -14,6 +14,21 @@ namespace boza::rhi::vk
 
         const auto vk_device = static_cast<Device*>(desc_.device)->logical_device();
 
+        const auto variant_matches_type = [](const DescriptorType& type, const DescriptorInfo& info)
+        {
+            return std::visit(
+                [type]<typename T>(const T&) -> bool
+                {
+                    using D = std::decay_t<T>;
+                    if constexpr (std::same_as<D, UniformBuffer>) return type == DescriptorType::UniformBuffer;
+                    else if constexpr (std::same_as<D, StorageBuffer>) return type == DescriptorType::StorageBuffer;
+                    else if constexpr (std::same_as<D, CombinedImageSampler>) return type == DescriptorType::CombinedImageSampler;
+                    else if constexpr (std::same_as<D, StorageImage>) return type == DescriptorType::StorageImage;
+                    else return false;
+                },
+                info);
+        };
+
         std::vector<VkWriteDescriptorSet> vk_writes;
         vk_writes.reserve(writes.size());
 
@@ -25,6 +40,14 @@ namespace boza::rhi::vk
 
         for (const auto& [binding, array_element, type, info] : writes)
         {
+            if (!variant_matches_type(type, info))
+            {
+                Log::error("Descriptor write type mismatch at binding {}", binding);
+                continue;
+            }
+
+            bool write_valid = true;
+
             VkWriteDescriptorSet vk_write
             {
                 .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -42,6 +65,13 @@ namespace boza::rhi::vk
                     using decayed_t = std::decay_t<T>;
                     if constexpr (std::same_as<decayed_t, UniformBuffer>)
                     {
+                        if (!arg.buffer)
+                        {
+                            Log::error("Descriptor write has null uniform buffer at binding {}", binding);
+                            write_valid = false;
+                            return;
+                        }
+
                         buffer_infos.emplace_back(
                             static_cast<Buffer*>(arg.buffer)->vk_buffer(),
                             arg.offset,
@@ -51,6 +81,13 @@ namespace boza::rhi::vk
                     }
                     else if constexpr (std::same_as<decayed_t, StorageBuffer>)
                     {
+                        if (!arg.buffer)
+                        {
+                            Log::error("Descriptor write has null storage buffer at binding {}", binding);
+                            write_valid = false;
+                            return;
+                        }
+
                         buffer_infos.emplace_back(
                             static_cast<Buffer*>(arg.buffer)->vk_buffer(),
                             arg.offset,
@@ -60,6 +97,13 @@ namespace boza::rhi::vk
                     }
                     else if constexpr (std::same_as<decayed_t, CombinedImageSampler>)
                     {
+                        if (!arg.texture || !arg.sampler)
+                        {
+                            Log::error("Descriptor write has null combined image sampler at binding {}", binding);
+                            write_valid = false;
+                            return;
+                        }
+
                         image_infos.emplace_back(
                             static_cast<Sampler*>(arg.sampler)->vk_sampler(),
                             static_cast<Texture*>(arg.texture)->vk_image_view(),
@@ -69,6 +113,13 @@ namespace boza::rhi::vk
                     }
                     else if constexpr (std::same_as<decayed_t, StorageImage>)
                     {
+                        if (!arg.texture)
+                        {
+                            Log::error("Descriptor write has null storage image at binding {}", binding);
+                            write_valid = false;
+                            return;
+                        }
+
                         image_infos.emplace_back(
                             nullptr,
                             static_cast<Texture*>(arg.texture)->vk_image_view(),
@@ -78,6 +129,8 @@ namespace boza::rhi::vk
                     }
                 },
                 info);
+
+            if (!write_valid) continue;
 
             vk_writes.push_back(vk_write);
         }

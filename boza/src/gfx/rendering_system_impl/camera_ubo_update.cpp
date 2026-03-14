@@ -1,6 +1,7 @@
 module boza.gfx;
 
 import :rendering_system;
+import :rendering_system_common;
 
 import boza.rhi.render_context;
 import boza.gfx.material_loader;
@@ -9,6 +10,8 @@ namespace boza
 {
     void RenderingSystem::CameraUboUpdate::execute(const Camera& cam, const Transform& transform)
     {
+        assert_render_thread();
+
         auto* camera_ubo = gfx::MaterialLoader::instance().camera_ubo();
         if (!camera_ubo)
         {
@@ -16,7 +19,14 @@ namespace boza
             return;
         }
 
-        const float aspect_ratio = rhi::RenderContext::window()->aspect_ratio();
+        const auto* window = rhi::RenderContext::window();
+        if (!window)
+        {
+            frustum_.valid = false;
+            return;
+        }
+
+        const float aspect_ratio = window->aspect_ratio();
 
         const gfx::CameraUBO ubo_data{
             .view = transform.view_matrix(),

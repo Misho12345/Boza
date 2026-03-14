@@ -49,8 +49,8 @@ export bool create_terrain_mesh()
 
     static std::uint32_t seed = Random::number(std::numeric_limits<std::uint32_t>::max());
 
-    bool failed;
-    ComputeDispatcher{ "instancing_example/terrain_gen", failed }
+    ComputeDispatcher terrain_dispatcher{ "instancing_example/terrain_gen" };
+    terrain_dispatcher
            .set("vertices", vertices)
            .set("indices", indices)
            .set("height_map", height_map)
@@ -68,20 +68,21 @@ export bool create_terrain_mesh()
            .dispatch(verts_per_axis, verts_per_axis)
            .wait();
 
-    if (failed)
+    if (terrain_dispatcher.failed())
     {
         Log::error("Compute dispatch for terrain generation failed");
         return false;
     }
 
-    ComputeDispatcher{ "instancing_example/terrain_normals", failed }
+    ComputeDispatcher normals_dispatcher{ "instancing_example/terrain_normals" };
+    normals_dispatcher
            .set("vertices", vertices)
            .set("pc.width", verts_per_axis)
            .set("pc.height", verts_per_axis)
            .dispatch(verts_per_axis, verts_per_axis)
            .wait();
 
-    if (failed)
+    if (normals_dispatcher.failed())
     {
         Log::error("Compute dispatch for terrain normal generation failed");
         return false;

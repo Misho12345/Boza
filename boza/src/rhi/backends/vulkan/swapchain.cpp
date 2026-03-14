@@ -11,6 +11,18 @@ namespace boza::rhi::vk
     {
         // Log::trace("Initializing swapchain with {} max frames in flight", desc.max_frames_in_flight);
 
+        if (!desc_.device)
+        {
+            Log::error("Cannot initialize swapchain: device is null");
+            return false;
+        }
+
+        if (!desc_.window)
+        {
+            Log::error("Cannot initialize swapchain: window is null");
+            return false;
+        }
+
         frames_.resize(desc_.max_frames_in_flight);
 
         if (!query_swapchain_support() ||
@@ -54,12 +66,15 @@ namespace boza::rhi::vk
         images_.clear();
         image_layouts_.clear();
 
-        for (const auto& [cmd_buffer, in_flight_fence, image_available_semaphore, render_finished_semaphore] : frames_)
+        for (auto& [cmd_buffer, in_flight_fence, image_available_semaphore, render_finished_semaphore] : frames_)
         {
-            in_flight_fence->destroy();
-            image_available_semaphore->destroy();
-            render_finished_semaphore->destroy();
+            cmd_buffer.reset();
+            in_flight_fence.reset();
+            image_available_semaphore.reset();
+            render_finished_semaphore.reset();
         }
+
+        frames_.clear();
 
         if (vk_swapchain_)
         {
@@ -72,78 +87,152 @@ namespace boza::rhi::vk
     }
 
 
-    bool Swapchain::begin_frame()
+    AcquireResult Swapchain::begin_frame_result()
     {
         // Log::trace("Beginning frame");
 
         if (frame_started_)
         {
             Log::critical("begin_frame called when frame already started");
-            return false;
+            return AcquireResult::Error;
         }
 
-        current_image_index_ = acquire_next_image();
+        const AcquireImageResult acquire_result = acquire_next_image_result();
+        if (acquire_result.result != AcquireResult::Success &&
+            acquire_result.result != AcquireResult::Suboptimal)
+        {
+            current_image_index_ = acquire_result.result == AcquireResult::Skip
+                                       ? skip_image_index
+                                       : invalid_image_index;
+            return acquire_result.result;
+        }
 
-        if (current_image_index_ == invalid_image_idx ||
-            current_image_index_ == skip_image_idx) return false;
+        if (acquire_result.image_index >= images_.size())
+        {
+            Log::critical(
+                "Acquired swapchain image index {} out of bounds ({} images)",
+                acquire_result.image_index,
+                images_.size());
+            should_recreate_ = true;
+            current_image_index_ = invalid_image_index;
+            return AcquireResult::Error;
+        }
 
-        frame_started_ = true;
+        current_image_index_ = acquire_result.image_index;
 
         const auto& frame = frames_[current_frame_];
-        if (!frame.cmd_buffer->reset()) return false;
-        if (!frame.cmd_buffer->begin()) return false;
+        if (!frame.cmd_buffer->reset())
+        {
+            should_recreate_ = true;
+            current_image_index_ = invalid_image_index;
+            return AcquireResult::Error;
+        }
 
-        return true;
+        if (!frame.cmd_buffer->begin())
+        {
+            should_recreate_ = true;
+            current_image_index_ = invalid_image_index;
+            return AcquireResult::Error;
+        }
+
+        frame_started_ = true;
+        return acquire_result.result;
     }
 
-    bool Swapchain::end_frame()
+    PresentResult Swapchain::end_frame_result()
     {
         // Log::trace("Ending frame");
 
         if (!frame_started_)
         {
             Log::critical("end_frame called without begin_frame");
-            return false;
+            return PresentResult::Error;
         }
 
-        if (current_image_index_ == skip_image_idx)
+        if (current_image_index_ == skip_image_index)
         {
             frame_started_ = false;
-            return true;
+            current_image_index_ = invalid_image_index;
+            return PresentResult::Success;
         }
 
-        if (!frames_[current_frame_].cmd_buffer->end()) return false;
-        if (!present(current_image_index_)) return false;
+        if (!frames_[current_frame_].cmd_buffer->end())
+        {
+            should_recreate_ = true;
+            frame_started_ = false;
+            current_image_index_ = invalid_image_index;
+            return PresentResult::Error;
+        }
+
+        const PresentResult present_status = present_result(current_image_index_);
+        if (present_status == PresentResult::Error)
+        {
+            should_recreate_ = true;
+            frame_started_ = false;
+            current_image_index_ = invalid_image_index;
+            return PresentResult::Error;
+        }
 
         frame_started_ = false;
+        current_image_index_ = invalid_image_index;
         current_frame_ = (current_frame_ + 1) % frames_.size();
 
-        return true;
+        return present_status;
+    }
+
+    void Swapchain::abort_frame()
+    {
+        if (!frame_started_) return;
+
+        const auto& frame = frames_[current_frame_];
+        if (frame.cmd_buffer) (void)frame.cmd_buffer->reset();
+
+        frame_started_ = false;
+        current_image_index_ = invalid_image_index;
+        should_recreate_ = true;
     }
 
 
-    uint32_t Swapchain::acquire_next_image()
+    AcquireImageResult Swapchain::acquire_next_image_result()
     {
         // Log::trace("Acquiring next swapchain image");
 
         // If swapchain is null, it's been destroyed - don't try to acquire
-        if (!vk_swapchain_) return invalid_image_idx;
+        if (!vk_swapchain_)
+        {
+            return {
+                .result = AcquireResult::Error,
+                .image_index = invalid_image_index
+            };
+        }
 
         const Device* device = reinterpret_cast<Device*>(desc_.device);
         const VkDevice vk_device = device->logical_device();
         using clock = std::chrono::steady_clock;
 
-        if (desc_.window->is_minimized()) return skip_image_idx;
+        if (desc_.window->is_minimized())
+        {
+            return {
+                .result = AcquireResult::Skip,
+                .image_index = skip_image_index
+            };
+        }
 
         if (should_recreate_)
         {
             if (!recreate())
             {
                 Log::critical("Failed to recreate swapchain");
-                return invalid_image_idx;
+                return {
+                    .result = AcquireResult::Error,
+                    .image_index = invalid_image_index
+                };
             }
 
-            return skip_image_idx;
+            return {
+                .result = AcquireResult::Skip,
+                .image_index = skip_image_index
+            };
         }
 
         const auto& frame = frames_[current_frame_];
@@ -178,11 +267,12 @@ namespace boza::rhi::vk
                 );
 
                 should_recreate_ = true;
-                return skip_image_idx;
+                return {
+                    .result = AcquireResult::Skip,
+                    .image_index = skip_image_index
+                };
             }
         }
-
-        if (!frame.in_flight_fence->reset()) return invalid_image_idx;
 
         uint32_t image_index;
         const VkSemaphore vk_semaphore = static_cast<Semaphore*>(frame.image_available_semaphore.get())->vk_semaphore();
@@ -193,6 +283,8 @@ namespace boza::rhi::vk
 
         const auto acquire_start = clock::now();
         auto       next_acquire_warn_at = acquire_start + std::chrono::duration<float>{ acquire_warn_period_s };
+
+        auto acquire_result_state = AcquireResult::Success;
 
         while (true)
         {
@@ -205,7 +297,11 @@ namespace boza::rhi::vk
                 &image_index
             );
 
-            if (result == VK_SUCCESS) break;
+            if (result == VK_SUCCESS)
+            {
+                acquire_result_state = AcquireResult::Success;
+                break;
+            }
 
             if (result == VK_TIMEOUT)
             {
@@ -230,25 +326,55 @@ namespace boza::rhi::vk
                     );
 
                     should_recreate_ = true;
-                    return skip_image_idx;
+                    return {
+                        .result = AcquireResult::Skip,
+                        .image_index = skip_image_index
+                    };
                 }
 
                 continue;
             }
 
-            if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+            if (result == VK_ERROR_OUT_OF_DATE_KHR)
             {
                 should_recreate_ = true;
-                return skip_image_idx;
+                return {
+                    .result = AcquireResult::OutOfDate,
+                    .image_index = invalid_image_index
+                };
             }
 
-            if (!vk_check(result, "Failed to acquire next swapchain image")) return invalid_image_idx;
+            if (result == VK_SUBOPTIMAL_KHR)
+            {
+                should_recreate_ = true;
+                acquire_result_state = AcquireResult::Suboptimal;
+                break;
+            }
+
+            if (!vk_check(result, "Failed to acquire next swapchain image"))
+            {
+                return {
+                    .result = AcquireResult::Error,
+                    .image_index = invalid_image_index
+                };
+            }
         }
 
-        return image_index;
+        if (!frame.in_flight_fence->reset())
+        {
+            return {
+                .result = AcquireResult::Error,
+                .image_index = invalid_image_index
+            };
+        }
+
+        return {
+            .result = acquire_result_state,
+            .image_index = image_index
+        };
     }
 
-    bool Swapchain::present(uint32_t image_index)
+    PresentResult Swapchain::present_result(const uint32_t image_index)
     {
         // Log::trace("Presenting swapchain image {}", image_index);
 
@@ -266,7 +392,9 @@ namespace boza::rhi::vk
             .signal_semaphores = { render_finished_semaphore.get() },
             .signal_fence      = in_flight_fence.get()
         }))
-            return false;
+        {
+            return PresentResult::Error;
+        }
 
         const PresentResult result = device->present_queue()->present({
             .swapchains      = { this },
@@ -277,10 +405,9 @@ namespace boza::rhi::vk
         if (result == PresentResult::OutOfDate || result == PresentResult::Suboptimal)
         {
             should_recreate_ = true;
-            return true;
         }
 
-        return result == PresentResult::Success;
+        return result;
     }
 
 
@@ -472,19 +599,31 @@ namespace boza::rhi::vk
             {
                 command_buffers.push_back(reinterpret_cast<CommandBuffer*>(cmd_buffer.get())->vk_command_buffer());
             }
-
-            render_finished_semaphore->destroy();
-            image_available_semaphore->destroy();
-            in_flight_fence->destroy();
         }
 
         if (!command_buffers.empty())
         {
+            const auto* graphics_pool = reinterpret_cast<CommandPool*>(
+                desc_.device->command_pool(desc_.device->queue_family_indices().graphics_family));
+
+            if (!graphics_pool)
+            {
+                Log::error("Failed to get graphics command pool while recreating swapchain");
+                return false;
+            }
+
             vkFreeCommandBuffers(
                 vk_device,
-                reinterpret_cast<CommandPool*>(desc_.device->command_pool(
-                    desc_.device->queue_family_indices().graphics_family))->vk_command_pool(),
+                graphics_pool->vk_command_pool(),
                 static_cast<uint32_t>(command_buffers.size()), command_buffers.data());
+        }
+
+        for (auto& [cmd_buffer, in_flight_fence, image_available_semaphore, render_finished_semaphore] : frames_)
+        {
+            cmd_buffer.reset();
+            in_flight_fence.reset();
+            image_available_semaphore.reset();
+            render_finished_semaphore.reset();
         }
 
         if (!query_swapchain_support()) return false;
@@ -512,7 +651,7 @@ namespace boza::rhi::vk
 
         const Device* device = reinterpret_cast<Device*>(desc_.device);
 
-        choose_surface_format();
+        if (!choose_surface_format()) return false;
         const VkPresentModeKHR present_mode = choose_present_mode();
         choose_extent();
 
@@ -665,6 +804,18 @@ namespace boza::rhi::vk
     {
         // Log::trace("Creating swapchain synchronization objects");
 
+        const auto cleanup_created_sync_objects = [this](const std::uint32_t count)
+        {
+            for (std::uint32_t index = 0; index < count; ++index)
+            {
+                auto& frame = frames_[index];
+
+                frame.render_finished_semaphore.reset();
+                frame.image_available_semaphore.reset();
+                frame.in_flight_fence.reset();
+            }
+        };
+
         for (uint32_t i = 0; i < frames_.size(); ++i)
         {
             frames_[i].in_flight_fence = Fence::create<Fence>({
@@ -675,6 +826,7 @@ namespace boza::rhi::vk
             if (!frames_[i].in_flight_fence)
             {
                 Log::critical("Failed to create in-flight fence for frame {}", i);
+                cleanup_created_sync_objects(i);
                 return false;
             }
 
@@ -682,6 +834,7 @@ namespace boza::rhi::vk
             if (!frames_[i].image_available_semaphore)
             {
                 Log::critical("Failed to create image available semaphore for frame {}", i);
+                cleanup_created_sync_objects(i + 1);
                 return false;
             }
 
@@ -689,6 +842,7 @@ namespace boza::rhi::vk
             if (!frames_[i].render_finished_semaphore)
             {
                 Log::critical("Failed to create render finished semaphore for frame {}", i);
+                cleanup_created_sync_objects(i + 1);
                 return false;
             }
         }
@@ -701,6 +855,12 @@ namespace boza::rhi::vk
         // Log::trace("Creating swapchain command buffers");
 
         rhi::CommandPool* graphics_command_pool = desc_.device->command_pool(desc_.device->queue_family_indices().graphics_family);
+        if (!graphics_command_pool)
+        {
+            Log::critical("Failed to get graphics command pool for swapchain command buffer allocation");
+            return false;
+        }
+
         const auto command_buffers = graphics_command_pool->allocate_command_buffers(static_cast<uint32_t>(frames_.size()));
 
         if (command_buffers.empty() || command_buffers.size() != frames_.size())
@@ -750,26 +910,11 @@ namespace boza::rhi::vk
 
         VkPresentModeKHR fallback = VK_PRESENT_MODE_FIFO_KHR;
 
-        if (preferred == VK_PRESENT_MODE_IMMEDIATE_KHR && has_mode(VK_PRESENT_MODE_MAILBOX_KHR))
-        {
-            fallback = VK_PRESENT_MODE_MAILBOX_KHR;
-        }
-        else if (preferred == VK_PRESENT_MODE_MAILBOX_KHR && has_mode(VK_PRESENT_MODE_IMMEDIATE_KHR))
-        {
-            fallback = VK_PRESENT_MODE_IMMEDIATE_KHR;
-        }
-        else if (has_mode(VK_PRESENT_MODE_FIFO_RELAXED_KHR))
-        {
-            fallback = VK_PRESENT_MODE_FIFO_RELAXED_KHR;
-        }
-        else if (has_mode(VK_PRESENT_MODE_FIFO_KHR))
-        {
-            fallback = VK_PRESENT_MODE_FIFO_KHR;
-        }
-        else if (!present_modes_.empty())
-        {
-            fallback = present_modes_.front();
-        }
+        if (preferred == VK_PRESENT_MODE_IMMEDIATE_KHR && has_mode(VK_PRESENT_MODE_MAILBOX_KHR)) fallback = VK_PRESENT_MODE_MAILBOX_KHR;
+        else if (preferred == VK_PRESENT_MODE_MAILBOX_KHR && has_mode(VK_PRESENT_MODE_IMMEDIATE_KHR)) fallback = VK_PRESENT_MODE_IMMEDIATE_KHR;
+        else if (has_mode(VK_PRESENT_MODE_FIFO_RELAXED_KHR)) fallback = VK_PRESENT_MODE_FIFO_RELAXED_KHR;
+        else if (has_mode(VK_PRESENT_MODE_FIFO_KHR)) fallback = VK_PRESENT_MODE_FIFO_KHR;
+        else if (!present_modes_.empty()) fallback = present_modes_.front();
 
         Log::warn(
             "Preferred present mode {} unavailable, using {}",
@@ -780,9 +925,15 @@ namespace boza::rhi::vk
         return fallback;
     }
 
-    void Swapchain::choose_surface_format()
+    bool Swapchain::choose_surface_format()
     {
         // Log::trace("Choosing surface format");
+
+        if (surface_formats_.empty())
+        {
+            Log::error("No swapchain surface formats available");
+            return false;
+        }
 
         for (const auto& available_format : surface_formats_)
         {
@@ -790,11 +941,12 @@ namespace boza::rhi::vk
                 available_format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
             {
                 surface_format_ = available_format;
-                return;
+                return true;
             }
         }
 
         surface_format_ = surface_formats_[0];
+        return true;
     }
 
     void Swapchain::choose_extent()
@@ -827,6 +979,7 @@ namespace boza::rhi::vk
         {
             depth_format_ = DepthFormat::None;
             vk_depth_format_ = VK_FORMAT_UNDEFINED;
+            depth_image_layout_ = VK_IMAGE_LAYOUT_UNDEFINED;
             return true;
         }
 
@@ -933,6 +1086,55 @@ namespace boza::rhi::vk
             return false;
         }
 
+        auto* command_pool = reinterpret_cast<CommandPool*>(
+            desc_.device->command_pool(desc_.device->queue_family_indices().graphics_family));
+        if (!command_pool)
+        {
+            Log::error("Failed to get graphics command pool for depth image transition");
+            destroy_depth_resources();
+            return false;
+        }
+
+        auto* command_buffer = reinterpret_cast<CommandBuffer*>(command_pool->begin_single_time_commands());
+        if (!command_buffer)
+        {
+            Log::error("Failed to begin depth image layout transition commands");
+            destroy_depth_resources();
+            return false;
+        }
+
+        const bool has_stencil =
+            vk_depth_format_ == VK_FORMAT_D16_UNORM_S8_UINT ||
+            vk_depth_format_ == VK_FORMAT_D24_UNORM_S8_UINT ||
+            vk_depth_format_ == VK_FORMAT_D32_SFLOAT_S8_UINT;
+
+        const VkImageAspectFlags aspect_mask = has_stencil
+                                                   ? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT
+                                                   : VK_IMAGE_ASPECT_DEPTH_BIT;
+
+        command_buffer->pipeline_image_barrier(
+            depth_image_,
+            VK_IMAGE_LAYOUT_UNDEFINED,
+            VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+            VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+            VK_ACCESS_2_NONE,
+            VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+            VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+            aspect_mask,
+            0,
+            1,
+            0,
+            1);
+
+        if (!command_pool->end_single_time_commands(command_buffer))
+        {
+            Log::error("Failed to submit depth image layout transition commands");
+            destroy_depth_resources();
+            return false;
+        }
+
+        depth_image_layout_ = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
         // Log::trace("Created depth buffer with format {}", depth_format_);
         return true;
     }
@@ -962,5 +1164,6 @@ namespace boza::rhi::vk
 
         depth_format_ = DepthFormat::None;
         vk_depth_format_ = VK_FORMAT_UNDEFINED;
+        depth_image_layout_ = VK_IMAGE_LAYOUT_UNDEFINED;
     }
 }

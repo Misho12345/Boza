@@ -79,11 +79,12 @@ export namespace boza
         [[msvc::no_unique_address]] Property<Sampler, &Sampler::get_max_lod>        max_lod{ this };
         [[msvc::no_unique_address]] Property<Sampler, &Sampler::get_max_anisotropy> max_anisotropy{ this };
 
-        [[nodiscard]] void*            rhi_handle() const { return rhi_sampler_.get(); }
         [[nodiscard]] std::string_view name() const { return name_; }
 
     private:
         using RhiSamplerHandle = std::unique_ptr<void, void(*)(void*)>;
+
+        [[nodiscard]] void* rhi_handle() const { return rhi_sampler_.get(); }
 
         static void destroy_rhi_sampler(void* handle);
 
@@ -114,6 +115,7 @@ export namespace boza
         float max_lod_;
         float max_anisotropy_;
 
+        friend class Material;
         friend class gfx::SamplerLoader;
     };
 }

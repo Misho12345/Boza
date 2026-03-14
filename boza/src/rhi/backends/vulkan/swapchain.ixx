@@ -6,20 +6,20 @@ import <vk_all>;
 
 export namespace boza::rhi::vk
 {
-    using image_idx_t                              = uint32_t;
-    constexpr inline image_idx_t invalid_image_idx = std::numeric_limits<image_idx_t>::max();
-    constexpr inline image_idx_t skip_image_idx    = std::numeric_limits<image_idx_t>::max() - 1;
-
     class Swapchain final : public rhi::Swapchain
     {
     public:
+        ~Swapchain() override { destroy(); }
+
         bool init() override;
         void destroy() override;
 
-        bool     begin_frame() override;
-        bool     end_frame() override;
-        uint32_t acquire_next_image() override;
-        bool     present(uint32_t image_index) override;
+        AcquireResult      begin_frame_result() override;
+        PresentResult      end_frame_result() override;
+        AcquireImageResult acquire_next_image_result() override;
+        PresentResult      present_result(uint32_t image_index) override;
+
+        void abort_frame() override;
 
         bool begin_render_pass(uint32_t image_idx) override;
         bool end_render_pass(uint32_t image_idx) override;
@@ -62,7 +62,7 @@ export namespace boza::rhi::vk
         void destroy_depth_resources();
 
         VkPresentModeKHR choose_present_mode() const;
-        void             choose_surface_format();
+        bool             choose_surface_format();
         void             choose_extent();
 
         VkSwapchainKHR     vk_swapchain_{ nullptr };
@@ -83,11 +83,12 @@ export namespace boza::rhi::vk
         VmaAllocation  depth_allocation_{ nullptr };
         DepthFormat    depth_format_{ DepthFormat::None };
         VkFormat       vk_depth_format_{ VK_FORMAT_UNDEFINED };
+        VkImageLayout  depth_image_layout_{ VK_IMAGE_LAYOUT_UNDEFINED };
 
         std::vector<FrameData> frames_;
 
         uint32_t current_frame_{ 0 };
-        uint32_t current_image_index_{ invalid_image_idx };
+        uint32_t current_image_index_{ invalid_image_index };
 
         bool frame_started_{ false };
         bool should_recreate_{ false };

@@ -12,6 +12,29 @@ namespace boza::rhi::vk
         const auto* device = reinterpret_cast<Device*>(desc_.device);
         const auto* layout = reinterpret_cast<PipelineLayout*>(desc_.layout);
 
+        if (!device || !layout)
+        {
+            Log::error("Cannot create graphics pipeline: device or layout is null");
+            return false;
+        }
+
+        if (desc_.shaders.empty())
+        {
+            Log::error("Cannot create graphics pipeline: no shader stages provided");
+            return false;
+        }
+
+        const bool has_vertex_stage = std::ranges::any_of(desc_.shaders, [](const rhi::ShaderModule* shader)
+        {
+            return shader && shader->stage() == ShaderStage::Vertex;
+        });
+
+        if (!has_vertex_stage)
+        {
+            Log::error("Cannot create graphics pipeline: missing vertex shader stage");
+            return false;
+        }
+
         std::vector<VkPipelineShaderStageCreateInfo> shader_stages;
         shader_stages.reserve(desc_.shaders.size());
 
@@ -138,20 +161,45 @@ namespace boza::rhi::vk
             .alphaToOneEnable = desc_.multisample.alpha_to_one_enable
         };
 
+        auto depth_stencil_state = desc_.depth_stencil;
+        const bool has_depth_attachment = desc_.depth_attachment_format != DepthFormat::None;
+
+        if (!has_depth_attachment && (depth_stencil_state.depth_test_enable || depth_stencil_state.depth_write_enable))
+        {
+            Log::warn("Depth testing/writes enabled without a depth attachment; disabling depth test state");
+            depth_stencil_state.depth_test_enable = false;
+            depth_stencil_state.depth_write_enable = false;
+        }
+
+        const auto has_stencil_attachment = [](const DepthFormat format)
+        {
+            return format == DepthFormat::D16S8 ||
+                   format == DepthFormat::D24S8 ||
+                   format == DepthFormat::D32FS8;
+        };
+
+        if (depth_stencil_state.stencil_test_enable &&
+            !has_stencil_attachment(desc_.depth_attachment_format) &&
+            !has_stencil_attachment(desc_.stencil_attachment_format))
+        {
+            Log::warn("Stencil testing enabled without a stencil attachment; disabling stencil test state");
+            depth_stencil_state.stencil_test_enable = false;
+        }
+
         const VkPipelineDepthStencilStateCreateInfo depth_stencil
         {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .depthTestEnable = desc_.depth_stencil.depth_test_enable,
-            .depthWriteEnable = desc_.depth_stencil.depth_write_enable,
-            .depthCompareOp = to_vk(desc_.depth_stencil.depth_compare_op),
-            .depthBoundsTestEnable = desc_.depth_stencil.depth_bounds_test_enable,
-            .stencilTestEnable = desc_.depth_stencil.stencil_test_enable,
+            .depthTestEnable = depth_stencil_state.depth_test_enable,
+            .depthWriteEnable = depth_stencil_state.depth_write_enable,
+            .depthCompareOp = to_vk(depth_stencil_state.depth_compare_op),
+            .depthBoundsTestEnable = depth_stencil_state.depth_bounds_test_enable,
+            .stencilTestEnable = depth_stencil_state.stencil_test_enable,
             .front = {},
             .back = {},
-            .minDepthBounds = desc_.depth_stencil.min_depth_bounds,
-            .maxDepthBounds = desc_.depth_stencil.max_depth_bounds
+            .minDepthBounds = depth_stencil_state.min_depth_bounds,
+            .maxDepthBounds = depth_stencil_state.max_depth_bounds
         };
 
         std::vector<VkPipelineColorBlendAttachmentState> color_blend_attachments;
@@ -213,6 +261,34 @@ namespace boza::rhi::vk
         for (const auto format : desc_.color_attachment_formats)
         {
             color_formats.push_back(to_vk(format));
+        }
+
+        if (color_formats.empty() && !color_blend_attachments.empty())
+        {
+            Log::warn("Color blend state provided without color attachments; ignoring color blend attachments");
+            color_blend_attachments.clear();
+        }
+        else if (!color_formats.empty() && color_blend_attachments.size() != color_formats.size())
+        {
+            Log::warn(
+                "Color blend attachment count ({}) does not match color attachment count ({}); adjusting",
+                color_blend_attachments.size(),
+                color_formats.size());
+
+            color_blend_attachments.resize(
+                color_formats.size(),
+                VkPipelineColorBlendAttachmentState{
+                    .blendEnable = false,
+                    .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
+                    .dstColorBlendFactor = VK_BLEND_FACTOR_ZERO,
+                    .colorBlendOp = VK_BLEND_OP_ADD,
+                    .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+                    .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
+                    .alphaBlendOp = VK_BLEND_OP_ADD,
+                    .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                                      VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
+                }
+            );
         }
 
         VkPipelineRenderingCreateInfo rendering_info

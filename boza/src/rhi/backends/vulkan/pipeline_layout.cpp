@@ -10,6 +10,7 @@ namespace boza::rhi::vk
         // Log::trace("Creating vulkan pipeline layout");
 
         const auto* device = reinterpret_cast<Device*>(desc_.device);
+        bool has_push_constant_conflict = false;
 
         for (const auto* shader : desc_.shaders)
         {
@@ -21,7 +22,6 @@ namespace boza::rhi::vk
 
                 auto& existing = it->second;
 
-                #ifdef BOZA_DEBUG
                 if (existing.offset != pc.offset || existing.size != pc.size)
                 {
                     Log::warn(
@@ -31,8 +31,9 @@ namespace boza::rhi::vk
                         existing.size,
                         pc.offset,
                         pc.size);
+
+                    has_push_constant_conflict = true;
                 }
-                #endif
 
                 const auto merged_stage_bits =
                     static_cast<std::underlying_type_t<ShaderStage>>(existing.stage) |
@@ -44,6 +45,12 @@ namespace boza::rhi::vk
                     existing.members = pc.members;
                 }
             }
+        }
+
+        if (has_push_constant_conflict)
+        {
+            Log::error("Cannot create pipeline layout due to conflicting push constant ranges");
+            return false;
         }
 
         std::vector<VkPushConstantRange> push_constant_ranges;

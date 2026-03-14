@@ -11,6 +11,8 @@ export namespace boza::rhi::vk
     class DescriptorSetLayout final : public rhi::DescriptorSetLayout
     {
     public:
+        ~DescriptorSetLayout() override { destroy(); }
+
         bool init() override;
         void destroy() override;
 
@@ -27,6 +29,8 @@ export namespace boza::rhi::vk
     class DescriptorPool final : public rhi::DescriptorPool
     {
     public:
+        ~DescriptorPool() override { destroy(); }
+
         bool init() override;
         void destroy() override;
 

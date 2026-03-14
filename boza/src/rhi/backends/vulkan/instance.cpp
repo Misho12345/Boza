@@ -7,6 +7,12 @@ namespace boza::rhi::vk
 {
     bool Instance::init()
     {
+        if (!desc_.window)
+        {
+            Log::error("Cannot initialize Vulkan instance: window is null");
+            return false;
+        }
+
         if (!vk_check(volkInitialize(), "Failed to initialize Volk")) return false;
 
         // Log::trace("Creating vulkan instance");
@@ -44,6 +50,12 @@ namespace boza::rhi::vk
 
     bool Instance::create_instance()
     {
+        if (!desc_.window)
+        {
+            Log::error("Cannot create Vulkan instance: window is null");
+            return false;
+        }
+
         VkApplicationInfo app_info
         {
             .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -219,7 +231,7 @@ namespace boza::rhi::vk
                     default: Log::error(message); break;
                 }
 
-                return true;
+                return false;
             },
             .pUserData = nullptr
         };

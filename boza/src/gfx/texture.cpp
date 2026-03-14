@@ -337,16 +337,30 @@ namespace boza
     {
         if (rhi_textures_.empty()) return nullptr;
 
-        const std::uint32_t frame_index = rhi::RenderContext::swapchain()->current_frame();
-        const std::uint32_t texture_index = settings_.access_mode == ResourceAccessMode::Dynamic ? frame_index : 0;
+        if (settings_.access_mode != ResourceAccessMode::Dynamic) return rhi_textures_.front().get();
 
-        if (texture_index >= rhi_textures_.size())
+        const auto* swapchain = rhi::RenderContext::swapchain();
+        if (!swapchain)
+        {
+            Log::error("Cannot resolve dynamic texture handle: swapchain is null");
+            return nullptr;
+        }
+
+        return rhi_handle(swapchain->current_frame());
+    }
+
+    void* Texture::rhi_handle(const std::uint32_t frame_index) const
+    {
+        if (rhi_textures_.empty()) return nullptr;
+        if (settings_.access_mode != ResourceAccessMode::Dynamic) return rhi_textures_.front().get();
+
+        if (frame_index >= rhi_textures_.size())
         {
             Log::error("Invalid frame index {} for texture with {} textures", frame_index, rhi_textures_.size());
             return nullptr;
         }
 
-        return rhi_textures_[texture_index].get();
+        return rhi_textures_[frame_index].get();
     }
 
     void* Texture::get_validated_texture() const
@@ -362,11 +376,7 @@ namespace boza
 
     void Texture::destroy_rhi_texture(void* handle)
     {
-        if (!handle) return;
-
-        auto* texture = static_cast<rhi::Texture*>(handle);
-        texture->destroy();
-        delete texture;
+        delete static_cast<rhi::Texture*>(handle);
     }
 
 

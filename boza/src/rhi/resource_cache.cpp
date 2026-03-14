@@ -28,7 +28,7 @@ namespace boza::rhi
             [&] { return factory(path); });
     }
 
-    ResourceCache::CachedGraphicsPipeline* ResourceCache::get_cached_pipeline(
+    std::shared_ptr<const ResourceCache::CachedGraphicsPipeline> ResourceCache::get_cached_pipeline(
         const std::string& vert,
         const std::string& frag,
         const std::size_t settings_hash)
@@ -36,11 +36,11 @@ namespace boza::rhi
         std::lock_guard lock{ pipeline_mutex_ };
         const GraphicsPipelineKey key{ vert, frag, settings_hash };
         const auto it = pipeline_cache_.find(key);
-        if (it != pipeline_cache_.end()) return &it->second;
+        if (it != pipeline_cache_.end()) return it->second;
         return nullptr;
     }
 
-    void ResourceCache::cache_graphics_pipeline(
+    std::shared_ptr<const ResourceCache::CachedGraphicsPipeline> ResourceCache::cache_graphics_pipeline(
         const std::string& vert,
         const std::string& frag,
         const std::size_t settings_hash,
@@ -49,38 +49,35 @@ namespace boza::rhi
         std::lock_guard lock{ pipeline_mutex_ };
         const GraphicsPipelineKey key{ vert, frag, settings_hash };
 
-        if (const auto it = pipeline_cache_.find(key); it != pipeline_cache_.end())
-        {
-            it->second = std::move(cached);
-            return;
-        }
+        if (const auto it = pipeline_cache_.find(key); it != pipeline_cache_.end()) return it->second;
 
-        pipeline_cache_.emplace(key, std::move(cached));
+        auto shared = std::make_shared<CachedGraphicsPipeline>(std::move(cached));
+        pipeline_cache_.emplace(key, shared);
+        return shared;
     }
 
-    ResourceCache::CachedComputePipeline* ResourceCache::get_cached_compute_pipeline(const std::string& compute_shader)
+    std::shared_ptr<const ResourceCache::CachedComputePipeline> ResourceCache::get_cached_compute_pipeline(
+        const std::string& compute_shader)
     {
         std::lock_guard lock{ compute_pipeline_mutex_ };
         const ComputePipelineKey key{ compute_shader };
         const auto it = compute_pipeline_cache_.find(key);
-        if (it != compute_pipeline_cache_.end()) return &it->second;
+        if (it != compute_pipeline_cache_.end()) return it->second;
         return nullptr;
     }
 
-    void ResourceCache::cache_compute_pipeline(
+    std::shared_ptr<const ResourceCache::CachedComputePipeline> ResourceCache::cache_compute_pipeline(
         const std::string& compute_shader,
         CachedComputePipeline cached)
     {
         std::lock_guard lock{ compute_pipeline_mutex_ };
         const ComputePipelineKey key{ compute_shader };
 
-        if (const auto it = compute_pipeline_cache_.find(key); it != compute_pipeline_cache_.end())
-        {
-            it->second = std::move(cached);
-            return;
-        }
+        if (const auto it = compute_pipeline_cache_.find(key); it != compute_pipeline_cache_.end()) return it->second;
 
-        compute_pipeline_cache_.emplace(key, std::move(cached));
+        auto shared = std::make_shared<CachedComputePipeline>(std::move(cached));
+        compute_pipeline_cache_.emplace(key, shared);
+        return shared;
     }
 
     void ResourceCache::clear()
@@ -105,4 +102,3 @@ namespace boza::rhi
         // Log::trace("ResourceCache cleared");
     }
 }
-

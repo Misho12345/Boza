@@ -10,6 +10,8 @@ export namespace boza::rhi::vk
     class Instance final : public rhi::Instance
     {
     public:
+        ~Instance() override { destroy(); }
+
         bool init() override;
         void destroy() override;
 

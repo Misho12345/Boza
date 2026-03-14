@@ -10,6 +10,8 @@ export namespace boza::rhi::vk
     class Semaphore final : public rhi::Semaphore
     {
     public:
+        ~Semaphore() override { destroy(); }
+
         bool init() override;
         void destroy() override;
 
@@ -29,6 +31,8 @@ export namespace boza::rhi::vk
     class Fence final : public rhi::Fence
     {
     public:
+        ~Fence() override { destroy(); }
+
         bool init() override;
         void destroy() override;
 

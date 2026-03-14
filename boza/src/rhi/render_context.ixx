@@ -21,6 +21,8 @@ export namespace boza::rhi
             DescriptorPool* descriptor_pool,
             GraphicsApi     api);
 
+        static void shutdown();
+
         static void set_window(platform::Window* window) { instance().window_ = window; }
 
         static void set_current_command_buffer(CommandBuffer* command_buffer)
@@ -40,7 +42,12 @@ export namespace boza::rhi
 
         [[nodiscard]] static bool initialized() { return instance().initialized_; }
 
-        [[nodiscard]] static std::uint32_t frames_in_flight() { return instance().swapchain_->max_frames_in_flight(); }
+        [[nodiscard]]
+        static std::uint32_t frames_in_flight()
+        {
+            const auto* swapchain = instance().swapchain_;
+            return swapchain ? swapchain->max_frames_in_flight() : 1u;
+        }
 
     private:
         RenderContext() = default;
@@ -54,7 +61,7 @@ export namespace boza::rhi
         DescriptorPool* descriptor_pool_{ nullptr };
         CommandBuffer*  command_buffer_{ nullptr };
 
-        GraphicsApi api_{ 0 };
+        GraphicsApi api_{ graphics_apis_by_priority.front() };
 
         bool initialized_{ false };
     };

@@ -13,9 +13,16 @@ namespace boza::rhi::vk
         VkPhysicalDeviceProperties properties{};
         vkGetPhysicalDeviceProperties(vk_device_ptr->physical_device(), &properties);
 
-        const bool anisotropy_enabled = desc_.filter == SamplerFilter::Anisotropic;
+        const bool requested_anisotropy = desc_.filter == SamplerFilter::Anisotropic;
+        const bool anisotropy_enabled = requested_anisotropy && vk_device_ptr->sampler_anisotropy_enabled();
+
+        if (requested_anisotropy && !anisotropy_enabled)
+        {
+            Log::warn("Sampler requested anisotropy but device feature is unavailable; falling back to linear filtering");
+        }
+
         const float max_anisotropy = anisotropy_enabled
-            ? std::min(desc_.max_anisotropy, properties.limits.maxSamplerAnisotropy)
+            ? std::clamp(desc_.max_anisotropy, 1.0f, properties.limits.maxSamplerAnisotropy)
             : 1.0f;
 
         const VkSamplerCreateInfo sampler_create_info

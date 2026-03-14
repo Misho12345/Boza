@@ -15,7 +15,7 @@ export namespace boza::rhi
 
     struct PushConstantRange
     {
-        ShaderStage   stage;
+        Flags<ShaderStage> stages;
         std::uint32_t offset;
         std::uint32_t size;
     };

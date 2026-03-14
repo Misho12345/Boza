@@ -58,6 +58,9 @@ export namespace boza::rhi::vk
 
         [[nodiscard]] VkImage vk_image() const;
         [[nodiscard]] VkImageView vk_image_view() const;
+        [[nodiscard]] VkImageAspectFlags aspect_mask() const;
+        [[nodiscard]] std::uint32_t mip_levels() const { return desc_.mip_levels; }
+        [[nodiscard]] std::uint32_t layer_count() const;
 
     private:
         explicit Texture(const TextureDesc& desc) : rhi::Texture(desc) {}
@@ -66,6 +69,7 @@ export namespace boza::rhi::vk
         VkImageView       image_view_{ nullptr };
         VmaAllocation     allocation_{ nullptr };
         VmaAllocationInfo allocation_info_{};
+        mutable std::vector<VkImageLayout> layer_layouts_{};
 
         void transition_layout_internal(VkImageLayout old_layout, VkImageLayout new_layout) const;
 

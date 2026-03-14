@@ -130,8 +130,32 @@ export namespace boza::rhi
             }
 
             file.seekg(0, std::ios::end);
-            const std::streamsize size = file.tellg();
+            if (!file.good())
+            {
+                Log::critical("Failed to seek shader file {}", path.string());
+                return {};
+            }
+
+            const std::streampos end_pos = file.tellg();
+            if (end_pos < 0)
+            {
+                Log::critical("Failed to determine shader file size for {}", path.string());
+                return {};
+            }
+
+            const std::size_t size = end_pos;
             file.seekg(0, std::ios::beg);
+            if (!file.good())
+            {
+                Log::critical("Failed to seek shader file start {}", path.string());
+                return {};
+            }
+
+            if (size == 0)
+            {
+                Log::critical("Shader file {} is empty", path.string());
+                return {};
+            }
 
             if (size % sizeof(SegmentType) != 0)
             {
@@ -140,7 +164,7 @@ export namespace boza::rhi
             }
 
             std::vector<SegmentType> data(size / sizeof(SegmentType));
-            if (!file.read(reinterpret_cast<char*>(data.data()), size))
+            if (!file.read(reinterpret_cast<char*>(data.data()), static_cast<std::streamsize>(size)))
             {
                 Log::critical("Failed to read shader file {}", path.string());
                 return {};

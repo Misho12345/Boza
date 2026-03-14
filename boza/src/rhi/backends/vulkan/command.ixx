@@ -10,6 +10,8 @@ export namespace boza::rhi::vk
     class CommandPool final : public rhi::CommandPool
     {
     public:
+        ~CommandPool() override { destroy(); }
+
         bool init() override;
         void destroy() override;
 
@@ -36,6 +38,8 @@ export namespace boza::rhi::vk
     class CommandBuffer final : public rhi::CommandBuffer
     {
     public:
+        ~CommandBuffer() override { destroy(); }
+
         bool init() override;
         void destroy() override;
 
@@ -63,7 +67,7 @@ export namespace boza::rhi::vk
         void bind_compute_pipeline(ComputePipeline* pipeline) override;
 
         void bind_vertex_buffer(Buffer* buffer, std::uint32_t binding = 0, std::uint64_t offset = 0) override;
-        void bind_index_buffer(Buffer* buffer, std::uint64_t offset = 0, bool use_uint16 = false) override;
+        void bind_index_buffer(Buffer* buffer, std::uint64_t offset = 0, IndexType index_type = IndexType::Uint32) override;
 
         void bind_descriptor_sets(PipelineLayout* layout, std::span<DescriptorSet*> sets, std::uint32_t first_set) override;
 
@@ -102,6 +106,8 @@ export namespace boza::rhi::vk
     class CommandQueue final : public rhi::CommandQueue
     {
     public:
+        ~CommandQueue() override { destroy(); }
+
         using rhi::CommandQueue::submit;
         using rhi::CommandQueue::present;
 

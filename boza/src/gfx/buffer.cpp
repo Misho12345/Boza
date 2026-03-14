@@ -3,18 +3,25 @@ module boza.gfx;
 import :buffer;
 
 import boza.core;
-
 import boza.rhi;
 import boza.rhi.render_context;
 
 namespace boza
 {
+    void* BufferAccess::handle(const Buffer& buffer) { return buffer.rhi_handle(); }
+
+    void* BufferAccess::handle(const Buffer& buffer, const std::uint32_t frame_index)
+    {
+        return buffer.rhi_handle(frame_index);
+    }
+
+
     Buffer::Buffer(
         const std::size_t        buffer_size,
         const BufferUsage        usage,
         const ResourceAccessMode buffer_access_mode)
-        : size_(buffer_size),
-          access_mode_(buffer_access_mode)
+        : size_{ buffer_size },
+          access_mode_{ buffer_access_mode }
     {
         if (!rhi::RenderContext::initialized())
         {
@@ -22,14 +29,20 @@ namespace boza
             return;
         }
 
-        auto memory_type = rhi::BufferMemoryType::HostVisible;
+        Flags memory_type{ rhi::BufferMemoryType::HostVisible | rhi::BufferMemoryType::HostCoherent };
+
         if (usage == BufferUsage::Vertex || usage == BufferUsage::Index)
+        {
+            memory_type = rhi::BufferMemoryType::DeviceLocal;
+        }
+        else if ((usage == BufferUsage::Uniform || usage == BufferUsage::Storage) &&
+                 buffer_access_mode == ResourceAccessMode::Static)
         {
             memory_type = rhi::BufferMemoryType::DeviceLocal;
         }
         else if (usage == BufferUsage::Staging)
         {
-            memory_type = rhi::BufferMemoryType::HostCoherent;
+            memory_type = rhi::BufferMemoryType::HostVisible | rhi::BufferMemoryType::HostCoherent;
         }
 
         const std::uint32_t buffer_count = buffer_access_mode == ResourceAccessMode::Dynamic
@@ -90,7 +103,7 @@ namespace boza
     void Buffer::upload(
         const void*         data,
         const std::size_t   data_size,
-        const std::size_t   offset) const
+        const std::size_t   offset)
     {
         if (auto* buffer = static_cast<rhi::Buffer*>(get_validated_buffer(offset, data_size)))
         {
@@ -102,7 +115,7 @@ namespace boza
         const Buffer&      staging_buffer,
         const std::size_t  byte_size,
         const std::size_t  src_offset,
-        const std::size_t  dst_offset) const
+        const std::size_t  dst_offset)
     {
         if (src_offset > staging_buffer.size_ || dst_offset > size_)
         {
@@ -205,13 +218,13 @@ namespace boza
         return fallback_staging_buffer;
     }
 
-    void* Buffer::map() const
+    void* Buffer::map()
     {
         if (auto* buffer = static_cast<rhi::Buffer*>(get_validated_buffer())) return buffer->map();
         return nullptr;
     }
 
-    void Buffer::unmap() const
+    void Buffer::unmap()
     {
         if (auto* buffer = static_cast<rhi::Buffer*>(get_validated_buffer())) buffer->unmap();
     }
@@ -220,16 +233,30 @@ namespace boza
     {
         if (rhi_buffers_.empty()) return nullptr;
 
-        const std::uint32_t frame_index = rhi::RenderContext::swapchain()->current_frame();
-        const std::uint32_t buffer_index = access_mode_ == ResourceAccessMode::Dynamic ? frame_index : 0;
+        if (access_mode_ != ResourceAccessMode::Dynamic) return rhi_buffers_.front().get();
 
-        if (buffer_index >= rhi_buffers_.size())
+        const auto* swapchain = rhi::RenderContext::swapchain();
+        if (!swapchain)
+        {
+            Log::error("Cannot resolve dynamic buffer handle: swapchain is null");
+            return nullptr;
+        }
+
+        return rhi_handle(swapchain->current_frame());
+    }
+
+    void* Buffer::rhi_handle(const std::uint32_t frame_index) const
+    {
+        if (rhi_buffers_.empty()) return nullptr;
+        if (access_mode_ != ResourceAccessMode::Dynamic) return rhi_buffers_.front().get();
+
+        if (frame_index >= rhi_buffers_.size())
         {
             Log::error("Invalid frame index {} for buffer with {} buffers", frame_index, rhi_buffers_.size());
             return nullptr;
         }
 
-        return rhi_buffers_[buffer_index].get();
+        return rhi_buffers_[frame_index].get();
     }
 
     void Buffer::destroy()
@@ -241,9 +268,7 @@ namespace boza
     {
         if (!handle) return;
 
-        auto* buffer = static_cast<rhi::Buffer*>(handle);
-        buffer->destroy();
-        delete buffer;
+        delete static_cast<rhi::Buffer*>(handle);
     }
 
     void* Buffer::get_validated_buffer(

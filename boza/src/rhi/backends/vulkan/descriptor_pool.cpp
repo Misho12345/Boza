@@ -52,12 +52,29 @@ namespace boza::rhi::vk
     {
         // Log::trace("Allocating {} descriptor set(s)", count);
 
+        if (count == 0) return {};
+
+        if (layouts.size() != count)
+        {
+            Log::critical(
+                "Descriptor set allocation requires matching count/layouts (count: {}, layouts: {})",
+                count,
+                layouts.size());
+            return {};
+        }
+
         const auto vk_device = static_cast<Device*>(desc_.device)->logical_device();
 
         std::vector<VkDescriptorSetLayout> vk_layouts;
         vk_layouts.reserve(layouts.size());
         for(const auto& layout : layouts)
         {
+            if (!layout)
+            {
+                Log::critical("Cannot allocate descriptor sets with null layout");
+                return {};
+            }
+
             vk_layouts.push_back(static_cast<DescriptorSetLayout*>(layout)->vk_descriptor_set_layout());
         }
 
@@ -99,6 +116,8 @@ namespace boza::rhi::vk
     {
         // Log::trace("Freeing {} descriptor set(s)", sets.size());
 
+        if (sets.empty()) return;
+
         const auto vk_device = static_cast<Device*>(desc_.device)->logical_device();
 
         std::vector<VkDescriptorSet> vk_descriptor_sets;
@@ -106,15 +125,30 @@ namespace boza::rhi::vk
 
         for (const auto& set : sets)
         {
+            if (!set)
+            {
+                Log::warn("Skipping null descriptor set during free");
+                continue;
+            }
+
             vk_descriptor_sets.push_back(static_cast<DescriptorSet*>(set)->vk_descriptor_set());
-            delete set;
         }
 
-        vkFreeDescriptorSets(
+        if (vk_descriptor_sets.empty()) return;
+
+        const VkResult free_result = vkFreeDescriptorSets(
             vk_device,
             vk_descriptor_pool_,
             static_cast<uint32_t>(vk_descriptor_sets.size()),
             vk_descriptor_sets.data());
+
+        if (!vk_check(free_result, "Failed to free descriptor sets")) return;
+
+        for (const auto& set : sets)
+        {
+            if (!set) continue;
+            delete set;
+        }
     }
 
 

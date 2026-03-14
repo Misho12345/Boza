@@ -110,10 +110,10 @@ namespace boza::rhi::vk
             .pValues = &value
         };
 
-        if (!vk_check(
-            vkWaitSemaphores(vk_device, &wait_info, timeout),
-            "Failed to wait on timeline semaphore"))
-            return false;
+        const VkResult result = vkWaitSemaphores(vk_device, &wait_info, timeout);
+        if (result == VK_TIMEOUT) return false;
+
+        if (!vk_check(result, "Failed to wait on timeline semaphore")) return false;
 
         return true;
     }

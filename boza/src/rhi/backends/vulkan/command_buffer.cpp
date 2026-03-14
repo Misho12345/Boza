@@ -151,12 +151,18 @@ namespace boza::rhi::vk
         vkCmdBindVertexBuffers(vk_command_buffer_, binding, 1, &vk_buf, &vk_offset);
     }
 
-    void CommandBuffer::bind_index_buffer(rhi::Buffer* buffer, const uint64_t offset, const bool use_uint16)
+    void CommandBuffer::bind_index_buffer(
+        rhi::Buffer*     buffer,
+        const uint64_t   offset,
+        const IndexType  index_type)
     {
-        // Log::trace("Binding index buffer with offset {} ({})", offset, use_uint16 ? "uint16" : "uint32");
+        // Log::trace("Binding index buffer with offset {}", offset);
         const auto*       vk_buffer  = reinterpret_cast<Buffer*>(buffer);
-        const VkIndexType index_type = use_uint16 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32;
-        vkCmdBindIndexBuffer(vk_command_buffer_, vk_buffer->vk_buffer(), offset, index_type);
+
+        VkIndexType vk_index_type = VK_INDEX_TYPE_UINT32;
+        if (index_type == IndexType::Uint16) vk_index_type = VK_INDEX_TYPE_UINT16;
+
+        vkCmdBindIndexBuffer(vk_command_buffer_, vk_buffer->vk_buffer(), offset, vk_index_type);
     }
 
     void CommandBuffer::push_constants(
@@ -187,6 +193,11 @@ namespace boza::rhi::vk
         const ResourceState new_state)
     {
         const auto* vk_texture = reinterpret_cast<Texture*>(texture);
+        if (!vk_texture)
+        {
+            Log::warn("Cannot insert image barrier for null texture");
+            return;
+        }
 
         auto [old_layout, src_stage] = state_to_layout_and_stage(old_state);
         auto [new_layout, dst_stage] = state_to_layout_and_stage(new_state);
@@ -202,8 +213,11 @@ namespace boza::rhi::vk
             src_access,
             dst_stage,
             dst_access,
-            VK_IMAGE_ASPECT_COLOR_BIT,
-            0, 1, 0, 1);
+            vk_texture->aspect_mask(),
+            0,
+            vk_texture->mip_levels(),
+            0,
+            vk_texture->layer_count());
     }
 
 

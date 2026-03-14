@@ -18,7 +18,7 @@ namespace boza::gfx
     {
         if (initialized_) return;
 
-        auto [it, inserted] = samplers_.try_emplace(
+        auto [sampler, inserted] = samplers_.try_emplace(
             "boza_default_sampler",
             Sampler{
                 "boza_default_sampler",
@@ -33,7 +33,13 @@ namespace boza::gfx
                 1.0f
             });
 
-        if (!inserted || !it->second->rhi_handle()) Log::error("Failed to create default sampler");
+        if (!sampler || !sampler->rhi_handle())
+        {
+            Log::error("Failed to create default sampler");
+            if (inserted) samplers_.erase("boza_default_sampler");
+            initialized_ = false;
+            return;
+        }
 
         initialized_ = true;
     }
@@ -131,10 +137,10 @@ namespace boza::gfx
     {
         const std::string name_str{ name };
 
-        if (samplers_.contains(name_str))
+        if (auto* existing = samplers_.find_ptr(name_str))
         {
             Log::warn("Sampler '{}' already exists, returning existing sampler", name_str);
-            return samplers_.at(name_str);
+            return *existing;
         }
 
         Sampler sampler{
@@ -150,16 +156,17 @@ namespace boza::gfx
             max_anisotropy
         };
 
-        auto [it, inserted] = samplers_.try_emplace(name_str, std::move(sampler));
+        auto [created_sampler, inserted] = samplers_.try_emplace(name_str, std::move(sampler));
 
-        if (!inserted || !it->second->rhi_handle())
+        if (!created_sampler || !created_sampler->rhi_handle())
         {
             Log::error("Failed to create sampler: {}", name_str);
+            if (inserted) samplers_.erase(name_str);
             return default_sampler();
         }
 
         // Log::trace("Created sampler: {}", name_str);
-        return *it->second;
+        return *created_sampler;
     }
 
     Sampler& SamplerLoader::create(const SamplerDefinition& def)
@@ -198,11 +205,9 @@ namespace boza::gfx
             return;
         }
 
-        const auto it = samplers_.find(name_str);
-        if (it != samplers_.end())
+        if (samplers_.erase(name_str))
         {
             Log::trace("Destroyed sampler: {}", name_str);
-            samplers_.erase(it);
         }
         else Log::warn("Attempted to destroy non-existent sampler: {}", name_str);
     }

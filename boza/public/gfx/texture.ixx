@@ -16,6 +16,8 @@ namespace boza::gfx
 
 export namespace boza
 {
+    class Material;
+
     enum class TextureLayout : std::uint8_t
     {
         Undefined,
@@ -148,12 +150,14 @@ export namespace boza
         [[msvc::no_unique_address]] Property<Texture, &Texture::get_type>   type{ this };
         [[msvc::no_unique_address]] Property<Texture, &Texture::get_format> format{ this };
 
-        [[nodiscard]] void* rhi_handle() const;
         [[nodiscard]] bool  is_valid() const { return !rhi_textures_.empty(); }
         [[nodiscard]] std::string_view name() const { return name_; }
 
     private:
         using RhiTextureHandle = std::unique_ptr<void, void(*)(void*)>;
+
+        [[nodiscard]] void* rhi_handle() const;
+        [[nodiscard]] void* rhi_handle(std::uint32_t frame_index) const;
 
         static void destroy_rhi_texture(void* handle);
 
@@ -166,6 +170,8 @@ export namespace boza
         TextureSettings settings_;
         std::vector<RhiTextureHandle> rhi_textures_{};
 
+        friend class Material;
+        friend class ComputeDispatcher;
         friend class gfx::TextureLoader;
     };
 }

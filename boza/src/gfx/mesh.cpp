@@ -65,8 +65,8 @@ namespace boza
     {
         if (const auto it = registry_.find(name); it != registry_.end())
         {
-            RenderingSystem::on_mesh_destroyed(&it->second);
-            valid_pointers_.erase(&it->second);
+            Log::warn("Mesh '{}' already exists, returning existing mesh", name);
+            return it->second;
         }
 
         auto [it, inserted] = registry_.try_emplace(
@@ -76,13 +76,9 @@ namespace boza
                 std::move(vertices),
                 std::move(indices)
             });
-        
-        if (!inserted)
-        {
-            Log::warn("Mesh '{}' already exists, returning existing mesh", name);
-            return it->second;
-        }
-        
+
+        if (!inserted) return it->second;
+
         it->second.recalculate_bounds();
         valid_pointers_.insert(&it->second);
         return it->second;

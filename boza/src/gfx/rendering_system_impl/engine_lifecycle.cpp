@@ -21,6 +21,8 @@ namespace boza
 
     void RenderingSystem::EngineBegin::execute()
     {
+        assert_render_thread();
+
         if (rhi::RenderContext::initialized()) return;
 
         frustum_.valid = false;
@@ -36,11 +38,20 @@ namespace boza
 
     void RenderingSystem::EngineDestroy::execute()
     {
-        if (device_) device_->wait_idle();
+        assert_render_thread();
+
+        wait_idle();
 
         gfx::MaterialLoader::instance().shutdown();
         gfx::SamplerLoader::instance().shutdown();
         gfx::TextureLoader::instance().shutdown();
+
+        shutdown_graphics(true, false);
+    }
+
+    void RenderingSystem::clear_runtime_state()
+    {
+        assert_render_thread();
 
         gpu_meshes_.clear();
         render_cache_.clear();
@@ -51,32 +62,26 @@ namespace boza
         valid_materials_.clear();
         invalid_materials_.clear();
         reset_render_caches();
-
         resource_cache_.reset();
+        clear_render_thread();
+    }
 
-        if (descriptor_pool_)
-        {
-            descriptor_pool_->destroy();
-            descriptor_pool_.reset();
-        }
+    void RenderingSystem::shutdown_graphics(const bool wait_for_device, const bool destroy_window)
+    {
+        auto* window = rhi::RenderContext::window();
 
-        if (swapchain_)
-        {
-            swapchain_->destroy();
-            swapchain_.reset();
-        }
+        if (wait_for_device && device_) device_->wait_idle();
 
-        if (device_)
-        {
-            device_->destroy();
-            device_.reset();
-        }
+        clear_runtime_state();
 
-        if (instance_)
-        {
-            instance_->destroy();
-            instance_.reset();
-        }
+        descriptor_pool_.reset();
+        swapchain_.reset();
+        device_.reset();
+        instance_.reset();
+
+        if (destroy_window && window) window->destroy();
+
+        rhi::RenderContext::shutdown();
     }
 
     bool RenderingSystem::init_graphics()
@@ -84,50 +89,12 @@ namespace boza
         platform::Window* window = rhi::RenderContext::window();
         if (!window) return false;
 
-        const auto cleanup_graphics_state = [window](const bool wait_for_device)
-        {
-            if (wait_for_device && device_) device_->wait_idle();
-
-            gpu_meshes_.clear();
-            render_cache_.clear();
-            unresolved_.clear();
-            pipeline_materials_.clear();
-            reset_render_caches();
-            resource_cache_.reset();
-
-            if (descriptor_pool_)
-            {
-                descriptor_pool_->destroy();
-                descriptor_pool_.reset();
-            }
-
-            if (swapchain_)
-            {
-                swapchain_->destroy();
-                swapchain_.reset();
-            }
-
-            if (device_)
-            {
-                device_->destroy();
-                device_.reset();
-            }
-
-            if (instance_)
-            {
-                instance_->destroy();
-                instance_.reset();
-            }
-
-            window->destroy();
-        };
-
         bool found = false;
 
         for (const auto& api : rhi::graphics_apis_by_priority)
         {
             if (api != rhi::graphics_apis_by_priority[0])
-                cleanup_graphics_state(true);
+                shutdown_graphics(true, true);
 
             window->create(api);
 
@@ -196,7 +163,7 @@ namespace boza
 
         if (!found)
         {
-            cleanup_graphics_state(false);
+            shutdown_graphics(false, true);
             return false;
         }
 

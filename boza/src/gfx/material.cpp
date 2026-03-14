@@ -15,6 +15,15 @@ import boza.gfx.sampler_loader;
 
 namespace boza
 {
+    void* MaterialAccess::pipeline(const Material& material) { return material.rhi_pipeline_handle(); }
+    void* MaterialAccess::pipeline_layout(const Material& material) { return material.rhi_pipeline_layout_handle(); }
+    const void* MaterialAccess::reflection(const Material& material) { return material.reflection_handle(); }
+    std::span<const std::uint8_t> MaterialAccess::push_constant_staging(const Material& material)
+    {
+        return material.push_constant_staging();
+    }
+    void MaterialAccess::bind_descriptor_sets(const Material& material) { material.bind_descriptor_sets(); }
+
     Material::Material(const std::string_view name) : name_{ name } { push_constant_staging_.resize(128); }
 
     Material::~Material() { cleanup(); }
@@ -22,6 +31,9 @@ namespace boza
     void Material::cleanup()
     {
         uniform_buffers_.clear();
+        bound_buffer_handles_.clear();
+        bound_texture_handles_.clear();
+        bound_sampler_handles_.clear();
 
         if (descriptor_pool_ && (!descriptor_sets_.empty() || !descriptor_sets_per_frame_.empty()))
         {
@@ -76,6 +88,9 @@ namespace boza
           dirty_sets_{ std::move(other.dirty_sets_) },
           uniform_buffer_staging_{ std::move(other.uniform_buffer_staging_) },
           uniform_buffers_{ std::move(other.uniform_buffers_) },
+          bound_buffer_handles_{ std::move(other.bound_buffer_handles_) },
+          bound_texture_handles_{ std::move(other.bound_texture_handles_) },
+          bound_sampler_handles_{ std::move(other.bound_sampler_handles_) },
           default_samplers_{ std::move(other.default_samplers_) },
           descriptor_pool_{ std::exchange(other.descriptor_pool_, nullptr) },
           cpu_cull_enabled_{ std::exchange(other.cpu_cull_enabled_, true) } {}
@@ -97,6 +112,9 @@ namespace boza
         dirty_sets_ = std::move(other.dirty_sets_);
         uniform_buffer_staging_ = std::move(other.uniform_buffer_staging_);
         uniform_buffers_ = std::move(other.uniform_buffers_);
+        bound_buffer_handles_ = std::move(other.bound_buffer_handles_);
+        bound_texture_handles_ = std::move(other.bound_texture_handles_);
+        bound_sampler_handles_ = std::move(other.bound_sampler_handles_);
         default_samplers_ = std::move(other.default_samplers_);
         descriptor_pool_ = std::exchange(other.descriptor_pool_, nullptr);
         cpu_cull_enabled_ = std::exchange(other.cpu_cull_enabled_, true);
@@ -151,6 +169,17 @@ namespace boza
         }
 
         cmd->bind_graphics_pipeline(static_cast<rhi::GraphicsPipeline*>(pipeline_));
+        bind_descriptor_sets();
+    }
+
+    void Material::bind_descriptor_sets() const
+    {
+        auto* cmd = rhi::RenderContext::current_command_buffer();
+        if (!cmd)
+        {
+            Log::error("Cannot bind material descriptor sets: no active command buffer.");
+            return;
+        }
 
         const std::vector<void*>* active_descriptor_sets = &descriptor_sets_;
 
@@ -229,9 +258,24 @@ namespace boza
             return;
         }
 
+        const auto* reflection = static_cast<rhi::DescriptorReflection*>(reflection_.get());
+
+        auto stage_mask = rhi::ShaderStage::Vertex;
+        const std::size_t separator = name.find('.');
+        const std::string range_name = separator == std::string::npos
+                                           ? name
+                                           : name.substr(0, separator);
+
+        if (const auto range_it = reflection->push_constant_ranges().find(range_name);
+            range_it != reflection->push_constant_ranges().end() &&
+            range_it->second.stages.any())
+        {
+            stage_mask = static_cast<rhi::ShaderStage>(range_it->second.stages.value());
+        }
+
         cmd->push_constants(
             static_cast<rhi::PipelineLayout*>(pipeline_layout_),
-            rhi::ShaderStage::Vertex,
+            stage_mask,
             info.offset,
             static_cast<std::uint32_t>(size),
             data);
@@ -298,26 +342,41 @@ namespace boza
         {
             const auto parent_info = static_cast<rhi::DescriptorReflection*>(reflection_.get())->lookup(name.substr(0, name.find('.')));
             const std::size_t buffer_size = parent_info.has_value() ? parent_info->size : 256;
+            const std::size_t buffer_count = std::max<std::size_t>(descriptor_sets_per_frame_.size(), 1);
 
-            auto buffer = create_buffer(
-                rhi::RenderContext::api(), {
-                    .device = rhi::RenderContext::device(),
-                    .size = buffer_size,
-                    .usage = BufferUsage::Uniform,
-                    .memory_type = rhi::BufferMemoryType::HostVisible
-                });
+            auto& buffers = uniform_buffers_[binding_key];
+            buffers.reserve(buffer_count);
+            uniform_buffer_staging_[binding_key].resize(buffer_size, 0);
 
-            if (buffer)
+            for (std::size_t frame_index = 0; frame_index < buffer_count; ++frame_index)
             {
-                auto* raw_buffer = buffer.get();
+                auto buffer = create_buffer(
+                    rhi::RenderContext::api(), {
+                        .device = rhi::RenderContext::device(),
+                        .size = buffer_size,
+                        .usage = BufferUsage::Uniform,
+                        .memory_type = rhi::BufferMemoryType::HostVisible
+                    });
 
-                uniform_buffers_.try_emplace(
-                    binding_key,
-                    buffer.release(),
-                    &Material::destroy_rhi_buffer);
-                uniform_buffer_staging_[binding_key].resize(buffer_size, 0);
+                if (!buffer)
+                {
+                    uniform_buffers_.erase(binding_key);
+                    uniform_buffer_staging_.erase(binding_key);
+                    Log::error("Failed to create uniform buffer for property '{}' (frame {})", name, frame_index);
+                    return;
+                }
 
-                rhi::DescriptorWrite write{
+                buffers.emplace_back(buffer.release(), &Material::destroy_rhi_buffer);
+            }
+
+            const auto bind_uniform_buffer = [&](void* set_handle, const std::size_t frame_index) -> bool
+            {
+                if (frame_index >= buffers.size()) return false;
+
+                auto* raw_buffer = static_cast<rhi::Buffer*>(buffers[frame_index].get());
+                if (!raw_buffer) return false;
+
+                const rhi::DescriptorWrite write{
                     .binding = info.binding,
                     .array_element = 0,
                     .type = rhi::DescriptorType::UniformBuffer,
@@ -327,23 +386,36 @@ namespace boza
                     }
                 };
 
-                if (!descriptor_sets_per_frame_.empty())
+                std::array writes{ write };
+                static_cast<rhi::DescriptorSet*>(set_handle)->update(writes);
+                return true;
+            };
+
+            if (!descriptor_sets_per_frame_.empty())
+            {
+                for (std::size_t frame_index = 0; frame_index < descriptor_sets_per_frame_.size(); ++frame_index)
                 {
-                    for (const auto& frame_sets : descriptor_sets_per_frame_)
+                    const auto& frame_sets = descriptor_sets_per_frame_[frame_index];
+                    if (info.set >= frame_sets.size()) continue;
+
+                    if (!bind_uniform_buffer(frame_sets[info.set], frame_index))
                     {
-                        if (info.set >= frame_sets.size()) continue;
-                        static_cast<rhi::DescriptorSet*>(frame_sets[info.set])->update({ &write, 1 });
+                        uniform_buffers_.erase(binding_key);
+                        uniform_buffer_staging_.erase(binding_key);
+                        Log::error("Failed to bind uniform buffer for property '{}' (frame {})", name, frame_index);
+                        return;
                     }
                 }
-                else if (info.set < descriptor_sets_.size())
-                {
-                    static_cast<rhi::DescriptorSet*>(descriptor_sets_[info.set])->update({ &write, 1 });
-                }
             }
-            else
+            else if (info.set < descriptor_sets_.size())
             {
-                Log::error("Failed to create uniform buffer for property '{}'", name);
-                return;
+                if (!bind_uniform_buffer(descriptor_sets_[info.set], 0))
+                {
+                    uniform_buffers_.erase(binding_key);
+                    uniform_buffer_staging_.erase(binding_key);
+                    Log::error("Failed to bind uniform buffer for property '{}'", name);
+                    return;
+                }
             }
         }
 
@@ -352,8 +424,17 @@ namespace boza
         {
             std::memcpy(staging.data() + info.offset, data, size);
 
-            auto* buffer = static_cast<rhi::Buffer*>(uniform_buffers_.at(binding_key).get());
-            if (buffer) buffer->upload(staging.data(), staging.size(), 0);
+            for (const auto& buffer_handle : uniform_buffers_.at(binding_key))
+            {
+                auto* buffer = static_cast<rhi::Buffer*>(buffer_handle.get());
+                if (!buffer)
+                {
+                    Log::error("Uniform buffer property '{}' has an invalid per-frame buffer handle", name);
+                    return;
+                }
+
+                buffer->upload(staging.data(), staging.size(), 0);
+            }
         }
         else
         {
@@ -392,29 +473,93 @@ namespace boza
 
         default_samplers_[name] = &sampler;
 
-        rhi::DescriptorWrite write{
-            .binding = info.binding,
-            .array_element = 0,
-            .type = rhi::DescriptorType::CombinedImageSampler,
-            .info = rhi::CombinedImageSampler{
-                .texture = static_cast<rhi::Texture*>(texture.rhi_handle()),
-                .sampler = static_cast<rhi::Sampler*>(sampler.rhi_handle())
+        const bool dynamic_texture = texture.settings_.access_mode == ResourceAccessMode::Dynamic;
+        const std::uint32_t binding_key = (info.set << 16) | info.binding;
+
+        const auto update_set = [&](void* set_handle, const std::uint32_t frame_index) -> bool
+        {
+            auto* texture_handle = static_cast<rhi::Texture*>(texture.rhi_handle(frame_index));
+            auto* sampler_handle = static_cast<rhi::Sampler*>(sampler.rhi_handle());
+            if (!texture_handle || !sampler_handle) return false;
+
+            auto& texture_handles = bound_texture_handles_[binding_key];
+            auto& sampler_handles = bound_sampler_handles_[binding_key];
+
+            const std::size_t slot_count = std::max<std::size_t>(descriptor_sets_per_frame_.size(), 1);
+            if (texture_handles.size() < slot_count) texture_handles.resize(slot_count, nullptr);
+            if (sampler_handles.size() < slot_count) sampler_handles.resize(slot_count, nullptr);
+
+            const std::size_t slot = descriptor_sets_per_frame_.empty() ? 0 : frame_index;
+            if (texture_handles[slot] == texture_handle && sampler_handles[slot] == sampler_handle)
+            {
+                return true;
             }
+
+            const rhi::DescriptorWrite write{
+                .binding = info.binding,
+                .array_element = 0,
+                .type = rhi::DescriptorType::CombinedImageSampler,
+                .info = rhi::CombinedImageSampler{
+                    .texture = texture_handle,
+                    .sampler = sampler_handle
+                }
+            };
+
+            std::array writes{ write };
+            static_cast<rhi::DescriptorSet*>(set_handle)->update(writes);
+            texture_handles[slot] = texture_handle;
+            sampler_handles[slot] = sampler_handle;
+            return true;
         };
 
         if (!descriptor_sets_per_frame_.empty())
         {
-            for (const auto& frame_sets : descriptor_sets_per_frame_)
+            if (dynamic_texture)
             {
-                if (info.set >= frame_sets.size()) continue;
-                static_cast<rhi::DescriptorSet*>(frame_sets[info.set])->update({ &write, 1 });
+                std::uint32_t frame_index = 0;
+                if (const auto* swapchain = rhi::RenderContext::swapchain())
+                {
+                    frame_index = swapchain->current_frame();
+                }
+
+                frame_index %= static_cast<std::uint32_t>(descriptor_sets_per_frame_.size());
+
+                const auto& frame_sets = descriptor_sets_per_frame_[frame_index];
+                if (info.set < frame_sets.size() && !update_set(frame_sets[info.set], frame_index))
+                {
+                    Log::error("Cannot update texture '{}': invalid per-frame RHI handle for frame {}", name,
+                               frame_index);
+                    return;
+                }
+            }
+            else
+            {
+                for (std::uint32_t frame_index = 0;
+                     frame_index < static_cast<std::uint32_t>(descriptor_sets_per_frame_.size());
+                     ++frame_index)
+                {
+                    const auto& frame_sets = descriptor_sets_per_frame_[frame_index];
+                    if (info.set >= frame_sets.size()) continue;
+
+                    if (!update_set(frame_sets[info.set], frame_index))
+                    {
+                        Log::error("Cannot update texture '{}': invalid per-frame RHI handle for frame {}", name,
+                                   frame_index);
+                        return;
+                    }
+                }
             }
 
             mark_set_dirty(info.set);
         }
         else if (info.set < descriptor_sets_.size())
         {
-            static_cast<rhi::DescriptorSet*>(descriptor_sets_[info.set])->update({ &write, 1 });
+            if (!update_set(descriptor_sets_[info.set], 0))
+            {
+                Log::error("Cannot update texture '{}': invalid RHI handle", name);
+                return;
+            }
+
             mark_set_dirty(info.set);
         }
     }
@@ -435,13 +580,31 @@ namespace boza
         }
 
         const auto& info = binding_info.value();
+        const std::uint32_t binding_key = (info.set << 16) | info.binding;
 
-        const auto update_set = [&buffer, &info](void* set_handle) -> bool
+        if (info.descriptor_type != rhi::DescriptorType::UniformBuffer &&
+            info.descriptor_type != rhi::DescriptorType::StorageBuffer)
         {
-            auto* buffer_handle = static_cast<rhi::Buffer*>(buffer.rhi_handle());
+            Log::warn("Material property '{}' is not a buffer descriptor", name);
+            return;
+        }
+
+        const auto update_set = [this, &buffer, &info, binding_key](void* set_handle, const std::uint32_t frame_index) -> bool
+        {
+            auto* buffer_handle = static_cast<rhi::Buffer*>(buffer.rhi_handle(frame_index));
             if (!buffer_handle) return false;
 
-            rhi::DescriptorWrite write{
+            auto& bound_handles = bound_buffer_handles_[binding_key];
+            const std::size_t slot_count = std::max<std::size_t>(descriptor_sets_per_frame_.size(), 1);
+            if (bound_handles.size() < slot_count) bound_handles.resize(slot_count, nullptr);
+
+            const std::size_t slot = descriptor_sets_per_frame_.empty() ? 0 : frame_index;
+            if (bound_handles[slot] == buffer_handle)
+            {
+                return true;
+            }
+
+            const rhi::DescriptorWrite write{
                 .binding       = info.binding,
                 .array_element = 0,
                 .type          = info.descriptor_type,
@@ -458,15 +621,16 @@ namespace boza
                                      })
             };
 
-            static_cast<rhi::DescriptorSet*>(set_handle)->update({ &write, 1 });
+            std::array writes{ write };
+            static_cast<rhi::DescriptorSet*>(set_handle)->update(writes);
+            bound_handles[slot] = buffer_handle;
             return true;
         };
 
-        const bool has_per_frame_sets = !descriptor_sets_per_frame_.empty();
-        const bool dynamic_buffer     = buffer.access_mode == ResourceAccessMode::Dynamic;
-
-        if (has_per_frame_sets)
+        if (!descriptor_sets_per_frame_.empty())
         {
+            const bool dynamic_buffer = buffer.access_mode == ResourceAccessMode::Dynamic;
+
             if (dynamic_buffer)
             {
                 std::uint32_t frame_index = 0;
@@ -478,21 +642,26 @@ namespace boza
                 frame_index %= static_cast<std::uint32_t>(descriptor_sets_per_frame_.size());
 
                 const auto& frame_sets = descriptor_sets_per_frame_[frame_index];
-                if (info.set < frame_sets.size() && !update_set(frame_sets[info.set]))
+                if (info.set < frame_sets.size() && !update_set(frame_sets[info.set], frame_index))
                 {
-                    Log::error("Cannot update dynamic buffer '{}': invalid RHI buffer handle for frame {}", name,
+                    Log::error("Cannot update buffer '{}': invalid RHI buffer handle for frame {}", name,
                                frame_index);
                     return;
                 }
             }
             else
             {
-                for (const auto& frame_sets : descriptor_sets_per_frame_)
+                for (std::uint32_t frame_index = 0;
+                     frame_index < static_cast<std::uint32_t>(descriptor_sets_per_frame_.size());
+                     ++frame_index)
                 {
+                    const auto& frame_sets = descriptor_sets_per_frame_[frame_index];
                     if (info.set >= frame_sets.size()) continue;
-                    if (!update_set(frame_sets[info.set]))
+
+                    if (!update_set(frame_sets[info.set], frame_index))
                     {
-                        Log::error("Cannot update buffer '{}': invalid static RHI buffer handle", name);
+                        Log::error("Cannot update buffer '{}': invalid RHI buffer handle for frame {}", name,
+                                   frame_index);
                         return;
                     }
                 }
@@ -504,7 +673,7 @@ namespace boza
 
         if (info.set < descriptor_sets_.size())
         {
-            if (!update_set(descriptor_sets_[info.set]))
+            if (!update_set(descriptor_sets_[info.set], 0))
             {
                 Log::error("Cannot update buffer '{}': invalid RHI buffer handle", name);
                 return;
@@ -516,12 +685,6 @@ namespace boza
 
 
     std::size_t Material::descriptor_set_count() const { return descriptor_sets_.size(); }
-
-    void* Material::rhi_descriptor_set_handle(const std::size_t index) const
-    {
-        if (index >= descriptor_sets_.size()) return nullptr;
-        return descriptor_sets_[index];
-    }
 
     std::optional<BindingInfo> Material::lookup_binding(const std::string& name) const
     {
@@ -567,16 +730,11 @@ namespace boza
 
     void Material::destroy_rhi_buffer(void* handle)
     {
-        if (!handle) return;
-
-        auto* buffer = static_cast<rhi::Buffer*>(handle);
-        buffer->destroy();
-        delete buffer;
+        delete static_cast<rhi::Buffer*>(handle);
     }
 
     void Material::destroy_reflection(void* handle)
     {
-        if (!handle) return;
         delete static_cast<rhi::DescriptorReflection*>(handle);
     }
 }

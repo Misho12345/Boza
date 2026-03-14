@@ -94,13 +94,13 @@ export namespace boza::gfx
         Material* try_get_material(std::string_view name);
         [[nodiscard]] bool exists(const Material* ptr) const;
 
-        void bind_engine_resources(const Material* material) const;
+        void bind_engine_resources(Material* material) const;
 
         [[nodiscard]] Buffer* camera_ubo() { return camera_ubo_ ? &camera_ubo_.value() : nullptr; }
         [[nodiscard]] Buffer* light_ubo() { return light_ubo_ ? &light_ubo_.value() : nullptr; }
         [[nodiscard]] Buffer* time_ubo() { return time_ubo_ ? &time_ubo_.value() : nullptr; }
 
-        void update_time_ubo(float time, float delta_time) const;
+        void update_time_ubo(float time, float delta_time);
 
     private:
         MaterialLoader() = default;

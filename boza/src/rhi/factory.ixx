@@ -7,6 +7,7 @@ export module boza.rhi.factory;
 import std;
 import boza.rhi.api;
 import boza.rhi.objects;
+import boza.core;
 
 #ifdef BOZA_OPENGL_ENABLED
 import boza.rhi.opengl;
@@ -34,13 +35,14 @@ import boza.rhi.dx12;
     {                                                                                               \
         switch (api)                                                                                \
         {                                                                                           \
-            BOZA_IF_OPENGL(case GraphicsApi::OpenGL:    return CLASS::create<gl::CLASS>(desc);)   \
-            BOZA_IF_VULKAN(case GraphicsApi::Vulkan:    return CLASS::create<vk::CLASS>(desc);)   \
-            BOZA_IF_METAL (case GraphicsApi::Metal:     return CLASS::create<ml::CLASS>(desc);)   \
-            BOZA_IF_DX11  (case GraphicsApi::DirectX11: return CLASS::create<dx11::CLASS>(desc);) \
-            BOZA_IF_DX12  (case GraphicsApi::DirectX12: return CLASS::create<dx12::CLASS>(desc);) \
-            default: return nullptr;                                                                \
+            BOZA_IF_OPENGL(case GraphicsApi::OpenGL:    return CLASS::create<gl::CLASS>(desc);)     \
+            BOZA_IF_VULKAN(case GraphicsApi::Vulkan:    return CLASS::create<vk::CLASS>(desc);)     \
+            BOZA_IF_METAL (case GraphicsApi::Metal:     return CLASS::create<ml::CLASS>(desc);)     \
+            BOZA_IF_DX11  (case GraphicsApi::DirectX11: return CLASS::create<dx11::CLASS>(desc);)   \
+            BOZA_IF_DX12  (case GraphicsApi::DirectX12: return CLASS::create<dx12::CLASS>(desc);)   \
         }                                                                                           \
+        Log::error("Unsupported graphics API '{}' when creating {}", static_cast<int>(api), #CLASS); \
+        return nullptr;                                                                             \
     }
 
 

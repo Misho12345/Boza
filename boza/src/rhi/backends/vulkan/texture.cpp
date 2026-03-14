@@ -38,6 +38,15 @@ namespace boza::rhi::vk
             if (type == TextureType::Texture3D) return std::max(depth, 1u);
             return 1u;
         }
+
+        VkImageAspectFlags image_aspect_flags_for_desc(const TextureDesc& desc)
+        {
+            if (!(desc.usage & TextureUsage::DepthStencilAttachment)) return VK_IMAGE_ASPECT_COLOR_BIT;
+
+            VkImageAspectFlags aspect_flags = VK_IMAGE_ASPECT_DEPTH_BIT;
+            if (desc.format == TextureFormat::DEPTH24STENCIL8) aspect_flags |= VK_IMAGE_ASPECT_STENCIL_BIT;
+            return aspect_flags;
+        }
     }
 
     bool Texture::init()
@@ -48,7 +57,16 @@ namespace boza::rhi::vk
             return true;
         }
 
+        const auto* device = reinterpret_cast<Device*>(desc_.device);
+
+        if (desc_.type == TextureType::TextureCubeArray && !device->image_cube_array_enabled())
+        {
+            Log::error("TextureCubeArray requires Vulkan imageCubeArray support, but it is not enabled");
+            return false;
+        }
+
         const bool is_cube = desc_.type == TextureType::TextureCube || desc_.type == TextureType::TextureCubeArray;
+        const std::uint32_t total_layers = desc_.array_layers * (is_cube ? 6u : 1u);
 
         const VkImageCreateInfo image_create_info
         {
@@ -71,7 +89,7 @@ namespace boza::rhi::vk
             .usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
         };
 
-        const auto allocator = reinterpret_cast<Device*>(desc_.device)->allocator()->vma_allocator();
+        const auto allocator = device->allocator()->vma_allocator();
 
         if (!vk_check(
             vmaCreateImage(
@@ -87,23 +105,26 @@ namespace boza::rhi::vk
             .viewType = to_vk_image_view_type(desc_.type),
             .format = to_vk(desc_.format),
             .subresourceRange = {
-                .aspectMask = get_image_aspect_flags(desc_.usage),
+                .aspectMask = image_aspect_flags_for_desc(desc_),
                 .baseMipLevel = 0,
                 .levelCount = desc_.mip_levels,
                 .baseArrayLayer = 0,
-                .layerCount = desc_.array_layers * (is_cube ? 6u : 1u),
+                .layerCount = total_layers,
             },
         };
 
-        const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
+        const auto vk_device = device->logical_device();
         if (!vk_check(
             vkCreateImageView(vk_device, &image_view_create_info, nullptr, &image_view_),
             "Failed to create image view"))
             return false;
 
+        layer_layouts_.assign(total_layers, VK_IMAGE_LAYOUT_UNDEFINED);
+
         if (desc_.usage & TextureUsage::Storage)
         {
             transition_layout_internal(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+            std::ranges::fill(layer_layouts_, VK_IMAGE_LAYOUT_GENERAL);
         }
 
         return true;
@@ -127,6 +148,8 @@ namespace boza::rhi::vk
             image_ = nullptr;
             allocation_ = nullptr;
         }
+
+        layer_layouts_.clear();
     }
 
     std::unique_ptr<rhi::Buffer> Texture::stage(const size_t size, const std::uint32_t layer) const
@@ -162,7 +185,7 @@ namespace boza::rhi::vk
             .device = desc_.device,
             .size = stage_size,
             .usage = BufferUsage::Staging,
-            .memory_type = BufferMemoryType::HostCoherent
+            .memory_type = BufferMemoryType::HostVisible | BufferMemoryType::HostCoherent
         };
 
         auto staging_buffer = Buffer::create<Buffer>(staging_desc);
@@ -172,23 +195,44 @@ namespace boza::rhi::vk
             return nullptr;
         }
 
-        const VkImageLayout current_layout = desc_.usage & TextureUsage::Storage
-                                                 ? VK_IMAGE_LAYOUT_GENERAL
-                                                 : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        if (layer >= layer_layouts_.size())
+        {
+            Log::error("Texture layer {} layout state is unavailable", layer);
+            return nullptr;
+        }
 
-        const VkImageAspectFlags aspect_mask = get_image_aspect_flags(desc_.usage);
-
-        transition_layout_internal(current_layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+        const VkImageLayout current_layout = layer_layouts_[layer];
+        const VkImageAspectFlags aspect_mask = image_aspect_flags_for_desc(desc_);
 
         const auto* device = reinterpret_cast<Device*>(desc_.device);
         auto* cmd_pool = device->command_pool(device->queue_family_indices().graphics_family);
+        if (!cmd_pool)
+        {
+            Log::error("Failed to get graphics command pool for texture staging");
+            return nullptr;
+        }
+
         auto* cmd_buffer = cmd_pool->begin_single_time_commands();
         if (!cmd_buffer)
         {
             Log::error("Failed to begin single-time commands for texture staging");
-            transition_layout_internal(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, current_layout);
             return nullptr;
         }
+
+        const auto* vk_cmd_buffer = reinterpret_cast<CommandBuffer*>(cmd_buffer);
+        vk_cmd_buffer->pipeline_image_barrier(
+            image_,
+            current_layout,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+            VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
+            VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+            VK_ACCESS_2_TRANSFER_READ_BIT,
+            aspect_mask,
+            0,
+            1,
+            layer,
+            1);
 
         const VkBufferImageCopy region{
             .bufferOffset = 0,
@@ -205,7 +249,7 @@ namespace boza::rhi::vk
         };
 
         vkCmdCopyImageToBuffer(
-            reinterpret_cast<CommandBuffer*>(cmd_buffer)->vk_command_buffer(),
+            vk_cmd_buffer->vk_command_buffer(),
             image_,
             VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
             reinterpret_cast<Buffer*>(staging_buffer.get())->vk_buffer(),
@@ -213,14 +257,25 @@ namespace boza::rhi::vk
             &region
         );
 
+        vk_cmd_buffer->pipeline_image_barrier(
+            image_,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            current_layout,
+            VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+            VK_ACCESS_2_TRANSFER_READ_BIT,
+            VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+            VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
+            aspect_mask,
+            0,
+            1,
+            layer,
+            1);
+
         if (!cmd_pool->end_single_time_commands(cmd_buffer))
         {
             Log::error("Failed to end single-time commands for texture staging");
-            transition_layout_internal(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, current_layout);
             return nullptr;
         }
-
-        transition_layout_internal(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, current_layout);
 
         return staging_buffer;
     }
@@ -231,11 +286,9 @@ namespace boza::rhi::vk
 
         const auto* device   = reinterpret_cast<Device*>(desc_.device);
         auto*       cmd_pool = device->command_pool(device->queue_family_indices().graphics_family);
-
-        auto* cmd_buffer = cmd_pool->begin_single_time_commands();
-        if (!cmd_buffer)
+        if (!cmd_pool)
         {
-            Log::error("Failed to begin single-time commands for texture layout transition");
+            Log::error("Failed to get graphics command pool for texture layout transition");
             return;
         }
 
@@ -246,6 +299,7 @@ namespace boza::rhi::vk
         VkAccessFlags2 dst_access = VK_ACCESS_2_NONE;
         VkPipelineStageFlags2 source_stage = VK_PIPELINE_STAGE_2_NONE;
         VkPipelineStageFlags2 destination_stage = VK_PIPELINE_STAGE_2_NONE;
+        bool transition_supported = true;
 
         // TODO: too long and may be repetitive, could be optimized
 
@@ -287,7 +341,7 @@ namespace boza::rhi::vk
             else
             {
                 Log::error("Unsupported layout transition from UNDEFINED to {}", static_cast<int>(new_layout));
-                return;
+                transition_supported = false;
             }
         }
         else if (old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
@@ -313,7 +367,7 @@ namespace boza::rhi::vk
             else
             {
                 Log::error("Unsupported layout transition from TRANSFER_DST_OPTIMAL to {}", static_cast<int>(new_layout));
-                return;
+                transition_supported = false;
             }
         }
         else if (old_layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
@@ -339,7 +393,7 @@ namespace boza::rhi::vk
             else
             {
                 Log::error("Unsupported layout transition from TRANSFER_SRC_OPTIMAL to {}", static_cast<int>(new_layout));
-                return;
+                transition_supported = false;
             }
         }
         else if (old_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
@@ -375,7 +429,7 @@ namespace boza::rhi::vk
             else
             {
                 Log::error("Unsupported layout transition from SHADER_READ_ONLY_OPTIMAL to {}", static_cast<int>(new_layout));
-                return;
+                transition_supported = false;
             }
         }
         else if (old_layout == VK_IMAGE_LAYOUT_GENERAL)
@@ -406,7 +460,7 @@ namespace boza::rhi::vk
             else
             {
                 Log::error("Unsupported layout transition from GENERAL to {}", static_cast<int>(new_layout));
-                return;
+                transition_supported = false;
             }
         }
         else if (old_layout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
@@ -432,7 +486,7 @@ namespace boza::rhi::vk
             else
             {
                 Log::error("Unsupported layout transition from COLOR_ATTACHMENT_OPTIMAL to {}", static_cast<int>(new_layout));
-                return;
+                transition_supported = false;
             }
         }
         else if (old_layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
@@ -453,17 +507,26 @@ namespace boza::rhi::vk
             else
             {
                 Log::error("Unsupported layout transition from PRESENT_SRC_KHR to {}", static_cast<int>(new_layout));
-                return;
+                transition_supported = false;
             }
         }
         else
         {
             Log::error("Unsupported old layout: {}", static_cast<int>(old_layout));
+            transition_supported = false;
+        }
+
+        if (!transition_supported) return;
+
+        auto* cmd_buffer = cmd_pool->begin_single_time_commands();
+        if (!cmd_buffer)
+        {
+            Log::error("Failed to begin single-time commands for texture layout transition");
             return;
         }
 
         const auto* vk_cmd_buffer = reinterpret_cast<CommandBuffer*>(cmd_buffer);
-        const VkImageAspectFlags aspect_mask = get_image_aspect_flags(desc_.usage);
+        const VkImageAspectFlags aspect_mask = image_aspect_flags_for_desc(desc_);
         vk_cmd_buffer->pipeline_image_barrier(
             image_,
             old_layout,
@@ -478,7 +541,13 @@ namespace boza::rhi::vk
             0,
             layer_count);
 
-        cmd_pool->end_single_time_commands(cmd_buffer);
+        if (!cmd_pool->end_single_time_commands(cmd_buffer))
+        {
+            Log::error("Failed to submit texture layout transition commands");
+            return;
+        }
+
+        std::ranges::fill(layer_layouts_, new_layout);
     }
 
     void Texture::upload(const void* data, const size_t size, const std::uint32_t layer)
@@ -490,14 +559,11 @@ namespace boza::rhi::vk
             .device = desc_.device,
             .size = size,
             .usage = BufferUsage::Staging,
-            .memory_type = BufferMemoryType::HostCoherent
+            .memory_type = BufferMemoryType::HostVisible | BufferMemoryType::HostCoherent
         };
 
-        auto staging_buffer = Buffer::create<Buffer>(staging_desc);
-        if (!staging_buffer)
-        {
-            return;
-        }
+        const auto staging_buffer = Buffer::create<Buffer>(staging_desc);
+        if (!staging_buffer) return;
 
         staging_buffer->upload(data, size, 0);
 
@@ -541,9 +607,21 @@ namespace boza::rhi::vk
             return false;
         }
 
+        if (layer >= layer_layouts_.size())
+        {
+            Log::error("Texture upload layer {} layout state is unavailable", layer);
+            return false;
+        }
+
         const auto* device = reinterpret_cast<Device*>(desc_.device);
 
         auto* cmd_pool = device->command_pool(device->queue_family_indices().graphics_family);
+        if (!cmd_pool)
+        {
+            Log::error("Failed to get graphics command pool for texture upload");
+            return false;
+        }
+
         auto* cmd_buffer = cmd_pool->begin_single_time_commands();
         if (!cmd_buffer)
         {
@@ -551,21 +629,20 @@ namespace boza::rhi::vk
             return false;
         }
 
-        VkImageLayout current_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-        if (desc_.usage & TextureUsage::Storage) current_layout = VK_IMAGE_LAYOUT_GENERAL;
+        const VkImageLayout current_layout = layer_layouts_[layer];
 
         const VkImageLayout final_layout = desc_.usage & TextureUsage::Storage
                                                ? VK_IMAGE_LAYOUT_GENERAL
                                                : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
         const auto* vk_cmd_buffer = reinterpret_cast<CommandBuffer*>(cmd_buffer);
-        const VkImageAspectFlags aspect_mask = get_image_aspect_flags(desc_.usage);
+        const VkImageAspectFlags aspect_mask = image_aspect_flags_for_desc(desc_);
         vk_cmd_buffer->pipeline_image_barrier(
             image_,
             current_layout,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
-            VK_ACCESS_2_NONE,
+            VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+            VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
             VK_PIPELINE_STAGE_2_TRANSFER_BIT,
             VK_ACCESS_2_TRANSFER_WRITE_BIT,
             aspect_mask,
@@ -617,6 +694,8 @@ namespace boza::rhi::vk
             return false;
         }
 
+        layer_layouts_[layer] = final_layout;
+
         return true;
     }
 
@@ -636,6 +715,20 @@ namespace boza::rhi::vk
     void Texture::transition_layout(const TextureLayout old_layout, const TextureLayout new_layout)
     {
         transition_layout_internal(to_vk_image_layout(old_layout), to_vk_image_layout(new_layout));
+    }
+
+    VkImageAspectFlags Texture::aspect_mask() const
+    {
+        return image_aspect_flags_for_desc(desc_);
+    }
+
+    std::uint32_t Texture::layer_count() const
+    {
+        const bool is_cube =
+            desc_.type == TextureType::TextureCube ||
+            desc_.type == TextureType::TextureCubeArray;
+
+        return desc_.array_layers * (is_cube ? 6u : 1u);
     }
 
     VkImage     Texture::vk_image() const { return image_; }

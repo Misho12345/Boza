@@ -6,9 +6,11 @@ namespace boza
 {
     void MeshRenderer::set_mesh_by_name(const std::string_view name)
     {
-        if (name == mesh_name_) return;
+        Mesh* resolved_mesh = Mesh::try_get(name);
+        if (name == mesh_name_ && mesh_ == resolved_mesh) return;
+
         mesh_name_  = name;
-        mesh_       = Mesh::try_get(name);
+        mesh_       = resolved_mesh;
         dirty_mesh_ = true;
         if (game_object_.valid())
             game_object_.add_component<tags::MeshChanged>();
@@ -16,9 +18,11 @@ namespace boza
 
     void MeshRenderer::set_material_by_name(const std::string_view name)
     {
-        if (name == material_name_) return;
+        Material* resolved_material = Material::try_get(name);
+        if (name == material_name_ && material_ == resolved_material) return;
+
         material_name_  = name;
-        material_       = Material::try_get(name);
+        material_       = resolved_material;
         dirty_material_ = true;
         if (game_object_.valid())
             game_object_.add_component<tags::MaterialChanged>();
@@ -42,10 +46,23 @@ namespace boza
             game_object_.add_component<tags::MaterialChanged>();
     }
 
-    Mesh* MeshRenderer::get_mesh() const { return mesh_ ? mesh_ : (mesh_ = Mesh::try_get(mesh_name_)); }
+    Mesh* MeshRenderer::get_mesh() const
+    {
+        if (mesh_ && Mesh::exists(mesh_)) return mesh_;
+
+        mesh_ = nullptr;
+        if (!mesh_name_.empty()) mesh_ = Mesh::try_get(mesh_name_);
+
+        return mesh_;
+    }
 
     Material* MeshRenderer::get_material() const
     {
-        return material_ ? material_ : (material_ = Material::try_get(material_name_));
+        if (material_ && Material::exists(material_)) return material_;
+
+        material_ = nullptr;
+        if (!material_name_.empty()) material_ = Material::try_get(material_name_);
+
+        return material_;
     }
 }

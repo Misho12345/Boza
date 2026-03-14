@@ -11,6 +11,8 @@ export namespace boza::rhi::vk
     class Device final : public rhi::Device
     {
     public:
+        ~Device() override { destroy(); }
+
         bool init() override;
         void destroy() override;
         void wait_idle() override;
@@ -25,6 +27,8 @@ export namespace boza::rhi::vk
         [[nodiscard]] VkQueue transfer_vk_queue() const;
 
         [[nodiscard]] Allocator* allocator() const;
+        [[nodiscard]] bool sampler_anisotropy_enabled() const { return enabled_features_.samplerAnisotropy == VK_TRUE; }
+        [[nodiscard]] bool image_cube_array_enabled() const { return enabled_features_.imageCubeArray == VK_TRUE; }
 
     private:
         explicit Device(const DeviceDesc& desc) : rhi::Device(desc) {}
@@ -39,6 +43,9 @@ export namespace boza::rhi::vk
         VkPhysicalDevice physical_device_{ nullptr };
         VkDevice         logical_device_{ nullptr };
         VkSurfaceKHR     surface_{ nullptr };
+
+        VkPhysicalDeviceFeatures supported_features_{};
+        VkPhysicalDeviceFeatures enabled_features_{};
 
         std::unique_ptr<Allocator> allocator_;
 

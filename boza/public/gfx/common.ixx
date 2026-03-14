@@ -3,15 +3,15 @@ export module boza.gfx:common;
 import std;
 import boza.common;
 
-export namespace boza
+namespace boza
 {
-    enum class ResourceAccessMode : std::uint8_t
+    export enum class ResourceAccessMode : std::uint8_t
     {
         Static,
         Dynamic
     };
 
-    enum class ShaderDataType : std::uint8_t
+    export enum class ShaderDataType : std::uint8_t
     {
         Unknown,
         Bool,
@@ -34,51 +34,72 @@ export namespace boza
         Sampler1DArray, Sampler2DArray,
         SamplerCube, SamplerCubeArray
     };
-}
 
-namespace boza
-{
     template<typename T>
+    struct shader_data_type_of
+    {
+        static constexpr auto value = ShaderDataType::Unknown;
+    };
+
+    #define BOZA_SHADER_DATA_TYPE(CppType, ShaderType) \
+    template<> struct shader_data_type_of<CppType>   \
+    {                                                 \
+        static constexpr auto value = ShaderDataType::ShaderType; \
+    };
+
+    BOZA_SHADER_DATA_TYPE(bool, Bool)
+    BOZA_SHADER_DATA_TYPE(std::int32_t, Int)
+    BOZA_SHADER_DATA_TYPE(std::uint32_t, Uint)
+    BOZA_SHADER_DATA_TYPE(float, Float)
+    BOZA_SHADER_DATA_TYPE(double, Double)
+
+    BOZA_SHADER_DATA_TYPE(glm::vec2, Vec2)
+    BOZA_SHADER_DATA_TYPE(glm::vec3, Vec3)
+    BOZA_SHADER_DATA_TYPE(glm::vec4, Vec4)
+
+    BOZA_SHADER_DATA_TYPE(glm::ivec2, IVec2)
+    BOZA_SHADER_DATA_TYPE(glm::ivec3, IVec3)
+    BOZA_SHADER_DATA_TYPE(glm::ivec4, IVec4)
+
+    BOZA_SHADER_DATA_TYPE(glm::uvec2, UVec2)
+    BOZA_SHADER_DATA_TYPE(glm::uvec3, UVec3)
+    BOZA_SHADER_DATA_TYPE(glm::uvec4, UVec4)
+
+    BOZA_SHADER_DATA_TYPE(glm::bvec2, BVec2)
+    BOZA_SHADER_DATA_TYPE(glm::bvec3, BVec3)
+    BOZA_SHADER_DATA_TYPE(glm::bvec4, BVec4)
+
+    BOZA_SHADER_DATA_TYPE(glm::dvec2, DVec2)
+    BOZA_SHADER_DATA_TYPE(glm::dvec3, DVec3)
+    BOZA_SHADER_DATA_TYPE(glm::dvec4, DVec4)
+
+    BOZA_SHADER_DATA_TYPE(glm::mat2, Mat2)
+    BOZA_SHADER_DATA_TYPE(glm::mat3, Mat3)
+    BOZA_SHADER_DATA_TYPE(glm::mat4, Mat4)
+
+    BOZA_SHADER_DATA_TYPE(glm::mat2x3, Mat2x3)
+    BOZA_SHADER_DATA_TYPE(glm::mat2x4, Mat2x4)
+    BOZA_SHADER_DATA_TYPE(glm::mat3x2, Mat3x2)
+    BOZA_SHADER_DATA_TYPE(glm::mat3x4, Mat3x4)
+    BOZA_SHADER_DATA_TYPE(glm::mat4x2, Mat4x2)
+    BOZA_SHADER_DATA_TYPE(glm::mat4x3, Mat4x3)
+
+    BOZA_SHADER_DATA_TYPE(glm::dmat2, DMat2)
+    BOZA_SHADER_DATA_TYPE(glm::dmat3, DMat3)
+    BOZA_SHADER_DATA_TYPE(glm::dmat4, DMat4)
+
+    BOZA_SHADER_DATA_TYPE(glm::dmat2x3, DMat2x3)
+    BOZA_SHADER_DATA_TYPE(glm::dmat2x4, DMat2x4)
+    BOZA_SHADER_DATA_TYPE(glm::dmat3x2, DMat3x2)
+    BOZA_SHADER_DATA_TYPE(glm::dmat3x4, DMat3x4)
+    BOZA_SHADER_DATA_TYPE(glm::dmat4x2, DMat4x2)
+    BOZA_SHADER_DATA_TYPE(glm::dmat4x3, DMat4x3)
+
+    #undef BOZA_SHADER_DATA_TYPE
+
+    export template<typename T>
     constexpr ShaderDataType get_shader_data_type()
     {
-        if constexpr (std::same_as<T, bool>) return ShaderDataType::Bool;
-        else if constexpr (std::same_as<T, std::int32_t>) return ShaderDataType::Int;
-        else if constexpr (std::same_as<T, std::uint32_t>) return ShaderDataType::Uint;
-        else if constexpr (std::same_as<T, float>) return ShaderDataType::Float;
-        else if constexpr (std::same_as<T, double>) return ShaderDataType::Double;
-        else if constexpr (std::same_as<T, glm::vec2>) return ShaderDataType::Vec2;
-        else if constexpr (std::same_as<T, glm::vec3>) return ShaderDataType::Vec3;
-        else if constexpr (std::same_as<T, glm::vec4>) return ShaderDataType::Vec4;
-        else if constexpr (std::same_as<T, glm::ivec2>) return ShaderDataType::IVec2;
-        else if constexpr (std::same_as<T, glm::ivec3>) return ShaderDataType::IVec3;
-        else if constexpr (std::same_as<T, glm::ivec4>) return ShaderDataType::IVec4;
-        else if constexpr (std::same_as<T, glm::uvec2>) return ShaderDataType::UVec2;
-        else if constexpr (std::same_as<T, glm::uvec3>) return ShaderDataType::UVec3;
-        else if constexpr (std::same_as<T, glm::uvec4>) return ShaderDataType::UVec4;
-        else if constexpr (std::same_as<T, glm::bvec2>) return ShaderDataType::BVec2;
-        else if constexpr (std::same_as<T, glm::bvec3>) return ShaderDataType::BVec3;
-        else if constexpr (std::same_as<T, glm::bvec4>) return ShaderDataType::BVec4;
-        else if constexpr (std::same_as<T, glm::dvec2>) return ShaderDataType::DVec2;
-        else if constexpr (std::same_as<T, glm::dvec3>) return ShaderDataType::DVec3;
-        else if constexpr (std::same_as<T, glm::dvec4>) return ShaderDataType::DVec4;
-        else if constexpr (std::same_as<T, glm::mat2>) return ShaderDataType::Mat2;
-        else if constexpr (std::same_as<T, glm::mat3>) return ShaderDataType::Mat3;
-        else if constexpr (std::same_as<T, glm::mat4>) return ShaderDataType::Mat4;
-        else if constexpr (std::same_as<T, glm::mat2x3>) return ShaderDataType::Mat2x3;
-        else if constexpr (std::same_as<T, glm::mat2x4>) return ShaderDataType::Mat2x4;
-        else if constexpr (std::same_as<T, glm::mat3x2>) return ShaderDataType::Mat3x2;
-        else if constexpr (std::same_as<T, glm::mat3x4>) return ShaderDataType::Mat3x4;
-        else if constexpr (std::same_as<T, glm::mat4x2>) return ShaderDataType::Mat4x2;
-        else if constexpr (std::same_as<T, glm::mat4x3>) return ShaderDataType::Mat4x3;
-        else if constexpr (std::same_as<T, glm::dmat2>) return ShaderDataType::DMat2;
-        else if constexpr (std::same_as<T, glm::dmat3>) return ShaderDataType::DMat3;
-        else if constexpr (std::same_as<T, glm::dmat4>) return ShaderDataType::DMat4;
-        else if constexpr (std::same_as<T, glm::dmat2x3>) return ShaderDataType::DMat2x3;
-        else if constexpr (std::same_as<T, glm::dmat2x4>) return ShaderDataType::DMat2x4;
-        else if constexpr (std::same_as<T, glm::dmat3x2>) return ShaderDataType::DMat3x2;
-        else if constexpr (std::same_as<T, glm::dmat3x4>) return ShaderDataType::DMat3x4;
-        else if constexpr (std::same_as<T, glm::dmat4x2>) return ShaderDataType::DMat4x2;
-        else if constexpr (std::same_as<T, glm::dmat4x3>) return ShaderDataType::DMat4x3;
-        else return ShaderDataType::Unknown;
+        return shader_data_type_of<std::decay_t<T>>::value;
     }
 }

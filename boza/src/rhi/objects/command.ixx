@@ -129,7 +129,7 @@ export namespace boza::rhi
         virtual void bind_compute_pipeline(ComputePipeline* pipeline) = 0;
 
         virtual void bind_vertex_buffer(Buffer* buffer, std::uint32_t binding = 0, std::uint64_t offset = 0) = 0;
-        virtual void bind_index_buffer(Buffer* buffer, std::uint64_t offset = 0, bool use_uint16 = false) = 0;
+        virtual void bind_index_buffer(Buffer* buffer, std::uint64_t offset = 0, IndexType index_type = IndexType::Uint32) = 0;
 
         virtual void bind_descriptor_set(PipelineLayout* layout, DescriptorSet* set, const std::uint32_t set_index)
         {

@@ -11,7 +11,7 @@ export namespace boza::rhi
     class PipelineBuilder final
     {
     public:
-        PipelineBuilder(GraphicsApi api, Device* device, const std::vector<ShaderModule*>& shaders);
+        PipelineBuilder(GraphicsApi api, Device* device, std::vector<ShaderModule*> shaders);
 
         bool build_descriptor_set_layouts();
 
@@ -60,6 +60,6 @@ export namespace boza::rhi
             std::uint32_t      count;
         };
 
-        flat_map<std::uint32_t, std::vector<DescriptorBinding>> merge_descriptor_bindings() const;
+        bool merge_descriptor_bindings(flat_map<std::uint32_t, std::vector<DescriptorBinding>>& bindings_by_set) const;
     };
 }

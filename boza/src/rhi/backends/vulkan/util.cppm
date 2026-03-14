@@ -113,16 +113,16 @@ namespace boza::rhi::vk
         std::unreachable();
     }
 
-    VmaMemoryUsage to_vma(const BufferMemoryType memory_type)
+    VmaMemoryUsage to_vma(const Flags<BufferMemoryType> memory_type)
     {
-        switch (memory_type)
-        {
-            case BufferMemoryType::DeviceLocal: return VMA_MEMORY_USAGE_GPU_ONLY;
-            case BufferMemoryType::HostVisible: return VMA_MEMORY_USAGE_CPU_TO_GPU;
-            case BufferMemoryType::HostCoherent: return VMA_MEMORY_USAGE_CPU_ONLY;
-        }
+        const bool is_device_local = memory_type & BufferMemoryType::DeviceLocal;
+        const bool is_host_visible = memory_type & BufferMemoryType::HostVisible;
+        const bool is_host_coherent = memory_type & BufferMemoryType::HostCoherent;
 
-        std::unreachable();
+        if (is_device_local && !is_host_visible && !is_host_coherent) return VMA_MEMORY_USAGE_GPU_ONLY;
+        if (is_host_coherent) return VMA_MEMORY_USAGE_CPU_ONLY;
+        if (is_host_visible) return VMA_MEMORY_USAGE_CPU_TO_GPU;
+        return VMA_MEMORY_USAGE_AUTO;
     }
 
     // ===================================
@@ -365,28 +365,6 @@ namespace boza::rhi::vk
         if (usage & TextureUsage::InputAttachment) result |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
 
         return result;
-    }
-
-    VkImageAspectFlags get_image_aspect_flags(const Flags<TextureUsage> usage)
-    {
-        if (usage & TextureUsage::DepthStencilAttachment) return VK_IMAGE_ASPECT_DEPTH_BIT;
-        return VK_IMAGE_ASPECT_COLOR_BIT;
-    }
-
-    VkImageAspectFlags get_image_aspect_flags(const TextureUsage usage)
-    {
-        switch (usage)
-        {
-            case TextureUsage::Sampled:
-            case TextureUsage::Storage:
-            case TextureUsage::ColorAttachment:
-            case TextureUsage::TransferSrc:
-            case TextureUsage::TransferDst:
-            case TextureUsage::InputAttachment: return VK_IMAGE_ASPECT_COLOR_BIT;
-            case TextureUsage::DepthStencilAttachment: return VK_IMAGE_ASPECT_DEPTH_BIT;
-        }
-
-        std::unreachable();
     }
 
     VkImageLayout to_vk_image_layout(const TextureLayout layout)

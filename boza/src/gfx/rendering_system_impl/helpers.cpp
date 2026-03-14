@@ -1,5 +1,7 @@
 module boza.gfx;
 
+import :buffer;
+import :material;
 import :rendering_system;
 import :rendering_system_common;
 
@@ -10,6 +12,46 @@ import boza.gfx.material_loader;
 
 namespace boza
 {
+    namespace
+    {
+        std::mutex       render_thread_mutex_{};
+        std::thread::id  render_thread_{};
+        std::atomic_bool render_thread_set_{ false };
+    }
+
+    void assert_render_thread()
+    {
+        #ifdef BOZA_DEBUG
+        const std::thread::id current_thread = std::this_thread::get_id();
+
+        if (!render_thread_set_.load(std::memory_order_acquire))
+        {
+            std::scoped_lock lock{ render_thread_mutex_ };
+
+            if (!render_thread_set_.load(std::memory_order_relaxed))
+            {
+                render_thread_ = current_thread;
+                render_thread_set_.store(true, std::memory_order_release);
+                return;
+            }
+        }
+
+        assert(
+            render_thread_ == current_thread,
+            "RenderingSystem render cache accessed from a non-owner thread"
+        );
+        #endif
+    }
+
+    void clear_render_thread()
+    {
+        #ifdef BOZA_DEBUG
+        std::scoped_lock lock{ render_thread_mutex_ };
+        render_thread_ = {};
+        render_thread_set_.store(false, std::memory_order_release);
+        #endif
+    }
+
     [[nodiscard]]
     static bool is_within_range(
         const std::uint32_t member_offset,
@@ -108,7 +150,7 @@ namespace boza
 
         for (auto& [material_ptr, group] : render_cache_)
         {
-            auto* pipeline = static_cast<rhi::GraphicsPipeline*>(material_ptr->rhi_pipeline_handle());
+            auto* pipeline = static_cast<rhi::GraphicsPipeline*>(MaterialAccess::pipeline(*material_ptr));
             if (!pipeline) continue;
 
             auto& materials_vec = pipeline_materials_[pipeline];
@@ -253,7 +295,7 @@ namespace boza
             BufferUsage::Storage,
             ResourceAccessMode::Dynamic);
 
-        if (!new_buffer->rhi_handle())
+        if (!BufferAccess::handle(*new_buffer))
         {
             Log::error("Failed to allocate instance payload buffer");
             return false;
@@ -269,7 +311,7 @@ namespace boza
         MaterialRenderInfo info{};
         if (!material) return info;
 
-        const auto* reflection = static_cast<const rhi::DescriptorReflection*>(material->reflection_handle());
+        const auto* reflection = static_cast<const rhi::DescriptorReflection*>(MaterialAccess::reflection(*material));
         if (!reflection) return info;
 
         for (const auto& [range_name, range_info] : reflection->push_constant_ranges())
@@ -569,10 +611,10 @@ namespace boza
     {
         if (!render_info || render_info->ranges.empty()) return;
 
-        auto* pipeline_layout = static_cast<rhi::PipelineLayout*>(material.rhi_pipeline_layout_handle());
+        auto* pipeline_layout = static_cast<rhi::PipelineLayout*>(MaterialAccess::pipeline_layout(material));
         if (!pipeline_layout) return;
 
-        const std::span<const std::uint8_t> push_staging = material.push_constant_staging();
+        const std::span<const std::uint8_t> push_staging = MaterialAccess::push_constant_staging(material);
 
         for (const PushConstantRangeRuntime& range : render_info->ranges)
         {
@@ -716,7 +758,7 @@ namespace boza
 
         buffer_state->buffer->upload(instance_payload_scratch_.data(), actual_payload_size, 0);
 
-        const auto buffer_handle = buffer_state->buffer->rhi_handle();
+        const auto buffer_handle = BufferAccess::handle(*buffer_state->buffer);
         if (buffer_state->bound_handle != buffer_handle)
         {
             material->update_buffer(ssbo_name, *buffer_state->buffer);
@@ -749,7 +791,7 @@ namespace boza
 
         instance_payload_scratch_.resize(payload_size);
 
-        const std::span<const std::uint8_t> push_staging = material->push_constant_staging();
+        const std::span<const std::uint8_t> push_staging = MaterialAccess::push_constant_staging(*material);
 
         const std::size_t data_base_offset =
             static_cast<std::size_t>(range.offset) +
@@ -854,7 +896,7 @@ namespace boza
         if (!ensure_buffer_capacity(*buffer_state, stride) || !buffer_state->buffer)
             return;
 
-        const auto buffer_handle = buffer_state->buffer->rhi_handle();
+        const auto buffer_handle = BufferAccess::handle(*buffer_state->buffer);
         if (buffer_state->bound_handle == buffer_handle)
             return;
 
@@ -893,6 +935,8 @@ namespace boza
 
     void RenderingSystem::on_mesh_destroyed(Mesh* mesh)
     {
+        assert_render_thread();
+
         if (!mesh) return;
 
         destroyed_meshes_this_frame_.insert(mesh);
@@ -915,6 +959,8 @@ namespace boza
 
     void RenderingSystem::on_material_destroyed(Material* material)
     {
+        assert_render_thread();
+
         if (!material) return;
 
         destroyed_materials_this_frame_.insert(material);

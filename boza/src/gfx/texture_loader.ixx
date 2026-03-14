@@ -35,7 +35,7 @@ export namespace boza::gfx
         [[nodiscard]] Texture* try_get_texture(std::string_view name);
         [[nodiscard]] bool exists(const Texture* ptr) const;
 
-        [[nodiscard]] Texture& error_texture() { return *error_texture_; }
+        [[nodiscard]] Texture& error_texture(TextureType type);
 
         [[nodiscard]] bool initialized() const { return initialized_; }
 
@@ -49,10 +49,12 @@ export namespace boza::gfx
 
         void destroy(std::string_view name);
 
-        static std::string make_texture_key(std::string_view filepath, TextureType type);
+        static std::string error_texture_key(TextureType type);
+
+        static constexpr std::size_t error_texture_count_ = static_cast<std::size_t>(TextureType::TextureCubeArray) + 1;
 
         ResourceRegistry<Texture> textures_;
-        Texture* error_texture_{ nullptr };
+        std::array<Texture*, error_texture_count_> error_textures_{};
         bool initialized_{ false };
 
         friend class Texture;

@@ -140,6 +140,8 @@ namespace boza
         };
 
         static bool init_graphics();
+        static void clear_runtime_state();
+        static void shutdown_graphics(bool wait_for_device, bool destroy_window);
         static void setup_resources();
         static void wait_idle();
         static GpuMesh* get_or_create_gpu_mesh(Mesh* mesh);
@@ -152,6 +154,7 @@ namespace boza
         static void remove_from_unresolved(MeshRenderer& mr, GameObject go);
         static void insert_into_render_cache(MeshRenderer& mr, GameObject go, Mesh* mesh, Material* material);
         static void insert_into_unresolved(MeshRenderer& mr, GameObject go);
+        static void process_renderer_binding_change(GameObject go, MeshRenderer& mr, bool mesh_changed);
 
         static void clear_validity_caches();
         static void validate_render_cache();

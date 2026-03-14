@@ -12,46 +12,68 @@ namespace boza::rhi::vk
 {
     bool Buffer::init()
     {
+        const auto* device = reinterpret_cast<Device*>(desc_.device);
+
         // Determine buffer usage flags
         VkBufferUsageFlags usage_flags = to_vk(desc_.usage);
 
         // For DeviceLocal buffers, add transfer destination flag for staging
-        if (desc_.memory_type == BufferMemoryType::DeviceLocal)
+        if (desc_.memory_type & BufferMemoryType::DeviceLocal)
         {
             usage_flags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
             usage_flags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
         }
+
+        std::vector<std::uint32_t> queue_families;
+        queue_families.reserve(3);
+
+        const auto families = device->queue_family_indices();
+        queue_families.push_back(families.graphics_family);
+
+        if (families.compute_family != families.graphics_family)
+            queue_families.push_back(families.compute_family);
+
+        if (families.transfer_family != families.graphics_family &&
+            families.transfer_family != families.compute_family)
+            queue_families.push_back(families.transfer_family);
+
+        const bool concurrent_sharing = queue_families.size() > 1;
 
         const VkBufferCreateInfo buffer_create_info
         {
             .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
             .size = desc_.size,
             .usage = usage_flags,
+            .sharingMode = concurrent_sharing ? VK_SHARING_MODE_CONCURRENT : VK_SHARING_MODE_EXCLUSIVE,
+            .queueFamilyIndexCount = concurrent_sharing ? static_cast<std::uint32_t>(queue_families.size()) : 0u,
+            .pQueueFamilyIndices = concurrent_sharing ? queue_families.data() : nullptr,
         };
 
         VmaAllocationCreateInfo allocation_create_info{};
 
-        switch (desc_.memory_type)
+        const bool is_device_local  = desc_.memory_type & BufferMemoryType::DeviceLocal;
+        const bool is_host_visible  = desc_.memory_type & BufferMemoryType::HostVisible;
+        const bool is_host_coherent = desc_.memory_type & BufferMemoryType::HostCoherent;
+
+        if (is_device_local && !is_host_visible && !is_host_coherent)
         {
-            case BufferMemoryType::DeviceLocal:
-                allocation_create_info.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
-                allocation_create_info.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
-                break;
+            allocation_create_info.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+            allocation_create_info.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+        }
+        else
+        {
+            allocation_create_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+            allocation_create_info.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
+            allocation_create_info.requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 
-            case BufferMemoryType::HostVisible:
-                allocation_create_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
-                allocation_create_info.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
-                break;
-
-            case BufferMemoryType::HostCoherent:
-                allocation_create_info.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
-                                               VMA_ALLOCATION_CREATE_MAPPED_BIT;
-                allocation_create_info.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
-                allocation_create_info.requiredFlags = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-                break;
+            if (is_host_coherent)
+            {
+                allocation_create_info.flags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;
+                allocation_create_info.requiredFlags |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+            }
         }
 
-        const auto allocator = reinterpret_cast<Device*>(desc_.device)->allocator()->vma_allocator();
+        const auto allocator = device->allocator()->vma_allocator();
 
         if (!vk_check(
             vmaCreateBuffer(
@@ -84,12 +106,34 @@ namespace boza::rhi::vk
             "Failed to map buffer memory"))
             return nullptr;
 
+        if ((desc_.memory_type & BufferMemoryType::HostVisible) &&
+            !(desc_.memory_type & BufferMemoryType::HostCoherent))
+        {
+            if (!vk_check(
+                vmaInvalidateAllocation(allocator, allocation_, 0, VK_WHOLE_SIZE),
+                "Failed to invalidate host-visible buffer allocation"))
+            {
+                vmaUnmapMemory(allocator, allocation_);
+                return nullptr;
+            }
+        }
+
         return mapped_data;
     }
 
     void Buffer::unmap()
     {
         const auto allocator = reinterpret_cast<Device*>(desc_.device)->allocator()->vma_allocator();
+
+        if ((desc_.memory_type & BufferMemoryType::HostVisible) &&
+            !(desc_.memory_type & BufferMemoryType::HostCoherent))
+        {
+            (void)vk_check(
+                vmaFlushAllocation(allocator, allocation_, 0, VK_WHOLE_SIZE),
+                "Failed to flush host-visible buffer allocation"
+            );
+        }
+
         vmaUnmapMemory(allocator, allocation_);
     }
 
@@ -108,7 +152,7 @@ namespace boza::rhi::vk
             .device = desc_.device,
             .size = stage_size,
             .usage = BufferUsage::Staging,
-            .memory_type = BufferMemoryType::HostCoherent
+            .memory_type = BufferMemoryType::HostVisible | BufferMemoryType::HostCoherent
         };
 
         auto staging_buffer = create<Buffer>(staging_desc);
@@ -118,14 +162,14 @@ namespace boza::rhi::vk
             return nullptr;
         }
 
-        if (desc_.memory_type == BufferMemoryType::DeviceLocal)
+        if (desc_.memory_type & BufferMemoryType::DeviceLocal)
         {
             const auto* device = reinterpret_cast<Device*>(desc_.device);
-            const std::uint32_t transfer_family = device->queue_family_indices().transfer_family;
-            auto* command_pool = static_cast<CommandPool*>(device->command_pool(transfer_family));
+            const std::uint32_t graphics_family = device->queue_family_indices().graphics_family;
+            auto* command_pool = static_cast<CommandPool*>(device->command_pool(graphics_family));
             if (!command_pool)
             {
-                Log::error("Failed to get transfer command pool for family {}", transfer_family);
+                Log::error("Failed to get graphics command pool for family {}", graphics_family);
                 return nullptr;
             }
 
@@ -158,6 +202,11 @@ namespace boza::rhi::vk
             staging_buffer->upload(mapped_data, stage_size, 0);
             const_cast<Buffer*>(this)->unmap();
         }
+        else
+        {
+            Log::error("Failed to map source buffer for staging");
+            return nullptr;
+        }
 
         return staging_buffer;
     }
@@ -167,14 +216,14 @@ namespace boza::rhi::vk
         assert(offset + size <= desc_.size, "Upload out of bounds");
 
         // For DeviceLocal buffers, use staging buffer with transfer queue
-        if (desc_.memory_type == BufferMemoryType::DeviceLocal)
+        if (desc_.memory_type & BufferMemoryType::DeviceLocal)
         {
             const BufferDesc staging_desc
             {
                 .device = desc_.device,
                 .size = size,
                 .usage = BufferUsage::Staging,
-                .memory_type = BufferMemoryType::HostCoherent
+                .memory_type = BufferMemoryType::HostVisible | BufferMemoryType::HostCoherent
             };
 
             const auto staging_buffer = create<Buffer>(staging_desc);
@@ -206,17 +255,17 @@ namespace boza::rhi::vk
     {
         assert(offset + size <= desc_.size, "Read back out of bounds");
 
-        if (desc_.memory_type == BufferMemoryType::DeviceLocal)
+        if (desc_.memory_type & BufferMemoryType::DeviceLocal)
         {
             const BufferDesc staging_desc
             {
                 .device = desc_.device,
                 .size = size,
                 .usage = BufferUsage::Staging,
-                .memory_type = BufferMemoryType::HostCoherent
+                .memory_type = BufferMemoryType::HostVisible | BufferMemoryType::HostCoherent
             };
 
-            auto staging_buffer = create<Buffer>(staging_desc);
+            const auto staging_buffer = create<Buffer>(staging_desc);
             if (!staging_buffer)
             {
                 Log::error("Failed to create staging buffer for buffer read-back");
@@ -224,11 +273,11 @@ namespace boza::rhi::vk
             }
 
             const auto* device = reinterpret_cast<Device*>(desc_.device);
-            std::uint32_t transfer_family = device->queue_family_indices().transfer_family;
-            auto* command_pool = static_cast<CommandPool*>(device->command_pool(transfer_family));
+            const std::uint32_t graphics_family = device->queue_family_indices().graphics_family;
+            auto* command_pool = static_cast<CommandPool*>(device->command_pool(graphics_family));
             if (!command_pool)
             {
-                Log::error("Failed to get transfer command pool for family {}", transfer_family);
+                Log::error("Failed to get graphics command pool for family {}", graphics_family);
                 return;
             }
 
@@ -296,7 +345,7 @@ namespace boza::rhi::vk
             return false;
         }
 
-        if (desc_.memory_type != BufferMemoryType::DeviceLocal)
+        if (!(desc_.memory_type & BufferMemoryType::DeviceLocal))
         {
             const auto src_data = staging_buffer->read_back(transfer_size, src_offset);
             upload(src_data.data(), transfer_size, dst_offset);
@@ -304,11 +353,11 @@ namespace boza::rhi::vk
         }
 
         const auto* device = reinterpret_cast<Device*>(desc_.device);
-        std::uint32_t transfer_family = device->queue_family_indices().transfer_family;
-        auto* command_pool = static_cast<CommandPool*>(device->command_pool(transfer_family));
+        const std::uint32_t graphics_family = device->queue_family_indices().graphics_family;
+        auto* command_pool = static_cast<CommandPool*>(device->command_pool(graphics_family));
         if (!command_pool)
         {
-            Log::error("Failed to get transfer command pool for family {}", transfer_family);
+            Log::error("Failed to get graphics command pool for family {}", graphics_family);
             return false;
         }
 

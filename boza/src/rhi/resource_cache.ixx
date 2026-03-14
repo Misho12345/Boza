@@ -13,14 +13,7 @@ export namespace boza::rhi
         template<typename T>
         struct GraphicsObjectDeleter
         {
-            void operator()(T* ptr) const
-            {
-                if (ptr)
-                {
-                    ptr->destroy();
-                    delete ptr;
-                }
-            }
+            void operator()(T* ptr) const { delete ptr; }
         };
 
         using OwnedDescriptorSetLayout = std::unique_ptr<DescriptorSetLayout, GraphicsObjectDeleter<DescriptorSetLayout>>;
@@ -90,11 +83,24 @@ export namespace boza::rhi
             std::vector<OwnedDescriptorSetLayout> descriptor_set_layouts{};
         };
 
-        CachedGraphicsPipeline* get_cached_pipeline(const std::string& vert, const std::string& frag, std::size_t settings_hash = 0);
-        void cache_graphics_pipeline(const std::string& vert, const std::string& frag, std::size_t settings_hash, CachedGraphicsPipeline cached);
+        [[nodiscard]]
+        std::shared_ptr<const CachedGraphicsPipeline> get_cached_pipeline(
+            const std::string& vert,
+            const std::string& frag,
+            std::size_t        settings_hash = 0);
+        [[nodiscard]]
+        std::shared_ptr<const CachedGraphicsPipeline> cache_graphics_pipeline(
+            const std::string& vert,
+            const std::string& frag,
+            std::size_t        settings_hash,
+            CachedGraphicsPipeline cached);
 
-        CachedComputePipeline* get_cached_compute_pipeline(const std::string& compute_shader);
-        void cache_compute_pipeline(const std::string& compute_shader, CachedComputePipeline cached);
+        [[nodiscard]]
+        std::shared_ptr<const CachedComputePipeline> get_cached_compute_pipeline(const std::string& compute_shader);
+        [[nodiscard]]
+        std::shared_ptr<const CachedComputePipeline> cache_compute_pipeline(
+            const std::string& compute_shader,
+            CachedComputePipeline cached);
 
         void clear();
 
@@ -119,8 +125,8 @@ export namespace boza::rhi
 
         flat_map<ShaderKey, std::weak_ptr<ShaderModule>, ShaderKey::Hash> shader_cache_;
         flat_map<std::string, std::weak_ptr<Texture>> texture_cache_;
-        flat_map<GraphicsPipelineKey, CachedGraphicsPipeline, GraphicsPipelineKey::Hash> pipeline_cache_;
-        flat_map<ComputePipelineKey, CachedComputePipeline, ComputePipelineKey::Hash> compute_pipeline_cache_;
+        flat_map<GraphicsPipelineKey, std::shared_ptr<CachedGraphicsPipeline>, GraphicsPipelineKey::Hash> pipeline_cache_;
+        flat_map<ComputePipelineKey, std::shared_ptr<CachedComputePipeline>, ComputePipelineKey::Hash> compute_pipeline_cache_;
 
         mutable std::mutex shader_mutex_;
         mutable std::mutex texture_mutex_;
@@ -134,20 +140,31 @@ export namespace boza::rhi
             std::mutex&                mutex,
             const std::function<std::unique_ptr<T>()>& factory)
         {
-            std::lock_guard lock{ mutex };
-
-            if (auto it = cache.find(key); it != cache.end())
             {
-                if (auto shared = it->second.lock()) return shared;
+                std::lock_guard lock{ mutex };
+
+                if (auto it = cache.find(key); it != cache.end())
+                {
+                    if (auto shared = it->second.lock()) return shared;
+                }
             }
 
             auto unique_ptr = factory();
             if (!unique_ptr) return nullptr;
 
-            auto shared = std::shared_ptr<T>(unique_ptr.release(), GraphicsObjectDeleter<T>{});
+            auto created = std::shared_ptr<T>(unique_ptr.release(), GraphicsObjectDeleter<T>{});
 
-            cache[key] = shared;
-            return shared;
+            std::lock_guard lock{ mutex };
+
+            if (auto it = cache.find(key); it != cache.end())
+            {
+                if (auto shared = it->second.lock()) return shared;
+                it->second = created;
+                return created;
+            }
+
+            cache[key] = created;
+            return created;
         }
     };
 }

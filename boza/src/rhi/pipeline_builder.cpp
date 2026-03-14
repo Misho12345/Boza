@@ -5,18 +5,42 @@ import :pipeline_builder;
 
 namespace boza::rhi
 {
-     /// ----------------------------
-    /// ===== Pipeline Builder =====
-    /// ----------------------------
+    static constexpr const char* descriptor_type_to_string(const DescriptorType type)
+    {
+        switch (type)
+        {
+            case DescriptorType::Sampler: return "Sampler";
+            case DescriptorType::CombinedImageSampler: return "CombinedImageSampler";
+            case DescriptorType::SampledImage: return "SampledImage";
+            case DescriptorType::StorageImage: return "StorageImage";
+            case DescriptorType::UniformTexelBuffer: return "UniformTexelBuffer";
+            case DescriptorType::StorageTexelBuffer: return "StorageTexelBuffer";
+            case DescriptorType::UniformBuffer: return "UniformBuffer";
+            case DescriptorType::StorageBuffer: return "StorageBuffer";
+            case DescriptorType::UniformBufferDynamic: return "UniformBufferDynamic";
+            case DescriptorType::StorageBufferDynamic: return "StorageBufferDynamic";
+            case DescriptorType::InputAttachment: return "InputAttachment";
+        }
 
-    PipelineBuilder::PipelineBuilder(const GraphicsApi api, Device* device, const std::vector<ShaderModule*>& shaders)
+        std::unreachable();
+    }
+
+
+    PipelineBuilder::PipelineBuilder(const GraphicsApi api, Device* device, std::vector<ShaderModule*> shaders)
         : api_{ api },
           device_{ device },
           shaders_{ std::move(shaders) } {}
 
     bool PipelineBuilder::build_descriptor_set_layouts()
     {
-        auto bindings_by_set = merge_descriptor_bindings();
+        if (!device_)
+        {
+            Log::error("Cannot build descriptor set layouts: device is null");
+            return false;
+        }
+
+        flat_map<std::uint32_t, std::vector<DescriptorBinding>> bindings_by_set;
+        if (!merge_descriptor_bindings(bindings_by_set)) return false;
 
         descriptor_set_layouts_.clear();
 
@@ -35,7 +59,7 @@ namespace boza::rhi
 
             if (bindings_by_set.contains(set_idx))
             {
-                const auto& bindings = bindings_by_set[set_idx];
+                const auto& bindings = bindings_by_set.at(set_idx);
                 layout_bindings.reserve(bindings.size());
 
                 for (const auto& [binding, type, stages, count] : bindings)
@@ -181,6 +205,12 @@ namespace boza::rhi
         const ColorBlendState&   color_blend,
         const PrimitiveTopology  topology) const
     {
+        if (!swapchain)
+        {
+            Log::error("Cannot build graphics pipeline: swapchain is null");
+            return nullptr;
+        }
+
         return build_graphics_pipeline(
             pipeline_layout,
             { swapchain->format() },
@@ -238,102 +268,105 @@ namespace boza::rhi
         return std::move(descriptor_set_layouts_);
     }
 
-    flat_map<std::uint32_t, std::vector<PipelineBuilder::DescriptorBinding>>
-    PipelineBuilder::merge_descriptor_bindings() const
+    bool PipelineBuilder::merge_descriptor_bindings(
+        flat_map<std::uint32_t, std::vector<DescriptorBinding>>& bindings_by_set) const
     {
-        flat_map<std::uint32_t, std::vector<DescriptorBinding>> bindings_by_set;
+        bindings_by_set.clear();
 
-        // TODO: remove duplication for each bindings for each resource type
+        const auto merge_binding =
+            [&](const ShaderModule::ShaderResource& resource,
+                const DescriptorType descriptor_type,
+                const Flags<ShaderStage> stage_flag,
+                const char* resource_group,
+                const std::string& shader_name) -> bool
+        {
+            if (resource.set == std::numeric_limits<std::uint32_t>::max() ||
+                resource.binding == std::numeric_limits<std::uint32_t>::max())
+            {
+                Log::error(
+                    "Shader '{}' has {} descriptor '{}' with invalid set/binding metadata",
+                    shader_name,
+                    resource_group,
+                    resource.type_name
+                );
+                return false;
+            }
+
+            constexpr std::uint32_t descriptor_count = 1;
+
+            auto& bindings = bindings_by_set[resource.set];
+
+            auto it = std::ranges::find_if(bindings, [&](const DescriptorBinding& b)
+            {
+                return b.binding == resource.binding;
+            });
+
+            if (it != bindings.end())
+            {
+                if (it->type != descriptor_type || it->count != descriptor_count)
+                {
+                    Log::error(
+                        "Descriptor binding mismatch at set {}, binding {} while merging shader '{}': existing {} x{}, new {} x{}",
+                        resource.set,
+                        resource.binding,
+                        shader_name,
+                        descriptor_type_to_string(it->type),
+                        it->count,
+                        descriptor_type_to_string(descriptor_type),
+                        descriptor_count
+                    );
+
+                    return false;
+                }
+
+                it->stages |= stage_flag;
+                return true;
+            }
+
+            bindings.emplace_back(
+                resource.binding,
+                descriptor_type,
+                stage_flag,
+                descriptor_count
+            );
+
+            return true;
+        };
+
+        const auto merge_resource_group =
+            [&](const auto& resources,
+                const DescriptorType descriptor_type,
+                const char* resource_group,
+                const std::string& shader_name,
+                const Flags<ShaderStage> stage_flag) -> bool
+        {
+            for (const auto& resource : resources | std::views::values)
+            {
+                if (!merge_binding(resource, descriptor_type, stage_flag, resource_group, shader_name))
+                    return false;
+            }
+
+            return true;
+        };
+
         for (const auto* shader : shaders_)
         {
+            if (!shader)
+            {
+                Log::error("Cannot merge descriptor bindings: encountered null shader module");
+                return false;
+            }
+
             const auto& metadata   = shader->meta_data();
             const auto  stage_flag = Flags(shader->stage());
+            const auto  shader_name = shader->filename();
 
-            for (const auto& resource : metadata.uniform_buffers | std::views::values)
-            {
-                auto& bindings = bindings_by_set[resource.set];
-
-                auto it = std::ranges::find_if(bindings, [&](const DescriptorBinding& b)
-                {
-                    return b.binding == resource.binding;
-                });
-
-                if (it != bindings.end()) it->stages |= stage_flag;
-                else
-                {
-                    bindings.emplace_back(
-                        resource.binding,
-                        DescriptorType::UniformBuffer,
-                        stage_flag,
-                        1
-                    );
-                }
-            }
-
-            for (const auto& resource : metadata.storage_buffers | std::views::values)
-            {
-                auto& bindings = bindings_by_set[resource.set];
-
-                auto it = std::ranges::find_if(bindings, [&](const DescriptorBinding& b)
-                {
-                    return b.binding == resource.binding;
-                });
-
-                if (it != bindings.end()) it->stages |= stage_flag;
-                else
-                {
-                    bindings.emplace_back(
-                        resource.binding,
-                        DescriptorType::StorageBuffer,
-                        stage_flag,
-                        1
-                    );
-                }
-            }
-
-            for (const auto& resource : metadata.sampled_images | std::views::values)
-            {
-                auto& bindings = bindings_by_set[resource.set];
-
-                auto it = std::ranges::find_if(bindings, [&](const DescriptorBinding& b)
-                {
-                    return b.binding == resource.binding;
-                });
-
-                if (it != bindings.end()) it->stages |= stage_flag;
-                else
-                {
-                    bindings.emplace_back(
-                        resource.binding,
-                        DescriptorType::CombinedImageSampler,
-                        stage_flag,
-                        1
-                    );
-                }
-            }
-
-            for (const auto& resource : metadata.storage_images | std::views::values)
-            {
-                auto& bindings = bindings_by_set[resource.set];
-
-                auto it = std::ranges::find_if(bindings, [&](const DescriptorBinding& b)
-                {
-                    return b.binding == resource.binding;
-                });
-
-                if (it != bindings.end()) it->stages |= stage_flag;
-                else
-                {
-                    bindings.emplace_back(
-                        resource.binding,
-                        DescriptorType::StorageImage,
-                        stage_flag,
-                        1
-                    );
-                }
-            }
+            if (!merge_resource_group(metadata.uniform_buffers, DescriptorType::UniformBuffer, "uniform_buffer", shader_name, stage_flag)) return false;
+            if (!merge_resource_group(metadata.storage_buffers, DescriptorType::StorageBuffer, "storage_buffer", shader_name, stage_flag)) return false;
+            if (!merge_resource_group(metadata.sampled_images, DescriptorType::CombinedImageSampler, "sampled_image", shader_name, stage_flag)) return false;
+            if (!merge_resource_group(metadata.storage_images, DescriptorType::StorageImage, "storage_image", shader_name, stage_flag)) return false;
         }
 
-        return bindings_by_set;
+        return true;
     }
 }

@@ -13,6 +13,20 @@ namespace boza::gfx
     class MaterialLoader;
 }
 
+namespace boza
+{
+    class Material;
+
+    struct MaterialAccess
+    {
+        static void* pipeline(const Material& material);
+        static void* pipeline_layout(const Material& material);
+        static const void* reflection(const Material& material);
+        static std::span<const std::uint8_t> push_constant_staging(const Material& material);
+        static void bind_descriptor_sets(const Material& material);
+    };
+}
+
 export namespace boza
 {
     class Material;
@@ -151,11 +165,6 @@ export namespace boza
         [[nodiscard]] std::optional<BindingInfo> lookup_binding(const std::string& name) const;
 
         [[nodiscard]] std::size_t        descriptor_set_count() const;
-        [[nodiscard]] void*              rhi_descriptor_set_handle(std::size_t index) const;
-        [[nodiscard]] void*              rhi_pipeline_layout_handle() const { return pipeline_layout_; }
-        [[nodiscard]] void*              rhi_pipeline_handle() const { return pipeline_; }
-        [[nodiscard]] const void*        reflection_handle() const { return reflection_.get(); }
-        [[nodiscard]] std::span<const std::uint8_t> push_constant_staging() const { return push_constant_staging_; }
         [[nodiscard]] const std::string& name() const { return name_; }
 
         [[nodiscard]]
@@ -184,15 +193,24 @@ export namespace boza
 
         flat_map<std::uint32_t, bool> dirty_sets_;
 
-        flat_map<std::uint32_t, std::vector<std::uint8_t>> uniform_buffer_staging_;
-        flat_map<std::uint32_t, RhiOwnedHandle>            uniform_buffers_;
+        flat_map<std::uint32_t, std::vector<std::uint8_t>>   uniform_buffer_staging_;
+        flat_map<std::uint32_t, std::vector<RhiOwnedHandle>> uniform_buffers_;
+        flat_map<std::uint32_t, std::vector<void*>>          bound_buffer_handles_;
+        flat_map<std::uint32_t, std::vector<void*>>          bound_texture_handles_;
+        flat_map<std::uint32_t, std::vector<void*>>          bound_sampler_handles_;
 
         flat_map<std::string, Sampler*> default_samplers_;
 
         void* descriptor_pool_{ nullptr };
         bool  cpu_cull_enabled_{ true };
 
+        [[nodiscard]] void* rhi_pipeline_layout_handle() const { return pipeline_layout_; }
+        [[nodiscard]] void* rhi_pipeline_handle() const { return pipeline_; }
+        [[nodiscard]] const void* reflection_handle() const { return reflection_.get(); }
+        [[nodiscard]] std::span<const std::uint8_t> push_constant_staging() const { return push_constant_staging_; }
+
         void mark_set_dirty(std::uint32_t set);
+        void bind_descriptor_sets() const;
 
         void push_constants(
             const std::string& name,
@@ -207,6 +225,7 @@ export namespace boza
             ShaderDataType     type);
 
         friend class PropertyBinder;
+        friend struct MaterialAccess;
         friend class gfx::MaterialLoader;
         friend struct RenderingSystem;
     };

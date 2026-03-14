@@ -99,11 +99,7 @@ namespace boza
 
     void Sampler::destroy_rhi_sampler(void* handle)
     {
-        if (!handle) return;
-
-        auto* sampler = static_cast<rhi::Sampler*>(handle);
-        sampler->destroy();
-        delete sampler;
+        delete static_cast<rhi::Sampler*>(handle);
     }
 
     Sampler& Sampler::create(

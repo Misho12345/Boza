@@ -33,7 +33,11 @@ namespace boza::rhi::vk
             "Failed to create shader module"))
             return false;
 
-        if (!get_meta_data()) return false;
+        if (!get_meta_data())
+        {
+            destroy();
+            return false;
+        }
 
         return true;
     }

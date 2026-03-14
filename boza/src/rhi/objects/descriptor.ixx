@@ -158,10 +158,14 @@ export namespace boza::rhi
 
         virtual void update(std::span<DescriptorWrite> writes) = 0;
 
-        std::uint64_t generation{ 0 };
+        [[nodiscard]] std::uint64_t generation() const { return generation_; }
+        void set_generation(const std::uint64_t generation) { generation_ = generation; }
 
     protected:
         explicit DescriptorSet(const DescriptorSetDesc& desc) : desc_(desc) {}
         DescriptorSetDesc desc_;
+
+    private:
+        std::uint64_t generation_{ 0 };
     };
 }

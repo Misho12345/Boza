@@ -8,6 +8,8 @@ export namespace boza::rhi::vk
     class ShaderModule final : public rhi::ShaderModule
     {
     public:
+        ~ShaderModule() override { destroy(); }
+
         bool init() override;
         void destroy() override;
 

@@ -13,6 +13,27 @@ namespace boza::gfx
     using detail::ImageIO;
     using detail::ImageData;
 
+    namespace
+    {
+        constexpr TextureSettings error_texture_settings(const TextureType type)
+        {
+            return TextureSettings{
+                .type = type,
+                .format = TextureFormat::RGBA8,
+                .access_mode = ResourceAccessMode::Static,
+                .width = 1,
+                .height = 1,
+                .depth = 1,
+                .usage_flags = TextureUsage::Sampled | TextureUsage::TransferDst
+            };
+        }
+
+        constexpr std::uint32_t error_texture_layer_count(const TextureType type)
+        {
+            return type == TextureType::TextureCube || type == TextureType::TextureCubeArray ? 6 : 1;
+        }
+    }
+
     constexpr TextureFormat format_from_channels(const int channels)
     {
         switch (channels)
@@ -37,34 +58,39 @@ namespace boza::gfx
     {
         if (initialized_) return;
 
-        auto [it, _] = textures_.try_emplace(
-            "boza_error_texture",
-            Texture{
-                "boza_error_texture",
-                TextureSettings{
-                    .type = TextureType::Texture2D,
-                    .format = TextureFormat::RGBA8,
-                    .access_mode = ResourceAccessMode::Static,
-                    .width = 1,
-                    .height = 1,
-                    .depth = 1,
-                    .usage_flags = TextureUsage::Sampled | TextureUsage::TransferDst
-                }
-            });
+        static constexpr std::array<std::uint8_t, 4> magenta{ 255, 0, 255, 255 };
+        bool created_any_error_texture = false;
 
-        error_texture_ = it->second.get();
+        error_textures_.fill(nullptr);
 
-        if (error_texture_ && error_texture_->is_valid())
+        for (std::size_t i = 0; i < error_texture_count_; ++i)
         {
-            static constexpr std::array<std::uint8_t, 4> magenta{ 255, 0, 255, 255 };
-            error_texture_->upload(magenta.data(), magenta.size());
-        }
-        else
-        {
-            Log::error("Failed to create error texture");
+            const auto        type = static_cast<TextureType>(i);
+            const std::string key = error_texture_key(type);
+
+            auto [texture, inserted] = textures_.try_emplace(
+                key,
+                Texture{ key, error_texture_settings(type) });
+
+            error_textures_[i] = texture;
+
+            if (!texture || !texture->is_valid())
+            {
+                Log::error("Failed to create error texture '{}' for type {}", key, static_cast<int>(type));
+                if (inserted) textures_.erase(key);
+                error_textures_[i] = nullptr;
+                continue;
+            }
+
+            created_any_error_texture = true;
+
+            for (std::uint32_t layer = 0; layer < error_texture_layer_count(type); ++layer)
+            {
+                texture->upload_layer(magenta.data(), magenta.size(), layer);
+            }
         }
 
-        initialized_ = true;
+        initialized_ = created_any_error_texture;
     }
 
     void TextureLoader::shutdown()
@@ -73,8 +99,29 @@ namespace boza::gfx
 
         textures_.clear();
 
-        error_texture_ = nullptr;
+        error_textures_.fill(nullptr);
         initialized_   = false;
+    }
+
+    Texture& TextureLoader::error_texture(const TextureType type)
+    {
+        Texture*& cached_error_texture = error_textures_[static_cast<int>(type)];
+        if (cached_error_texture) return *cached_error_texture;
+
+        const std::string error_key = error_texture_key(type);
+        cached_error_texture = textures_.find_ptr(error_key);
+        if (cached_error_texture) return *cached_error_texture;
+
+        if (!initialized_ && rhi::RenderContext::initialized())
+        {
+            initialize();
+            cached_error_texture = textures_.find_ptr(error_key);
+            if (cached_error_texture) return *cached_error_texture;
+        }
+
+        Log::critical("TextureLoader error texture '{}' is unavailable", error_key);
+        assert(cached_error_texture != nullptr, "TextureLoader error texture is not available");
+        std::terminate();
     }
 
     Texture& TextureLoader::get_or_load(
@@ -82,15 +129,26 @@ namespace boza::gfx
         const TextureType type)
     {
         const std::string name_str{ name };
-        const std::string key = make_texture_key(name_str, type);
 
-        if (auto it = textures_.find(key); it != textures_.end()) return *it->second;
-        if (auto it = textures_.find(name_str); it != textures_.end()) return *it->second;
+        if (auto* texture = textures_.find_ptr(name_str))
+        {
+            if (texture->type != type)
+            {
+                Log::error(
+                    "Texture '{}' already exists with type {}, requested type {}",
+                    name_str,
+                    static_cast<int>(texture->settings_.type),
+                    static_cast<int>(type));
+                return error_texture(type);
+            }
+
+            return *texture;
+        }
 
         if (!rhi::RenderContext::initialized())
         {
             Log::error("Render context not initialized.");
-            return *error_texture_;
+            return error_texture(type);
         }
 
         const auto      full_path  = detail::AssetPaths::texture(name_str);
@@ -99,10 +157,10 @@ namespace boza::gfx
         if (!image_data.data)
         {
             Log::warn("Failed to load texture: {}, returning error texture", name_str);
-            return *error_texture_;
+            return error_texture(type);
         }
 
-        auto [it, inserted] = textures_.try_emplace(
+        auto [texture, inserted] = textures_.try_emplace(
             name_str,
             Texture{
                 name_str,
@@ -117,32 +175,41 @@ namespace boza::gfx
                 }
             });
 
-        Texture& texture = *it->second;
-
-        if (!texture.is_valid())
+        if (!texture || !texture->is_valid())
         {
             Log::warn("Failed to create texture for: {}, returning error texture", name_str);
-            textures_.erase(it);
-            return *error_texture_;
+            if (inserted) textures_.erase(name_str);
+            return error_texture(type);
         }
 
-        texture.upload(image_data.data, image_data.size);
+        texture->upload(image_data.data, image_data.size);
 
-        return texture;
+        return *texture;
     }
 
     Texture& TextureLoader::get_or_load_cubemap(const std::string_view name)
     {
         const std::string name_str{ name };
-        const std::string key = make_texture_key(name_str, TextureType::TextureCube);
 
-        if (auto it = textures_.find(key); it != textures_.end())
-            return *it->second;
+        if (auto* texture = textures_.find_ptr(name_str))
+        {
+            if (texture->type != TextureType::TextureCube)
+            {
+                Log::error(
+                    "Texture '{}' already exists with type {}, requested type {}",
+                    name_str,
+                    static_cast<int>(texture->settings_.type),
+                    static_cast<int>(TextureType::TextureCube));
+                return error_texture(TextureType::TextureCube);
+            }
+
+            return *texture;
+        }
 
         if (!rhi::RenderContext::initialized())
         {
             Log::error("Render context not initialized.");
-            return *error_texture_;
+            return error_texture(TextureType::TextureCube);
         }
 
         const auto      full_path  = detail::AssetPaths::texture(name_str);
@@ -151,7 +218,7 @@ namespace boza::gfx
         if (!image_data.data)
         {
             Log::warn("Failed to load cubemap texture: {}, returning error texture", name_str);
-            return *error_texture_;
+            return error_texture(TextureType::TextureCube);
         }
 
         const std::uint32_t face_width  = image_data.width / 4;
@@ -162,13 +229,13 @@ namespace boza::gfx
         {
             Log::warn("Cubemap texture {} has invalid dimensions ({}x{}), expected 4:3 ratio for cross layout",
                       name_str, image_data.width, image_data.height);
-            return *error_texture_;
+            return error_texture(TextureType::TextureCube);
         }
 
-        auto [it, inserted] = textures_.try_emplace(
-            key,
+        auto [texture, inserted] = textures_.try_emplace(
+            name_str,
             Texture{
-                key,
+                name_str,
                 TextureSettings{
                     .type = TextureType::TextureCube,
                     .format = format_from_channels(image_data.channels),
@@ -180,13 +247,11 @@ namespace boza::gfx
                 }
             });
 
-        Texture& texture = *it->second;
-
-        if (!texture.is_valid())
+        if (!texture || !texture->is_valid())
         {
             Log::warn("Failed to create cubemap texture for: {}, returning error texture", name_str);
-            textures_.erase(it);
-            return *error_texture_;
+            if (inserted) textures_.erase(name_str);
+            return error_texture(TextureType::TextureCube);
         }
 
         const std::size_t face_size       = face_width * face_height * image_data.channels;
@@ -207,24 +272,24 @@ namespace boza::gfx
         };
 
         extract_face(2, 1);
-        texture.upload_layer(face_data.data(), face_size, 0);
+        texture->upload_layer(face_data.data(), face_size, 0);
 
         extract_face(0, 1);
-        texture.upload_layer(face_data.data(), face_size, 1);
+        texture->upload_layer(face_data.data(), face_size, 1);
 
         extract_face(1, 0);
-        texture.upload_layer(face_data.data(), face_size, 2);
+        texture->upload_layer(face_data.data(), face_size, 2);
 
         extract_face(1, 2);
-        texture.upload_layer(face_data.data(), face_size, 3);
+        texture->upload_layer(face_data.data(), face_size, 3);
 
         extract_face(1, 1);
-        texture.upload_layer(face_data.data(), face_size, 4);
+        texture->upload_layer(face_data.data(), face_size, 4);
 
         extract_face(3, 1);
-        texture.upload_layer(face_data.data(), face_size, 5);
+        texture->upload_layer(face_data.data(), face_size, 5);
 
-        return texture;
+        return *texture;
     }
 
     Texture& TextureLoader::copy(
@@ -235,43 +300,52 @@ namespace boza::gfx
         const std::string src_str{ src_name };
         const std::string dst_str{ dst_name };
 
-        auto it = textures_.find(src_str);
-        if (it == textures_.end())
+        auto fallback_type = TextureType::Texture2D;
+        if (const auto* existing_dst = textures_.find_ptr(dst_str)) fallback_type = existing_dst->type;
+
+        const Texture* src_texture = try_get_texture(src_str);
+        if (!src_texture)
         {
             Log::error("Cannot copy texture '{}', not found", src_str);
-            std::abort();
+            return error_texture(fallback_type);
         }
 
-        const Texture& src_texture = *it->second;
+        if (auto* existing_dst = textures_.find_ptr(dst_str); existing_dst && existing_dst->type != src_texture->type)
+        {
+            Log::error(
+                "Texture '{}' already exists with type {}, requested type {}",
+                dst_str,
+                static_cast<int>(existing_dst->settings_.type),
+                static_cast<int>(src_texture->settings_.type));
+            return error_texture(src_texture->settings_.type);
+        }
 
-        const auto data = src_texture.read_back();
+        const auto data = src_texture->read_back();
 
-        auto [dst_it, inserted] = textures_.try_emplace(
+        auto [dst_texture, inserted] = textures_.try_emplace(
             dst_str,
             Texture{
                 dst_str,
                 TextureSettings{
-                    .type = src_texture.type,
-                    .format = src_texture.format,
+                    .type = src_texture->type,
+                    .format = src_texture->format,
                     .access_mode = access_mode,
-                    .width = src_texture.width,
-                    .height = src_texture.height,
-                    .depth = src_texture.depth,
+                    .width = src_texture->width,
+                    .height = src_texture->height,
+                    .depth = src_texture->depth,
                     .usage_flags = TextureUsage::Sampled | TextureUsage::TransferDst
             }});
 
-        Texture& dst_texture = *dst_it->second;
-
-        if (!dst_texture.is_valid())
+        if (!dst_texture || !dst_texture->is_valid())
         {
             Log::error("Failed to create texture copy for: {}", dst_str);
-            textures_.erase(dst_it);
-            std::abort();
+            if (inserted) textures_.erase(dst_str);
+            return error_texture(src_texture->type);
         }
 
-        dst_texture.upload(data.data(), data.size());
+        dst_texture->upload(data.data(), data.size());
 
-        return dst_texture;
+        return *dst_texture;
     }
 
     Texture& TextureLoader::create(
@@ -280,50 +354,63 @@ namespace boza::gfx
     {
         const std::string name_str{ name };
 
-        if (textures_.contains(name_str))
+        if (auto* existing = textures_.find_ptr(name_str))
         {
+            if (existing->type != settings.type)
+            {
+                Log::error(
+                    "Texture '{}' already exists with type {}, requested type {}",
+                    name_str,
+                    static_cast<int>(existing->settings_.type),
+                    static_cast<int>(settings.type));
+                return error_texture(settings.type);
+            }
+
             Log::warn("Texture '{}' already exists, returning existing texture", name_str);
-            return textures_.at(name_str);
+            return *existing;
         }
 
-        auto [it, inserted] = textures_.try_emplace(name_str, std::move(Texture{ name, settings }));
+        auto [texture, inserted] = textures_.try_emplace(name_str, std::move(Texture{ name, settings }));
 
-        if (!inserted || !it->second->is_valid())
+        if (!texture || !texture->is_valid())
         {
             Log::error("Failed to create texture: {}", name_str);
-            if (inserted) textures_.erase(it);
-            return *error_texture_;
+            if (inserted) textures_.erase(name_str);
+            return error_texture(settings.type);
         }
 
         // Log::trace("Created texture: {}", name_str);
-        return *it->second;
+        return *texture;
     }
 
     void TextureLoader::destroy(const std::string_view name)
     {
         const std::string name_str{ name };
 
-        if (name_str == "boza_error_texture")
+        for (std::size_t i = 0; i < error_texture_count_; ++i)
         {
-            Log::warn("Cannot destroy error texture");
-            return;
+            if (name_str == error_texture_key(static_cast<TextureType>(i)))
+            {
+                Log::warn("Cannot destroy error texture");
+                return;
+            }
         }
 
-        const auto it = textures_.find(name_str);
-        if (it != textures_.end())
+        if (!textures_.erase(name_str))
         {
-            // Log::trace("Destroyed texture: {}", name_str);
-            textures_.erase(it);
+            Log::warn("Attempted to destroy non-existent texture: {}", name_str);
         }
-        else Log::warn("Attempted to destroy non-existent texture: {}", name_str);
     }
 
-    Texture* TextureLoader::try_get_texture(const std::string_view name) { return textures_.find_ptr(name); }
+    Texture* TextureLoader::try_get_texture(const std::string_view name)
+    {
+        return textures_.find_ptr(name);
+    }
 
     bool TextureLoader::exists(const Texture* ptr) const { return textures_.exists(ptr); }
 
-    std::string TextureLoader::make_texture_key(const std::string_view filepath, const TextureType type)
+    std::string TextureLoader::error_texture_key(const TextureType type)
     {
-        return std::string{ filepath } + "_" + std::to_string(static_cast<int>(type));
+        return "boza_error_texture_" + std::to_string(static_cast<int>(type));
     }
 }

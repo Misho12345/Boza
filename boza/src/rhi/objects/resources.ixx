@@ -15,17 +15,41 @@ export namespace boza::rhi
 
     enum class BufferMemoryType : std::uint8_t
     {
-        DeviceLocal,
-        HostVisible,
-        HostCoherent
+        None         = 0,
+        DeviceLocal  = 1 << 0,
+        HostVisible  = 1 << 1,
+        HostCoherent = 1 << 2
     };
+
+    constexpr Flags<BufferMemoryType> operator|(const BufferMemoryType left, const BufferMemoryType right) noexcept
+    {
+        return Flags(left) | Flags(right);
+    }
+
+    constexpr Flags<BufferMemoryType> operator&(const BufferMemoryType left, const BufferMemoryType right) noexcept
+    {
+        return Flags(left) & Flags(right);
+    }
+
+    constexpr Flags<BufferMemoryType> operator^(const BufferMemoryType left, const BufferMemoryType right) noexcept
+    {
+        return Flags(left) ^ Flags(right);
+    }
+
+    constexpr Flags<BufferMemoryType> operator~(const BufferMemoryType value) noexcept { return ~Flags(value); }
+
+    [[nodiscard]]
+    constexpr bool has_memory_type(const Flags<BufferMemoryType> memory_type, const BufferMemoryType flag) noexcept
+    {
+        return (memory_type & flag).any();
+    }
 
     struct BufferDesc
     {
         Device*            device;
         size_t             size;
         BufferUsage        usage;
-        BufferMemoryType   memory_type;
+        Flags<BufferMemoryType> memory_type;
     };
 
     class Buffer : public GraphicsObject<Buffer, BufferDesc>
