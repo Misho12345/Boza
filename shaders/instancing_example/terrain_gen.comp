@@ -1,13 +1,8 @@
 #version 450
-#include "fbm.glsl"
+#include "../common/fbm.glsl"
+#include "../common/vertex.glsl"
 
 layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
-
-struct Vertex
-{
-    vec4 pos_xyz_norm_x;
-    vec4 norm_yz_uv;
-};
 
 layout(set = 0, binding = 0, std430) writeonly buffer VerticesBuf
 {
@@ -58,7 +53,7 @@ void main()
     float fz = float(y) * pc.spacing - half_h;
 
     vec2 np = vec2(fx, fz) + pc.offset;
-    float h = fbm(
+    float h = fbm2(
         np,
         pc.base_freq,
         pc.num_layers,
@@ -80,8 +75,9 @@ void main()
     );
 
     Vertex outv;
-    outv.pos_xyz_norm_x = vec4(pos, nrm.x);
-    outv.norm_yz_uv     = vec4(nrm.yz, uv.xy);
+    set_vert_pos(outv, pos);
+    set_vert_norm(outv, nrm);
+    set_vert_uv(outv, uv);
     vertices.v[v_index] = outv;
 
     if (x < pc.width - 1u && y < pc.height - 1u)

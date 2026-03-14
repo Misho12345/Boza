@@ -35,6 +35,7 @@ namespace boza
 
         std::uint32_t push_constant_size{ 0 };
         bool          has_push_constants{ false };
+        ComputeDispatchStatus dispatch_status{ ComputeDispatchStatus::Idle };
     };
 
 
@@ -227,12 +228,6 @@ namespace boza
         }
 
         const auto& info = binding_info.value();
-        if (info.descriptor_type != rhi::DescriptorType::StorageImage)
-        {
-            Log::warn("Compute property '{}' is not a storage image", name);
-            return *this;
-        }
-
         if (info.set >= impl_->descriptor_sets.size())
         {
             Log::error("Invalid descriptor set index {} for property '{}'", info.set, name);
@@ -246,14 +241,25 @@ namespace boza
             return *this;
         }
 
+        if (info.descriptor_type != rhi::DescriptorType::StorageImage)
+        {
+            Log::warn("Compute property '{}' is not a storage image", name);
+            return *this;
+        }
+
+        auto* texture_handle = static_cast<rhi::Texture*>(texture.rhi_handle());
+        if (!texture_handle)
+        {
+            Log::error("Compute texture '{}' has an invalid RHI texture handle", name);
+            return *this;
+        }
+
         rhi::DescriptorWrite write
         {
             .binding = info.binding,
             .array_element = 0,
             .type = rhi::DescriptorType::StorageImage,
-            .info = rhi::StorageImage{
-                .texture = static_cast<rhi::Texture*>(texture.rhi_handle())
-            }
+            .info = rhi::StorageImage{ .texture = texture_handle }
         };
 
         desc_set->update({ &write, 1 });
@@ -381,6 +387,19 @@ namespace boza
         return *this;
     }
 
+    ComputeDispatchStatus ComputeDispatcher::status() const
+    {
+        std::scoped_lock lock{ mutex_ };
+
+        if (failed_.load(std::memory_order_relaxed)) return ComputeDispatchStatus::Failed;
+
+        poll_pending_dispatch_locked();
+
+        if (failed_.load(std::memory_order_relaxed)) return ComputeDispatchStatus::Failed;
+
+        return impl_->dispatch_status;
+    }
+
     bool ComputeDispatcher::wait_for_pending_dispatch_locked() const
     {
         if (!impl_->pending_command_buffer) return true;
@@ -390,6 +409,7 @@ namespace boza
         {
             Log::error("Compute dispatch fence wait failed");
             failed_.store(true, std::memory_order_relaxed);
+            impl_->dispatch_status = ComputeDispatchStatus::Failed;
             success = false;
         }
 
@@ -401,7 +421,31 @@ namespace boza
         impl_->pending_command_buffer = nullptr;
         impl_->pending_command_pool = nullptr;
         impl_->pending_fence.reset();
+
+        if (success) impl_->dispatch_status = ComputeDispatchStatus::Finished;
+
         return success;
+    }
+
+    void ComputeDispatcher::poll_pending_dispatch_locked() const
+    {
+        if (!impl_->pending_command_buffer) return;
+
+        if (impl_->pending_fence && !impl_->pending_fence->is_signaled())
+        {
+            impl_->dispatch_status = ComputeDispatchStatus::Running;
+            return;
+        }
+
+        if (impl_->pending_command_pool && impl_->pending_command_buffer)
+        {
+            impl_->pending_command_pool->free_command_buffer(impl_->pending_command_buffer);
+        }
+
+        impl_->pending_command_buffer = nullptr;
+        impl_->pending_command_pool = nullptr;
+        impl_->pending_fence.reset();
+        impl_->dispatch_status = ComputeDispatchStatus::Finished;
     }
 
     void ComputeDispatcher::dispatch_impl(const std::uint32_t x, const std::uint32_t y, const std::uint32_t z)
@@ -509,6 +553,7 @@ namespace boza
         impl_->pending_command_pool = cmd_pool;
         impl_->pending_command_buffer = cmd;
         impl_->pending_fence = std::move(fence);
+        impl_->dispatch_status = ComputeDispatchStatus::Running;
 
         impl_->dirty_sets.clear();
     }

@@ -1,0 +1,162 @@
+#version 450
+#include "../common/vertex.glsl"
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+
+layout(set = 0, binding = 0, std430) writeonly buffer VerticesBuf
+{
+    Vertex v[];
+} vertices;
+
+layout(set = 0, binding = 1, r8) uniform readonly image3D terrain_density_tex;
+
+layout(set = 0, binding = 2, std430) buffer CellVertexIndexBuf
+{
+    int data[];
+} cell_vertex_indices;
+
+layout(set = 0, binding = 4, std430) buffer CountersBuf
+{
+    uint vertex_count;
+    uint index_count;
+} counters;
+
+layout(push_constant) uniform PC
+{
+    uvec3 grid_size;
+    float iso_value;
+    vec3 voxel_size;
+} pc;
+
+const ivec3 CORNER_OFFSETS[8] = ivec3[8](
+    ivec3(0, 0, 0),
+    ivec3(1, 0, 0),
+    ivec3(1, 1, 0),
+    ivec3(0, 1, 0),
+    ivec3(0, 0, 1),
+    ivec3(1, 0, 1),
+    ivec3(1, 1, 1),
+    ivec3(0, 1, 1)
+);
+
+const ivec2 EDGE_CORNERS[12] = ivec2[12](
+    ivec2(0, 1), ivec2(1, 2), ivec2(2, 3), ivec2(3, 0),
+    ivec2(4, 5), ivec2(5, 6), ivec2(6, 7), ivec2(7, 4),
+    ivec2(0, 4), ivec2(1, 5), ivec2(2, 6), ivec2(3, 7)
+);
+
+int cell_linear_index(in ivec3 c, in ivec3 cell_dims)
+{
+    return c.x + cell_dims.x * (c.y + cell_dims.y * c.z);
+}
+
+vec3 sample_pos_ws(in ivec3 p)
+{
+    return vec3(p) * pc.voxel_size;
+}
+
+float sample_density_clamped(in ivec3 p)
+{
+    ivec3 max_p = ivec3(pc.grid_size) - ivec3(1);
+    ivec3 cp = clamp(p, ivec3(0), max_p);
+    return imageLoad(terrain_density_tex, cp).r;
+}
+
+vec3 gradient_raw_at(in ivec3 p)
+{
+    const int R = 3;
+
+    float dx = (sample_density_clamped(p + ivec3(R, 0, 0)) - sample_density_clamped(p - ivec3(R, 0, 0))) / (2.0 * float(R) * max(pc.voxel_size.x, 1e-6));
+    float dy = (sample_density_clamped(p + ivec3(0, R, 0)) - sample_density_clamped(p - ivec3(0, R, 0))) / (2.0 * float(R) * max(pc.voxel_size.y, 1e-6));
+    float dz = (sample_density_clamped(p + ivec3(0, 0, R)) - sample_density_clamped(p - ivec3(0, 0, R))) / (2.0 * float(R) * max(pc.voxel_size.z, 1e-6));
+
+    return vec3(dx, dy, dz);
+}
+
+vec3 safe_normalize(in vec3 v)
+{
+    float len2 = dot(v, v);
+    return (len2 > 1e-20) ? normalize(v) : vec3(0.0, 1.0, 0.0);
+}
+
+void main()
+{
+    ivec3 cell = ivec3(gl_GlobalInvocationID.xyz);
+    ivec3 grid_size = ivec3(pc.grid_size);
+    ivec3 cell_dims = grid_size - ivec3(1);
+
+    if (any(greaterThanEqual(cell, cell_dims))) return;
+
+    int cell_idx = cell_linear_index(cell, cell_dims);
+    cell_vertex_indices.data[cell_idx] = -1;
+
+    float corner_val[8];
+    vec3 corner_pos[8];
+    ivec3 corner_grid[8];
+
+    int neg_count = 0;
+    int pos_count = 0;
+
+    for (int c = 0; c < 8; ++c)
+    {
+        ivec3 gp = cell + CORNER_OFFSETS[c];
+        corner_grid[c] = gp;
+        corner_val[c] = sample_density_clamped(gp) - pc.iso_value;
+        corner_pos[c] = sample_pos_ws(gp);
+
+        if (corner_val[c] < 0.0) neg_count++;
+        else pos_count++;
+    }
+
+    if (neg_count == 0 || pos_count == 0) return;
+
+    vec3 sum_pos = vec3(0.0);
+    vec3 sum_grad = vec3(0.0);
+    int intersections = 0;
+
+    for (int e = 0; e < 12; ++e)
+    {
+        int a = EDGE_CORNERS[e].x;
+        int b = EDGE_CORNERS[e].y;
+
+        float da = corner_val[a];
+        float db = corner_val[b];
+
+        bool crossed = (da < 0.0 && db >= 0.0) || (db < 0.0 && da >= 0.0);
+        if (!crossed) continue;
+
+        float denom = da - db;
+        float t = (abs(denom) > 1e-20) ? (da / denom) : 0.5;
+        t = clamp(t, 0.0, 1.0);
+
+        vec3 p = mix(corner_pos[a], corner_pos[b], t);
+        sum_pos += p;
+
+        vec3 ga = gradient_raw_at(corner_grid[a]);
+        vec3 gb = gradient_raw_at(corner_grid[b]);
+        vec3 g = mix(ga, gb, t);
+        sum_grad += g;
+
+        intersections++;
+    }
+
+    if (intersections == 0) return;
+
+    vec3 pos = sum_pos / float(intersections);
+    vec3 norm = safe_normalize(sum_grad);
+
+    uint vtx_idx = atomicAdd(counters.vertex_count, 1u);
+    cell_vertex_indices.data[cell_idx] = int(vtx_idx);
+
+    Vertex out_v;
+    set_vert_pos(out_v, pos);
+    set_vert_norm(out_v, norm);
+
+    vec2 uv = vec2(
+        pos.x / max(pc.voxel_size.x * float(pc.grid_size.x - 1), 1e-6),
+        pos.z / max(pc.voxel_size.z * float(pc.grid_size.z - 1), 1e-6)
+    );
+    set_vert_uv(out_v, uv);
+
+    vertices.v[vtx_idx] = out_v;
+}

@@ -62,7 +62,7 @@ namespace boza::gfx
 
         static constexpr LightUBO light_data{
             .light_position = glm::vec4(5.0f, 5.0f, 5.0f, 1.0f),
-            .light_color = glm::vec4(1.0f, 1.0f, 1.0f, 2.0f),
+            .light_color = glm::vec4(1.0f, 1.0f, 1.0f, 1.5f),
             .view_pos = glm::vec4(0.0f, 0.0f, 5.0f, 1.0f)
         };
         light_ubo_->upload(&light_data, sizeof(LightUBO), 0);

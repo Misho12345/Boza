@@ -1,0 +1,145 @@
+#version 450
+#include "../common/vertex.glsl"
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+
+layout(set = 0, binding = 0, std430) writeonly buffer IndicesBuf
+{
+    uint i[];
+} indices;
+
+layout(set = 0, binding = 1, r8) uniform readonly image3D terrain_density_tex;
+
+layout(set = 0, binding = 2, std430) readonly buffer CellVertexIndexBuf
+{
+    int data[];
+} cell_vertex_indices;
+
+layout(set = 0, binding = 3, std430) buffer CountersBuf
+{
+    uint vertex_count;
+    uint index_count;
+} counters;
+
+layout(push_constant) uniform PC
+{
+    uvec3 grid_size;
+    float iso_value;
+    vec3 voxel_size;
+} pc;
+
+int cell_linear_index(in ivec3 c, in ivec3 cell_dims)
+{
+    return c.x + cell_dims.x * (c.y + cell_dims.y * c.z);
+}
+
+float sample_density(in ivec3 p)
+{
+    return imageLoad(terrain_density_tex, p).r;
+}
+
+bool valid_cell(in ivec3 c, in ivec3 cell_dims)
+{
+    return all(greaterThanEqual(c, ivec3(0))) &&
+    all(lessThan(c, cell_dims));
+}
+
+int get_cell_vertex(in ivec3 c, in ivec3 cell_dims)
+{
+    if (!valid_cell(c, cell_dims)) return -1;
+    return cell_vertex_indices.data[cell_linear_index(c, cell_dims)];
+}
+
+void emit_tri(in uint a, in uint b, in uint c)
+{
+    uint base = atomicAdd(counters.index_count, 3u);
+    indices.i[base + 0] = a;
+    indices.i[base + 1] = b;
+    indices.i[base + 2] = c;
+}
+
+void emit_quad(in int a, in int b, in int c, in int d, in bool flip)
+{
+    if (a < 0 || b < 0 || c < 0 || d < 0) return;
+
+    uint ia = uint(a);
+    uint ib = uint(b);
+    uint ic = uint(c);
+    uint id = uint(d);
+
+    if (!flip)
+    {
+        emit_tri(ia, ib, ic);
+        emit_tri(ia, ic, id);
+    }
+    else
+    {
+        emit_tri(ia, ic, ib);
+        emit_tri(ia, id, ic);
+    }
+}
+
+void main()
+{
+    ivec3 p = ivec3(gl_GlobalInvocationID.xyz);
+    ivec3 grid_size = ivec3(pc.grid_size);
+    ivec3 cell_dims = grid_size - ivec3(1);
+
+    if (any(greaterThanEqual(p, grid_size))) return;
+
+    float d000 = sample_density(p) - pc.iso_value;
+
+    // X edge: p -> p + (1,0,0)
+    if (p.x + 1 < grid_size.x && p.y > 0 && p.z > 0)
+    {
+        float d100 = sample_density(p + ivec3(1, 0, 0)) - pc.iso_value;
+        bool crossed = (d000 < 0.0 && d100 >= 0.0) || (d100 < 0.0 && d000 >= 0.0);
+
+        if (crossed)
+        {
+            int c0 = get_cell_vertex(p + ivec3(0, -1, -1), cell_dims);
+            int c1 = get_cell_vertex(p + ivec3(0,  0, -1), cell_dims);
+            int c2 = get_cell_vertex(p + ivec3(0,  0,  0), cell_dims);
+            int c3 = get_cell_vertex(p + ivec3(0, -1,  0), cell_dims);
+
+            bool flip = (d000 >= 0.0);
+            emit_quad(c0, c1, c2, c3, flip);
+        }
+    }
+
+    // Y edge: p -> p + (0,1,0)
+    if (p.y + 1 < grid_size.y && p.x > 0 && p.z > 0)
+    {
+        float d010 = sample_density(p + ivec3(0, 1, 0)) - pc.iso_value;
+        bool crossed = (d000 < 0.0 && d010 >= 0.0) || (d010 < 0.0 && d000 >= 0.0);
+
+        if (crossed)
+        {
+            int c0 = get_cell_vertex(p + ivec3(-1, 0, -1), cell_dims);
+            int c1 = get_cell_vertex(p + ivec3( 0, 0, -1), cell_dims);
+            int c2 = get_cell_vertex(p + ivec3( 0, 0,  0), cell_dims);
+            int c3 = get_cell_vertex(p + ivec3(-1, 0,  0), cell_dims);
+
+            bool flip = (d000 >= 0.0);
+            emit_quad(c0, c3, c2, c1, flip);
+        }
+    }
+
+    // Z edge: p -> p + (0,0,1)
+    if (p.z + 1 < grid_size.z && p.x > 0 && p.y > 0)
+    {
+        float d001 = sample_density(p + ivec3(0, 0, 1)) - pc.iso_value;
+        bool crossed = (d000 < 0.0 && d001 >= 0.0) || (d001 < 0.0 && d000 >= 0.0);
+
+        if (crossed)
+        {
+            int c0 = get_cell_vertex(p + ivec3(-1, -1, 0), cell_dims);
+            int c1 = get_cell_vertex(p + ivec3( 0, -1, 0), cell_dims);
+            int c2 = get_cell_vertex(p + ivec3( 0,  0, 0), cell_dims);
+            int c3 = get_cell_vertex(p + ivec3(-1,  0, 0), cell_dims);
+
+            bool flip = (d000 >= 0.0);
+            emit_quad(c0, c1, c2, c3, flip);
+        }
+    }
+}

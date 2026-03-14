@@ -14,6 +14,14 @@ export namespace boza
     class Texture;
     class Buffer;
 
+    enum class ComputeDispatchStatus : std::uint8_t
+    {
+        Idle,
+        Running,
+        Finished,
+        Failed
+    };
+
     class BOZA_API ComputeDispatcher
     {
     public:
@@ -41,8 +49,12 @@ export namespace boza
 
         ComputeDispatcher& wait();
 
+        [[nodiscard]] ComputeDispatchStatus status() const;
+        [[nodiscard]] bool working() const { return status() == ComputeDispatchStatus::Running; }
+        [[nodiscard]] bool finished() const { return status() == ComputeDispatchStatus::Finished; }
+        [[nodiscard]] bool failed() const { return status() == ComputeDispatchStatus::Failed; }
+
         [[nodiscard]] glm::uvec3 work_group_size() const { return work_group_size_; }
-        [[nodiscard]] bool       failed() const { return failed_.load(std::memory_order_relaxed); }
 
     private:
         ComputeDispatcher(const ComputeDispatcher&)            = delete;
@@ -51,6 +63,7 @@ export namespace boza
         ComputeDispatcher& operator=(ComputeDispatcher&&)      = delete;
 
         bool wait_for_pending_dispatch_locked() const;
+        void poll_pending_dispatch_locked() const;
         void dispatch_impl(std::uint32_t x, std::uint32_t y, std::uint32_t z);
 
         struct Impl;
