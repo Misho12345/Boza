@@ -13,6 +13,8 @@ layout(push_constant) uniform PC
     float persistence;
     float domain_warp;
     uint  seed;
+    uvec3 world_grid_size;
+    ivec3 chunk_offset;
 } pc;
 
 void main()
@@ -22,32 +24,18 @@ void main()
     ivec3 size = imageSize(terrain_density_tex);
     if (any(greaterThanEqual(gid, size))) return;
 
-    vec3 uvw = vec3(gid) / vec3(size - 1);
+    vec3 uvw = (vec3(gid) + vec3(pc.chunk_offset)) / vec3(pc.world_grid_size - uvec3(1u));
     vec3 p = uvw - 0.5;
 
-//    float height_noise = fbm2(
-//        p.xz,
-//        pc.base_freq,
-//        pc.num_layers,
-//        pc.lacunarity,
-//        pc.persistence,
-//        pc.domain_warp,
-//        pc.seed
-//    ) * 0.5 + 0.5;
-
     float cave_noise = fbm3(
-        p * vec3(1.0, 0.8, 1.0),
-        pc.base_freq * 1.45,
+        p,
+        pc.base_freq,
         max(pc.num_layers - 1u, 1u),
         pc.lacunarity,
         pc.persistence,
         pc.domain_warp * 0.65,
-        pc.seed + 911u
+        pc.seed
     ) * 0.5 + 0.5;
-//
-//    float terrain_height = 0.18 + height_noise * 0.45;
-//    float density = 0.5 + (terrain_height - uvw.y) * 2.4;
-//    density -= smoothstep(0.58, 0.82, cave_noise) * 0.24;
 
     imageStore(terrain_density_tex, gid, vec4(clamp(cave_noise, 0.0, 1.0), 0.0, 0.0, 0.0));
 }

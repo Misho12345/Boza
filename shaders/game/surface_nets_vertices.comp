@@ -25,7 +25,8 @@ layout(push_constant) uniform PC
 {
     uvec3 grid_size;
     float iso_value;
-    vec3 voxel_size;
+    vec3  voxel_size;
+    uint  border;
 } pc;
 
 const ivec3 CORNER_OFFSETS[8] = ivec3[8](
@@ -55,16 +56,22 @@ vec3 sample_pos_ws(in ivec3 p)
     return vec3(p) * pc.voxel_size;
 }
 
+ivec3 to_tex(in ivec3 p)
+{
+    return p + ivec3(pc.border);
+}
+
 float sample_density_clamped(in ivec3 p)
 {
+    ivec3 tex_p = to_tex(p);
     ivec3 max_p = ivec3(pc.grid_size) - ivec3(1);
-    ivec3 cp = clamp(p, ivec3(0), max_p);
+    ivec3 cp = clamp(tex_p, ivec3(0), max_p);
     return imageLoad(terrain_density_tex, cp).r;
 }
 
 vec3 gradient_raw_at(in ivec3 p)
 {
-    const int R = 3;
+    const uint R = pc.border;
 
     float dx = (sample_density_clamped(p + ivec3(R, 0, 0)) - sample_density_clamped(p - ivec3(R, 0, 0))) / (2.0 * float(R) * max(pc.voxel_size.x, 1e-6));
     float dy = (sample_density_clamped(p + ivec3(0, R, 0)) - sample_density_clamped(p - ivec3(0, R, 0))) / (2.0 * float(R) * max(pc.voxel_size.y, 1e-6));
@@ -82,12 +89,11 @@ vec3 safe_normalize(in vec3 v)
 void main()
 {
     ivec3 cell = ivec3(gl_GlobalInvocationID.xyz);
-    ivec3 grid_size = ivec3(pc.grid_size);
-    ivec3 cell_dims = grid_size - ivec3(1);
+    ivec3 inner_dims = ivec3(pc.grid_size) - ivec3(2 * pc.border) - ivec3(1);
 
-    if (any(greaterThanEqual(cell, cell_dims))) return;
+    if (any(greaterThanEqual(cell, inner_dims))) return;
 
-    int cell_idx = cell_linear_index(cell, cell_dims);
+    int cell_idx = cell_linear_index(cell, inner_dims);
     cell_vertex_indices.data[cell_idx] = -1;
 
     float corner_val[8];
@@ -153,8 +159,8 @@ void main()
     set_vert_norm(out_v, norm);
 
     vec2 uv = vec2(
-        pos.x / max(pc.voxel_size.x * float(pc.grid_size.x - 1), 1e-6),
-        pos.z / max(pc.voxel_size.z * float(pc.grid_size.z - 1), 1e-6)
+        pos.x / max(pc.voxel_size.x * float(inner_dims.x), 1e-6),
+        pos.z / max(pc.voxel_size.z * float(inner_dims.z), 1e-6)
     );
     set_vert_uv(out_v, uv);
 

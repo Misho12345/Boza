@@ -25,7 +25,8 @@ layout(push_constant) uniform PC
 {
     uvec3 grid_size;
     float iso_value;
-    vec3 voxel_size;
+    vec3  voxel_size;
+    uint  border;
 } pc;
 
 int cell_linear_index(in ivec3 c, in ivec3 cell_dims)
@@ -33,9 +34,14 @@ int cell_linear_index(in ivec3 c, in ivec3 cell_dims)
     return c.x + cell_dims.x * (c.y + cell_dims.y * c.z);
 }
 
+ivec3 to_tex(in ivec3 p)
+{
+    return p + ivec3(pc.border);
+}
+
 float sample_density(in ivec3 p)
 {
-    return imageLoad(terrain_density_tex, p).r;
+    return imageLoad(terrain_density_tex, to_tex(p)).r;
 }
 
 bool valid_cell(in ivec3 c, in ivec3 cell_dims)
@@ -81,26 +87,25 @@ void emit_quad(in int a, in int b, in int c, in int d, in bool flip)
 
 void main()
 {
-    ivec3 p = ivec3(gl_GlobalInvocationID.xyz);
-    ivec3 grid_size = ivec3(pc.grid_size);
-    ivec3 cell_dims = grid_size - ivec3(1);
+    ivec3 p          = ivec3(gl_GlobalInvocationID.xyz);
+    ivec3 inner_dims = ivec3(pc.grid_size) - ivec3(2 * pc.border) - ivec3(1);
 
-    if (any(greaterThanEqual(p, grid_size))) return;
+    if (any(greaterThanEqual(p, inner_dims + ivec3(1)))) return;
 
     float d000 = sample_density(p) - pc.iso_value;
 
     // X edge: p -> p + (1,0,0)
-    if (p.x + 1 < grid_size.x && p.y > 0 && p.z > 0)
+    if (p.x > 0 && p.x + 1 <= inner_dims.x && p.y > 0 && p.z > 0)
     {
         float d100 = sample_density(p + ivec3(1, 0, 0)) - pc.iso_value;
         bool crossed = (d000 < 0.0 && d100 >= 0.0) || (d100 < 0.0 && d000 >= 0.0);
 
         if (crossed)
         {
-            int c0 = get_cell_vertex(p + ivec3(0, -1, -1), cell_dims);
-            int c1 = get_cell_vertex(p + ivec3(0,  0, -1), cell_dims);
-            int c2 = get_cell_vertex(p + ivec3(0,  0,  0), cell_dims);
-            int c3 = get_cell_vertex(p + ivec3(0, -1,  0), cell_dims);
+            int c0 = get_cell_vertex(p + ivec3(0, -1, -1), inner_dims);
+            int c1 = get_cell_vertex(p + ivec3(0,  0, -1), inner_dims);
+            int c2 = get_cell_vertex(p + ivec3(0,  0,  0), inner_dims);
+            int c3 = get_cell_vertex(p + ivec3(0, -1,  0), inner_dims);
 
             bool flip = (d000 >= 0.0);
             emit_quad(c0, c1, c2, c3, flip);
@@ -108,17 +113,17 @@ void main()
     }
 
     // Y edge: p -> p + (0,1,0)
-    if (p.y + 1 < grid_size.y && p.x > 0 && p.z > 0)
+    if (p.y > 0 && p.y + 1 <= inner_dims.y && p.x > 0 && p.z > 0)
     {
         float d010 = sample_density(p + ivec3(0, 1, 0)) - pc.iso_value;
         bool crossed = (d000 < 0.0 && d010 >= 0.0) || (d010 < 0.0 && d000 >= 0.0);
 
         if (crossed)
         {
-            int c0 = get_cell_vertex(p + ivec3(-1, 0, -1), cell_dims);
-            int c1 = get_cell_vertex(p + ivec3( 0, 0, -1), cell_dims);
-            int c2 = get_cell_vertex(p + ivec3( 0, 0,  0), cell_dims);
-            int c3 = get_cell_vertex(p + ivec3(-1, 0,  0), cell_dims);
+            int c0 = get_cell_vertex(p + ivec3(-1, 0, -1), inner_dims);
+            int c1 = get_cell_vertex(p + ivec3( 0, 0, -1), inner_dims);
+            int c2 = get_cell_vertex(p + ivec3( 0, 0,  0), inner_dims);
+            int c3 = get_cell_vertex(p + ivec3(-1, 0,  0), inner_dims);
 
             bool flip = (d000 >= 0.0);
             emit_quad(c0, c3, c2, c1, flip);
@@ -126,17 +131,17 @@ void main()
     }
 
     // Z edge: p -> p + (0,0,1)
-    if (p.z + 1 < grid_size.z && p.x > 0 && p.y > 0)
+    if (p.z > 0 && p.z + 1 <= inner_dims.z && p.x > 0 && p.y > 0)
     {
         float d001 = sample_density(p + ivec3(0, 0, 1)) - pc.iso_value;
         bool crossed = (d000 < 0.0 && d001 >= 0.0) || (d001 < 0.0 && d000 >= 0.0);
 
         if (crossed)
         {
-            int c0 = get_cell_vertex(p + ivec3(-1, -1, 0), cell_dims);
-            int c1 = get_cell_vertex(p + ivec3( 0, -1, 0), cell_dims);
-            int c2 = get_cell_vertex(p + ivec3( 0,  0, 0), cell_dims);
-            int c3 = get_cell_vertex(p + ivec3(-1,  0, 0), cell_dims);
+            int c0 = get_cell_vertex(p + ivec3(-1, -1, 0), inner_dims);
+            int c1 = get_cell_vertex(p + ivec3( 0, -1, 0), inner_dims);
+            int c2 = get_cell_vertex(p + ivec3( 0,  0, 0), inner_dims);
+            int c3 = get_cell_vertex(p + ivec3(-1,  0, 0), inner_dims);
 
             bool flip = (d000 >= 0.0);
             emit_quad(c0, c1, c2, c3, flip);
