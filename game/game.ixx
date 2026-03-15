@@ -12,7 +12,8 @@ export class Game : public App
 protected:
     void setup() override
     {
-        const bool terrain_ready = create_terrain_meshes();
+        TerrainGenerator terrain_generator{};
+        const bool terrain_ready = terrain_generator.create_terrain_meshes();
         create_materials();
 
         Scene::main = Scene::create("Game");
