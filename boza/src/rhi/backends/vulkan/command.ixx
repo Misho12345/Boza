@@ -73,6 +73,8 @@ export namespace boza::rhi::vk
 
         void push_constants(PipelineLayout* layout, ShaderStage stage, std::uint32_t offset, std::uint32_t size, const void* data) override;
 
+        void compute_memory_barrier() override;
+
         void image_barrier(Texture* texture, ResourceState old_state, ResourceState new_state) override;
 
         void pipeline_image_barrier(

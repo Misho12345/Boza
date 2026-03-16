@@ -38,6 +38,29 @@ namespace boza
         ComputeDispatchStatus dispatch_status{ ComputeDispatchStatus::Idle };
     };
 
+    struct ComputeDispatchGroup::Impl
+    {
+        struct Step
+        {
+            ComputeDispatcher* dispatcher{ nullptr };
+            glm::uvec3         dimensions{ 1, 1, 1 };
+            bool               explicit_groups{ false };
+            std::vector<std::uint32_t> wait_for{};
+        };
+
+        std::vector<Step> steps{};
+        std::vector<std::uint64_t> recorded_generations{};
+
+        rhi::CommandPool*   command_pool{ nullptr };
+        rhi::CommandBuffer* command_buffer{ nullptr };
+        std::unique_ptr<rhi::Fence> fence{};
+
+        bool recorded{ false };
+        bool dirty{ true };
+
+        ComputeDispatchStatus dispatch_status{ ComputeDispatchStatus::Idle };
+    };
+
 
     ComputeDispatcher::ComputeDispatcher(const std::string& shader_name) : impl_{ std::make_unique<Impl>() }
     {
@@ -264,6 +287,7 @@ namespace boza
 
         desc_set->update({ &write, 1 });
         mark_set_dirty(info.set);
+        touch_generation();
         return *this;
     }
 
@@ -300,13 +324,20 @@ namespace boza
             return *this;
         }
 
+        auto* buffer_handle = static_cast<rhi::Buffer*>(buffer.rhi_handle());
+        if (!buffer_handle)
+        {
+            Log::error("Compute buffer '{}' has an invalid RHI buffer handle", name);
+            return *this;
+        }
+
         rhi::DescriptorWrite write
         {
             .binding = info.binding,
             .array_element = 0,
             .type = rhi::DescriptorType::StorageBuffer,
             .info = rhi::StorageBuffer{
-                .buffer = static_cast<rhi::Buffer*>(buffer.rhi_handle()),
+                .buffer = buffer_handle,
                 .offset = 0,
                 .range = static_cast<std::uint32_t>(buffer.size())
             }
@@ -314,6 +345,7 @@ namespace boza
 
         desc_set->update({ &write, 1 });
         mark_set_dirty(info.set);
+        touch_generation();
         return *this;
     }
 
@@ -322,29 +354,28 @@ namespace boza
         const std::uint32_t height,
         const std::uint32_t depth)
     {
+        return dispatch(glm::uvec3{ width, height, depth });
+    }
+
+    ComputeDispatcher& ComputeDispatcher::dispatch(const glm::uvec2& size)
+    {
+        return dispatch(glm::uvec3{ size, 1u });
+    }
+
+    ComputeDispatcher& ComputeDispatcher::dispatch(const glm::uvec3& size)
+    {
         std::scoped_lock lock{ mutex_ };
         if (failed_.load(std::memory_order_relaxed)) return *this;
         if (!wait_for_pending_dispatch_locked()) return *this;
 
-        if (width == 0 || height == 0 || depth == 0)
+        const auto groups = resolve_group_counts(size, false);
+        if (!groups.has_value())
         {
-            Log::error("Dispatch dimensions must be greater than zero ({}x{}x{})", width, height, depth);
             failed_.store(true, std::memory_order_relaxed);
             return *this;
         }
 
-        if (work_group_size_.x == 0 || work_group_size_.y == 0 || work_group_size_.z == 0)
-        {
-            Log::error("Invalid shader workgroup size ({}x{}x{})", work_group_size_.x, work_group_size_.y, work_group_size_.z);
-            failed_.store(true, std::memory_order_relaxed);
-            return *this;
-        }
-
-        const std::uint32_t group_x = (width + work_group_size_.x - 1) / work_group_size_.x;
-        const std::uint32_t group_y = (height + work_group_size_.y - 1) / work_group_size_.y;
-        const std::uint32_t group_z = (depth + work_group_size_.z - 1) / work_group_size_.z;
-
-        try { dispatch_impl(group_x, group_y, group_z); }
+        try { dispatch_impl(groups->x, groups->y, groups->z); }
         catch (...)
         {
             failed_.store(true, std::memory_order_relaxed);
@@ -359,18 +390,28 @@ namespace boza
         const std::uint32_t y,
         const std::uint32_t z)
     {
+        return dispatch_groups(glm::uvec3{ x, y, z });
+    }
+
+    ComputeDispatcher& ComputeDispatcher::dispatch_groups(const glm::uvec2& groups)
+    {
+        return dispatch_groups(glm::uvec3{ groups, 1u });
+    }
+
+    ComputeDispatcher& ComputeDispatcher::dispatch_groups(const glm::uvec3& groups)
+    {
         std::scoped_lock lock{ mutex_ };
         if (failed_.load(std::memory_order_relaxed)) return *this;
         if (!wait_for_pending_dispatch_locked()) return *this;
 
-        if (x == 0 || y == 0 || z == 0)
+        const auto resolved_groups = resolve_group_counts(groups, true);
+        if (!resolved_groups.has_value())
         {
-            Log::error("Dispatch group counts must be greater than zero ({}x{}x{})", x, y, z);
             failed_.store(true, std::memory_order_relaxed);
             return *this;
         }
 
-        try { dispatch_impl(x, y, z); }
+        try { dispatch_impl(resolved_groups->x, resolved_groups->y, resolved_groups->z); }
         catch (...)
         {
             failed_.store(true, std::memory_order_relaxed);
@@ -446,6 +487,51 @@ namespace boza
         impl_->pending_command_pool = nullptr;
         impl_->pending_fence.reset();
         impl_->dispatch_status = ComputeDispatchStatus::Finished;
+    }
+
+    std::optional<glm::uvec3> ComputeDispatcher::resolve_group_counts(
+        const glm::uvec3& dimensions,
+        const bool explicit_groups) const
+    {
+        if (dimensions.x == 0 || dimensions.y == 0 || dimensions.z == 0)
+        {
+            if (explicit_groups)
+            {
+                Log::error(
+                    "Dispatch group counts must be greater than zero ({}x{}x{})",
+                    dimensions.x,
+                    dimensions.y,
+                    dimensions.z);
+            }
+            else
+            {
+                Log::error(
+                    "Dispatch dimensions must be greater than zero ({}x{}x{})",
+                    dimensions.x,
+                    dimensions.y,
+                    dimensions.z);
+            }
+
+            return std::nullopt;
+        }
+
+        if (explicit_groups) return dimensions;
+
+        if (work_group_size_.x == 0 || work_group_size_.y == 0 || work_group_size_.z == 0)
+        {
+            Log::error(
+                "Invalid shader workgroup size ({}x{}x{})",
+                work_group_size_.x,
+                work_group_size_.y,
+                work_group_size_.z);
+            return std::nullopt;
+        }
+
+        return glm::uvec3{
+            (dimensions.x + work_group_size_.x - 1u) / work_group_size_.x,
+            (dimensions.y + work_group_size_.y - 1u) / work_group_size_.y,
+            (dimensions.z + work_group_size_.z - 1u) / work_group_size_.z
+        };
     }
 
     void ComputeDispatcher::dispatch_impl(const std::uint32_t x, const std::uint32_t y, const std::uint32_t z)
@@ -558,6 +644,11 @@ namespace boza
         impl_->dirty_sets.clear();
     }
 
+    void ComputeDispatcher::touch_generation() const
+    {
+        generation_.fetch_add(1, std::memory_order_relaxed);
+    }
+
     void ComputeDispatcher::mark_set_dirty(const std::uint32_t set) const { impl_->dirty_sets[set] = true; }
 
     void ComputeDispatcher::update_property_impl(
@@ -604,6 +695,7 @@ namespace boza
             }
 
             std::memcpy(impl_->push_constant_staging.data() + info.offset, data, size);
+            touch_generation();
             return;
         }
 
@@ -689,5 +781,458 @@ namespace boza
 
         uniform_buffer->upload(staging.data(), staging.size(), 0);
         mark_set_dirty(info.set);
+        touch_generation();
+    }
+
+
+    ComputeDispatchGroup::ComputeDispatchGroup() : impl_{ std::make_unique<Impl>() } {}
+
+    ComputeDispatchGroup::~ComputeDispatchGroup()
+    {
+        std::scoped_lock lock{ mutex_ };
+
+        (void)wait_for_pending_submit_locked();
+
+        if (impl_->command_pool && impl_->command_buffer)
+        {
+            impl_->command_pool->free_command_buffer(impl_->command_buffer);
+        }
+
+        impl_->command_buffer = nullptr;
+        impl_->command_pool = nullptr;
+        impl_->fence.reset();
+    }
+
+
+    ComputeDispatchGroup& ComputeDispatchGroup::append_step(
+        ComputeDispatcher& dispatcher,
+        const glm::uvec3& dimensions,
+        const bool        explicit_groups,
+        const std::initializer_list<std::uint32_t> wait_for)
+    {
+        std::scoped_lock lock{ mutex_ };
+
+        if (failed_.load(std::memory_order_relaxed)) return *this;
+
+        std::vector<std::uint32_t> wait_indices;
+        wait_indices.reserve(wait_for.size());
+        for (const std::uint32_t index : wait_for)
+            wait_indices.push_back(index);
+
+        impl_->steps.push_back({
+            .dispatcher = &dispatcher,
+            .dimensions = dimensions,
+            .explicit_groups = explicit_groups,
+            .wait_for = std::move(wait_indices)
+        });
+
+        impl_->dirty = true;
+        impl_->recorded = false;
+        impl_->dispatch_status = ComputeDispatchStatus::Idle;
+        return *this;
+    }
+
+    ComputeDispatchGroup& ComputeDispatchGroup::add(
+        ComputeDispatcher& dispatcher,
+        const std::uint32_t width,
+        const std::uint32_t height,
+        const std::uint32_t depth,
+        const std::initializer_list<std::uint32_t> wait_for)
+    {
+        return append_step(dispatcher, { width, height, depth }, false, wait_for);
+    }
+
+    ComputeDispatchGroup& ComputeDispatchGroup::add(
+        ComputeDispatcher& dispatcher,
+        const glm::uvec2& size,
+        const std::initializer_list<std::uint32_t> wait_for)
+    {
+        return add(dispatcher, size.x, size.y, 1u, wait_for);
+    }
+
+    ComputeDispatchGroup& ComputeDispatchGroup::add(
+        ComputeDispatcher& dispatcher,
+        const glm::uvec3& size,
+        const std::initializer_list<std::uint32_t> wait_for)
+    {
+        return add(dispatcher, size.x, size.y, size.z, wait_for);
+    }
+
+    ComputeDispatchGroup& ComputeDispatchGroup::add_groups(
+        ComputeDispatcher& dispatcher,
+        const std::uint32_t x,
+        const std::uint32_t y,
+        const std::uint32_t z,
+        const std::initializer_list<std::uint32_t> wait_for)
+    {
+        return append_step(dispatcher, { x, y, z }, true, wait_for);
+    }
+
+    ComputeDispatchGroup& ComputeDispatchGroup::add_groups(
+        ComputeDispatcher& dispatcher,
+        const glm::uvec2&  groups,
+        const std::initializer_list<std::uint32_t> wait_for)
+    {
+        return add_groups(dispatcher, groups.x, groups.y, 1u, wait_for);
+    }
+
+    ComputeDispatchGroup& ComputeDispatchGroup::add_groups(
+        ComputeDispatcher& dispatcher,
+        const glm::uvec3&  groups,
+        const std::initializer_list<std::uint32_t> wait_for)
+    {
+        return add_groups(dispatcher, groups.x, groups.y, groups.z, wait_for);
+    }
+
+
+    ComputeDispatchGroup& ComputeDispatchGroup::clear()
+    {
+        std::scoped_lock lock{ mutex_ };
+
+        if (failed_.load(std::memory_order_relaxed)) return *this;
+        if (!wait_for_pending_submit_locked()) return *this;
+
+        impl_->steps.clear();
+        impl_->recorded_generations.clear();
+        impl_->recorded = false;
+        impl_->dirty = true;
+        impl_->dispatch_status = ComputeDispatchStatus::Idle;
+        return *this;
+    }
+
+    ComputeDispatchGroup& ComputeDispatchGroup::record()
+    {
+        std::scoped_lock lock{ mutex_ };
+
+        if (failed_.load(std::memory_order_relaxed)) return *this;
+        if (!wait_for_pending_submit_locked()) return *this;
+
+        (void)record_locked();
+        return *this;
+    }
+
+    ComputeDispatchGroup& ComputeDispatchGroup::submit()
+    {
+        std::scoped_lock lock{ mutex_ };
+
+        if (failed_.load(std::memory_order_relaxed)) return *this;
+
+        poll_pending_submit_locked();
+        if (impl_->dispatch_status == ComputeDispatchStatus::Running)
+        {
+            Log::warn("Compute dispatch group is already running; skip submit");
+            return *this;
+        }
+
+        if (!ensure_recorded_locked()) return *this;
+
+        auto* device = rhi::RenderContext::device();
+        if (!device)
+        {
+            Log::error("Cannot submit compute dispatch group: device is null");
+            failed_.store(true, std::memory_order_relaxed);
+            impl_->dispatch_status = ComputeDispatchStatus::Failed;
+            return *this;
+        }
+
+        if (!impl_->fence)
+        {
+            impl_->fence = create_fence(rhi::RenderContext::api(), {
+                .device = device,
+                .signaled = false
+            });
+
+            if (!impl_->fence)
+            {
+                Log::error("Cannot submit compute dispatch group: failed to create fence");
+                failed_.store(true, std::memory_order_relaxed);
+                impl_->dispatch_status = ComputeDispatchStatus::Failed;
+                return *this;
+            }
+        }
+        else if (impl_->fence->is_signaled() && !impl_->fence->reset())
+        {
+            Log::error("Cannot submit compute dispatch group: failed to reset fence");
+            failed_.store(true, std::memory_order_relaxed);
+            impl_->dispatch_status = ComputeDispatchStatus::Failed;
+            return *this;
+        }
+
+        auto* queue = device->queue(device->queue_family_indices().compute_family);
+        if (!queue)
+        {
+            Log::error("Cannot submit compute dispatch group: compute queue is null");
+            failed_.store(true, std::memory_order_relaxed);
+            impl_->dispatch_status = ComputeDispatchStatus::Failed;
+            return *this;
+        }
+
+        if (!queue->submit({
+            .command_buffers = { impl_->command_buffer },
+            .signal_fence = impl_->fence.get()
+        }))
+        {
+            Log::error("Cannot submit compute dispatch group: queue submit failed");
+            failed_.store(true, std::memory_order_relaxed);
+            impl_->dispatch_status = ComputeDispatchStatus::Failed;
+            return *this;
+        }
+
+        impl_->dispatch_status = ComputeDispatchStatus::Running;
+        return *this;
+    }
+
+    ComputeDispatchGroup& ComputeDispatchGroup::wait()
+    {
+        std::scoped_lock lock{ mutex_ };
+        (void)wait_for_pending_submit_locked();
+        return *this;
+    }
+
+    ComputeDispatchGroup& ComputeDispatchGroup::run()
+    {
+        return record().submit().wait();
+    }
+
+    ComputeDispatchStatus ComputeDispatchGroup::status() const
+    {
+        std::scoped_lock lock{ mutex_ };
+
+        if (failed_.load(std::memory_order_relaxed)) return ComputeDispatchStatus::Failed;
+
+        poll_pending_submit_locked();
+
+        if (failed_.load(std::memory_order_relaxed)) return ComputeDispatchStatus::Failed;
+        return impl_->dispatch_status;
+    }
+
+
+    bool ComputeDispatchGroup::record_locked()
+    {
+        if (impl_->steps.empty())
+        {
+            Log::warn("Cannot record compute dispatch group: no steps added");
+            return false;
+        }
+
+        const auto fail_record = [this](const std::string_view error_message) -> bool
+        {
+            Log::error("{}", error_message);
+            failed_.store(true, std::memory_order_relaxed);
+            impl_->dispatch_status = ComputeDispatchStatus::Failed;
+            impl_->recorded = false;
+            impl_->dirty = true;
+            return false;
+        };
+
+        auto* device = rhi::RenderContext::device();
+        if (!device) return fail_record("Cannot record compute dispatch group: device is null");
+
+        auto* command_pool = device->command_pool(device->queue_family_indices().compute_family);
+        if (!command_pool) return fail_record("Cannot record compute dispatch group: compute command pool is null");
+
+        if (!impl_->command_buffer || impl_->command_pool != command_pool)
+        {
+            if (impl_->command_pool && impl_->command_buffer)
+            {
+                impl_->command_pool->free_command_buffer(impl_->command_buffer);
+            }
+
+            impl_->command_pool = command_pool;
+            impl_->command_buffer = command_pool->allocate_command_buffer(true);
+
+            if (!impl_->command_buffer)
+                return fail_record("Cannot record compute dispatch group: failed to allocate command buffer");
+        }
+
+        if (!impl_->command_buffer->reset())
+            return fail_record("Cannot record compute dispatch group: failed to reset command buffer");
+
+        if (!impl_->command_buffer->begin())
+            return fail_record("Cannot record compute dispatch group: failed to begin command buffer");
+
+        impl_->recorded_generations.clear();
+        impl_->recorded_generations.reserve(impl_->steps.size());
+
+        bool has_recorded_step = false;
+
+        for (std::size_t step_index = 0; step_index < impl_->steps.size(); ++step_index)
+        {
+            const Impl::Step& step = impl_->steps[step_index];
+
+            if (!step.dispatcher)
+            {
+                (void)impl_->command_buffer->reset(true);
+                return fail_record("Cannot record compute dispatch group: encountered null dispatcher step");
+            }
+
+            bool needs_barrier = false;
+            for (const std::uint32_t dependency : step.wait_for)
+            {
+                if (dependency >= impl_->steps.size())
+                {
+                    Log::error(
+                        "Compute dispatch group step {} references invalid dependency index {}",
+                        step_index,
+                        dependency);
+
+                    (void)impl_->command_buffer->reset(true);
+                    return fail_record("Cannot record compute dispatch group: invalid dependency index");
+                }
+
+                if (dependency >= step_index)
+                {
+                    Log::error(
+                        "Compute dispatch group step {} dependency {} must reference an earlier stage",
+                        step_index,
+                        dependency);
+
+                    (void)impl_->command_buffer->reset(true);
+                    return fail_record("Cannot record compute dispatch group: dependency must reference earlier stage");
+                }
+
+                needs_barrier = true;
+            }
+
+            if (needs_barrier && has_recorded_step)
+            {
+                impl_->command_buffer->compute_memory_barrier();
+            }
+
+            auto* dispatcher = step.dispatcher;
+            std::scoped_lock dispatcher_lock{ dispatcher->mutex_ };
+
+            if (dispatcher->failed_.load(std::memory_order_relaxed))
+            {
+                (void)impl_->command_buffer->reset(true);
+                return fail_record("Cannot record compute dispatch group: dispatcher is in failed state");
+            }
+
+            if (!dispatcher->wait_for_pending_dispatch_locked())
+            {
+                (void)impl_->command_buffer->reset(true);
+                return fail_record("Cannot record compute dispatch group: dispatcher wait failed");
+            }
+
+            const auto groups = dispatcher->resolve_group_counts(step.dimensions, step.explicit_groups);
+            if (!groups.has_value())
+            {
+                (void)impl_->command_buffer->reset(true);
+                return fail_record("Cannot record compute dispatch group: invalid dispatch dimensions");
+            }
+
+            if (!dispatcher->impl_->pipeline)
+            {
+                Log::error("Cannot record compute dispatch group: dispatcher pipeline is null");
+                dispatcher->failed_.store(true, std::memory_order_relaxed);
+
+                (void)impl_->command_buffer->reset(true);
+                return fail_record("Cannot record compute dispatch group: dispatcher pipeline is null");
+            }
+
+            impl_->command_buffer->bind_compute_pipeline(dispatcher->impl_->pipeline);
+
+            if (!dispatcher->impl_->descriptor_sets.empty())
+            {
+                impl_->command_buffer->bind_descriptor_sets(
+                    dispatcher->impl_->pipeline->get_layout(),
+                    dispatcher->impl_->descriptor_sets,
+                    0);
+            }
+
+            if (dispatcher->impl_->has_push_constants && dispatcher->impl_->push_constant_size > 0)
+            {
+                impl_->command_buffer->push_constants(
+                    dispatcher->impl_->pipeline_layout,
+                    rhi::ShaderStage::Compute,
+                    0,
+                    dispatcher->impl_->push_constant_size,
+                    dispatcher->impl_->push_constant_staging.data());
+            }
+
+            impl_->command_buffer->dispatch(groups->x, groups->y, groups->z);
+
+            impl_->recorded_generations.push_back(dispatcher->generation());
+            has_recorded_step = true;
+        }
+
+        if (!impl_->command_buffer->end())
+            return fail_record("Cannot record compute dispatch group: failed to end command buffer");
+
+        impl_->recorded = true;
+        impl_->dirty = false;
+        impl_->dispatch_status = ComputeDispatchStatus::Idle;
+        return true;
+    }
+
+    bool ComputeDispatchGroup::ensure_recorded_locked()
+    {
+        if (impl_->steps.empty())
+        {
+            Log::warn("Cannot submit compute dispatch group: no steps added");
+            return false;
+        }
+
+        bool stale = impl_->dirty || !impl_->recorded;
+
+        if (!stale)
+        {
+            if (impl_->recorded_generations.size() != impl_->steps.size()) stale = true;
+            else
+            {
+                for (std::size_t i = 0; i < impl_->steps.size(); ++i)
+                {
+                    const auto* dispatcher = impl_->steps[i].dispatcher;
+                    if (!dispatcher || dispatcher->generation() != impl_->recorded_generations[i])
+                    {
+                        stale = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!stale) return true;
+        return record_locked();
+    }
+
+    bool ComputeDispatchGroup::wait_for_pending_submit_locked() const
+    {
+        if (impl_->dispatch_status != ComputeDispatchStatus::Running) return true;
+
+        if (!impl_->fence)
+        {
+            Log::error("Compute dispatch group has no fence while marked as running");
+            failed_.store(true, std::memory_order_relaxed);
+            impl_->dispatch_status = ComputeDispatchStatus::Failed;
+            return false;
+        }
+
+        if (!impl_->fence->wait())
+        {
+            Log::error("Compute dispatch group fence wait failed");
+            failed_.store(true, std::memory_order_relaxed);
+            impl_->dispatch_status = ComputeDispatchStatus::Failed;
+            return false;
+        }
+
+        impl_->dispatch_status = ComputeDispatchStatus::Finished;
+        return true;
+    }
+
+    void ComputeDispatchGroup::poll_pending_submit_locked() const
+    {
+        if (impl_->dispatch_status != ComputeDispatchStatus::Running) return;
+
+        if (!impl_->fence)
+        {
+            Log::error("Compute dispatch group has no fence while marked as running");
+            failed_.store(true, std::memory_order_relaxed);
+            impl_->dispatch_status = ComputeDispatchStatus::Failed;
+            return;
+        }
+
+        if (!impl_->fence->is_signaled()) return;
+        impl_->dispatch_status = ComputeDispatchStatus::Finished;
     }
 }

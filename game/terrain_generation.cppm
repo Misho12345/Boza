@@ -2,48 +2,59 @@ module game:terrain_generation;
 
 import std;
 import boza;
+import :config;
+
 using namespace boza;
 
-class TerrainGenerator final
-{
-public:
-    bool create_terrain_meshes();
+class TerrainComputeState;
 
-private:
-    struct SurfaceNetsCounters
+struct TerrainChunkRuntime final
+{
+    glm::uvec3 coord{ 0u };
+    std::string density_texture_name{};
+    bool has_surface{ false };
+};
+
+struct TerrainChunkDirty final {};
+struct TerrainChunkGenerating final {};
+
+struct TerrainChunkEditRequest final
+{
+    bool pending{ false };
+    glm::vec3 world_center{ 0.0f };
+    float radius{ 1.0f };
+    bool add_material{ false };
+};
+
+struct TerrainComputeRuntime final
+{
+    std::shared_ptr<TerrainComputeState> state{};
+};
+
+void ensure_chunk_border_mesh();
+void initialize_terrain_runtime(GameObject terrain_world, std::vector<GameObject> chunk_objects);
+
+[[nodiscard]] bool terrain_runtime_ready(const GameObject& terrain_world);
+
+void queue_terrain_edit(
+    const GameObject& terrain_world,
+    const glm::vec3& world_center,
+    float radius,
+    bool add_material);
+
+[[nodiscard]] glm::vec3 clamp_terrain_world_position(const glm::vec3& position);
+[[nodiscard]] float terrain_cursor_radius_limit();
+
+struct TerrainComputeSystem
+{
+    struct Update : UpdateStage<Update, With<TerrainComputeRuntime>>
     {
-        std::uint32_t vertex_count{ 0 };
-        std::uint32_t index_count{ 0 };
+        static void execute(TerrainComputeRuntime& runtime);
     };
 
-    void create_chunk_border_mesh();
-    void prepare_dispatchers(std::uint32_t seed);
-    bool create_chunk_mesh(const glm::uvec3& chunk_coord);
-
-    std::size_t cell_count();
-    std::size_t max_index_count();
-
-    void append_face(
-        std::vector<Vertex>&        vertices,
-        std::vector<std::uint32_t>& indices,
-        const glm::vec3&            a,
-        const glm::vec3&            b,
-        const glm::vec3&            c,
-        const glm::vec3&            d,
-        const glm::vec3&            normal);
-
-    void append_box(
-        std::vector<Vertex>&        vertices,
-        std::vector<std::uint32_t>& indices,
-        const glm::vec3&            min,
-        const glm::vec3&            max);
-
-    ComputeDispatcher density_dispatcher_{ "game/terrain_density_tex_gen" };
-    ComputeDispatcher vertex_dispatcher_{ "game/surface_nets_vertices" };
-    ComputeDispatcher index_dispatcher_{ "game/surface_nets_indices" };
-
-    Buffer vertices_buf_{ cell_count() * sizeof(Vertex), BufferUsage::Storage };
-    Buffer indices_buf_{ max_index_count() * sizeof(std::uint32_t), BufferUsage::Storage };
-    Buffer cell_vertex_indices_buf_{ cell_count() * sizeof(std::int32_t), BufferUsage::Storage };
-    Buffer counters_buf_{ sizeof(SurfaceNetsCounters), BufferUsage::Storage };
+    struct Destroy : DestroyStage<Destroy, With<TerrainComputeRuntime>>
+    {
+        static SystemStageConfig config() { return { .include_disabled = true }; }
+        static void execute(TerrainComputeRuntime& runtime);
+    };
 };

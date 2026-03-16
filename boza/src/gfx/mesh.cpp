@@ -44,7 +44,8 @@ namespace boza
         : name_{ std::move(other.name_) },
           vertices_{ std::move(other.vertices_) },
           indices_{ std::move(other.indices_) },
-          bounds_{ other.bounds_ } {}
+          bounds_{ other.bounds_ },
+          revision_{ std::exchange(other.revision_, 1) } {}
 
     Mesh& Mesh::operator=(Mesh&& other) noexcept
     {
@@ -54,6 +55,7 @@ namespace boza
         vertices_ = std::move(other.vertices_);
         indices_ = std::move(other.indices_);
         bounds_ = std::exchange(other.bounds_, {});
+        revision_ = std::exchange(other.revision_, 1);
 
         return *this;
     }
@@ -82,6 +84,23 @@ namespace boza
         it->second.recalculate_bounds();
         valid_pointers_.insert(&it->second);
         return it->second;
+    }
+
+    Mesh& Mesh::replace(
+        const std::string_view name,
+        std::vector<Vertex>    vertices,
+        std::vector<std::uint32_t> indices)
+    {
+        if (auto* mesh = try_get(name))
+        {
+            mesh->vertices_ = std::move(vertices);
+            mesh->indices_ = std::move(indices);
+            mesh->recalculate_bounds();
+            ++mesh->revision_;
+            return *mesh;
+        }
+
+        return create(name, std::move(vertices), std::move(indices));
     }
 
 

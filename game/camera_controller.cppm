@@ -74,11 +74,12 @@ struct CameraControllerSystem
             {
                 if (App::cursor_state != CursorState::HiddenLocked) return;
 
-                CameraController& cc = go.get_component<CameraController>();
+                auto* cc = go.try_get_component<CameraController>();
+                if (!cc) return;
 
-                cc.target_yaw   += delta.x * cc.sensitivity;
-                cc.target_pitch = glm::clamp(
-                    cc.target_pitch + delta.y * cc.sensitivity,
+                cc->target_yaw   += delta.x * cc->sensitivity;
+                cc->target_pitch = glm::clamp(
+                    cc->target_pitch + delta.y * cc->sensitivity,
                     glm::radians(-89.0f),
                     glm::radians(89.0f)
                 );

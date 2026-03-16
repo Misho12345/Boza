@@ -1,0 +1,33 @@
+#version 450
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
+
+layout(set = 0, binding = 0, r8) uniform image3D terrain_density_tex;
+
+layout(push_constant) uniform PC
+{
+    vec3  center;
+    float radius;
+    uint  add_material;
+} pc;
+
+void main()
+{
+    ivec3 gid = ivec3(gl_GlobalInvocationID.xyz);
+    ivec3 size = imageSize(terrain_density_tex);
+    if (any(greaterThanEqual(gid, size))) return;
+
+    const float effective_radius = max(pc.radius, 1e-4);
+
+    const float distance_to_center = distance(vec3(gid), pc.center);
+    if (distance_to_center > effective_radius) return;
+
+    const float falloff = 1.0 - smoothstep(0.0, effective_radius, distance_to_center);
+    const float blend_strength = clamp(falloff * 1.35, 0.0, 1.0);
+    const float target_density = (pc.add_material != 0u) ? 1.0 : 0.0;
+
+    const float current_density = imageLoad(terrain_density_tex, gid).r;
+    const float updated_density = mix(current_density, target_density, blend_strength);
+
+    imageStore(terrain_density_tex, gid, vec4(updated_density, 0.0, 0.0, 0.0));
+}

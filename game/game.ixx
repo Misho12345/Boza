@@ -1,31 +1,32 @@
 export module game;
 
+import std;
 import boza;
 using namespace boza;
 
 import :config;
 import :terrain_generation;
 import :camera_controller;
+import :terrain_editing;
 
 export class Game : public App
 {
 protected:
     void setup() override
     {
-        TerrainGenerator terrain_generator{};
-        const bool terrain_ready = terrain_generator.create_terrain_meshes();
         create_materials();
 
         Scene::main = Scene::create("Game");
 
         setup_camera();
-        if (terrain_ready) setup_terrain();
+        setup_terrain();
+        setup_terrain_editor(terrain_world_);
         setup_input();
     }
 
     static void setup_camera()
     {
-        const glm::vec3 terrain_size = world_extent();
+        const glm::vec3 terrain_size = world_extent;
 
         GameObject camera_obj = GameObject::create("MainCamera");
 
@@ -74,13 +75,20 @@ protected:
         chunk_border["albedo_map"] = Texture::get_or_load("default.png");
         chunk_border["material.albedo_color"] = glm::vec4{ 0.95f, 0.12f, 0.12f, 1.0f };
         chunk_border["material.properties"] = glm::vec4{ 0.0f, 1.0f, 0.0f, 0.0f };
-        chunk_border.set_cpu_cull_enabled(false);
     }
 
-    static void setup_terrain()
+    void setup_terrain()
     {
+        ensure_chunk_border_mesh();
+
+        std::vector<GameObject> chunk_objects;
+        chunk_objects.reserve(
+            static_cast<std::size_t>(chunk_counts.x) *
+            static_cast<std::size_t>(chunk_counts.y) *
+            static_cast<std::size_t>(chunk_counts.z));
+
         terrain_world_ = GameObject::create("TerrainWorld");
-        terrain_world_.get_component<Transform>().local_position = -world_extent() * 0.5f;
+        terrain_world_.get_component<Transform>().local_position = -world_extent * 0.5f;
 
         const GameObject terrain_chunks_root = GameObject::create("TerrainChunks", terrain_world_);
         chunk_borders_root_ = GameObject::create("ChunkBorders", terrain_world_, chunk_borders_visible_);
@@ -101,18 +109,20 @@ protected:
                     border_renderer.mesh_name = chunk_border_mesh_name;
                     border_renderer.material_name = chunk_border_material_name;
 
-                    const std::string mesh_name = terrain_chunk_mesh_name(chunk_coord);
-                    if (!Mesh::exists(mesh_name)) continue;
-
                     GameObject chunk = GameObject::create(terrain_chunk_object_name(chunk_coord), terrain_chunks_root);
                     chunk.get_component<Transform>().local_position = origin;
 
-                    auto& renderer = chunk.add_component<MeshRenderer>();
-                    renderer.mesh_name = mesh_name;
-                    renderer.material_name = terrain_material_name;
+                    auto& chunk_renderer = chunk.add_component<MeshRenderer>();
+                    chunk_renderer.mesh_name = std::string_view{};
+                    chunk_renderer.material_name = terrain_material_name;
+
+                    chunk.active_self = false;
+                    chunk_objects.push_back(chunk);
                 }
             }
         }
+
+        initialize_terrain_runtime(terrain_world_, std::move(chunk_objects));
     }
 
     static void setup_input()

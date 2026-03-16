@@ -32,6 +32,7 @@ namespace boza
         Buffer vertex_buffer;
         Buffer index_buffer;
         std::uint32_t index_count;
+        std::uint64_t mesh_revision{ 0 };
     };
 
     struct RenderElement

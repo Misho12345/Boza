@@ -148,6 +148,8 @@ export namespace boza::rhi
             std::uint32_t   size,
             const void*     data) = 0;
 
+        virtual void compute_memory_barrier() = 0;
+
         virtual void image_barrier(
             Texture*      texture,
             ResourceState old_state,

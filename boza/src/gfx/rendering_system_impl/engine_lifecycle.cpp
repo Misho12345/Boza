@@ -201,6 +201,7 @@ namespace boza
 
         const std::size_t vertex_buffer_size = mesh->vertices->size() * sizeof(Vertex);
         const std::size_t index_buffer_size = mesh->indices->size() * sizeof(std::uint32_t);
+        const auto mesh_revision = mesh->revision();
 
         if (vertex_buffer_size == 0 || index_buffer_size == 0)
         {
@@ -209,7 +210,36 @@ namespace boza
         }
 
         if (const auto hit = gpu_meshes_.find(mesh); hit != gpu_meshes_.end())
-            return &hit->second;
+        {
+            GpuMesh& gpu_mesh = hit->second;
+
+            const bool up_to_date =
+                gpu_mesh.mesh_revision == mesh_revision &&
+                gpu_mesh.vertex_buffer.size == vertex_buffer_size &&
+                gpu_mesh.index_buffer.size == index_buffer_size &&
+                gpu_mesh.index_count == static_cast<std::uint32_t>(mesh->indices->size());
+
+            if (up_to_date) return &gpu_mesh;
+
+            gpu_mesh = GpuMesh{
+                .vertex_buffer = {
+                    vertex_buffer_size,
+                    BufferUsage::Vertex,
+                    ResourceAccessMode::Static
+                },
+                .index_buffer = {
+                    index_buffer_size,
+                    BufferUsage::Index,
+                    ResourceAccessMode::Static
+                },
+                .index_count = static_cast<std::uint32_t>(mesh->indices->size()),
+                .mesh_revision = mesh_revision
+            };
+
+            gpu_mesh.vertex_buffer.upload(mesh->vertices->data(), vertex_buffer_size, 0);
+            gpu_mesh.index_buffer.upload(mesh->indices->data(), index_buffer_size, 0);
+            return &gpu_mesh;
+        }
 
         auto [it, inserted] = gpu_meshes_.try_emplace(
             mesh,
@@ -224,7 +254,8 @@ namespace boza
                     BufferUsage::Index,
                     ResourceAccessMode::Static
                 },
-                .index_count = static_cast<std::uint32_t>(mesh->indices->size())
+                .index_count = static_cast<std::uint32_t>(mesh->indices->size()),
+                .mesh_revision = mesh_revision
             }
         );
 
