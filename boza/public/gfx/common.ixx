@@ -1,4 +1,8 @@
-export module boza.gfx:common;
+module;
+
+#include "api.hpp"
+
+export module boza.gfx.common;
 
 import std;
 import boza.common;
@@ -33,6 +37,144 @@ namespace boza
         Sampler1D, Sampler2D, Sampler3D,
         Sampler1DArray, Sampler2DArray,
         SamplerCube, SamplerCubeArray
+    };
+
+    export enum class BufferUsage : std::uint8_t
+    {
+        Vertex,
+        Index,
+        Uniform,
+        Storage,
+        Staging
+    };
+
+    export enum class CompareOp : std::uint8_t
+    {
+        Never,
+        Less,
+        Equal,
+        LessOrEqual,
+        Greater,
+        NotEqual,
+        GreaterOrEqual,
+        Always
+    };
+
+    export enum class CullMode : std::uint8_t
+    {
+        None,
+        Front,
+        Back,
+        FrontAndBack
+    };
+
+    export enum class FrontFace : std::uint8_t
+    {
+        CounterClockwise,
+        Clockwise
+    };
+
+    export struct Vertex final
+    {
+        glm::vec3 position;
+        glm::vec3 normal;
+        glm::vec2 tex_coord;
+    };
+
+    export struct BindingInfo
+    {
+        std::uint32_t set{ 0 };
+        std::uint32_t binding{ 0 };
+        std::uint32_t offset{ 0 };
+        std::uint32_t size{ 0 };
+        std::uint32_t descriptor_type{ 0 };
+        std::uint32_t data_type{ 0 };
+        bool          is_push_constant{ false };
+    };
+
+    export enum class TextureLayout : std::uint8_t
+    {
+        Undefined,
+        General,
+        ColorAttachment,
+        DepthStencilAttachment,
+        ShaderReadOnly,
+        TransferSrc,
+        TransferDst,
+        Present
+    };
+
+    export enum class TextureFormat : std::uint8_t
+    {
+        R8,
+        RG8,
+        RGB8,
+        RGBA8,
+        BGRA8,
+        R16F,
+        RG16F,
+        RGB16F,
+        RGBA16F,
+        R32F,
+        RG32F,
+        RGB32F,
+        RGBA32F,
+        DEPTH24STENCIL8,
+        DEPTH32F
+    };
+
+    export enum class TextureUsage
+    {
+        Sampled                = 1 << 0,
+        Storage                = 1 << 1,
+        ColorAttachment        = 1 << 2,
+        DepthStencilAttachment = 1 << 3,
+        TransferSrc            = 1 << 4,
+        TransferDst            = 1 << 5,
+        InputAttachment        = 1 << 6
+    };
+
+    export constexpr BOZA_API Flags<TextureUsage> operator|(const TextureUsage left, const TextureUsage right) noexcept
+    {
+        return Flags(left) | Flags(right);
+    }
+
+    export constexpr BOZA_API Flags<TextureUsage> operator&(const TextureUsage left, const TextureUsage right) noexcept
+    {
+        return Flags(left) & Flags(right);
+    }
+
+    export constexpr BOZA_API Flags<TextureUsage> operator^(const TextureUsage left, const TextureUsage right) noexcept
+    {
+        return Flags(left) ^ Flags(right);
+    }
+
+    export constexpr BOZA_API Flags<TextureUsage> operator~(const TextureUsage value) noexcept { return ~Flags(value); }
+
+    export enum class TextureType : std::uint8_t
+    {
+        Texture1D,
+        Texture2D,
+        Texture3D,
+        TextureCube,
+        Texture1DArray,
+        Texture2DArray,
+        TextureCubeArray,
+    };
+
+    export enum class SamplerFilter : std::uint8_t
+    {
+        Nearest,
+        Linear,
+        Anisotropic
+    };
+
+    export enum class SamplerWrap : std::uint8_t
+    {
+        Repeat,
+        ClampToEdge,
+        ClampToBorder,
+        Mirror
     };
 
     template<typename T>

@@ -7,7 +7,7 @@ export module boza.gfx:compute_dispatcher;
 import std;
 import boza.common;
 import boza.core;
-import :common;
+import boza.gfx.common;
 
 export namespace boza
 {
@@ -151,7 +151,6 @@ export namespace boza
 
         [[nodiscard]] ComputeDispatchStatus status() const;
         [[nodiscard]] bool working() const { return status() == ComputeDispatchStatus::Running; }
-        [[nodiscard]] bool pending() const { return working(); }
         [[nodiscard]] bool finished() const { return status() == ComputeDispatchStatus::Finished; }
         [[nodiscard]] bool failed() const { return status() == ComputeDispatchStatus::Failed; }
 

@@ -26,7 +26,7 @@ endif ()
 
 # === Compile Shaders ===
 set(shader_outputs "")
-set(shader_out_base ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders)
+set(shader_out_base ${CMAKE_BINARY_DIR}/shaders)
 
 foreach (shader_path ${SHADER_FILES})
     get_filename_component(shader_name ${shader_path} NAME)

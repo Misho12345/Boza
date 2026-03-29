@@ -4,10 +4,9 @@ module;
 
 export module boza.gfx:buffer;
 
-import :common;
-
 import std;
 import boza.common;
+import boza.gfx.common;
 
 namespace boza
 {
@@ -24,15 +23,6 @@ export namespace boza
 {
     class Material;
     class Texture;
-
-    enum class BufferUsage : std::uint8_t
-    {
-        Vertex,
-        Index,
-        Uniform,
-        Storage,
-        Staging
-    };
 
     class BOZA_API Buffer final
     {

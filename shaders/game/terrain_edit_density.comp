@@ -2,32 +2,45 @@
 
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 8) in;
 
-layout(set = 0, binding = 0, r8) uniform image3D terrain_density_tex;
+layout(set = 0, binding = 0, r8) uniform image3D terrain_density;
+
+struct EditEvent
+{
+    vec4 center_radius;
+    uvec4 flags;
+};
+
+layout(set = 0, binding = 1, std430) readonly buffer TerrainEdits
+{
+    EditEvent data[];
+} edits;
 
 layout(push_constant) uniform PC
 {
-    vec3  center;
-    float radius;
-    uint  add_material;
+    uint edit_count;
 } pc;
 
 void main()
 {
-    ivec3 gid = ivec3(gl_GlobalInvocationID.xyz);
-    ivec3 size = imageSize(terrain_density_tex);
+    const ivec3 gid = ivec3(gl_GlobalInvocationID.xyz);
+    const ivec3 size = imageSize(terrain_density);
     if (any(greaterThanEqual(gid, size))) return;
 
-    const float effective_radius = max(pc.radius, 1e-4);
+    float density = imageLoad(terrain_density, gid).r;
 
-    const float distance_to_center = distance(vec3(gid), pc.center);
-    if (distance_to_center > effective_radius) return;
+    for (uint index = 0u; index < pc.edit_count; ++index)
+    {
+        const EditEvent edit = edits.data[index];
+        const float effective_radius = max(edit.center_radius.w, 1e-4);
+        const float distance_to_center = distance(vec3(gid), edit.center_radius.xyz);
+        if (distance_to_center > effective_radius) continue;
 
-    const float falloff = 1.0 - smoothstep(0.0, effective_radius, distance_to_center);
-    const float blend_strength = clamp(falloff * 1.35, 0.0, 1.0);
-    const float target_density = (pc.add_material != 0u) ? 1.0 : 0.0;
+        const float falloff = 1.0 - smoothstep(0.0, effective_radius, distance_to_center);
+        const float blend_strength = clamp(falloff * 1.35, 0.0, 1.0);
+        const float target_density = (edit.flags.x != 0u) ? 1.0 : 0.0;
 
-    const float current_density = imageLoad(terrain_density_tex, gid).r;
-    const float updated_density = mix(current_density, target_density, blend_strength);
+        density = mix(density, target_density, blend_strength);
+    }
 
-    imageStore(terrain_density_tex, gid, vec4(updated_density, 0.0, 0.0, 0.0));
+    imageStore(terrain_density, gid, vec4(clamp(density, 0.0, 1.0), 0.0, 0.0, 0.0));
 }

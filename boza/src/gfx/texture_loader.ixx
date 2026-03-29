@@ -4,6 +4,7 @@ import std;
 import boza.common;
 import boza.core;
 import boza.gfx;
+import boza.gfx.common;
 import boza.gfx.resource_registry;
 
 export namespace boza::gfx

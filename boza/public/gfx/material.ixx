@@ -6,7 +6,7 @@ export module boza.gfx:material;
 
 import std;
 import boza.common;
-import :common;
+import boza.gfx.common;
 
 namespace boza::gfx
 {
@@ -29,36 +29,9 @@ namespace boza
 
 export namespace boza
 {
-    class Material;
     class Texture;
     class Buffer;
     class Sampler;
-
-    enum class CompareOp : std::uint8_t
-    {
-        Never,
-        Less,
-        Equal,
-        LessOrEqual,
-        Greater,
-        NotEqual,
-        GreaterOrEqual,
-        Always
-    };
-
-    enum class CullMode : std::uint8_t
-    {
-        None,
-        Front,
-        Back,
-        FrontAndBack
-    };
-
-    enum class FrontFace : std::uint8_t
-    {
-        CounterClockwise,
-        Clockwise
-    };
 
     struct MaterialSettings
     {
@@ -85,17 +58,6 @@ export namespace boza
             h ^= std::hash<std::uint8_t>{}(static_cast<std::uint8_t>(front_face)) << 14;
             return h;
         }
-    };
-
-    struct BindingInfo
-    {
-        std::uint32_t set{ 0 };
-        std::uint32_t binding{ 0 };
-        std::uint32_t offset{ 0 };
-        std::uint32_t size{ 0 };
-        std::uint32_t descriptor_type{ 0 };
-        std::uint32_t data_type{ 0 };
-        bool          is_push_constant{ false };
     };
 
     class BOZA_API PropertyBinder

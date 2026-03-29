@@ -3,15 +3,10 @@ export module boza.gfx:mesh;
 import std;
 import boza.common;
 
+import boza.gfx.common;
+
 export namespace boza
 {
-    struct Vertex final
-    {
-        glm::vec3 position;
-        glm::vec3 normal;
-        glm::vec2 tex_coord;
-    };
-
     struct BoundingSphere final
     {
         glm::vec3 center{ 0.0f };

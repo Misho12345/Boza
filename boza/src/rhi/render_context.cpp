@@ -1,7 +1,7 @@
 module boza.rhi.render_context;
 
 import boza.core;
-import boza.gfx;
+import boza.gfx.common;
 
 namespace boza::rhi
 {

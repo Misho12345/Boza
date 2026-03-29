@@ -2,7 +2,7 @@ export module boza.rhi:type_utils;
 
 import std;
 import boza.common;
-import boza.gfx;
+import boza.gfx.common;
 import boza.rhi.objects;
 
 export namespace boza::rhi

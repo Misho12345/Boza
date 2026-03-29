@@ -8,7 +8,7 @@ layout(set = 0, binding = 0, std430) writeonly buffer IndicesBuf
     uint i[];
 } indices;
 
-layout(set = 0, binding = 1, r8) uniform readonly image3D terrain_density_tex;
+layout(set = 0, binding = 1, r8) uniform readonly image3D terrain_density;
 
 layout(set = 0, binding = 2, std430) readonly buffer CellVertexIndexBuf
 {
@@ -41,7 +41,7 @@ ivec3 to_tex(in ivec3 p)
 
 float sample_density(in ivec3 p)
 {
-    return imageLoad(terrain_density_tex, to_tex(p)).r;
+    return imageLoad(terrain_density, to_tex(p)).r;
 }
 
 bool valid_cell(in ivec3 c, in ivec3 cell_dims)

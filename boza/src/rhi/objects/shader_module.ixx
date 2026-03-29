@@ -2,7 +2,7 @@ export module boza.rhi.objects:shader_module;
 
 import std;
 import boza.common;
-import boza.gfx;
+import boza.gfx.common;
 import boza.core;
 import :graphics_object;
 

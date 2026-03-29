@@ -3,7 +3,7 @@ export module boza.rhi:pipeline_builder;
 import std;
 import boza.rhi.api;
 import boza.rhi.objects;
-import boza.gfx;
+import boza.gfx.common;
 import boza.common;
 
 export namespace boza::rhi

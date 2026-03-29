@@ -1,7 +1,7 @@
 export module boza.rhi.vulkan:util;
 
 import <vk_all>;
-import boza.gfx;
+import boza.gfx.common;
 import boza.core;
 import :resources;
 import :vk_macro_wrap;

@@ -6,6 +6,7 @@ export module boza.gfx:sampler;
 
 import std;
 import boza.common;
+import boza.gfx.common;
 
 namespace boza::gfx
 {
@@ -14,21 +15,6 @@ namespace boza::gfx
 
 export namespace boza
 {
-    enum class SamplerFilter : std::uint8_t
-    {
-        Nearest,
-        Linear,
-        Anisotropic
-    };
-
-    enum class SamplerWrap : std::uint8_t
-    {
-        Repeat,
-        ClampToEdge,
-        ClampToBorder,
-        Mirror
-    };
-
     class BOZA_API Sampler final
     {
         [[nodiscard]] SamplerFilter get_filter() const { return filter_; }

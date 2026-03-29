@@ -6,7 +6,7 @@ export module boza.gfx:texture;
 
 import std;
 import boza.common;
-import :common;
+import boza.gfx.common;
 import :buffer;
 
 namespace boza::gfx
@@ -17,76 +17,6 @@ namespace boza::gfx
 export namespace boza
 {
     class Material;
-
-    enum class TextureLayout : std::uint8_t
-    {
-        Undefined,
-        General,
-        ColorAttachment,
-        DepthStencilAttachment,
-        ShaderReadOnly,
-        TransferSrc,
-        TransferDst,
-        Present
-    };
-
-    enum class TextureFormat : std::uint8_t
-    {
-        R8,
-        RG8,
-        RGB8,
-        RGBA8,
-        BGRA8,
-        R16F,
-        RG16F,
-        RGB16F,
-        RGBA16F,
-        R32F,
-        RG32F,
-        RGB32F,
-        RGBA32F,
-        DEPTH24STENCIL8,
-        DEPTH32F
-    };
-
-    enum class TextureUsage
-    {
-        Sampled                = 1 << 0,
-        Storage                = 1 << 1,
-        ColorAttachment        = 1 << 2,
-        DepthStencilAttachment = 1 << 3,
-        TransferSrc            = 1 << 4,
-        TransferDst            = 1 << 5,
-        InputAttachment        = 1 << 6
-    };
-
-    constexpr BOZA_API Flags<TextureUsage> operator|(const TextureUsage left, const TextureUsage right) noexcept
-    {
-        return Flags(left) | Flags(right);
-    }
-
-    constexpr BOZA_API Flags<TextureUsage> operator&(const TextureUsage left, const TextureUsage right) noexcept
-    {
-        return Flags(left) & Flags(right);
-    }
-
-    constexpr BOZA_API Flags<TextureUsage> operator^(const TextureUsage left, const TextureUsage right) noexcept
-    {
-        return Flags(left) ^ Flags(right);
-    }
-
-    constexpr BOZA_API Flags<TextureUsage> operator~(const TextureUsage value) noexcept { return ~Flags(value); }
-
-    enum class TextureType : std::uint8_t
-    {
-        Texture1D,
-        Texture2D,
-        Texture3D,
-        TextureCube,
-        Texture1DArray,
-        Texture2DArray,
-        TextureCubeArray,
-    };
 
     struct TextureSettings final
     {
