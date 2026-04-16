@@ -96,9 +96,9 @@ namespace boza::rhi::vk
             .pNext = nullptr,
             .flags = flags,
             .pApplicationInfo = &app_info,
-            .enabledLayerCount = static_cast<uint32_t>(layers.size()),
+            .enabledLayerCount = static_cast<std::uint32_t>(layers.size()),
             .ppEnabledLayerNames = layers.data(),
-            .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
+            .enabledExtensionCount = static_cast<std::uint32_t>(extensions.size()),
             .ppEnabledExtensionNames = extensions.data()
         };
 
@@ -111,7 +111,7 @@ namespace boza::rhi::vk
         const std::span<const char*> extensions,
         const std::span<const char*> layers)
     {
-        uint32_t extension_count = 0;
+        std::uint32_t extension_count = 0;
         if (!vk_check(
             vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr),
             "Failed to enumerate extension properties"))
@@ -147,7 +147,7 @@ namespace boza::rhi::vk
             }
         }
 
-        uint32_t layer_count = 0;
+        std::uint32_t layer_count = 0;
 
         if (!vk_check(
             vkEnumerateInstanceLayerProperties(&layer_count, nullptr),

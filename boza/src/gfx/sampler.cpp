@@ -66,7 +66,7 @@ namespace boza
     Sampler::~Sampler() = default;
 
     Sampler::Sampler(Sampler&& other) noexcept
-        :    name_{ std::move(other.name_) },
+        : name_{ std::move(other.name_) },
           filter_{ other.filter_ },
           wrap_u_{ other.wrap_u_ },
           wrap_v_{ other.wrap_v_ },
@@ -104,18 +104,27 @@ namespace boza
 
     Sampler& Sampler::create(
         const std::string_view name,
-        const SamplerFilter filter,
-        const SamplerWrap wrap_u,
-        const SamplerWrap wrap_v,
-        const SamplerWrap wrap_w,
+        const SamplerFilter    filter,
+        const SamplerWrap      wrap_u,
+        const SamplerWrap      wrap_v,
+        const SamplerWrap      wrap_w,
         const SamplerFilter mipmap_mode,
-        const float mip_lod_bias,
-        const float min_lod,
-        const float max_lod,
-        const float max_anisotropy)
+        const float         mip_lod_bias,
+        const float         min_lod,
+        const float         max_lod,
+        const float         max_anisotropy)
     {
         return gfx::SamplerLoader::instance().create(
-            name, filter, wrap_u, wrap_v, wrap_w, mipmap_mode, mip_lod_bias, min_lod, max_lod, max_anisotropy);
+            name,
+            filter,
+            wrap_u,
+            wrap_v,
+            wrap_w,
+            mipmap_mode,
+            mip_lod_bias,
+            min_lod,
+            max_lod,
+            max_anisotropy);
     }
 
     Sampler& Sampler::get(const std::string_view name) { return gfx::SamplerLoader::instance().get_sampler(name); }

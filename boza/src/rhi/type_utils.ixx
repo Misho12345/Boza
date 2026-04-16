@@ -7,7 +7,7 @@ import boza.rhi.objects;
 
 export namespace boza::rhi
 {
-    template<typename T>
+    template <typename T>
     constexpr ShaderDataType get_expected_shader_type()
     {
         return boza::get_shader_data_type<T>();
@@ -122,17 +122,17 @@ export namespace boza::rhi
         const ShaderDataType actual_type,
         const std::size_t actual_size)
     {
-        return provided_size == actual_size && (
-                provided_type == actual_type ||
-                provided_type == ShaderDataType::Unknown);
+        return provided_size == actual_size &&
+            (provided_type == actual_type ||
+             provided_type == ShaderDataType::Unknown);
     }
 
     std::string format_type_mismatch_error(
         const std::string& property_name,
         const ShaderDataType provided_type,
-        std::size_t          provided_size,
+        std::size_t provided_size,
         const ShaderDataType shader_type,
-        std::size_t          shader_size)
+        std::size_t shader_size)
     {
         return std::format(
             "Property '{}' type mismatch: provided {} (size {}), shader expects {} (size {})",
@@ -144,4 +144,3 @@ export namespace boza::rhi
         );
     }
 }
-

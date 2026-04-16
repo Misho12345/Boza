@@ -33,10 +33,10 @@ export namespace boza::rhi
 
     struct DescriptorSetLayoutBinding
     {
-        std::uint32_t      binding;
-        DescriptorType     type;
+        std::uint32_t binding;
+        DescriptorType type;
         Flags<ShaderStage> stages;
-        std::uint32_t      count;
+        std::uint32_t count;
     };
 
     struct DescriptorSetLayoutDesc
@@ -58,7 +58,7 @@ export namespace boza::rhi
     struct DescriptorPoolSize
     {
         DescriptorType type;
-        std::uint32_t  count;
+        std::uint32_t count;
     };
 
     struct DescriptorPoolDesc
@@ -101,7 +101,6 @@ export namespace boza::rhi
         std::uint64_t current_generation_{ 0 };
     };
 
-
     /// --------------------------
     /// ===== Descriptor Set =====
     /// --------------------------
@@ -135,8 +134,8 @@ export namespace boza::rhi
 
     struct DescriptorWrite
     {
-        std::uint32_t  binding;
-        std::uint32_t  array_element;
+        std::uint32_t binding;
+        std::uint32_t array_element;
         DescriptorType type;
         DescriptorInfo info;
     };

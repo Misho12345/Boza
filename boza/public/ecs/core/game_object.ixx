@@ -45,12 +45,17 @@ export namespace boza
         [[nodiscard]]
         std::vector<GameObject> children() const;
 
+        template <typename C, typename... Args>
+        C& add_component(Args&&... args);
 
-        template <typename C, typename... Args> C& add_component(Args&&... args);
-        template <typename C, typename... Args> C& ensure_component(Args&&... args);
+        template <typename C, typename... Args>
+        C& ensure_component(Args&&... args);
 
-        template <typename C> [[nodiscard]] decltype(auto) get_component(this auto&& self);
-        template <typename C> [[nodiscard]] auto try_get_component(this auto&& self);
+        template <typename C>
+        [[nodiscard]] decltype(auto) get_component(this auto&& self);
+
+        template <typename C>
+        [[nodiscard]] auto try_get_component(this auto&& self);
 
         template <typename C>
         [[nodiscard]] bool has_component() const;
@@ -58,12 +63,17 @@ export namespace boza
         template <typename C>
         void remove_component() const;
 
+        template <typename R, typename... Args>
+        R& add_relation(const GameObject& target, Args&&... args);
 
-        template <typename R, typename... Args> R& add_relation(const GameObject& target, Args&&... args);
-        template <typename R, typename... Args> R& ensure_relation(const GameObject& target, Args&&... args);
+        template <typename R, typename... Args>
+        R& ensure_relation(const GameObject& target, Args&&... args);
 
-        template <typename R> [[nodiscard]] decltype(auto) get_relation_data(this auto&& self, const GameObject& target);
-        template <typename R> [[nodiscard]] auto try_get_relation_data(this auto&& self, const GameObject& target);
+        template <typename R>
+        [[nodiscard]] decltype(auto) get_relation_data(this auto&& self, const GameObject& target);
+
+        template <typename R>
+        [[nodiscard]] auto try_get_relation_data(this auto&& self, const GameObject& target);
 
         template <typename R>
         [[nodiscard]] bool has_relation(const GameObject& target) const;
@@ -87,7 +97,6 @@ export namespace boza
                 std::invocable<decltype(callback)&, GameObject, const R&>);
 
         void for_each_child(auto&& callback) const requires std::invocable<decltype(callback)&, GameObject>;
-
 
         [[msvc::no_unique_address]]
         Property<
@@ -164,16 +173,18 @@ export namespace boza
     template <typename C, typename... Args>
     C& GameObject::ensure_component(Args&&... args)
     {
-        if constexpr (std::is_empty_v<C>) {
+        if constexpr (std::is_empty_v<C>)
+        {
             if (!entity_.has<C>()) entity_.add<C>();
             static C empty_tag;
             return empty_tag;
-        } else {
+        }
+        else
+        {
             if (C* comp = try_get_component<C>()) return *comp;
             return add_component<C>(std::forward<Args>(args)...);
         }
     }
-
 
     template <typename C>
     decltype(auto) GameObject::get_component(this auto&& self)
@@ -191,25 +202,24 @@ export namespace boza
         else return self.entity_.template try_get_mut<C>();
     }
 
+    template <typename C>
+    bool GameObject::has_component() const { return entity_.has<C>(); }
 
-    template <typename C> bool GameObject::has_component() const { return entity_.has<C>(); }
-    template <typename C> void GameObject::remove_component() const { (void)entity_.remove<C>(); }
+    template <typename C>
+    void GameObject::remove_component() const { (void)entity_.remove<C>(); }
 
-
-
-    template <typename R, typename ... Args>
+    template <typename R, typename... Args>
     R& GameObject::add_relation(const GameObject& target, Args&&... args)
     {
         return entity_.emplace<R>(target.entity_, std::forward<Args>(args)...);
     }
 
-    template <typename R, typename ... Args>
+    template <typename R, typename... Args>
     R& GameObject::ensure_relation(const GameObject& target, Args&&... args)
     {
         if (R* rel = try_get_relation_data<R>(target)) return *rel;
         return add_relation<R>(target, std::forward<Args>(args)...);
     }
-
 
     template <typename R>
     decltype(auto) GameObject::get_relation_data(this auto&& self, const GameObject& target)
@@ -227,18 +237,14 @@ export namespace boza
         else return self.entity_.template try_get_mut<R>(target.entity_);
     }
 
-
     template <typename R>
     bool GameObject::has_relation(const GameObject& target) const { return entity_.has<R>(target.entity_); }
 
     template <typename R>
     void GameObject::remove_relation(const GameObject& target) const { (void)entity_.remove<R>(target.entity_); }
 
-
     template <typename R>
     GameObject GameObject::get_relation_target() const { return GameObject{ entity_.target<R>() }; }
-
-
 
     template <typename R>
     void GameObject::for_each_with_relation(auto&& callback) const requires
@@ -257,7 +263,6 @@ export namespace boza
     {
         entity_.each<R>([&callback](const flecs::entity target, R& r) { std::invoke(callback, GameObject{ target }, r); });
     }
-
 
     void GameObject::for_each_child(auto&& callback) const requires std::invocable<decltype(callback)&, GameObject>
     {

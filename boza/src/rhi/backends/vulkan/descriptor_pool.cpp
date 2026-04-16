@@ -23,7 +23,7 @@ namespace boza::rhi::vk
             .pNext = nullptr,
             .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
             .maxSets = desc_.max_sets,
-            .poolSizeCount = static_cast<uint32_t>(pool_sizes.size()),
+            .poolSizeCount = static_cast<std::uint32_t>(pool_sizes.size()),
             .pPoolSizes = pool_sizes.data()
         };
 
@@ -47,7 +47,7 @@ namespace boza::rhi::vk
     }
 
     std::vector<rhi::DescriptorSet*> DescriptorPool::allocate_descriptor_sets(
-        const uint32_t                             count,
+        const std::uint32_t                        count,
         const std::span<rhi::DescriptorSetLayout*> layouts)
     {
         // Log::trace("Allocating {} descriptor set(s)", count);
@@ -67,7 +67,7 @@ namespace boza::rhi::vk
 
         std::vector<VkDescriptorSetLayout> vk_layouts;
         vk_layouts.reserve(layouts.size());
-        for(const auto& layout : layouts)
+        for (const auto& layout : layouts)
         {
             if (!layout)
             {
@@ -96,7 +96,7 @@ namespace boza::rhi::vk
         std::vector<rhi::DescriptorSet*> result;
         result.reserve(count);
 
-        for (uint32_t i = 0; i < count; ++i)
+        for (std::uint32_t i = 0; i < count; ++i)
         {
             DescriptorSetDesc set_desc{
                 .device = desc_.device,
@@ -139,7 +139,7 @@ namespace boza::rhi::vk
         const VkResult free_result = vkFreeDescriptorSets(
             vk_device,
             vk_descriptor_pool_,
-            static_cast<uint32_t>(vk_descriptor_sets.size()),
+            static_cast<std::uint32_t>(vk_descriptor_sets.size()),
             vk_descriptor_sets.data());
 
         if (!vk_check(free_result, "Failed to free descriptor sets")) return;
@@ -150,7 +150,6 @@ namespace boza::rhi::vk
             delete set;
         }
     }
-
 
     bool DescriptorPool::reset()
     {
@@ -164,7 +163,6 @@ namespace boza::rhi::vk
 
         return true;
     }
-
 
     VkDescriptorPool DescriptorPool::vk_descriptor_pool() const { return vk_descriptor_pool_; }
 }

@@ -29,7 +29,8 @@ export namespace boza
         explicit ComputeDispatcher(const std::string& shader_name);
         ~ComputeDispatcher();
 
-        template<typename T> requires requires
+        template <typename T>
+            requires requires
         {
             requires !std::same_as<std::remove_cvref_t<T>, Texture*>;
             requires !std::same_as<std::remove_cvref_t<T>, Texture>;
@@ -45,11 +46,17 @@ export namespace boza
         ComputeDispatcher& set(const std::string& name, const Texture& texture);
         ComputeDispatcher& set(const std::string& name, const Buffer& buffer);
 
-        ComputeDispatcher& dispatch(std::uint32_t width, std::uint32_t height = 1, std::uint32_t depth = 1);
+        ComputeDispatcher& dispatch(
+            std::uint32_t width,
+            std::uint32_t height = 1,
+            std::uint32_t depth = 1);
         ComputeDispatcher& dispatch(const glm::uvec2& size);
         ComputeDispatcher& dispatch(const glm::uvec3& size);
 
-        ComputeDispatcher& dispatch_groups(std::uint32_t x, std::uint32_t y = 1, std::uint32_t z = 1);
+        ComputeDispatcher& dispatch_groups(
+            std::uint32_t x,
+            std::uint32_t y = 1,
+            std::uint32_t z = 1);
         ComputeDispatcher& dispatch_groups(const glm::uvec2& groups);
         ComputeDispatcher& dispatch_groups(const glm::uvec3& groups);
 
@@ -93,7 +100,11 @@ export namespace boza
 
         void mark_set_dirty(std::uint32_t set) const;
 
-        void update_property_impl(const std::string& name, const void* data, std::size_t size, ShaderDataType type) const;
+        void update_property_impl(
+            const std::string& name,
+            const void*        data,
+            std::size_t        size,
+            ShaderDataType     type) const;
 
         friend class ComputeDispatchGroup;
     };

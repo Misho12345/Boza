@@ -6,7 +6,10 @@ import :system_common;
 
 namespace boza
 {
-    namespace app { class GameLoop; }
+    namespace app
+    {
+        class GameLoop;
+    }
 
     flecs::entity_t to_underlying_phase(Phase phase);
 
@@ -47,7 +50,7 @@ namespace boza
 
         bool initialized_{ false };
 
-        template<typename, Phase, typename...>
+        template <typename, Phase, typename...>
         friend class SystemStage;
 
         friend class app::GameLoop;

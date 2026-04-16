@@ -95,31 +95,32 @@ namespace boza
         rhi_textures_.reserve(texture_count);
 
         const bool is_cube =
-                settings_.type == TextureType::TextureCube ||
-                settings_.type == TextureType::TextureCubeArray ||
-                settings_.type == TextureType::Texture3D;
+            settings_.type == TextureType::TextureCube ||
+            settings_.type == TextureType::TextureCubeArray ||
+            settings_.type == TextureType::Texture3D;
 
         for (std::uint32_t i = 0; i < texture_count; ++i)
         {
             auto rhi_texture = create_texture(
                 rhi::RenderContext::api(), {
-                    .device = (rhi::RenderContext::device()),
-                    .type = settings_.type,
-                    .format = settings_.format,
-                    .usage = settings_.usage_flags,
-                    .width = settings_.width,
-                    .height = settings_.height,
-                    .depth = settings_.depth,
+                    .device       = rhi::RenderContext::device(),
+                    .type         = settings_.type,
+                    .format       = settings_.format,
+                    .usage        = settings_.usage_flags,
+                    .width        = settings_.width,
+                    .height       = settings_.height,
+                    .depth        = settings_.depth,
                     .array_layers = is_cube ? 1 : settings_.depth,
                 });
 
             if (!rhi_texture)
             {
                 Log::error("Failed to create texture {} of {} ({}x{}x{})",
-                           i, texture_count,
-                           settings_.width,
-                           settings_.height,
-                           settings_.depth);
+                    i,
+                    texture_count,
+                    settings_.width,
+                    settings_.height,
+                    settings_.depth);
                 cleanup();
                 return;
             }
@@ -293,8 +294,7 @@ namespace boza
     {
         if (auto* texture = static_cast<rhi::Texture*>(get_validated_texture()))
         {
-            const std::size_t data_size =
-                copy_size_for_settings(settings_);
+            const std::size_t data_size = copy_size_for_settings(settings_);
 
             std::vector<std::uint8_t> data(data_size);
             texture->read_back(data.data(), data_size, 0);
@@ -378,7 +378,6 @@ namespace boza
     {
         delete static_cast<rhi::Texture*>(handle);
     }
-
 
     void Texture::transition_layout(
         const TextureLayout old_layout,

@@ -4,7 +4,7 @@ import std;
 
 export namespace boza::rhi
 {
-    template<typename Derived, typename Desc>
+    template <typename Derived, typename Desc>
     class GraphicsObject
     {
     public:
@@ -13,8 +13,9 @@ export namespace boza::rhi
         virtual bool init() = 0;
         virtual void destroy() = 0;
 
-        template<typename Concrete>
-            requires (std::same_as<Derived, Concrete> ||
+        template <typename Concrete>
+            requires (
+                std::same_as<Derived, Concrete> ||
                 std::is_base_of_v<Derived, Concrete> && std::is_abstract_v<Derived>)
         static std::unique_ptr<Derived> create(const Desc& desc)
         {

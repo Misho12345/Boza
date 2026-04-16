@@ -15,7 +15,6 @@ namespace boza
         return buffer.rhi_handle(frame_index);
     }
 
-
     Buffer::Buffer(
         const std::size_t        buffer_size,
         const BufferUsage        usage,
@@ -55,9 +54,9 @@ namespace boza
         {
             auto rhi_buffer = create_buffer(
                 rhi::RenderContext::api(), {
-                    .device = rhi::RenderContext::device(),
-                    .size = buffer_size,
-                    .usage = usage,
+                    .device      = rhi::RenderContext::device(),
+                    .size        = buffer_size,
+                    .usage       = usage,
                     .memory_type = memory_type
                 });
 
@@ -74,8 +73,8 @@ namespace boza
 
     Buffer::Buffer(
         std::vector<RhiBufferHandle>&& rhi_buffers,
-        const std::size_t                      buffer_size,
-        const ResourceAccessMode               buffer_access_mode)
+        const std::size_t            buffer_size,
+        const ResourceAccessMode     buffer_access_mode)
         : rhi_buffers_{ std::move(rhi_buffers) },
           size_{ buffer_size },
           access_mode_{ buffer_access_mode } {}
@@ -101,9 +100,9 @@ namespace boza
     }
 
     void Buffer::upload(
-        const void*         data,
-        const std::size_t   data_size,
-        const std::size_t   offset)
+        const void*       data,
+        const std::size_t data_size,
+        const std::size_t offset)
     {
         if (auto* buffer = static_cast<rhi::Buffer*>(get_validated_buffer(offset, data_size)))
         {
@@ -128,9 +127,10 @@ namespace boza
 
         if (!dst || !src) return;
 
-        const std::size_t transfer_size = byte_size > 0
-            ? byte_size
-            : std::min(staging_buffer.size_ - src_offset, size_ - dst_offset);
+        const std::size_t transfer_size =
+            byte_size > 0
+                ? byte_size
+                : std::min(staging_buffer.size_ - src_offset, size_ - dst_offset);
 
         if (!dst->upload_from(src, transfer_size, src_offset, dst_offset))
         {
@@ -272,8 +272,8 @@ namespace boza
     }
 
     void* Buffer::get_validated_buffer(
-        const std::size_t   offset,
-        const std::size_t   data_size) const
+        const std::size_t offset,
+        const std::size_t data_size) const
     {
         if (rhi_buffers_.empty())
         {

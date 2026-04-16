@@ -25,7 +25,6 @@ export namespace boza::rhi::vk
         friend GraphicsObject;
     };
 
-
     class DescriptorPool final : public rhi::DescriptorPool
     {
     public:
@@ -35,7 +34,7 @@ export namespace boza::rhi::vk
         void destroy() override;
 
         std::vector<DescriptorSet*> allocate_descriptor_sets(
-            uint32_t                             count,
+            std::uint32_t                        count,
             std::span<rhi::DescriptorSetLayout*> layouts) override;
 
         void free_descriptor_sets(std::span<DescriptorSet*> sets) override;
@@ -50,7 +49,6 @@ export namespace boza::rhi::vk
 
         friend GraphicsObject;
     };
-
 
     class DescriptorSet final : public rhi::DescriptorSet
     {

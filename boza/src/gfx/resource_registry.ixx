@@ -7,7 +7,7 @@ import boza.gfx;
 
 export namespace boza::gfx
 {
-    template<typename T>
+    template <typename T>
     class ResourceRegistry
     {
     public:
@@ -57,7 +57,7 @@ export namespace boza::gfx
             return *resources_.at(key);
         }
 
-        template<typename U>
+        template <typename U>
         std::pair<T*, bool> try_emplace(const std::string_view key, U&& value)
         {
             std::scoped_lock lock{ mutex_ };
@@ -65,10 +65,12 @@ export namespace boza::gfx
             std::string key_str{ key };
 
             if (const auto existing = resources_.find(key_str); existing != resources_.end())
+            {
                 return { existing->second.get(), false };
+            }
 
             auto resource = std::make_unique<T>(std::forward<U>(value));
-            T* resource_ptr = resource.get();
+            T*   resource_ptr = resource.get();
 
             auto [it, inserted] = resources_.try_emplace(std::move(key_str), std::move(resource));
             if (inserted) valid_pointers_.insert(resource_ptr);

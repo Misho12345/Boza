@@ -24,7 +24,6 @@ namespace boza::gfx
         };
     }
 
-
     MaterialLoader& MaterialLoader::instance()
     {
         static MaterialLoader instance;
@@ -89,11 +88,11 @@ namespace boza::gfx
         light_ubo_.reset();
         camera_ubo_.reset();
 
-        device_ = nullptr;
-        swapchain_ = nullptr;
+        device_          = nullptr;
+        swapchain_       = nullptr;
         descriptor_pool_ = nullptr;
         resource_cache_ = nullptr;
-        api_ = {};
+        api_             = {};
 
         definitions_.clear();
     }
@@ -199,7 +198,10 @@ namespace boza::gfx
             const std::string strategy = j["load_strategy"].get<std::string>();
             if (strategy == "game_load") def.load_strategy = LoadStrategy::GameLoad;
             else if (strategy == "on_demand") def.load_strategy = LoadStrategy::OnDemand;
-            else Log::warn("Material {} has unknown load_strategy '{}', defaulting to game_load", def.name, strategy);
+            else
+            {
+                Log::warn("Material {} has unknown load_strategy '{}', defaulting to game_load", def.name, strategy);
+            }
         }
 
         if (j.contains("settings") && j["settings"].is_object())
@@ -287,7 +289,10 @@ namespace boza::gfx
                     }
                     else if (prop_val.is_number_integer())
                     {
-                        properties[prop_name] = prop_val.get<std::int64_t>() >= 0 ? prop_val.get<std::uint32_t>() : prop_val.get<std::int32_t>();
+                        properties[prop_name] =
+                            prop_val.get<std::int64_t>() >= 0
+                                ? prop_val.get<std::uint32_t>()
+                                : prop_val.get<std::int32_t>();
                     }
                     else if (prop_val.is_number_float())
                     {
@@ -345,7 +350,9 @@ namespace boza::gfx
             const auto info = material->lookup_binding(ubo_name);
             if (!info.has_value() ||
                 info->descriptor_type != static_cast<std::uint32_t>(rhi::DescriptorType::UniformBuffer))
+            {
                 return;
+            }
 
             material->update_buffer(ubo_name, *buffer_opt);
         };
@@ -399,11 +406,18 @@ namespace boza::gfx
                 {
                     using D = std::decay_t<T>;
 
-                    if constexpr (std::same_as<D, bool>) material->update_property(full_name, static_cast<std::uint32_t>(val));
-                    else if constexpr (std::same_as<D, std::int32_t> ||
+                    if constexpr (std::same_as<D, bool>)
+                    {
+                        material->update_property(full_name, static_cast<std::uint32_t>(val));
+                    }
+                    else if constexpr (
+                        std::same_as<D, std::int32_t> ||
                         std::same_as<D, std::uint32_t> ||
                         std::same_as<D, float> ||
-                        std::same_as<D, double>) material->update_property(full_name, val);
+                        std::same_as<D, double>)
+                    {
+                        material->update_property(full_name, val);
+                    }
                     else if constexpr (std::same_as<D, std::vector<float>>)
                     {
                         if (val.size() == 2) material->update_property(full_name, glm::vec2(val[0], val[1]));
@@ -536,7 +550,7 @@ namespace boza::gfx
         auto& loader = instance();
         Material material{ name };
 
-        const std::string vertex_shader_id = detail::AssetPaths::normalize_resource_id(settings.vertex_shader);
+        const std::string vertex_shader_id   = detail::AssetPaths::normalize_resource_id(settings.vertex_shader);
         const std::string fragment_shader_id = detail::AssetPaths::normalize_resource_id(settings.fragment_shader);
 
         if (vertex_shader_id.empty() || fragment_shader_id.empty())
@@ -703,7 +717,9 @@ namespace boza::gfx
             }
         }
 
-        const std::uint32_t frame_count = std::max<std::uint32_t>(loader.swapchain_ ? loader.swapchain_->max_frames_in_flight() : 1u, 1u);
+        const std::uint32_t frame_count = std::max<std::uint32_t>(
+            loader.swapchain_ ? loader.swapchain_->max_frames_in_flight() : 1u,
+            1u);
 
         std::vector<std::vector<rhi::DescriptorSet*>> descriptor_sets_per_frame(frame_count);
         std::vector<rhi::DescriptorSet*> allocated_descriptor_sets;
@@ -772,7 +788,6 @@ namespace boza::gfx
 
         return material;
     }
-
 
     void MaterialLoader::update_time_ubo(const float time, const float delta_time)
     {

@@ -16,7 +16,11 @@ import boza.gfx.sampler_loader;
 namespace boza
 {
     void* MaterialAccess::pipeline(const Material& material) { return material.rhi_pipeline_handle(); }
-    void* MaterialAccess::pipeline_layout(const Material& material) { return material.rhi_pipeline_layout_handle(); }
+    void* MaterialAccess::pipeline_layout(const Material& material)
+    {
+        return material.rhi_pipeline_layout_handle();
+    }
+
     const void* MaterialAccess::reflection(const Material& material) { return material.reflection_handle(); }
     std::span<const std::uint8_t> MaterialAccess::push_constant_staging(const Material& material)
     {
@@ -24,7 +28,11 @@ namespace boza
     }
     void MaterialAccess::bind_descriptor_sets(const Material& material) { material.bind_descriptor_sets(); }
 
-    Material::Material(const std::string_view name) : name_{ name } { push_constant_staging_.resize(128); }
+    Material::Material(const std::string_view name)
+        : name_{ name }
+    {
+        push_constant_staging_.resize(128);
+    }
 
     Material::~Material() { cleanup(); }
 
@@ -151,7 +159,10 @@ namespace boza
         gfx::MaterialLoader::instance().destroy(name);
     }
 
-    PropertyBinder Material::operator[](const std::string_view name) { return PropertyBinder(this, std::string(name)); }
+    PropertyBinder Material::operator[](const std::string_view name)
+    {
+        return PropertyBinder(this, std::string(name));
+    }
 
     void Material::bind() const
     {
@@ -237,7 +248,7 @@ namespace boza
             return;
         }
 
-        #ifdef BOZA_DEBUG
+#ifdef BOZA_DEBUG
         if (!rhi::validate_property_type(type, size, info.data_type, info.size))
         {
             const auto error_msg = rhi::format_type_mismatch_error(
@@ -249,7 +260,7 @@ namespace boza
             );
             Log::warn("{}", error_msg);
         }
-        #endif
+#endif
 
         auto* cmd = rhi::RenderContext::current_command_buffer();
         if (!cmd)
@@ -302,7 +313,7 @@ namespace boza
 
         const auto& info = binding_info.value();
 
-        #ifdef BOZA_DEBUG
+#ifdef BOZA_DEBUG
         if (!rhi::validate_property_type(type, size, info.data_type, info.size))
         {
             const auto error_msg = rhi::format_type_mismatch_error(
@@ -314,7 +325,7 @@ namespace boza
             );
             Log::warn("{}", error_msg);
         }
-        #endif
+#endif
 
         if (info.is_push_constant)
         {
@@ -324,8 +335,12 @@ namespace boza
             }
             else
             {
-                Log::error("Push constant '{}' offset {} + size {} exceeds staging buffer size {}",
-                           name, info.offset, size, push_constant_staging_.size());
+                Log::error(
+                    "Push constant '{}' offset {} + size {} exceeds staging buffer size {}",
+                    name,
+                    info.offset,
+                    size,
+                    push_constant_staging_.size());
             }
             return;
         }
@@ -340,7 +355,8 @@ namespace boza
 
         if (!uniform_buffers_.contains(binding_key))
         {
-            const auto parent_info = static_cast<rhi::DescriptorReflection*>(reflection_.get())->lookup(name.substr(0, name.find('.')));
+            const auto parent_info = static_cast<rhi::DescriptorReflection*>(reflection_.get())
+                                         ->lookup(name.substr(0, name.find('.')));
             const std::size_t buffer_size = parent_info.has_value() ? parent_info->size : 256;
             const std::size_t buffer_count = std::max<std::size_t>(descriptor_sets_per_frame_.size(), 1);
 
@@ -351,7 +367,8 @@ namespace boza
             for (std::size_t frame_index = 0; frame_index < buffer_count; ++frame_index)
             {
                 auto buffer = create_buffer(
-                    rhi::RenderContext::api(), {
+                    rhi::RenderContext::api(),
+                    {
                         .device = rhi::RenderContext::device(),
                         .size = buffer_size,
                         .usage = BufferUsage::Uniform,
@@ -362,14 +379,18 @@ namespace boza
                 {
                     uniform_buffers_.erase(binding_key);
                     uniform_buffer_staging_.erase(binding_key);
-                    Log::error("Failed to create uniform buffer for property '{}' (frame {})", name, frame_index);
+                    Log::error(
+                        "Failed to create uniform buffer for property '{}' (frame {})",
+                        name,
+                        frame_index);
                     return;
                 }
 
                 buffers.emplace_back(buffer.release(), &Material::destroy_rhi_buffer);
             }
 
-            const auto bind_uniform_buffer = [&](void* set_handle, const std::size_t frame_index) -> bool
+            const auto bind_uniform_buffer =
+                [&](void* set_handle, const std::size_t frame_index) -> bool
             {
                 if (frame_index >= buffers.size()) return false;
 
@@ -402,7 +423,10 @@ namespace boza
                     {
                         uniform_buffers_.erase(binding_key);
                         uniform_buffer_staging_.erase(binding_key);
-                        Log::error("Failed to bind uniform buffer for property '{}' (frame {})", name, frame_index);
+                        Log::error(
+                            "Failed to bind uniform buffer for property '{}' (frame {})",
+                            name,
+                            frame_index);
                         return;
                     }
                 }
@@ -429,7 +453,9 @@ namespace boza
                 auto* buffer = static_cast<rhi::Buffer*>(buffer_handle.get());
                 if (!buffer)
                 {
-                    Log::error("Uniform buffer property '{}' has an invalid per-frame buffer handle", name);
+                    Log::error(
+                        "Uniform buffer property '{}' has an invalid per-frame buffer handle",
+                        name);
                     return;
                 }
 
@@ -438,8 +464,12 @@ namespace boza
         }
         else
         {
-            Log::error("Uniform buffer property '{}' offset {} + size {} exceeds buffer size {}",
-                       name, info.offset, size, staging.size());
+            Log::error(
+                "Uniform buffer property '{}' offset {} + size {} exceeds buffer size {}",
+                name,
+                info.offset,
+                size,
+                staging.size());
         }
     }
 
@@ -527,8 +557,10 @@ namespace boza
                 const auto& frame_sets = descriptor_sets_per_frame_[frame_index];
                 if (info.set < frame_sets.size() && !update_set(frame_sets[info.set], frame_index))
                 {
-                    Log::error("Cannot update texture '{}': invalid per-frame RHI handle for frame {}", name,
-                               frame_index);
+                    Log::error(
+                        "Cannot update texture '{}': invalid per-frame RHI handle for frame {}",
+                        name,
+                        frame_index);
                     return;
                 }
             }
@@ -543,8 +575,10 @@ namespace boza
 
                     if (!update_set(frame_sets[info.set], frame_index))
                     {
-                        Log::error("Cannot update texture '{}': invalid per-frame RHI handle for frame {}", name,
-                                   frame_index);
+                        Log::error(
+                            "Cannot update texture '{}': invalid per-frame RHI handle for frame {}",
+                            name,
+                            frame_index);
                         return;
                     }
                 }
@@ -589,7 +623,8 @@ namespace boza
             return;
         }
 
-        const auto update_set = [this, &buffer, &info, binding_key](void* set_handle, const std::uint32_t frame_index) -> bool
+        const auto update_set =
+            [this, &buffer, &info, binding_key](void* set_handle, const std::uint32_t frame_index) -> bool
         {
             auto* buffer_handle = static_cast<rhi::Buffer*>(buffer.rhi_handle(frame_index));
             if (!buffer_handle) return false;
@@ -605,20 +640,20 @@ namespace boza
             }
 
             const rhi::DescriptorWrite write{
-                .binding       = info.binding,
+                .binding = info.binding,
                 .array_element = 0,
-                .type          = info.descriptor_type,
-                .info          = info.descriptor_type == rhi::DescriptorType::UniformBuffer
-                                     ? rhi::DescriptorInfo(rhi::UniformBuffer{
-                                         .buffer = buffer_handle,
-                                         .offset = 0,
-                                         .range  = static_cast<std::uint32_t>(buffer.size())
-                                     })
-                                     : rhi::DescriptorInfo(rhi::StorageBuffer{
-                                         .buffer = buffer_handle,
-                                         .offset = 0,
-                                         .range  = static_cast<std::uint32_t>(buffer.size())
-                                     })
+                .type = info.descriptor_type,
+                .info = info.descriptor_type == rhi::DescriptorType::UniformBuffer
+                            ? rhi::DescriptorInfo(rhi::UniformBuffer{
+                                .buffer = buffer_handle,
+                                .offset = 0,
+                                .range = static_cast<std::uint32_t>(buffer.size())
+                            })
+                            : rhi::DescriptorInfo(rhi::StorageBuffer{
+                                .buffer = buffer_handle,
+                                .offset = 0,
+                                .range = static_cast<std::uint32_t>(buffer.size())
+                            })
             };
 
             std::array writes{ write };
@@ -644,8 +679,10 @@ namespace boza
                 const auto& frame_sets = descriptor_sets_per_frame_[frame_index];
                 if (info.set < frame_sets.size() && !update_set(frame_sets[info.set], frame_index))
                 {
-                    Log::error("Cannot update buffer '{}': invalid RHI buffer handle for frame {}", name,
-                               frame_index);
+                    Log::error(
+                        "Cannot update buffer '{}': invalid RHI buffer handle for frame {}",
+                        name,
+                        frame_index);
                     return;
                 }
             }
@@ -660,8 +697,10 @@ namespace boza
 
                     if (!update_set(frame_sets[info.set], frame_index))
                     {
-                        Log::error("Cannot update buffer '{}': invalid RHI buffer handle for frame {}", name,
-                                   frame_index);
+                        Log::error(
+                            "Cannot update buffer '{}': invalid RHI buffer handle for frame {}",
+                            name,
+                            frame_index);
                         return;
                     }
                 }
@@ -682,7 +721,6 @@ namespace boza
             mark_set_dirty(info.set);
         }
     }
-
 
     std::size_t Material::descriptor_set_count() const { return descriptor_sets_.size(); }
 
@@ -708,7 +746,6 @@ namespace boza
             .is_push_constant = is_push_constant
         };
     }
-
 
     PropertyBinder& PropertyBinder::operator=(const Texture& texture)
     {

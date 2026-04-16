@@ -107,18 +107,27 @@ namespace boza::gfx
             return SamplerWrap::Repeat;
         };
 
-        if (j.contains("filter") && j["filter"].is_string()) def.filter = parse_filter(j["filter"].get<std::string>());
-        if (j.contains("wrap_u") && j["wrap_u"].is_string()) def.wrap_u = parse_wrap(j["wrap_u"].get<std::string>());
-        if (j.contains("wrap_v") && j["wrap_v"].is_string()) def.wrap_v = parse_wrap(j["wrap_v"].get<std::string>());
-        if (j.contains("wrap_w") && j["wrap_w"].is_string()) def.wrap_w = parse_wrap(j["wrap_w"].get<std::string>());
+        if (j.contains("filter") && j["filter"].is_string())
+            def.filter = parse_filter(j["filter"].get<std::string>());
+        if (j.contains("wrap_u") && j["wrap_u"].is_string())
+            def.wrap_u = parse_wrap(j["wrap_u"].get<std::string>());
+        if (j.contains("wrap_v") && j["wrap_v"].is_string())
+            def.wrap_v = parse_wrap(j["wrap_v"].get<std::string>());
+        if (j.contains("wrap_w") && j["wrap_w"].is_string())
+            def.wrap_w = parse_wrap(j["wrap_w"].get<std::string>());
 
-        if (j.contains("mipmap_mode") && j["mipmap_mode"].is_string()) def.mipmap_mode = parse_filter(j["mipmap_mode"].get<std::string>());
-        if (j.contains("mip_lod_bias") && j["mip_lod_bias"].is_number()) def.mip_lod_bias = j["mip_lod_bias"].get<float>();
+        if (j.contains("mipmap_mode") && j["mipmap_mode"].is_string())
+            def.mipmap_mode = parse_filter(j["mipmap_mode"].get<std::string>());
+        if (j.contains("mip_lod_bias") && j["mip_lod_bias"].is_number())
+            def.mip_lod_bias = j["mip_lod_bias"].get<float>();
 
-        if (j.contains("min_lod") && j["min_lod"].is_number()) def.min_lod = j["min_lod"].get<float>();
-        if (j.contains("max_lod") && j["max_lod"].is_number()) def.max_lod = j["max_lod"].get<float>();
+        if (j.contains("min_lod") && j["min_lod"].is_number())
+            def.min_lod = j["min_lod"].get<float>();
+        if (j.contains("max_lod") && j["max_lod"].is_number())
+            def.max_lod = j["max_lod"].get<float>();
 
-        if (j.contains("max_anisotropy") && j["max_anisotropy"].is_number()) def.max_anisotropy = j["max_anisotropy"].get<float>();
+        if (j.contains("max_anisotropy") && j["max_anisotropy"].is_number())
+            def.max_anisotropy = j["max_anisotropy"].get<float>();
 
         return def;
     }
@@ -219,4 +228,3 @@ namespace boza::gfx
         return *sampler;
     }
 }
-

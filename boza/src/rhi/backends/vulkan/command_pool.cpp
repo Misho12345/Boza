@@ -45,7 +45,6 @@ namespace boza::rhi::vk
         }
     }
 
-
     rhi::CommandBuffer* CommandPool::allocate_command_buffer(const bool is_primary)
     {
         // Log::trace("Allocating command buffer for command pool ({})", desc.queue_family_index);
@@ -98,7 +97,7 @@ namespace boza::rhi::vk
         return cmd_buffer;
     }
 
-    std::vector<rhi::CommandBuffer*> CommandPool::allocate_command_buffers(const uint32_t count, const bool is_primary)
+    std::vector<rhi::CommandBuffer*> CommandPool::allocate_command_buffers(const std::uint32_t count, const bool is_primary)
     {
         // Log::trace("Allocating {} command buffers for command pool ({})", count, desc.queue_family_index);
 
@@ -107,7 +106,7 @@ namespace boza::rhi::vk
         std::vector<rhi::CommandBuffer*> cmd_buffers;
         cmd_buffers.reserve(count);
 
-        for (uint32_t i = 0; i < count; ++i)
+        for (std::uint32_t i = 0; i < count; ++i)
         {
             auto* cmd_buffer = allocate_command_buffer(is_primary);
             if (!cmd_buffer)
@@ -121,7 +120,6 @@ namespace boza::rhi::vk
 
         return cmd_buffers;
     }
-
 
     void CommandPool::free_command_buffer(rhi::CommandBuffer* command_buffer)
     {
@@ -152,7 +150,7 @@ namespace boza::rhi::vk
 
         vkFreeCommandBuffers(
             vk_device, vk_command_pool_,
-            static_cast<uint32_t>(vk_cmd_buffers.size()),
+            static_cast<std::uint32_t>(vk_cmd_buffers.size()),
             vk_cmd_buffers.data());
 
         for (const auto* cmd : command_buffers)
@@ -160,7 +158,6 @@ namespace boza::rhi::vk
             delete cmd;
         }
     }
-
 
     bool CommandPool::reset(const bool release_resources)
     {

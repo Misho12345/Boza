@@ -7,8 +7,8 @@ namespace boza::rhi
 {
     static void merge_binding(
         flat_map<std::string, BindingInfo>& bindings,
-        const std::string&                  name,
-        const BindingInfo&                  incoming)
+        const std::string& name,
+        const BindingInfo& incoming)
     {
         const auto [it, inserted] = bindings.try_emplace(name, incoming);
         if (inserted) return;
@@ -130,9 +130,9 @@ namespace boza::rhi
     }
 
     void DescriptorReflection::add_storage_buffer(
-        const std::string&                 buffer_name,
+        const std::string& buffer_name,
         const ShaderModule::ShaderResource& resource,
-        const Flags<ShaderStage>           stages)
+        const Flags<ShaderStage> stages)
     {
         const BindingInfo binding{
             .set = resource.set,
@@ -190,9 +190,9 @@ namespace boza::rhi
     }
 
     void DescriptorReflection::add_push_constant_range(
-        const std::string&               range_name,
+        const std::string& range_name,
         const ShaderModule::PushConstant& pc,
-        const Flags<ShaderStage>         stages)
+        const Flags<ShaderStage> stages)
     {
         const PushConstantRangeInfo incoming{
             .offset = pc.offset,
@@ -331,4 +331,3 @@ namespace boza::rhi
         return std::nullopt;
     }
 }
-

@@ -7,11 +7,19 @@ export namespace boza
 {
     enum class Phase
     {
-        EngineBegin, Start, PostStart,
-        EnginePhysics, Physics,
-        EngineUpdate, PreUpdate, Update, PostUpdate,
-        PreRender, EngineRender,
-        Destroy, EngineDestroy,
+        EngineBegin,
+        Start,
+        PostStart,
+        EnginePhysics,
+        Physics,
+        EngineUpdate,
+        PreUpdate,
+        Update,
+        PostUpdate,
+        PreRender,
+        EngineRender,
+        Destroy,
+        EngineDestroy,
         None
     };
 
@@ -24,12 +32,12 @@ export namespace boza
 
     struct SystemStageInfo final
     {
-        flecs::system       system{};
-        SystemStageConfig   config{};
-        Phase               phase{};
-        flecs::system     (*create_system)(){};
+        flecs::system system{};
+        SystemStageConfig config{};
+        Phase phase{};
+        flecs::system (*create_system)(){};
         SystemStageConfig (*resolve_config)(){};
-        void              (*apply_ordering)(){};
+        void (*apply_ordering)(){};
     };
 
     constexpr bool is_shutdown_phase(const Phase phase)

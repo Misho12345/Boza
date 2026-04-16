@@ -106,13 +106,13 @@ export namespace boza::rhi
         };
 
         [[nodiscard]] const MetaData& meta_data() const { return meta_data_; }
-        [[nodiscard]] ShaderStage     stage() const { return desc_.stage; }
-        [[nodiscard]] std::string     filename() const { return desc_.filename; }
+        [[nodiscard]] ShaderStage stage() const { return desc_.stage; }
+        [[nodiscard]] std::string filename() const { return desc_.filename; }
 
     protected:
         explicit ShaderModule(const ShaderModuleDesc& desc) : GraphicsObject(desc) {}
 
-        template<typename SegmentType>
+        template <typename SegmentType>
         static std::vector<SegmentType> read_file(const fs::path& path)
         {
             if (!exists(path))

@@ -135,7 +135,7 @@ namespace boza::rhi::vk
             vk_writes.push_back(vk_write);
         }
 
-        vkUpdateDescriptorSets(vk_device, static_cast<uint32_t>(vk_writes.size()), vk_writes.data(), 0, nullptr);
+        vkUpdateDescriptorSets(vk_device, static_cast<std::uint32_t>(vk_writes.size()), vk_writes.data(), 0, nullptr);
     }
 
     VkDescriptorSet DescriptorSet::vk_descriptor_set() const { return vk_descriptor_set_; }

@@ -17,10 +17,10 @@ namespace boza
         {
             const std::string description = entry.description();
             const std::string source_file = entry.source_file();
-            const auto        source_line = entry.source_line();
+            const auto source_line = entry.source_line();
 
             auto filename = fs::path{ source_file }.lexically_relative(project_root).string();
-            result        += std::format("\t{} ({}:{})\n", description, filename, source_line);
+            result += std::format("\t{} ({}:{})\n", description, filename, source_line);
 
             if (description == "main") break;
         }

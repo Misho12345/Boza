@@ -23,7 +23,7 @@ namespace boza::rhi::vk
             .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
             .pNext = nullptr,
             .flags = {},
-            .codeSize = static_cast<uint32_t>(spv_data.size()) * sizeof(uint32_t),
+            .codeSize = spv_data.size() * sizeof(std::uint32_t),
             .pCode = spv_data.data()
         };
 

@@ -40,13 +40,13 @@ export namespace boza
         Transform(
             const glm::vec3 local_position = glm::vec3{ 0.0f },
             const glm::quat local_rotation = glm::identity<glm::quat>(),
-            const glm::vec3 local_scale    = glm::vec3{ 1.0f }
-        ) : local_position_{ local_position },
-            local_rotation_{ local_rotation },
-            local_scale_{ local_scale },
-            world_position_{ local_position },
-            world_rotation_{ local_rotation },
-            world_scale_{ local_scale } { world_matrix_ = local_matrix(); }
+            const glm::vec3 local_scale    = glm::vec3{ 1.0f })
+            : local_position_{ local_position },
+              local_rotation_{ local_rotation },
+              local_scale_{ local_scale },
+              world_position_{ local_position },
+              world_rotation_{ local_rotation },
+              world_scale_{ local_scale } { world_matrix_ = local_matrix(); }
 
         [[msvc::no_unique_address]]
         Property<
@@ -76,7 +76,6 @@ export namespace boza
             &Transform::set_eulers
         > eulers{ this };
 
-
         [[msvc::no_unique_address]]
         Property<
             Transform,
@@ -105,10 +104,23 @@ export namespace boza
             &Transform::set_local_eulers
         > local_eulers{ this };
 
+        [[msvc::no_unique_address]]
+        Property<
+            Transform,
+            &Transform::get_forward
+        > forward{ this };
 
-        [[msvc::no_unique_address]] Property<Transform, &Transform::get_forward> forward{ this };
-        [[msvc::no_unique_address]] Property<Transform, &Transform::get_right>   right{ this };
-        [[msvc::no_unique_address]] Property<Transform, &Transform::get_up>      up{ this };
+        [[msvc::no_unique_address]]
+        Property<
+            Transform,
+            &Transform::get_right
+        > right{ this };
+
+        [[msvc::no_unique_address]]
+        Property<
+            Transform,
+            &Transform::get_up
+        > up{ this };
 
         [[nodiscard]] glm::mat4 world_matrix() const;
         [[nodiscard]] glm::mat4 local_matrix() const;

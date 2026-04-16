@@ -31,9 +31,9 @@ export namespace boza::rhi
 
     struct CommandPoolDesc
     {
-        Device*                  device;
+        Device* device;
         Flags<CommandPoolOption> flags;
-        std::uint32_t            queue_family_index;
+        std::uint32_t queue_family_index;
     };
 
     class CommandBuffer;
@@ -42,7 +42,7 @@ export namespace boza::rhi
     class CommandPool : public GraphicsObject<CommandPool, CommandPoolDesc>
     {
     public:
-        virtual CommandBuffer*              allocate_command_buffer(bool is_primary = true) = 0;
+        virtual CommandBuffer* allocate_command_buffer(bool is_primary = true) = 0;
         virtual std::vector<CommandBuffer*> allocate_command_buffers(std::uint32_t count, bool is_primary = true) = 0;
 
         virtual void free_command_buffer(CommandBuffer* command_buffer) = 0;
@@ -51,7 +51,7 @@ export namespace boza::rhi
         virtual bool reset(bool release_resources = false) = 0;
 
         virtual CommandBuffer* begin_single_time_commands() = 0;
-        virtual bool           end_single_time_commands(CommandBuffer* command_buffer) = 0;
+        virtual bool end_single_time_commands(CommandBuffer* command_buffer) = 0;
 
     protected:
         explicit CommandPool(const CommandPoolDesc& desc) : GraphicsObject(desc) {}
@@ -213,21 +213,20 @@ export namespace boza::rhi
     struct SubmitInfo
     {
         std::vector<CommandBuffer*> command_buffers;
-        std::vector<Semaphore*>     wait_semaphores;
+        std::vector<Semaphore*> wait_semaphores;
         std::vector<Flags<PipelineStage>> wait_stages;
-        std::vector<std::uint64_t>  wait_values;
-        std::vector<Semaphore*>     signal_semaphores;
-        std::vector<std::uint64_t>  signal_values;
-        Fence*                      signal_fence{ nullptr };
+        std::vector<std::uint64_t> wait_values;
+        std::vector<Semaphore*> signal_semaphores;
+        std::vector<std::uint64_t> signal_values;
+        Fence* signal_fence{ nullptr };
     };
 
     struct CommandQueueDesc
     {
-        Device*                 device;
-        std::uint32_t           family_index;
+        Device* device;
+        std::uint32_t family_index;
         Flags<CommandQueueType> type;
     };
-
 
     enum class PresentResult : std::uint8_t
     {
@@ -239,11 +238,10 @@ export namespace boza::rhi
 
     struct PresentInfo
     {
-        std::vector<Swapchain*>    swapchains;
+        std::vector<Swapchain*> swapchains;
         std::vector<std::uint32_t> image_indices;
-        std::vector<Semaphore*>    wait_semaphores;
+        std::vector<Semaphore*> wait_semaphores;
     };
-
 
     class CommandQueue : public GraphicsObject<CommandQueue, CommandQueueDesc>
     {

@@ -16,7 +16,7 @@ namespace boza
         if (mesh_changed) mr.dirty_mesh_ = false;
         else mr.dirty_material_ = false;
 
-        Mesh* mesh = mr.mesh;
+        Mesh*     mesh     = mr.mesh;
         Material* material = mr.material;
 
         if (mesh && material) insert_into_render_cache(mr, go, mesh, material);

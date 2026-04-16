@@ -1,5 +1,7 @@
 export module boza.common;
 
+import std;
+
 export import <nlohmann/json.hpp>;
 
 export import :flags;

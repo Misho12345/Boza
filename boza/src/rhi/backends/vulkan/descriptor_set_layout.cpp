@@ -28,7 +28,7 @@ namespace boza::rhi::vk
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
             .pNext = nullptr,
             .flags = {},
-            .bindingCount = static_cast<uint32_t>(bindings.size()),
+            .bindingCount = static_cast<std::uint32_t>(bindings.size()),
             .pBindings = bindings.data()
         };
 

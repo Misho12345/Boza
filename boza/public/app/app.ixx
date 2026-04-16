@@ -57,7 +57,7 @@ export namespace boza
 
         friend class Scene;
 
-        template<auto...>
+        template <auto...>
         friend class GlobalProperty;
     };
 }

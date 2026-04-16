@@ -64,7 +64,7 @@ namespace boza::rhi::vk
     }
 
 
-    bool Semaphore::signal(const uint64_t value)
+    bool Semaphore::signal(const std::uint64_t value)
     {
         if (desc_.type != SemaphoreType::Timeline)
         {
@@ -90,7 +90,7 @@ namespace boza::rhi::vk
         return true;
     }
 
-    bool Semaphore::wait(uint64_t value, const uint64_t timeout)
+    bool Semaphore::wait(std::uint64_t value, const std::uint64_t timeout)
     {
         if (desc_.type != SemaphoreType::Timeline)
         {
@@ -118,7 +118,7 @@ namespace boza::rhi::vk
         return true;
     }
 
-    uint64_t Semaphore::counter_value() const
+    std::uint64_t Semaphore::counter_value() const
     {
         if (desc_.type != SemaphoreType::Timeline)
         {
@@ -127,7 +127,7 @@ namespace boza::rhi::vk
         }
 
         const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
-        uint64_t   value     = 0;
+        std::uint64_t value{ 0 };
 
         if (!vk_check(
             vkGetSemaphoreCounterValue(vk_device, vk_semaphore_, &value),

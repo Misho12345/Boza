@@ -42,12 +42,23 @@ namespace boza
         static constexpr bool is_ordering = true, is_after = false;
     };
 
-    template <typename S> concept with_spec = requires { typename S::type; } && S::required;
-    template <typename S> concept opt_spec = requires { typename S::type; } && S::optional;
-    template <typename S> concept without_spec = requires { typename S::type; } && S::filter;
-    template <typename S> concept ordering_spec = requires { typename S::type; } && S::is_ordering;
-    template <typename S> concept param_spec = with_spec<S> || opt_spec<S>;
-    template <typename S> concept component_spec = param_spec<S> || without_spec<S>;
+    template <typename S>
+    concept with_spec = requires { typename S::type; } && S::required;
+
+    template <typename S>
+    concept opt_spec = requires { typename S::type; } && S::optional;
+
+    template <typename S>
+    concept without_spec = requires { typename S::type; } && S::filter;
+
+    template <typename S>
+    concept ordering_spec = requires { typename S::type; } && S::is_ordering;
+
+    template <typename S>
+    concept param_spec = with_spec<S> || opt_spec<S>;
+
+    template <typename S>
+    concept component_spec = param_spec<S> || without_spec<S>;
 
     template <typename S>
     using unwrap_t = S::type;
@@ -59,7 +70,8 @@ namespace boza
         std::tuple<>
     >;
 
-    export template <typename... Specs> requires ((sizeof...(Specs) == 0) || (component_spec<Specs> && ...))
+    export template <typename... Specs>
+        requires ((sizeof...(Specs) == 0) || (component_spec<Specs> && ...))
     struct ComponentList
     {
         static constexpr std::size_t spec_count = sizeof...(Specs);
@@ -73,7 +85,11 @@ namespace boza
     template <typename... Specs>
     using filter_to_component_list = decltype(
         []<typename... Ts>(std::tuple<Ts...>) -> ComponentList<Ts...> { return {}; }
-        (std::tuple_cat(std::declval<std::conditional_t<component_spec<Specs>, std::tuple<Specs>, std::tuple<>>>()...))
+        (
+            std::tuple_cat(
+                std::declval<std::conditional_t<component_spec<Specs>, std::tuple<Specs>, std::tuple<>>>()...
+            )
+        )
     );
 
     template <typename Spec, typename Builder>
@@ -98,7 +114,10 @@ namespace boza
     }
 
     template <typename Builder, typename... Specs>
-    void apply_specs_to_builder(Builder& builder, ComponentList<Specs...>*) { (apply_spec<Specs>(builder), ...); }
+    void apply_specs_to_builder(Builder& builder, ComponentList<Specs...>*)
+    {
+        (apply_spec<Specs>(builder), ...);
+    }
 
     template <typename Spec>
     constexpr bool should_extract_param()
@@ -107,7 +126,7 @@ namespace boza
         return param_spec<Spec> && !std::is_empty_v<C>;
     }
 
-    template <size_t TargetParam, typename... Specs>
+    template <std::size_t TargetParam, typename... Specs>
     consteval int term_index_for_param()
     {
         constexpr auto param_count = (should_extract_param<Specs>() + ... + 0);
@@ -127,8 +146,8 @@ namespace boza
         return -1;
     }
 
-    template <size_t ParamIdx, typename Spec, typename CList>
-    auto component_ptr(flecs::iter& it, size_t row)
+    template <std::size_t ParamIdx, typename Spec, typename CList>
+    auto component_ptr(flecs::iter& it, std::size_t row)
     {
         using C            = std::remove_const_t<unwrap_t<Spec>>;
         using T            = std::conditional_t<std::is_const_v<unwrap_t<Spec>>, const C, C>;
@@ -143,11 +162,11 @@ namespace boza
         }
 
         const auto term_row = it.is_self(term) ? row : 0;
-        return static_cast<T*>(it.field_at(static_cast<int8_t>(term), term_row));
+        return static_cast<T*>(it.field_at(static_cast<std::int8_t>(term), term_row));
     }
 
-    template <size_t ParamIdx, typename Spec, typename CList>
-    decltype(auto) component_arg(flecs::iter& it, size_t row)
+    template <std::size_t ParamIdx, typename Spec, typename CList>
+    decltype(auto) component_arg(flecs::iter& it, std::size_t row)
     {
         auto* ptr = component_ptr<ParamIdx, Spec, CList>(it, row);
         if constexpr (opt_spec<Spec>) return ptr;
@@ -155,11 +174,11 @@ namespace boza
     }
 
     template <typename Derived, typename CList>
-    void invoke_execute(flecs::iter& it, const size_t row, const GameObject game_object)
+    void invoke_execute(flecs::iter& it, const std::size_t row, const GameObject game_object)
     {
         [&]<typename... ParamSpecs>(std::type_identity<std::tuple<ParamSpecs...>>)
         {
-            [&]<size_t... Is>(std::index_sequence<Is...>)
+            [&]<std::size_t... Is>(std::index_sequence<Is...>)
             {
                 if constexpr (requires { Derived::execute(game_object, component_arg<Is, ParamSpecs, CList>(it, row)...); })
                 {

@@ -37,7 +37,7 @@ namespace boza::rhi::vk
         }
     }
 
-    bool Fence::wait(const uint64_t timeout)
+    bool Fence::wait(const std::uint64_t timeout)
     {
         const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
         const VkResult result = vkWaitForFences(vk_device, 1, &vk_fence_, true, timeout);

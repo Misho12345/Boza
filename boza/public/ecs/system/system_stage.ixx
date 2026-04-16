@@ -49,7 +49,6 @@ export namespace boza
         friend struct SystemStage;
     };
 
-
     template <typename Derived, Phase P, typename... Specs>
     SystemStageConfig SystemStage<Derived, P, Specs...>::resolve_config()
     {
@@ -57,7 +56,10 @@ export namespace boza
         assert(cfg.interval >= 0.0f, "System stage interval cannot be negative");
 
         cfg.interval = SystemRegistry::instance().resolve_interval(P, cfg.interval);
-        if constexpr (is_physics_phase(P)) assert(cfg.interval > 0.0f, "Physics stages require a positive interval");
+        if constexpr (is_physics_phase(P))
+        {
+            assert(cfg.interval > 0.0f, "Physics stages require a positive interval");
+        }
 
         return cfg;
     }
@@ -74,8 +76,8 @@ export namespace boza
 
         apply_specs_to_builder(builder, static_cast<CList*>(nullptr));
 
-        if (multi_threaded)   builder.multi_threaded();
-        if (interval > 0.0f)  builder.interval(interval);
+        if (multi_threaded) builder.multi_threaded();
+        if (interval > 0.0f) builder.interval(interval);
         if (include_disabled) builder.with(flecs::Disabled).optional();
 
         flecs::system system{};
@@ -103,7 +105,7 @@ export namespace boza
         return system;
     }
 
-    template <typename Derived, Phase P, typename ... Specs>
+    template <typename Derived, Phase P, typename... Specs>
     void SystemStage<Derived, P, Specs...>::apply_ordering()
     {
         ([]
@@ -115,7 +117,6 @@ export namespace boza
             }
         }(), ...);
     }
-
 
     template <typename Derived, typename... Specs>
     using EngineBeginStage = SystemStage<Derived, Phase::EngineBegin, Specs...>;

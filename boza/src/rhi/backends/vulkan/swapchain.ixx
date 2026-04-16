@@ -17,18 +17,18 @@ export namespace boza::rhi::vk
         AcquireResult      begin_frame_result() override;
         PresentResult      end_frame_result() override;
         AcquireImageResult acquire_next_image_result() override;
-        PresentResult      present_result(uint32_t image_index) override;
+        PresentResult      present_result(std::uint32_t image_index) override;
 
         void abort_frame() override;
 
-        bool begin_render_pass(uint32_t image_idx) override;
-        bool end_render_pass(uint32_t image_idx) override;
+        bool begin_render_pass(std::uint32_t image_idx) override;
+        bool end_render_pass(std::uint32_t image_idx) override;
 
-        uint32_t width() const override;
-        uint32_t height() const override;
-        uint32_t image_count() const override;
-        uint32_t current_frame() const override;
-        uint32_t current_image_index() const override;
+        std::uint32_t width() const override;
+        std::uint32_t height() const override;
+        std::uint32_t image_count() const override;
+        std::uint32_t current_frame() const override;
+        std::uint32_t current_image_index() const override;
 
         CommandBuffer* current_command_buffer() override;
         Fence*         current_fence() override;
@@ -36,7 +36,7 @@ export namespace boza::rhi::vk
         [[nodiscard]] VkSwapchainKHR vk_swapchain() const;
         [[nodiscard]] TextureFormat format() const override;
         [[nodiscard]] DepthFormat depth_format() const override { return depth_format_; }
-        [[nodiscard]] uint32_t max_frames_in_flight() const override { return desc_.max_frames_in_flight; }
+        [[nodiscard]] std::uint32_t max_frames_in_flight() const override { return desc_.max_frames_in_flight; }
 
         [[nodiscard]] VkFormat vk_depth_format() const { return vk_depth_format_; }
 
@@ -87,8 +87,8 @@ export namespace boza::rhi::vk
 
         std::vector<FrameData> frames_;
 
-        uint32_t current_frame_{ 0 };
-        uint32_t current_image_index_{ invalid_image_index };
+        std::uint32_t current_frame_{ 0 };
+        std::uint32_t current_image_index_{ invalid_image_index };
 
         bool frame_started_{ false };
         bool should_recreate_{ false };

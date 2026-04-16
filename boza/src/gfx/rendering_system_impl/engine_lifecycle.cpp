@@ -93,18 +93,17 @@ namespace boza
 
         for (const auto& api : rhi::graphics_apis_by_priority)
         {
-            if (api != rhi::graphics_apis_by_priority[0])
-                shutdown_graphics(true, true);
+            if (api != rhi::graphics_apis_by_priority[0]) shutdown_graphics(true, true);
 
             window->create(api);
 
             instance_ = create_instance(
                 api, {
-                    .app_name = "Boza Application",
-                    .engine_name = "Boza",
-                    .app_version = { 0, 0, 1 },
+                    .app_name       = "Boza Application",
+                    .engine_name    = "Boza",
+                    .app_version    = { 0, 0, 1 },
                     .engine_version = { BOZA_VERSION_MAJOR, BOZA_VERSION_MINOR, BOZA_VERSION_PATCH },
-                    .window = window
+                    .window         = window
                 });
 
             if (!instance_) continue;
@@ -112,32 +111,32 @@ namespace boza
             device_ = create_device(
                 api, {
                     .instance = instance_.get(),
-                    .window = window
+                    .window   = window
                 });
 
             if (!device_) continue;
 
             swapchain_ = create_swapchain(
                 api, {
-                    .device = device_.get(),
-                    .window = window,
+                    .device                 = device_.get(),
+                    .window                 = window,
                     .preferred_present_mode = app::GameSettings::gameplay.vsync
                         ? rhi::PresentMode::Fifo
                         : rhi::PresentMode::Mailbox,
-                    .preferred_image_count = 3,
-                    .max_frames_in_flight = 2,
-                    .enable_depth = true,
-                    .clear_color = { 0.1f, 0.1f, 0.15f, 1.0f },
-                    .clear_depth = 1.0f,
-                    .clear_stencil = 0
+                    .preferred_image_count  = 3,
+                    .max_frames_in_flight   = 2,
+                    .enable_depth           = true,
+                    .clear_color            = { 0.1f, 0.1f, 0.15f, 1.0f },
+                    .clear_depth            = 1.0f,
+                    .clear_stencil          = 0
                 });
 
             if (!swapchain_) continue;
 
             descriptor_pool_ = create_descriptor_pool(
                 api, {
-                    .device = device_.get(),
-                    .max_sets = 300,
+                    .device     = device_.get(),
+                    .max_sets   = 300,
                     .pool_sizes = {
                         { rhi::DescriptorType::UniformBuffer, 300 },
                         { rhi::DescriptorType::CombinedImageSampler, 300 },
@@ -189,7 +188,10 @@ namespace boza
         gfx::MaterialLoader::instance().create_game_load_materials();
     }
 
-    void RenderingSystem::wait_idle() { if (device_) device_->wait_idle(); }
+    void RenderingSystem::wait_idle()
+    {
+        if (device_) device_->wait_idle();
+    }
 
     GpuMesh* RenderingSystem::get_or_create_gpu_mesh(Mesh* mesh)
     {

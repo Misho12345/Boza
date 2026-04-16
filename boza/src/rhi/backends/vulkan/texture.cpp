@@ -152,7 +152,7 @@ namespace boza::rhi::vk
         layer_layouts_.clear();
     }
 
-    std::unique_ptr<rhi::Buffer> Texture::stage(const size_t size, const std::uint32_t layer) const
+    std::unique_ptr<rhi::Buffer> Texture::stage(const std::size_t size, const std::uint32_t layer) const
     {
         const bool is_cube = desc_.type == TextureType::TextureCube || desc_.type == TextureType::TextureCubeArray;
         const std::uint32_t total_layers = desc_.array_layers * (is_cube ? 6u : 1u);
@@ -164,13 +164,13 @@ namespace boza::rhi::vk
 
         const std::uint32_t copy_depth = copy_depth_for_type(desc_.type, desc_.depth);
 
-        const size_t required_size =
-            static_cast<size_t>(desc_.width) *
-            static_cast<size_t>(desc_.height) *
-            static_cast<size_t>(copy_depth) *
+        const std::size_t required_size =
+            static_cast<std::size_t>(desc_.width) *
+            static_cast<std::size_t>(desc_.height) *
+            static_cast<std::size_t>(copy_depth) *
             bytes_per_pixel(desc_.format);
 
-        const size_t stage_size = size > 0 ? size : required_size;
+        const std::size_t stage_size = size > 0 ? size : required_size;
         if (stage_size < required_size)
         {
             Log::error(
@@ -282,7 +282,7 @@ namespace boza::rhi::vk
 
     void Texture::transition_layout_internal(const VkImageLayout old_layout, const VkImageLayout new_layout) const
     {
-        // Log::trace("Transitioning texture layout: {} -> {}", static_cast<uint32_t>(old_layout), static_cast<uint32_t>(new_layout));
+        // Log::trace("Transitioning texture layout: {} -> {}", static_cast<std::uint32_t>(old_layout), static_cast<std::uint32_t>(new_layout));
 
         const auto* device   = reinterpret_cast<Device*>(desc_.device);
         auto*       cmd_pool = device->command_pool(device->queue_family_indices().graphics_family);
@@ -550,7 +550,7 @@ namespace boza::rhi::vk
         std::ranges::fill(layer_layouts_, new_layout);
     }
 
-    void Texture::upload(const void* data, const size_t size, const std::uint32_t layer)
+    void Texture::upload(const void* data, const std::size_t size, const std::uint32_t layer)
     {
         // Log::trace("Uploading {} bytes to texture layer {}", size, layer);
 
@@ -573,7 +573,7 @@ namespace boza::rhi::vk
         }
     }
 
-    bool Texture::upload_from(rhi::Buffer* staging_buffer, const size_t size, const std::uint32_t layer)
+    bool Texture::upload_from(rhi::Buffer* staging_buffer, const std::size_t size, const std::uint32_t layer)
     {
         if (!staging_buffer)
         {
@@ -591,13 +591,13 @@ namespace boza::rhi::vk
 
         const std::uint32_t copy_depth = copy_depth_for_type(desc_.type, desc_.depth);
 
-        const size_t required_size =
-            static_cast<size_t>(desc_.width) *
-            static_cast<size_t>(desc_.height) *
-            static_cast<size_t>(copy_depth) *
+        const std::size_t required_size =
+            static_cast<std::size_t>(desc_.width) *
+            static_cast<std::size_t>(desc_.height) *
+            static_cast<std::size_t>(copy_depth) *
             bytes_per_pixel(desc_.format);
 
-        const size_t transfer_size = size > 0 ? size : staging_buffer->size();
+        const std::size_t transfer_size = size > 0 ? size : staging_buffer->size();
         if (transfer_size < required_size)
         {
             Log::error(
@@ -699,7 +699,7 @@ namespace boza::rhi::vk
         return true;
     }
 
-    void Texture::read_back(void* data, const size_t size, const std::uint32_t layer)
+    void Texture::read_back(void* data, const std::size_t size, const std::uint32_t layer)
     {
         // Log::trace("Downloading {} bytes from texture", size);
 

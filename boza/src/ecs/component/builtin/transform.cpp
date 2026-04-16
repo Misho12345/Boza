@@ -76,7 +76,8 @@ namespace boza
         {
             if (Transform* parent_t = try_get_parent_transform(entity_))
             {
-                if (!parent_t->dirty_ && self->parent_world_revision_ == parent_t->world_revision_)
+                if (!parent_t->dirty_ &&
+                    self->parent_world_revision_ == parent_t->world_revision_)
                 {
                     self->last_ensure_frame_ = current_frame;
                     return;
@@ -118,7 +119,8 @@ namespace boza
             parent_t->ensure_world_transform_up_to_date();
 
             const glm::vec3 world_offset = value - parent_t->world_position_;
-            const glm::vec3 parent_local_offset = glm::inverse(parent_t->world_rotation_) * world_offset;
+            const glm::vec3 parent_local_offset =
+                glm::inverse(parent_t->world_rotation_) * world_offset;
             local_position_ = safe_divide(parent_local_offset, parent_t->world_scale_);
         }
         else local_position_ = value;
@@ -133,7 +135,8 @@ namespace boza
         if (Transform* parent_t = try_get_parent_transform(entity_))
         {
             parent_t->ensure_world_transform_up_to_date();
-            local_rotation_ = normalize_or_identity(glm::inverse(parent_t->world_rotation_) * world_rotation);
+            local_rotation_ = normalize_or_identity(
+                glm::inverse(parent_t->world_rotation_) * world_rotation);
         }
         else local_rotation_ = world_rotation;
 
@@ -184,19 +187,22 @@ namespace boza
     glm::vec3 Transform::get_forward() const
     {
         ensure_world_transform_up_to_date();
-        return normalize(world_rotation_ * glm::vec3{ 0.0f, 0.0f, 1.0f });
+        return glm::normalize(
+            world_rotation_ * glm::vec3{ 0.0f, 0.0f, 1.0f });
     }
 
     glm::vec3 Transform::get_right() const
     {
         ensure_world_transform_up_to_date();
-        return normalize(world_rotation_ * glm::vec3{ 1.0f, 0.0f, 0.0f });
+        return glm::normalize(
+            world_rotation_ * glm::vec3{ 1.0f, 0.0f, 0.0f });
     }
 
     glm::vec3 Transform::get_up() const
     {
         ensure_world_transform_up_to_date();
-        return normalize(world_rotation_ * glm::vec3{ 0.0f, 1.0f, 0.0f });
+        return glm::normalize(
+            world_rotation_ * glm::vec3{ 0.0f, 1.0f, 0.0f });
     }
 
     void Transform::look_at(const glm::vec3& target, const glm::vec3& world_up)
@@ -226,7 +232,7 @@ namespace boza
     glm::mat4 Transform::view_matrix() const
     {
         ensure_world_transform_up_to_date();
-        return inverse(world_matrix_);
+        return glm::inverse(world_matrix_);
     }
 
     void Transform::evaluate_world_transform()
@@ -237,8 +243,10 @@ namespace boza
         {
             parent_t->ensure_world_transform_up_to_date();
 
-            world_position_ = parent_t->world_position_ +
-                (parent_t->world_rotation_ * (parent_t->world_scale_ * local_position_));
+            world_position_ =
+                parent_t->world_position_ +
+                (parent_t->world_rotation_ *
+                    (parent_t->world_scale_ * local_position_));
             world_rotation_ = normalize_or_identity(parent_t->world_rotation_ * local_rotation_);
             world_scale_ = parent_t->world_scale_ * local_scale_;
             parent_world_revision_ = parent_t->world_revision_;

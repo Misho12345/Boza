@@ -19,24 +19,50 @@ namespace boza
     {
         Unknown,
         Bool,
-        Int, Uint,
-        Float, Double,
-        Vec2, Vec3, Vec4,
-        IVec2, IVec3, IVec4,
-        UVec2, UVec3, UVec4,
-        BVec2, BVec3, BVec4,
-        DVec2, DVec3, DVec4,
-        Mat2, Mat3, Mat4,
-        Mat2x3, Mat2x4,
-        Mat3x2, Mat3x4,
-        Mat4x2, Mat4x3,
-        DMat2, DMat3, DMat4,
-        DMat2x3, DMat2x4,
-        DMat3x2, DMat3x4,
-        DMat4x2, DMat4x3,
-        Sampler1D, Sampler2D, Sampler3D,
-        Sampler1DArray, Sampler2DArray,
-        SamplerCube, SamplerCubeArray
+        Int,
+        Uint,
+        Float,
+        Double,
+        Vec2,
+        Vec3,
+        Vec4,
+        IVec2,
+        IVec3,
+        IVec4,
+        UVec2,
+        UVec3,
+        UVec4,
+        BVec2,
+        BVec3,
+        BVec4,
+        DVec2,
+        DVec3,
+        DVec4,
+        Mat2,
+        Mat3,
+        Mat4,
+        Mat2x3,
+        Mat2x4,
+        Mat3x2,
+        Mat3x4,
+        Mat4x2,
+        Mat4x3,
+        DMat2,
+        DMat3,
+        DMat4,
+        DMat2x3,
+        DMat2x4,
+        DMat3x2,
+        DMat3x4,
+        DMat4x2,
+        DMat4x3,
+        Sampler1D,
+        Sampler2D,
+        Sampler3D,
+        Sampler1DArray,
+        Sampler2DArray,
+        SamplerCube,
+        SamplerCubeArray
     };
 
     export enum class BufferUsage : std::uint8_t
@@ -134,22 +160,31 @@ namespace boza
         InputAttachment        = 1 << 6
     };
 
-    export constexpr BOZA_API Flags<TextureUsage> operator|(const TextureUsage left, const TextureUsage right) noexcept
+    export constexpr BOZA_API Flags<TextureUsage> operator|(
+        const TextureUsage left,
+        const TextureUsage right) noexcept
     {
         return Flags(left) | Flags(right);
     }
 
-    export constexpr BOZA_API Flags<TextureUsage> operator&(const TextureUsage left, const TextureUsage right) noexcept
+    export constexpr BOZA_API Flags<TextureUsage> operator&(
+        const TextureUsage left,
+        const TextureUsage right) noexcept
     {
         return Flags(left) & Flags(right);
     }
 
-    export constexpr BOZA_API Flags<TextureUsage> operator^(const TextureUsage left, const TextureUsage right) noexcept
+    export constexpr BOZA_API Flags<TextureUsage> operator^(
+        const TextureUsage left,
+        const TextureUsage right) noexcept
     {
         return Flags(left) ^ Flags(right);
     }
 
-    export constexpr BOZA_API Flags<TextureUsage> operator~(const TextureUsage value) noexcept { return ~Flags(value); }
+    export constexpr BOZA_API Flags<TextureUsage> operator~(const TextureUsage value) noexcept
+    {
+        return ~Flags(value);
+    }
 
     export enum class TextureType : std::uint8_t
     {
@@ -177,15 +212,15 @@ namespace boza
         Mirror
     };
 
-    template<typename T>
+    template <typename T>
     struct shader_data_type_of
     {
         static constexpr auto value = ShaderDataType::Unknown;
     };
 
-    #define BOZA_SHADER_DATA_TYPE(CppType, ShaderType) \
-    template<> struct shader_data_type_of<CppType>   \
-    {                                                 \
+#define BOZA_SHADER_DATA_TYPE(CppType, ShaderType)    \
+    template <> struct shader_data_type_of<CppType>   \
+    {                                                  \
         static constexpr auto value = ShaderDataType::ShaderType; \
     };
 
@@ -237,9 +272,9 @@ namespace boza
     BOZA_SHADER_DATA_TYPE(glm::dmat4x2, DMat4x2)
     BOZA_SHADER_DATA_TYPE(glm::dmat4x3, DMat4x3)
 
-    #undef BOZA_SHADER_DATA_TYPE
+#undef BOZA_SHADER_DATA_TYPE
 
-    export template<typename T>
+    export template <typename T>
     constexpr ShaderDataType get_shader_data_type()
     {
         return shader_data_type_of<std::decay_t<T>>::value;

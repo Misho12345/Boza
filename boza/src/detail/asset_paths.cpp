@@ -28,7 +28,7 @@ namespace boza::detail
     std::string AssetPaths::material_id_from_path(const fs::path& material_path)
     {
         std::error_code ec;
-        const fs::path  materials_root = weakly_canonical(materials_dir(), ec);
+        const fs::path materials_root = weakly_canonical(materials_dir(), ec);
         if (ec || !exists(materials_root)) return {};
 
         const fs::path material_file = weakly_canonical(material_path, ec);
@@ -42,7 +42,10 @@ namespace boza::detail
         const fs::path relative_path = material_file.lexically_relative(materials_root);
         if (relative_path.empty()) return {};
 
-        for (const auto& part : relative_path) { if (part == "..") return {}; }
+        for (const auto& part : relative_path)
+        {
+            if (part == "..") return {};
+        }
 
         const fs::path id_path = relative_path.parent_path() / stem_with_type.stem();
         return normalize_resource_id(id_path.generic_string().data());
@@ -51,7 +54,7 @@ namespace boza::detail
     std::string AssetPaths::sampler_id_from_path(const fs::path& sampler_path)
     {
         std::error_code ec;
-        const fs::path  samplers_root = weakly_canonical(samplers_dir(), ec);
+        const fs::path samplers_root = weakly_canonical(samplers_dir(), ec);
         if (ec || !exists(samplers_root)) return {};
 
         const fs::path sampler_file = weakly_canonical(sampler_path, ec);
@@ -65,7 +68,10 @@ namespace boza::detail
         const fs::path relative_path = sampler_file.lexically_relative(samplers_root);
         if (relative_path.empty()) return {};
 
-        for (const auto& part : relative_path) { if (part == "..") return {}; }
+        for (const auto& part : relative_path)
+        {
+            if (part == "..") return {};
+        }
 
         const fs::path id_path = relative_path.parent_path() / stem_with_type.stem();
         return normalize_resource_id(id_path.generic_string().data());

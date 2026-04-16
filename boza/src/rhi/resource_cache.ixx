@@ -10,13 +10,14 @@ export namespace boza::rhi
     class ResourceCache
     {
     public:
-        template<typename T>
+        template <typename T>
         struct GraphicsObjectDeleter
         {
             void operator()(T* ptr) const { delete ptr; }
         };
 
-        using OwnedDescriptorSetLayout = std::unique_ptr<DescriptorSetLayout, GraphicsObjectDeleter<DescriptorSetLayout>>;
+        using OwnedDescriptorSetLayout =
+            std::unique_ptr<DescriptorSetLayout, GraphicsObjectDeleter<DescriptorSetLayout>>;
 
         ResourceCache() = default;
         ~ResourceCache() { clear(); }
@@ -44,11 +45,11 @@ export namespace boza::rhi
 
             struct Hash
             {
-                size_t operator()(const GraphicsPipelineKey& key) const noexcept
+                std::size_t operator()(const GraphicsPipelineKey& key) const noexcept
                 {
-                    const size_t h1 = std::hash<std::string>{}(key.vertex_shader);
-                    const size_t h2 = std::hash<std::string>{}(key.fragment_shader);
-                    const size_t h3 = key.settings_hash;
+                    const std::size_t h1 = std::hash<std::string>{}(key.vertex_shader);
+                    const std::size_t h2 = std::hash<std::string>{}(key.fragment_shader);
+                    const std::size_t h3 = key.settings_hash;
                     return h1 ^ (h2 << 1) ^ (h3 << 2);
                 }
             };
@@ -69,7 +70,7 @@ export namespace boza::rhi
 
             struct Hash
             {
-                size_t operator()(const ComputePipelineKey& key) const noexcept
+                std::size_t operator()(const ComputePipelineKey& key) const noexcept
                 {
                     return std::hash<std::string>{}(key.compute_shader);
                 }
@@ -87,12 +88,12 @@ export namespace boza::rhi
         std::shared_ptr<const CachedGraphicsPipeline> get_cached_pipeline(
             const std::string& vert,
             const std::string& frag,
-            std::size_t        settings_hash = 0);
+            std::size_t settings_hash = 0);
         [[nodiscard]]
         std::shared_ptr<const CachedGraphicsPipeline> cache_graphics_pipeline(
             const std::string& vert,
             const std::string& frag,
-            std::size_t        settings_hash,
+            std::size_t settings_hash,
             CachedGraphicsPipeline cached);
 
         [[nodiscard]]
@@ -114,10 +115,10 @@ export namespace boza::rhi
 
             struct Hash
             {
-                size_t operator()(const ShaderKey& key) const noexcept
+                std::size_t operator()(const ShaderKey& key) const noexcept
                 {
-                    const size_t h1 = std::hash<std::string>{}(key.path);
-                    const size_t h2 = std::hash<int>{}(static_cast<int>(key.stage));
+                    const std::size_t h1 = std::hash<std::string>{}(key.path);
+                    const std::size_t h2 = std::hash<int>{}(static_cast<int>(key.stage));
                     return h1 ^ (h2 << 1);
                 }
             };
@@ -133,11 +134,11 @@ export namespace boza::rhi
         mutable std::mutex pipeline_mutex_;
         mutable std::mutex compute_pipeline_mutex_;
 
-        template<typename T, typename KeyType, typename MapType>
+        template <typename T, typename KeyType, typename MapType>
         std::shared_ptr<T> get_or_create(
-            const KeyType&             key,
-            MapType&                   cache,
-            std::mutex&                mutex,
+            const KeyType& key,
+            MapType& cache,
+            std::mutex& mutex,
             const std::function<std::unique_ptr<T>()>& factory)
         {
             {

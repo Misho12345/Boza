@@ -45,7 +45,6 @@ namespace boza
         return phase_entities[phase_index(phase)];
     }
 
-
     SystemRegistry& SystemRegistry::instance()
     {
         static SystemRegistry registry;
@@ -84,23 +83,36 @@ namespace boza
             return phase;
         };
 
-        phase_entities[phase_index(Phase::EngineBegin)] = make_phase("EngineBegin", flecs::OnLoad);
-        phase_entities[phase_index(Phase::Start)] = make_phase("Start", to_underlying_phase(Phase::EngineBegin));
-        phase_entities[phase_index(Phase::PostStart)] = make_phase("PostStart", to_underlying_phase(Phase::Start));
+        phase_entities[phase_index(Phase::EngineBegin)] =
+            make_phase("EngineBegin", flecs::OnLoad);
+        phase_entities[phase_index(Phase::Start)] =
+            make_phase("Start", to_underlying_phase(Phase::EngineBegin));
+        phase_entities[phase_index(Phase::PostStart)] =
+            make_phase("PostStart", to_underlying_phase(Phase::Start));
 
-        phase_entities[phase_index(Phase::EnginePhysics)] = make_phase("EnginePhysics", to_underlying_phase(Phase::PostStart));
-        phase_entities[phase_index(Phase::Physics)] = make_phase("Physics", to_underlying_phase(Phase::EnginePhysics));
+        phase_entities[phase_index(Phase::EnginePhysics)] =
+            make_phase("EnginePhysics", to_underlying_phase(Phase::PostStart));
+        phase_entities[phase_index(Phase::Physics)] =
+            make_phase("Physics", to_underlying_phase(Phase::EnginePhysics));
 
-        phase_entities[phase_index(Phase::EngineUpdate)] = make_phase("EngineUpdate", to_underlying_phase(Phase::PostStart));
-        phase_entities[phase_index(Phase::PreUpdate)] = make_phase("PreUpdate", to_underlying_phase(Phase::EngineUpdate));
-        phase_entities[phase_index(Phase::Update)] = make_phase("Update", to_underlying_phase(Phase::PreUpdate));
-        phase_entities[phase_index(Phase::PostUpdate)] = make_phase("PostUpdate", to_underlying_phase(Phase::Update));
+        phase_entities[phase_index(Phase::EngineUpdate)] =
+            make_phase("EngineUpdate", to_underlying_phase(Phase::PostStart));
+        phase_entities[phase_index(Phase::PreUpdate)] =
+            make_phase("PreUpdate", to_underlying_phase(Phase::EngineUpdate));
+        phase_entities[phase_index(Phase::Update)] =
+            make_phase("Update", to_underlying_phase(Phase::PreUpdate));
+        phase_entities[phase_index(Phase::PostUpdate)] =
+            make_phase("PostUpdate", to_underlying_phase(Phase::Update));
 
-        phase_entities[phase_index(Phase::PreRender)] = make_phase("PreRender", to_underlying_phase(Phase::PostUpdate));
-        phase_entities[phase_index(Phase::EngineRender)] = make_phase("EngineRender", to_underlying_phase(Phase::PreRender));
+        phase_entities[phase_index(Phase::PreRender)] =
+            make_phase("PreRender", to_underlying_phase(Phase::PostUpdate));
+        phase_entities[phase_index(Phase::EngineRender)] =
+            make_phase("EngineRender", to_underlying_phase(Phase::PreRender));
 
-        phase_entities[phase_index(Phase::Destroy)] = make_phase("Destroy", to_underlying_phase(Phase::EngineRender));
-        phase_entities[phase_index(Phase::EngineDestroy)] = make_phase("EngineDestroy", to_underlying_phase(Phase::Destroy));
+        phase_entities[phase_index(Phase::Destroy)] =
+            make_phase("Destroy", to_underlying_phase(Phase::EngineRender));
+        phase_entities[phase_index(Phase::EngineDestroy)] =
+            make_phase("EngineDestroy", to_underlying_phase(Phase::Destroy));
     }
 
     void SystemRegistry::create_all_systems() const

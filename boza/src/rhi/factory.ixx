@@ -29,7 +29,6 @@ import boza.rhi.dx11;
 import boza.rhi.dx12;
 #endif
 
-
 #define FACTORY_FUNC(CLASS, CLASS_LOWER)                                                            \
     std::unique_ptr<CLASS> create_ ## CLASS_LOWER(const GraphicsApi api, const CLASS ## Desc& desc) \
     {                                                                                               \
@@ -44,7 +43,6 @@ import boza.rhi.dx12;
         Log::error("Unsupported graphics API '{}' when creating {}", static_cast<int>(api), #CLASS); \
         return nullptr;                                                                             \
     }
-
 
 export namespace boza::rhi
 {

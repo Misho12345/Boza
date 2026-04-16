@@ -4,6 +4,7 @@ module;
 
 export module boza.gfx:camera;
 
+import std;
 import boza.common;
 import <flecs.h>;
 

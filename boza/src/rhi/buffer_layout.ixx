@@ -191,12 +191,12 @@ export namespace boza::rhi
             current_offset_ = 0;
         }
 
-        template<typename T>
+        template <typename T>
         void write(const T& value)
         {
-            const ShaderValueType type           = get_shader_type<T>();
-            const std::size_t     aligned_offset = rules_->align_offset(current_offset_, type);
-            const std::size_t     size           = rules_->get_size(type);
+            const ShaderValueType type = get_shader_type<T>();
+            const std::size_t aligned_offset = rules_->align_offset(current_offset_, type);
+            const std::size_t size = rules_->get_size(type);
 
             if (aligned_offset + size > data_.size()) { data_.resize(aligned_offset + size, 0); }
 
@@ -211,14 +211,14 @@ export namespace boza::rhi
         }
 
         [[nodiscard]] const std::uint8_t* data() const { return data_.data(); }
-        [[nodiscard]] std::size_t      size() const { return data_.size(); }
-        [[nodiscard]] std::size_t      current_offset() const { return current_offset_; }
+        [[nodiscard]] std::size_t size() const { return data_.size(); }
+        [[nodiscard]] std::size_t current_offset() const { return current_offset_; }
 
         void reserve(const std::size_t size) { data_.reserve(size); }
         void resize(const std::size_t size) { data_.resize(size, 0); }
 
     private:
-        template<typename T>
+        template <typename T>
         static constexpr ShaderValueType get_shader_type()
         {
             if constexpr (std::same_as<T, float>) return ShaderValueType::Float;
@@ -240,10 +240,10 @@ export namespace boza::rhi
             else static_assert(false, "Unsupported shader type in BufferWriter::write");
         }
 
-        BufferLayoutType                   layout_type_;
+        BufferLayoutType layout_type_;
         std::unique_ptr<BufferLayoutRules> rules_;
-        std::vector<std::uint8_t>             data_;
-        std::size_t                        current_offset_{ 0 };
+        std::vector<std::uint8_t> data_;
+        std::size_t current_offset_{ 0 };
     };
 
     [[nodiscard]]

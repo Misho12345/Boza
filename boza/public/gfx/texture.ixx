@@ -20,12 +20,12 @@ export namespace boza
 
     struct TextureSettings final
     {
-        TextureType         type{ TextureType::Texture2D };
-        TextureFormat       format{ TextureFormat::RGBA8 };
-        ResourceAccessMode  access_mode{ ResourceAccessMode::Static };
-        std::uint32_t       width{ 1u };
-        std::uint32_t       height{ 1u };
-        std::uint32_t       depth{ 1u };
+        TextureType type{ TextureType::Texture2D };
+        TextureFormat format{ TextureFormat::RGBA8 };
+        ResourceAccessMode access_mode{ ResourceAccessMode::Static };
+        std::uint32_t width{ 1u };
+        std::uint32_t height{ 1u };
+        std::uint32_t depth{ 1u };
         Flags<TextureUsage> usage_flags{ TextureUsage::Sampled | TextureUsage::TransferDst };
     };
 
@@ -46,8 +46,8 @@ export namespace boza
         Texture& operator=(Texture&&) noexcept;
 
         static Texture& copy(
-            std::string_view src_name,
-            std::string_view dst_name,
+            std::string_view   src_name,
+            std::string_view   dst_name,
             ResourceAccessMode access_mode);
 
         static Texture& create(

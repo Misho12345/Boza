@@ -39,7 +39,6 @@ namespace boza
         bounds_.radius = std::sqrt(radius_squared);
     }
 
-
     Mesh::Mesh(Mesh&& other) noexcept
         : name_{ std::move(other.name_) },
           vertices_{ std::move(other.vertices_) },
@@ -61,9 +60,9 @@ namespace boza
     }
 
     Mesh& Mesh::create(
-            std::string_view           name,
-            std::vector<Vertex>        vertices,
-            std::vector<std::uint32_t> indices)
+        std::string_view           name,
+        std::vector<Vertex>        vertices,
+        std::vector<std::uint32_t> indices)
     {
         if (const auto it = registry_.find(name); it != registry_.end())
         {
@@ -103,11 +102,10 @@ namespace boza
         return create(name, std::move(vertices), std::move(indices));
     }
 
-
     Mesh& Mesh::get(const std::string_view name)
     {
         auto& registry = registry_;
-        auto it = registry.find(name);
+        auto  it       = registry.find(name);
         assert(it != registry.end(), "Mesh not found");
         return it->second;
     }

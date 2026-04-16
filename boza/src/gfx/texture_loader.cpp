@@ -10,20 +10,20 @@ import boza.rhi.render_context;
 
 namespace boza::gfx
 {
-    using detail::ImageIO;
     using detail::ImageData;
+    using detail::ImageIO;
 
     namespace
     {
         constexpr TextureSettings error_texture_settings(const TextureType type)
         {
             return TextureSettings{
-                .type = type,
-                .format = TextureFormat::RGBA8,
+                .type        = type,
+                .format      = TextureFormat::RGBA8,
                 .access_mode = ResourceAccessMode::Static,
-                .width = 1,
-                .height = 1,
-                .depth = 1,
+                .width       = 1,
+                .height      = 1,
+                .depth       = 1,
                 .usage_flags = TextureUsage::Sampled | TextureUsage::TransferDst
             };
         }
@@ -165,12 +165,12 @@ namespace boza::gfx
             Texture{
                 name_str,
                 TextureSettings{
-                    .type = type,
-                    .format = format_from_channels(image_data.channels),
+                    .type        = type,
+                    .format      = format_from_channels(image_data.channels),
                     .access_mode = ResourceAccessMode::Static,
-                    .width = image_data.width,
-                    .height = image_data.height,
-                    .depth = 1,
+                    .width       = image_data.width,
+                    .height      = image_data.height,
+                    .depth       = 1,
                     .usage_flags = TextureUsage::Sampled | TextureUsage::TransferDst
                 }
             });
@@ -228,7 +228,9 @@ namespace boza::gfx
             image_data.width % 4 != 0 || image_data.height % 3 != 0)
         {
             Log::warn("Cubemap texture {} has invalid dimensions ({}x{}), expected 4:3 ratio for cross layout",
-                      name_str, image_data.width, image_data.height);
+                name_str,
+                image_data.width,
+                image_data.height);
             return error_texture(TextureType::TextureCube);
         }
 
@@ -237,12 +239,12 @@ namespace boza::gfx
             Texture{
                 name_str,
                 TextureSettings{
-                    .type = TextureType::TextureCube,
-                    .format = format_from_channels(image_data.channels),
+                    .type        = TextureType::TextureCube,
+                    .format      = format_from_channels(image_data.channels),
                     .access_mode = ResourceAccessMode::Static,
-                    .width = face_width,
-                    .height = face_height,
-                    .depth = 1,
+                    .width       = face_width,
+                    .height      = face_height,
+                    .depth       = 1,
                     .usage_flags = TextureUsage::Sampled | TextureUsage::TransferDst
                 }
             });
@@ -260,7 +262,8 @@ namespace boza::gfx
 
         std::vector<std::uint8_t> face_data(face_size);
 
-        auto extract_face = [&](const std::uint32_t grid_x, const std::uint32_t grid_y) {
+        auto extract_face = [&](const std::uint32_t grid_x, const std::uint32_t grid_y)
+        {
             for (std::uint32_t y = 0; y < face_height; ++y)
             {
                 const std::size_t src_offset =
@@ -310,7 +313,8 @@ namespace boza::gfx
             return error_texture(fallback_type);
         }
 
-        if (auto* existing_dst = textures_.find_ptr(dst_str); existing_dst && existing_dst->type != src_texture->type)
+        if (auto* existing_dst = textures_.find_ptr(dst_str);
+            existing_dst && existing_dst->type != src_texture->type)
         {
             Log::error(
                 "Texture '{}' already exists with type {}, requested type {}",
@@ -327,14 +331,15 @@ namespace boza::gfx
             Texture{
                 dst_str,
                 TextureSettings{
-                    .type = src_texture->type,
-                    .format = src_texture->format,
+                    .type        = src_texture->type,
+                    .format      = src_texture->format,
                     .access_mode = access_mode,
-                    .width = src_texture->width,
-                    .height = src_texture->height,
-                    .depth = src_texture->depth,
+                    .width       = src_texture->width,
+                    .height      = src_texture->height,
+                    .depth       = src_texture->depth,
                     .usage_flags = TextureUsage::Sampled | TextureUsage::TransferDst
-            }});
+                }
+            });
 
         if (!dst_texture || !dst_texture->is_valid())
         {

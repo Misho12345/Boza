@@ -25,7 +25,6 @@ namespace boza::rhi
         std::unreachable();
     }
 
-
     PipelineBuilder::PipelineBuilder(const GraphicsApi api, Device* device, std::vector<ShaderModule*> shaders)
         : api_{ api },
           device_{ device },
@@ -133,7 +132,7 @@ namespace boza::rhi
             adjusted_color_blend.attachments.resize(color_attachment_formats.size());
         }
 
-        std::vector<VertexInputBinding>   bindings;
+        std::vector<VertexInputBinding> bindings;
         std::vector<VertexInputAttribute> attributes;
 
         const ShaderModule* vertex_shader = nullptr;
@@ -148,7 +147,7 @@ namespace boza::rhi
 
         if (vertex_shader)
         {
-            const auto&   metadata     = vertex_shader->meta_data();
+            const auto& metadata = vertex_shader->meta_data();
             std::uint32_t total_stride = 0;
 
             for (const auto& input : metadata.stage_inputs | std::views::values) total_stride += input.size;
@@ -357,9 +356,9 @@ namespace boza::rhi
                 return false;
             }
 
-            const auto& metadata   = shader->meta_data();
-            const auto  stage_flag = Flags(shader->stage());
-            const auto  shader_name = shader->filename();
+            const auto& metadata = shader->meta_data();
+            const auto stage_flag = Flags(shader->stage());
+            const auto shader_name = shader->filename();
 
             if (!merge_resource_group(metadata.uniform_buffers, DescriptorType::UniformBuffer, "uniform_buffer", shader_name, stage_flag)) return false;
             if (!merge_resource_group(metadata.storage_buffers, DescriptorType::StorageBuffer, "storage_buffer", shader_name, stage_flag)) return false;

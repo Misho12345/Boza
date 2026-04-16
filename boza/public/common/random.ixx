@@ -22,15 +22,15 @@ export namespace boza
         static void reseed() noexcept { engine() = make_engine(make_seed_entropy()); }
 
         /// Generate a random integer in range [0, max]
-        template<std::integral T>
+        template <std::integral T>
         static T number(T max = std::numeric_limits<T>::max()) noexcept { return range<T>(0, max); }
 
         /// Generate a random float in range [0, max]
-        template<std::floating_point T>
+        template <std::floating_point T>
         static T number(T max = 1) noexcept { return range<T>(T{ 0 }, max); }
 
         /// Generate a random integer in range [min, max]
-        template<std::integral T>
+        template <std::integral T>
         static T range(T min, T max) noexcept
         {
             std::uniform_int_distribution<T> dist(min, max);
@@ -38,7 +38,7 @@ export namespace boza
         }
 
         /// Generate a random float in range [min, max]
-        template<std::floating_point T>
+        template <std::floating_point T>
         static T range(T min, T max) noexcept
         {
             std::uniform_real_distribution<T> dist(min, max);
@@ -58,11 +58,11 @@ export namespace boza
         }
 
         /// Randomly shuffle elements in a span
-        template<class T>
+        template <typename T>
         static void shuffle(std::span<T> s) noexcept { std::shuffle(s.begin(), s.end(), engine()); }
 
         /// Pick a random element from a range, returns reference (asserts if empty)
-        template<class R> requires std::ranges::contiguous_range<R> && std::ranges::sized_range<R>
+        template <typename R> requires std::ranges::contiguous_range<R> && std::ranges::sized_range<R>
         static std::ranges::range_reference_t<R> pick(R&& r) noexcept
         {
             auto s = std::span{ r };
@@ -71,7 +71,7 @@ export namespace boza
         }
 
         /// Pick a random element from a span, returns reference (asserts if empty)
-        template<class T>
+        template <typename T>
         static T& pick(std::span<T> s) noexcept
         {
             assert(!s.empty(), "Random::pick called on empty span");
@@ -79,7 +79,7 @@ export namespace boza
         }
 
         /// Pick a random element from a const span, returns const reference (asserts if empty)
-        template<class T>
+        template <typename T>
         static const T& pick(std::span<const T> s) noexcept
         {
             assert(!s.empty(), "Random::pick called on empty const span");
@@ -92,7 +92,7 @@ export namespace boza
          * @param charset Set of characters to choose from
          */
         static std::string string(
-            const std::size_t      length,
+            const std::size_t length,
             const std::string_view charset = alphanumeric_charset) noexcept
         {
             if (length == 0 || charset.empty()) return {};
@@ -132,7 +132,7 @@ export namespace boza
          * });
          * @endcode
          */
-        template<class E> requires std::is_enum_v<E>
+        template <typename E> requires std::is_enum_v<E>
         static E pick_enum(std::initializer_list<E> values) noexcept
         {
             if (values.size() == 0) return E{};
@@ -140,7 +140,7 @@ export namespace boza
         }
 
         /// Pick a random enum value from a span
-        template<class E> requires std::is_enum_v<E>
+        template <typename E> requires std::is_enum_v<E>
         static E pick_enum(std::span<const E> values) noexcept
         {
             if (values.empty()) return E{};
@@ -158,12 +158,12 @@ export namespace boza
          * });
          * @endcode
          */
-        template<class E> requires std::is_enum_v<E>
+        template <typename E> requires std::is_enum_v<E>
         static E pick_enum_weighted(std::initializer_list<std::pair<E, double>> weighted_values) noexcept
         {
             if (weighted_values.size() == 0) return E{};
 
-            std::vector<E>      values;
+            std::vector<E> values;
             std::vector<double> weights;
             values.reserve(weighted_values.size());
             weights.reserve(weighted_values.size());
@@ -179,12 +179,12 @@ export namespace boza
         }
 
         /// Pick a random enum value with weighted probabilities from a span
-        template<class E> requires std::is_enum_v<E>
+        template <typename E> requires std::is_enum_v<E>
         static E pick_enum_weighted(std::span<const std::pair<E, double>> weighted_values) noexcept
         {
             if (weighted_values.empty()) return E{};
 
-            std::vector<E>      values;
+            std::vector<E> values;
             std::vector<double> weights;
             values.reserve(weighted_values.size());
             weights.reserve(weighted_values.size());
@@ -215,7 +215,7 @@ export namespace boza
                 static_cast<std::uint32_t>((seed * 0xBF58476D1CE4E5B9ULL) >> 32),
             };
 
-            std::seed_seq   seq(seeds.begin(), seeds.end());
+            std::seed_seq seq(seeds.begin(), seeds.end());
             std::mt19937_64 eng;
             eng.seed(seq);
             return eng;
@@ -232,7 +232,7 @@ export namespace boza
         static std::uint64_t make_seed_entropy() noexcept
         {
             std::random_device rd;
-            std::uint64_t      x = 0;
+            std::uint64_t x = 0;
 
             for (int i = 0; i < 4; ++i)
             {

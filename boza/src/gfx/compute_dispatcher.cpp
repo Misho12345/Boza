@@ -11,7 +11,7 @@ import boza.core;
 
 namespace boza
 {
-    using RhiBufferHandle = std::unique_ptr<rhi::Buffer, void(*)(rhi::Buffer*)>;
+    using RhiBufferHandle = std::unique_ptr<rhi::Buffer, void (*)(rhi::Buffer*)>;
     static void destroy_rhi_buffer(rhi::Buffer* buffer) { delete buffer; }
 
     struct ComputeDispatcher::Impl
@@ -61,8 +61,8 @@ namespace boza
         ComputeDispatchStatus dispatch_status{ ComputeDispatchStatus::Idle };
     };
 
-
-    ComputeDispatcher::ComputeDispatcher(const std::string& shader_name) : impl_{ std::make_unique<Impl>() }
+    ComputeDispatcher::ComputeDispatcher(const std::string& shader_name)
+        : impl_{ std::make_unique<Impl>() }
     {
         work_group_size_ = glm::uvec3{ 1, 1, 1 };
 
@@ -167,7 +167,9 @@ namespace boza
                 cached_pipeline.descriptor_set_layouts.emplace_back(layout.release());
             }
 
-            const auto stored_cached = resource_cache->cache_compute_pipeline(shader_name, std::move(cached_pipeline));
+            const auto stored_cached = resource_cache->cache_compute_pipeline(
+                shader_name,
+                std::move(cached_pipeline));
 
             pipeline = stored_cached ? stored_cached->pipeline.get() : nullptr;
             pipeline_layout = stored_cached ? stored_cached->layout.get() : nullptr;
@@ -534,7 +536,10 @@ namespace boza
         };
     }
 
-    void ComputeDispatcher::dispatch_impl(const std::uint32_t x, const std::uint32_t y, const std::uint32_t z)
+    void ComputeDispatcher::dispatch_impl(
+        const std::uint32_t x,
+        const std::uint32_t y,
+        const std::uint32_t z)
     {
         if (!impl_->pipeline)
         {
@@ -603,10 +608,12 @@ namespace boza
             return;
         }
 
-        auto fence = create_fence(rhi::RenderContext::api(), {
-            .device = const_cast<rhi::Device*>(device),
-            .signaled = false
-        });
+        auto fence = create_fence(
+            rhi::RenderContext::api(),
+            {
+                .device = const_cast<rhi::Device*>(device),
+                .signaled = false
+            });
 
         if (!fence)
         {
@@ -625,10 +632,11 @@ namespace boza
             return;
         }
 
-        if (!queue->submit({
-            .command_buffers = { cmd },
-            .signal_fence = fence.get()
-        }))
+        if (!queue->submit(
+            {
+                .command_buffers = { cmd },
+                .signal_fence = fence.get()
+            }))
         {
             Log::error("Cannot dispatch compute: failed to submit command buffer");
             cmd_pool->free_command_buffer(cmd);
@@ -671,7 +679,7 @@ namespace boza
 
         const auto& info = binding_info.value();
 
-        #ifdef BOZA_DEBUG
+#ifdef BOZA_DEBUG
         if (!rhi::validate_property_type(type, size, info.data_type, info.size))
         {
             const auto error_msg = rhi::format_type_mismatch_error(
@@ -683,14 +691,18 @@ namespace boza
             );
             Log::warn("{}", error_msg);
         }
-        #endif
+#endif
 
         if (info.is_push_constant)
         {
             if (info.offset + size > impl_->push_constant_staging.size())
             {
-                Log::error("Push constant '{}' offset {} + size {} exceeds staging buffer size {}",
-                           name, info.offset, size, impl_->push_constant_staging.size());
+                Log::error(
+                    "Push constant '{}' offset {} + size {} exceeds staging buffer size {}",
+                    name,
+                    info.offset,
+                    size,
+                    impl_->push_constant_staging.size());
                 return;
             }
 
@@ -728,7 +740,8 @@ namespace boza
                                                 : std::max<std::size_t>(info.offset + size, 256);
 
             auto buffer = create_buffer(
-                rhi::RenderContext::api(), {
+                rhi::RenderContext::api(),
+                {
                     .device = rhi::RenderContext::device(),
                     .size = buffer_size,
                     .usage = BufferUsage::Uniform,
@@ -765,8 +778,12 @@ namespace boza
         auto& staging = impl_->uniform_buffer_staging.at(binding_key);
         if (info.offset + size > staging.size())
         {
-            Log::error("Compute uniform property '{}' offset {} + size {} exceeds buffer size {}",
-                       name, info.offset, size, staging.size());
+            Log::error(
+                "Compute uniform property '{}' offset {} + size {} exceeds buffer size {}",
+                name,
+                info.offset,
+                size,
+                staging.size());
             return;
         }
 
@@ -783,7 +800,6 @@ namespace boza
         mark_set_dirty(info.set);
         touch_generation();
     }
-
 
     ComputeDispatchGroup::ComputeDispatchGroup() : impl_{ std::make_unique<Impl>() } {}
 
@@ -802,7 +818,6 @@ namespace boza
         impl_->command_pool = nullptr;
         impl_->fence.reset();
     }
-
 
     ComputeDispatchGroup& ComputeDispatchGroup::append_step(
         ComputeDispatcher& dispatcher,
@@ -884,7 +899,6 @@ namespace boza
         return add_groups(dispatcher, groups.x, groups.y, groups.z, wait_for);
     }
 
-
     ComputeDispatchGroup& ComputeDispatchGroup::clear()
     {
         std::scoped_lock lock{ mutex_ };
@@ -937,10 +951,12 @@ namespace boza
 
         if (!impl_->fence)
         {
-            impl_->fence = create_fence(rhi::RenderContext::api(), {
-                .device = device,
-                .signaled = false
-            });
+            impl_->fence = create_fence(
+                rhi::RenderContext::api(),
+                {
+                    .device = device,
+                    .signaled = false
+                });
 
             if (!impl_->fence)
             {
@@ -967,10 +983,11 @@ namespace boza
             return *this;
         }
 
-        if (!queue->submit({
-            .command_buffers = { impl_->command_buffer },
-            .signal_fence = impl_->fence.get()
-        }))
+        if (!queue->submit(
+            {
+                .command_buffers = { impl_->command_buffer },
+                .signal_fence = impl_->fence.get()
+            }))
         {
             Log::error("Cannot submit compute dispatch group: queue submit failed");
             failed_.store(true, std::memory_order_relaxed);
@@ -1005,7 +1022,6 @@ namespace boza
         if (failed_.load(std::memory_order_relaxed)) return ComputeDispatchStatus::Failed;
         return impl_->dispatch_status;
     }
-
 
     bool ComputeDispatchGroup::record_locked()
     {

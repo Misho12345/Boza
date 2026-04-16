@@ -9,7 +9,11 @@ export namespace boza
 {
     struct TransformSystem
     {
-        struct Update : PreRenderStage<Update, With<const tags::TransformDirty>>
+        struct Update
+            : PreRenderStage<
+                Update,
+                With<const tags::TransformDirty>
+            >
         {
             static void execute(GameObject go)
             {
@@ -17,13 +21,16 @@ export namespace boza
                 if (!go.has_component<tags::TransformDirty>()) return;
 
                 const GameObject parent = go.parent();
-                if (parent.valid() && parent.has_component<tags::TransformDirty>()) return;
+                if (parent.valid() &&
+                    parent.has_component<tags::TransformDirty>()) return;
 
                 update_subtree(go);
             }
 
         private:
-            static void update_subtree(GameObject go, const bool parent_world_changed = true)
+            static void update_subtree(
+                GameObject go,
+                const bool parent_world_changed = true)
             {
                 if (!go.valid()) return;
 
@@ -35,7 +42,10 @@ export namespace boza
                 transform.dirty_ = false;
 
                 go.remove_component<tags::TransformDirty>();
-                go.for_each_child([should_evaluate](GameObject child) { update_subtree(child, should_evaluate); });
+                go.for_each_child([should_evaluate](GameObject child)
+                {
+                    update_subtree(child, should_evaluate);
+                });
             }
         };
     };

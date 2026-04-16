@@ -104,7 +104,7 @@ namespace boza::rhi::vk
 
         const auto& vk_instance = reinterpret_cast<Instance*>(desc_.instance)->vk_instance();
 
-        uint32_t device_count = 0;
+        std::uint32_t device_count = 0;
         if (!vk_check(
             vkEnumeratePhysicalDevices(vk_instance, &device_count, nullptr),
             "Failed to enumerate physical devices"))
@@ -143,7 +143,7 @@ namespace boza::rhi::vk
             VkPhysicalDeviceProperties device_properties;
             vkGetPhysicalDeviceProperties(device, &device_properties);
 
-            uint32_t supported_extensions_count = 0;
+            std::uint32_t supported_extensions_count = 0;
             if (!vk_check(
                 vkEnumerateDeviceExtensionProperties(device, nullptr, &supported_extensions_count, nullptr),
                 "Failed to enumerate device extension properties for {}", device_properties.deviceName))
@@ -206,7 +206,7 @@ namespace boza::rhi::vk
     {
         // Log::trace("Finding queue families");
 
-        uint32_t queue_family_count = 0;
+        std::uint32_t queue_family_count = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(physical_device_, &queue_family_count, nullptr);
         std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
         vkGetPhysicalDeviceQueueFamilyProperties(physical_device_, &queue_family_count, queue_families.data());
@@ -218,7 +218,7 @@ namespace boza::rhi::vk
         bool found_compute_family = false;
         bool found_transfer_family = false;
 
-        for (uint32_t i = 0; i < queue_family_count; ++i)
+        for (std::uint32_t i = 0; i < queue_family_count; ++i)
         {
             const auto& props = queue_families[i];
 
@@ -276,7 +276,7 @@ namespace boza::rhi::vk
 
         if (!found_compute_family)
         {
-            for (uint32_t i = 0; i < queue_family_count; ++i)
+            for (std::uint32_t i = 0; i < queue_family_count; ++i)
             {
                 if (queue_families[i].queueFlags & VK_QUEUE_COMPUTE_BIT)
                 {
@@ -290,7 +290,7 @@ namespace boza::rhi::vk
 
         if (!found_transfer_family)
         {
-            for (uint32_t i = 0; i < queue_family_count; ++i)
+            for (std::uint32_t i = 0; i < queue_family_count; ++i)
             {
                 if (queue_families[i].queueFlags & VK_QUEUE_TRANSFER_BIT)
                 {
@@ -370,11 +370,11 @@ namespace boza::rhi::vk
             .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
             .pNext = &vk13_features,
             .flags = {},
-            .queueCreateInfoCount = static_cast<uint32_t>(queue_create_infos.size()),
+            .queueCreateInfoCount = static_cast<std::uint32_t>(queue_create_infos.size()),
             .pQueueCreateInfos = queue_create_infos.data(),
             .enabledLayerCount = 0,
             .ppEnabledLayerNames = nullptr,
-            .enabledExtensionCount = static_cast<uint32_t>(std::size(required_extensions)),
+            .enabledExtensionCount = static_cast<std::uint32_t>(std::size(required_extensions)),
             .ppEnabledExtensionNames = required_extensions,
             .pEnabledFeatures = &enabled_features_,
         };
@@ -392,7 +392,7 @@ namespace boza::rhi::vk
     {
         // Log::trace("Getting device queues");
 
-        std::unordered_set<uint32_t> families{};
+        std::unordered_set<std::uint32_t> families{};
         families.insert(queue_family_indices_.graphics_family);
         families.insert(queue_family_indices_.present_family);
         families.insert(queue_family_indices_.compute_family);
@@ -428,7 +428,7 @@ namespace boza::rhi::vk
     {
         // Log::trace("Creating command pools for queue families");
 
-        std::unordered_set<uint32_t> families{};
+        std::unordered_set<std::uint32_t> families{};
         families.insert(queue_family_indices_.graphics_family);
         families.insert(queue_family_indices_.present_family);
         families.insert(queue_family_indices_.compute_family);

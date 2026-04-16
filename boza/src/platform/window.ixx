@@ -46,9 +46,9 @@ export namespace boza::platform
         }
 
         [[nodiscard]]
-        bool        should_close() const;
+        bool should_close() const;
         static void poll_events();
-        void        set_window_resize_callback();
+        void set_window_resize_callback();
 
         void show() const;
         void hide() const;
@@ -71,21 +71,21 @@ export namespace boza::platform
         #endif
 
     private:
-        uint32_t width_{};
-        uint32_t height_{};
+        std::uint32_t width_{};
+        std::uint32_t height_{};
 
         std::string title_{};
-        bool        fullscreen_{};
+        bool fullscreen_{};
 
-        uint32_t last_width_{};
-        uint32_t last_height_{};
+        std::uint32_t last_width_{};
+        std::uint32_t last_height_{};
 
-        uint32_t last_pos_x_{};
-        uint32_t last_pos_y_{};
+        std::uint32_t last_pos_x_{};
+        std::uint32_t last_pos_y_{};
 
         CursorState current_cursor_state_{ CursorState::Normal };
 
         std::atomic_bool resized_{ false };
-        GLFWwindow*      window_{ nullptr };
+        GLFWwindow* window_{ nullptr };
     };
 }

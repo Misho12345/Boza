@@ -15,10 +15,10 @@ export namespace boza
 
     class Mesh final
     {
-        const std::vector<Vertex>& get_vertices() const { return vertices_; }
-        const std::vector<std::uint32_t>& get_indices() const { return indices_; }
-        const std::string& get_name() const { return name_; }
-        const BoundingSphere& get_bounds() const { return bounds_; }
+        [[nodiscard]] const std::vector<Vertex>& get_vertices() const { return vertices_; }
+        [[nodiscard]] const std::vector<std::uint32_t>& get_indices() const { return indices_; }
+        [[nodiscard]] const std::string& get_name() const { return name_; }
+        [[nodiscard]] const BoundingSphere& get_bounds() const { return bounds_; }
 
     public:
         Mesh(Mesh&& other) noexcept;
@@ -50,7 +50,8 @@ export namespace boza
         [[msvc::no_unique_address]] Property<Mesh, &Mesh::get_bounds> bounds{ this };
 
     private:
-        Mesh(const std::string_view    mesh_name,
+        Mesh(
+            const std::string_view     mesh_name,
             std::vector<Vertex>        mesh_vertices,
             std::vector<std::uint32_t> mesh_indices)
             : name_{ mesh_name },

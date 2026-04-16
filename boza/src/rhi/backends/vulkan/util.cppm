@@ -79,7 +79,7 @@ namespace boza::rhi::vk
         }
     }
 
-    template<typename... Args>
+    template <typename... Args>
     [[nodiscard]] bool vk_check(const VkResult result, const std::format_string<Args...> fmt, Args&&... args)
     {
         if (result == VK_SUCCESS) return true;
@@ -94,7 +94,6 @@ namespace boza::rhi::vk
     }
 
     [[nodiscard]] bool vk_check(const VkResult result, const auto& msg) { return vk_check(result, "{}", msg); }
-
 
     // ===================================
     // Buffer Conversions

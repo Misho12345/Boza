@@ -72,7 +72,7 @@ namespace boza::rhi::vk
         attribute_descriptions.reserve(desc_.attributes.size());
 
         // Build a map from location to shader input for quick lookup
-        flat_map<uint32_t, const rhi::ShaderModule::ShaderResource*> location_to_input;
+        flat_map<std::uint32_t, const rhi::ShaderModule::ShaderResource*> location_to_input;
         for (const auto* shader : desc_.shaders)
         {
             if (shader->stage() != ShaderStage::Vertex) continue;
@@ -105,9 +105,9 @@ namespace boza::rhi::vk
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .vertexBindingDescriptionCount = static_cast<uint32_t>(binding_descriptions.size()),
+            .vertexBindingDescriptionCount = static_cast<std::uint32_t>(binding_descriptions.size()),
             .pVertexBindingDescriptions = binding_descriptions.empty() ? nullptr : binding_descriptions.data(),
-            .vertexAttributeDescriptionCount = static_cast<uint32_t>(attribute_descriptions.size()),
+            .vertexAttributeDescriptionCount = static_cast<std::uint32_t>(attribute_descriptions.size()),
             .pVertexAttributeDescriptions = attribute_descriptions.empty() ? nullptr : attribute_descriptions.data()
         };
 
@@ -231,7 +231,7 @@ namespace boza::rhi::vk
             .flags = 0,
             .logicOpEnable = desc_.color_blend.logic_op_enable,
             .logicOp = VK_LOGIC_OP_COPY,
-            .attachmentCount = static_cast<uint32_t>(color_blend_attachments.size()),
+            .attachmentCount = static_cast<std::uint32_t>(color_blend_attachments.size()),
             .pAttachments = color_blend_attachments.empty() ? nullptr : color_blend_attachments.data(),
             .blendConstants = {
                 desc_.color_blend.blend_constants[0],
@@ -252,7 +252,7 @@ namespace boza::rhi::vk
             .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .dynamicStateCount = static_cast<uint32_t>(dynamic_states.size()),
+            .dynamicStateCount = static_cast<std::uint32_t>(dynamic_states.size()),
             .pDynamicStates = dynamic_states.data()
         };
 
@@ -296,7 +296,7 @@ namespace boza::rhi::vk
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
             .pNext = nullptr,
             .viewMask = 0,
-            .colorAttachmentCount = static_cast<uint32_t>(color_formats.size()),
+            .colorAttachmentCount = static_cast<std::uint32_t>(color_formats.size()),
             .pColorAttachmentFormats = color_formats.empty() ? nullptr : color_formats.data(),
             .depthAttachmentFormat = to_vk(desc_.depth_attachment_format),
             .stencilAttachmentFormat = to_vk(desc_.stencil_attachment_format)
@@ -307,7 +307,7 @@ namespace boza::rhi::vk
             .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
             .pNext = &rendering_info,
             .flags = 0,
-            .stageCount = static_cast<uint32_t>(shader_stages.size()),
+            .stageCount = static_cast<std::uint32_t>(shader_stages.size()),
             .pStages = shader_stages.data(),
             .pVertexInputState = &vertex_input_info,
             .pInputAssemblyState = &input_assembly,

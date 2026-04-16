@@ -137,9 +137,9 @@ namespace boza::rhi::vk
         vmaUnmapMemory(allocator, allocation_);
     }
 
-    std::unique_ptr<rhi::Buffer> Buffer::stage(const size_t size) const
+    std::unique_ptr<rhi::Buffer> Buffer::stage(const std::size_t size) const
     {
-        const size_t stage_size = size > 0 ? size : desc_.size;
+        const std::size_t stage_size = size > 0 ? size : desc_.size;
 
         if (stage_size > desc_.size)
         {
@@ -211,7 +211,7 @@ namespace boza::rhi::vk
         return staging_buffer;
     }
 
-    void Buffer::upload(const void* data, const size_t size, const size_t offset)
+    void Buffer::upload(const void* data, const std::size_t size, const std::size_t offset)
     {
         assert(offset + size <= desc_.size, "Upload out of bounds");
 
@@ -251,7 +251,7 @@ namespace boza::rhi::vk
         }
     }
 
-    void Buffer::read_back(void* data, const size_t size, const size_t offset)
+    void Buffer::read_back(void* data, const std::size_t size, const std::size_t offset)
     {
         assert(offset + size <= desc_.size, "Read back out of bounds");
 
@@ -318,9 +318,9 @@ namespace boza::rhi::vk
 
     bool Buffer::upload_from(
         rhi::Buffer* staging_buffer,
-        const size_t size,
-        const size_t src_offset,
-        const size_t dst_offset)
+        const std::size_t size,
+        const std::size_t src_offset,
+        const std::size_t dst_offset)
     {
         if (!staging_buffer)
         {
@@ -328,14 +328,14 @@ namespace boza::rhi::vk
             return false;
         }
 
-        const size_t source_size = staging_buffer->size();
+        const std::size_t source_size = staging_buffer->size();
         if (src_offset > source_size || dst_offset > desc_.size)
         {
             Log::error("Invalid source or destination offset for staging upload");
             return false;
         }
 
-        const size_t transfer_size = size > 0 ? size : std::min(source_size - src_offset, desc_.size - dst_offset);
+        const std::size_t transfer_size = size > 0 ? size : std::min(source_size - src_offset, desc_.size - dst_offset);
 
         if (transfer_size == 0) return true;
 

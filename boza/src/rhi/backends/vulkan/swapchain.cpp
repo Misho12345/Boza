@@ -274,7 +274,7 @@ namespace boza::rhi::vk
             }
         }
 
-        uint32_t image_index;
+        std::uint32_t image_index;
         const VkSemaphore vk_semaphore = static_cast<Semaphore*>(frame.image_available_semaphore.get())->vk_semaphore();
 
         constexpr std::uint64_t acquire_poll_ns = 100'000'000; // 100 ms
@@ -374,7 +374,7 @@ namespace boza::rhi::vk
         };
     }
 
-    PresentResult Swapchain::present_result(const uint32_t image_index)
+    PresentResult Swapchain::present_result(const std::uint32_t image_index)
     {
         // Log::trace("Presenting swapchain image {}", image_index);
 
@@ -411,7 +411,7 @@ namespace boza::rhi::vk
     }
 
 
-    bool Swapchain::begin_render_pass(const uint32_t image_idx)
+    bool Swapchain::begin_render_pass(const std::uint32_t image_idx)
     {
         // Log::trace("Beginning render pass for image {}", image_idx);
 
@@ -521,7 +521,7 @@ namespace boza::rhi::vk
         return true;
     }
 
-    bool Swapchain::end_render_pass(const uint32_t image_idx)
+    bool Swapchain::end_render_pass(const std::uint32_t image_idx)
     {
         // Log::trace("Ending render pass for image {}", image_idx);
 
@@ -555,11 +555,11 @@ namespace boza::rhi::vk
 
     TextureFormat Swapchain::format() const { return to_texture_format(surface_format_.format); }
 
-    uint32_t Swapchain::width() const { return extent_.width; }
-    uint32_t Swapchain::height() const { return extent_.height; }
-    uint32_t Swapchain::image_count() const { return static_cast<uint32_t>(images_.size()); }
-    uint32_t Swapchain::current_frame() const { return current_frame_; }
-    uint32_t Swapchain::current_image_index() const { return current_image_index_; }
+    std::uint32_t Swapchain::width() const { return extent_.width; }
+    std::uint32_t Swapchain::height() const { return extent_.height; }
+    std::uint32_t Swapchain::image_count() const { return static_cast<std::uint32_t>(images_.size()); }
+    std::uint32_t Swapchain::current_frame() const { return current_frame_; }
+    std::uint32_t Swapchain::current_image_index() const { return current_image_index_; }
 
     rhi::CommandBuffer* Swapchain::current_command_buffer() { return frames_[current_frame_].cmd_buffer.get(); }
     rhi::Fence* Swapchain::current_fence() { return frames_[current_frame_].in_flight_fence.get(); }
@@ -615,7 +615,7 @@ namespace boza::rhi::vk
             vkFreeCommandBuffers(
                 vk_device,
                 graphics_pool->vk_command_pool(),
-                static_cast<uint32_t>(command_buffers.size()), command_buffers.data());
+                static_cast<std::uint32_t>(command_buffers.size()), command_buffers.data());
         }
 
         for (auto& [cmd_buffer, in_flight_fence, image_available_semaphore, render_finished_semaphore] : frames_)
@@ -661,7 +661,7 @@ namespace boza::rhi::vk
             return false;
         }
 
-        uint32_t image_count = desc_.preferred_image_count;
+        std::uint32_t image_count = desc_.preferred_image_count;
 
         if (image_count < surface_capabilities_.minImageCount)
             image_count = surface_capabilities_.minImageCount;
@@ -723,7 +723,7 @@ namespace boza::rhi::vk
             "Failed to get surface capabilities"))
             return false;
 
-        uint32_t surface_format_count;
+        std::uint32_t surface_format_count;
         if (!vk_check(
             vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &surface_format_count, nullptr),
             "Failed to get surface format count"))
@@ -735,7 +735,7 @@ namespace boza::rhi::vk
             "Failed to get surface formats"))
             return false;
 
-        uint32_t present_mode_count;
+        std::uint32_t present_mode_count;
         if (!vk_check(
             vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &present_mode_count, nullptr),
             "Failed to get present mode count"))
@@ -756,7 +756,7 @@ namespace boza::rhi::vk
 
         const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
 
-        uint32_t image_count;
+        std::uint32_t image_count;
         if (!vk_check(
             vkGetSwapchainImagesKHR(vk_device, vk_swapchain_, &image_count, nullptr),
             "Failed to get swapchain image count"))
@@ -771,7 +771,7 @@ namespace boza::rhi::vk
         image_views_.resize(image_count);
         image_layouts_.resize(image_count, VK_IMAGE_LAYOUT_UNDEFINED);
 
-        for (uint32_t i = 0; i < image_count; ++i)
+        for (std::uint32_t i = 0; i < image_count; ++i)
         {
             VkImageViewCreateInfo view_info
             {
@@ -816,7 +816,7 @@ namespace boza::rhi::vk
             }
         };
 
-        for (uint32_t i = 0; i < frames_.size(); ++i)
+        for (std::size_t i = 0; i < frames_.size(); ++i)
         {
             frames_[i].in_flight_fence = Fence::create<Fence>({
                 .device = desc_.device,
@@ -826,7 +826,7 @@ namespace boza::rhi::vk
             if (!frames_[i].in_flight_fence)
             {
                 Log::critical("Failed to create in-flight fence for frame {}", i);
-                cleanup_created_sync_objects(i);
+                cleanup_created_sync_objects(static_cast<std::uint32_t>(i));
                 return false;
             }
 
@@ -834,7 +834,7 @@ namespace boza::rhi::vk
             if (!frames_[i].image_available_semaphore)
             {
                 Log::critical("Failed to create image available semaphore for frame {}", i);
-                cleanup_created_sync_objects(i + 1);
+                cleanup_created_sync_objects(static_cast<std::uint32_t>(i + 1));
                 return false;
             }
 
@@ -842,7 +842,7 @@ namespace boza::rhi::vk
             if (!frames_[i].render_finished_semaphore)
             {
                 Log::critical("Failed to create render finished semaphore for frame {}", i);
-                cleanup_created_sync_objects(i + 1);
+                cleanup_created_sync_objects(static_cast<std::uint32_t>(i + 1));
                 return false;
             }
         }
@@ -861,7 +861,7 @@ namespace boza::rhi::vk
             return false;
         }
 
-        const auto command_buffers = graphics_command_pool->allocate_command_buffers(static_cast<uint32_t>(frames_.size()));
+        const auto command_buffers = graphics_command_pool->allocate_command_buffers(static_cast<std::uint32_t>(frames_.size()));
 
         if (command_buffers.empty() || command_buffers.size() != frames_.size())
         {
@@ -869,7 +869,7 @@ namespace boza::rhi::vk
             return false;
         }
 
-        for (size_t i = 0; i < frames_.size(); ++i)
+        for (std::size_t i = 0; i < frames_.size(); ++i)
         {
             frames_[i].cmd_buffer.reset(command_buffers[i]);
 
@@ -953,7 +953,7 @@ namespace boza::rhi::vk
     {
         // Log::trace("Choosing swapchain extent");
 
-        if (surface_capabilities_.currentExtent.width != std::numeric_limits<uint32_t>::max())
+        if (surface_capabilities_.currentExtent.width != std::numeric_limits<std::uint32_t>::max())
         {
             extent_ = surface_capabilities_.currentExtent;
             return;

@@ -127,7 +127,6 @@ namespace boza
         }
     }
 
-
     void RenderingSystem::EndFrame::execute()
     {
         assert_render_thread();
@@ -139,8 +138,7 @@ namespace boza
             return;
         }
 
-        if (frame_active_)
-            submit_draws();
+        if (frame_active_) submit_draws();
 
         const std::uint32_t image_idx = swapchain_->current_image_index();
 

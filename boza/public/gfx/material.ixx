@@ -47,7 +47,7 @@ export namespace boza
 
         [[nodiscard]] std::size_t hash() const noexcept
         {
-            std::size_t h = 0;
+            std::size_t h{ 0 };
 
             h ^= std::hash<std::string>{}(vertex_shader);
             h ^= std::hash<std::string>{}(fragment_shader) << 1;
@@ -140,7 +140,7 @@ export namespace boza
         static void destroy_reflection(void* handle);
 
         explicit Material(std::string_view name);
-        void     cleanup();
+        void cleanup();
 
         std::string name_;
 

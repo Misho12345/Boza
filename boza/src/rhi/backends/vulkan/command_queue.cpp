@@ -156,11 +156,11 @@ namespace boza::rhi::vk
         const VkSubmitInfo2 vk_submit_info
         {
             .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
-            .waitSemaphoreInfoCount = static_cast<uint32_t>(vk_wait_infos.size()),
+            .waitSemaphoreInfoCount = static_cast<std::uint32_t>(vk_wait_infos.size()),
             .pWaitSemaphoreInfos = vk_wait_infos.empty() ? nullptr : vk_wait_infos.data(),
-            .commandBufferInfoCount = static_cast<uint32_t>(vk_cmd_buffer_infos.size()),
+            .commandBufferInfoCount = static_cast<std::uint32_t>(vk_cmd_buffer_infos.size()),
             .pCommandBufferInfos = vk_cmd_buffer_infos.data(),
-            .signalSemaphoreInfoCount = static_cast<uint32_t>(vk_signal_infos.size()),
+            .signalSemaphoreInfoCount = static_cast<std::uint32_t>(vk_signal_infos.size()),
             .pSignalSemaphoreInfos = vk_signal_infos.empty() ? nullptr : vk_signal_infos.data()
         };
 
@@ -202,9 +202,9 @@ namespace boza::rhi::vk
         {
             .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
             .pNext = nullptr,
-            .waitSemaphoreCount = static_cast<uint32_t>(vk_wait_semaphores.size()),
+            .waitSemaphoreCount = static_cast<std::uint32_t>(vk_wait_semaphores.size()),
             .pWaitSemaphores = vk_wait_semaphores.empty() ? nullptr : vk_wait_semaphores.data(),
-            .swapchainCount = static_cast<uint32_t>(vk_swapchains.size()),
+            .swapchainCount = static_cast<std::uint32_t>(vk_swapchains.size()),
             .pSwapchains = vk_swapchains.data(),
             .pImageIndices = present_info.image_indices.data(),
             .pResults = nullptr

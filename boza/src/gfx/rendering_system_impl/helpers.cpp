@@ -62,13 +62,12 @@ namespace boza
         if (member_offset < range_offset) return false;
 
         const std::uint64_t member_end =
-                static_cast<std::uint64_t>(member_offset) + static_cast<std::uint64_t>(member_size);
+            static_cast<std::uint64_t>(member_offset) + static_cast<std::uint64_t>(member_size);
         const std::uint64_t range_end =
-                static_cast<std::uint64_t>(range_offset) + static_cast<std::uint64_t>(range_size);
+            static_cast<std::uint64_t>(range_offset) + static_cast<std::uint64_t>(range_size);
 
         return member_end <= range_end;
     }
-
 
     RenderingSystem::FrustumPlane RenderingSystem::FrustumState::normalize_plane(const glm::vec4& plane)
     {
@@ -110,7 +109,6 @@ namespace boza
         return true;
     }
 
-
     bool RenderingSystem::check_mesh_valid(Mesh* mesh)
     {
         if (!mesh) return false;
@@ -143,7 +141,6 @@ namespace boza
         return false;
     }
 
-
     void RenderingSystem::rebuild_pipeline_materials()
     {
         pipeline_materials_.clear();
@@ -160,13 +157,12 @@ namespace boza
         }
     }
 
-
     void RenderingSystem::remove_from_render_cache(MeshRenderer& mr, GameObject go)
     {
         if (!mr.in_render_cache_) return;
 
-        Material* mat = mr.cached_material_;
-        Mesh* mesh = mr.cached_mesh_;
+        Material* mat  = mr.cached_material_;
+        Mesh*     mesh = mr.cached_mesh_;
 
         if (mat && mesh)
         {
@@ -176,7 +172,8 @@ namespace boza
                 if (auto mesh_it = mat_group.mesh_buckets.find(mesh); mesh_it != mat_group.mesh_buckets.end())
                 {
                     auto& bucket = mesh_it->second;
-                    auto elem_it = std::ranges::find_if(bucket.elements,
+                    auto elem_it = std::ranges::find_if(
+                        bucket.elements,
                         [go](const RenderElement& el) { return el.entity == go; });
 
                     if (elem_it != bucket.elements.end())
@@ -235,7 +232,6 @@ namespace boza
         mr.in_unresolved_cache_ = true;
     }
 
-
     void reset_render_caches()
     {
         for (auto& per_binding : instance_buffers_ | std::views::values)
@@ -254,7 +250,6 @@ namespace boza
         instance_payload_scratch_.clear();
     }
 
-
     InstanceBufferState* get_instance_buffer(
         Material* material,
         const std::string& name)
@@ -262,8 +257,7 @@ namespace boza
         if (!material) return nullptr;
 
         auto& per_binding = instance_buffers_[material];
-        if (!per_binding.contains(name))
-            per_binding.emplace(name, InstanceBufferState{});
+        if (!per_binding.contains(name)) per_binding.emplace(name, InstanceBufferState{});
 
         auto it = per_binding.find(name);
         if (it == per_binding.end()) return nullptr;
@@ -402,7 +396,6 @@ namespace boza
         if (!inserted && inserted_it == material_render_infos_.end()) return nullptr;
         return &inserted_it->second;
     }
-
 
     bool validate_instancing(
         [[maybe_unused]] Material* material,
@@ -601,7 +594,6 @@ namespace boza
         #endif
     }
 
-
     void push_ranges(
         rhi::CommandBuffer* cmd,
         Material& material,
@@ -669,7 +661,6 @@ namespace boza
                 push_constant_scratch_.data());
         }
     }
-
 
     std::size_t gather_matrices_fast(
         const MeshBucket& bucket,
@@ -836,7 +827,6 @@ namespace boza
         return upload_to_instance_buffer(material, range.instancing_ssbo_name, actual_payload_size);
     }
 
-
     const PushConstantRangeRuntime* select_fallback_range(
         [[maybe_unused]] Material& material,
         const MaterialRenderInfo* render_info)
@@ -931,7 +921,6 @@ namespace boza
 
         bind_fallback_ssbo(material, *selected_range);
     }
-
 
     void RenderingSystem::on_mesh_destroyed(Mesh* mesh)
     {

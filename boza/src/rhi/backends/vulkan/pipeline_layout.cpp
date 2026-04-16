@@ -77,9 +77,9 @@ namespace boza::rhi::vk
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .setLayoutCount = static_cast<uint32_t>(vk_set_layouts.size()),
+            .setLayoutCount = static_cast<std::uint32_t>(vk_set_layouts.size()),
             .pSetLayouts = vk_set_layouts.empty() ? nullptr : vk_set_layouts.data(),
-            .pushConstantRangeCount = static_cast<uint32_t>(push_constant_ranges.size()),
+            .pushConstantRangeCount = static_cast<std::uint32_t>(push_constant_ranges.size()),
             .pPushConstantRanges = push_constant_ranges.empty() ? nullptr : push_constant_ranges.data()
         };
 
