@@ -2,9 +2,11 @@ module;
 
 #include "api.hpp"
 
-export module boza.common:random;
+export module boza.core:random;
 
 import std;
+
+import :assert;
 
 export namespace boza
 {
@@ -254,7 +256,5 @@ export namespace boza
             thread_local std::mt19937_64 eng = make_engine(make_seed_entropy());
             return eng;
         }
-
-        static void assert(bool cond, const char* msg);
     };
 }

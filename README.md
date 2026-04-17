@@ -79,8 +79,8 @@ Target authoring rules:
 | Module | Primary role | Detailed guide |
 | --- | --- | --- |
 | `boza.app` | app definition and runtime control | [`docs/modules/boza.app.md`](docs/modules/boza.app.md) |
-| `boza.common` | shared helpers, aliases, flags, properties, random, and GLM utilities | [`docs/modules/boza.common.md`](docs/modules/boza.common.md) |
-| `boza.core` | logging, assertions, and time state | [`docs/modules/boza.core.md`](docs/modules/boza.core.md) |
+| `boza.common` | shared helpers, aliases, flags, properties, and GLM utilities | [`docs/modules/boza.common.md`](docs/modules/boza.common.md) |
+| `boza.core` | logging, assertions, random utilities, and time state | [`docs/modules/boza.core.md`](docs/modules/boza.core.md) |
 | `boza.ecs` | scenes, game objects, transforms, and system stages | [`docs/modules/boza.ecs.md`](docs/modules/boza.ecs.md) |
 | `boza.gfx` | rendering resources, render-facing components, and compute | [`docs/modules/boza.gfx.md`](docs/modules/boza.gfx.md) |
 | `boza.input` | keys, polling, bindings, cursor control, and callback capture | [`docs/modules/boza.input.md`](docs/modules/boza.input.md) |

@@ -5,7 +5,6 @@ import std;
 export import <nlohmann/json.hpp>;
 
 export import :flags;
-export import :random;
 
 export import :property;
 export import :global_property;
