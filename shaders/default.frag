@@ -20,32 +20,31 @@ layout(set = 0, binding = 3) uniform LightUBO {
 } lightUBO;
 
 void main() {
-    // Sample albedo texture and combine with material color
     vec4 texColor = texture(albedo_map, fragTexCoord);
     vec3 albedo = texColor.rgb * material.albedo_color.rgb;
 
-    // Extract light intensity from the w component
     float lightIntensity = lightUBO.light_color.w;
     vec3 lightColor = lightUBO.light_color.xyz * lightIntensity;
+
+    vec3 norm = normalize(fragNormal);
+    vec3 lightDir = normalize(lightUBO.light_position.xyz - fragPosWorld);
+    vec3 viewDir = normalize(lightUBO.viewPos.xyz - fragPosWorld);
+    vec3 halfDir = normalize(lightDir + viewDir);
 
     // Ambient
     float ambientStrength = 0.15;
     vec3 ambient = ambientStrength * lightColor;
 
     // Diffuse
-    vec3 norm = normalize(fragNormal);
-    vec3 lightDir = normalize(lightUBO.light_position.xyz - fragPosWorld);
     float diff = max(dot(norm, lightDir), 0.0);
     vec3 diffuse = diff * lightColor;
 
-    // Specular (using material properties)
-    vec3 viewDir = normalize(lightUBO.viewPos.xyz - fragPosWorld);
-    vec3 reflectDir = reflect(-lightDir, norm);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0 * (1.0 - material.properties.y));
-    vec3 specular = material.properties.z * spec * lightColor;
+    float roughness = clamp(material.properties.y, 0.04, 1.0);
+    float specularStrength = material.properties.z * 0.2;
+    float shininess = mix(24.0, 4.0, roughness);
+    float spec = pow(max(dot(norm, halfDir), 0.0), shininess);
+    vec3 specular = specularStrength * spec * lightColor;
 
-    // Combine lighting
-    vec3 result = (ambient + diffuse + specular) * albedo;
-
+    vec3 result = (ambient + diffuse) * albedo + specular;
     outColor = vec4(result, material.albedo_color.w * texColor.a);
 }

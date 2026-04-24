@@ -58,7 +58,8 @@ export namespace boza::rhi
                 case ShaderValueType::Mat3:
                 case ShaderValueType::Mat4: return 16;
             }
-            return 4;
+
+            std::unreachable();
         }
 
         [[nodiscard]]
@@ -83,7 +84,8 @@ export namespace boza::rhi
                 case ShaderValueType::Mat3: return 48;
                 case ShaderValueType::Mat4: return 64;
             }
-            return 4;
+
+            std::unreachable();
         }
 
         [[nodiscard]]
@@ -126,7 +128,8 @@ export namespace boza::rhi
                 case ShaderValueType::Mat4: return 16;
                 case ShaderValueType::Mat2: return 8;
             }
-            return 4;
+
+            std::unreachable();
         }
 
         [[nodiscard]]
@@ -151,7 +154,8 @@ export namespace boza::rhi
                 case ShaderValueType::Mat3: return 48;
                 case ShaderValueType::Mat4: return 64;
             }
-            return 4;
+
+            std::unreachable();
         }
 
         [[nodiscard]]
@@ -170,14 +174,15 @@ export namespace boza::rhi
         }
     };
 
-    class BufferWriter
+    class BufferWriter final
     {
     public:
         explicit BufferWriter(const BufferLayoutType layout_type)
             : layout_type_(layout_type)
         {
-            if (layout_type == BufferLayoutType::Std430) rules_ = std::make_unique<Std430LayoutRules>();
-            else rules_                                         = std::make_unique<Std140LayoutRules>();
+            layout_type == BufferLayoutType::Std140
+                ? rules_ = std::make_unique<Std140LayoutRules>()
+                : rules_ = std::make_unique<Std430LayoutRules>();
         }
 
         void reset()
@@ -186,12 +191,12 @@ export namespace boza::rhi
             current_offset_ = 0;
         }
 
-        template<typename T>
+        template <typename T>
         void write(const T& value)
         {
-            const ShaderValueType type           = get_shader_type<T>();
-            const std::size_t     aligned_offset = rules_->align_offset(current_offset_, type);
-            const std::size_t     size           = rules_->get_size(type);
+            const ShaderValueType type = get_shader_type<T>();
+            const std::size_t aligned_offset = rules_->align_offset(current_offset_, type);
+            const std::size_t size = rules_->get_size(type);
 
             if (aligned_offset + size > data_.size()) { data_.resize(aligned_offset + size, 0); }
 
@@ -206,14 +211,14 @@ export namespace boza::rhi
         }
 
         [[nodiscard]] const std::uint8_t* data() const { return data_.data(); }
-        [[nodiscard]] std::size_t      size() const { return data_.size(); }
-        [[nodiscard]] std::size_t      current_offset() const { return current_offset_; }
+        [[nodiscard]] std::size_t size() const { return data_.size(); }
+        [[nodiscard]] std::size_t current_offset() const { return current_offset_; }
 
         void reserve(const std::size_t size) { data_.reserve(size); }
         void resize(const std::size_t size) { data_.resize(size, 0); }
 
     private:
-        template<typename T>
+        template <typename T>
         static constexpr ShaderValueType get_shader_type()
         {
             if constexpr (std::same_as<T, float>) return ShaderValueType::Float;
@@ -232,13 +237,13 @@ export namespace boza::rhi
             else if constexpr (std::same_as<T, glm::mat2>) return ShaderValueType::Mat2;
             else if constexpr (std::same_as<T, glm::mat3>) return ShaderValueType::Mat3;
             else if constexpr (std::same_as<T, glm::mat4>) return ShaderValueType::Mat4;
-            else return ShaderValueType::Float;
+            else static_assert(false, "Unsupported shader type in BufferWriter::write");
         }
 
-        BufferLayoutType                   layout_type_;
+        BufferLayoutType layout_type_;
         std::unique_ptr<BufferLayoutRules> rules_;
-        std::vector<std::uint8_t>             data_;
-        std::size_t                        current_offset_{ 0 };
+        std::vector<std::uint8_t> data_;
+        std::size_t current_offset_{ 0 };
     };
 
     [[nodiscard]]
@@ -249,8 +254,8 @@ export namespace boza::rhi
 
         switch (type)
         {
-            case BufferLayoutType::PushConstant:
             case BufferLayoutType::Std140: return std140;
+            case BufferLayoutType::PushConstant:
             case BufferLayoutType::Std430: return std430;
         }
 

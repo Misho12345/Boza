@@ -1,7 +1,7 @@
 export module boza.rhi.vulkan:util;
 
 import <vk_all>;
-import boza.gfx;
+import boza.gfx.common;
 import boza.core;
 import :resources;
 import :vk_macro_wrap;
@@ -79,7 +79,7 @@ namespace boza::rhi::vk
         }
     }
 
-    template<typename... Args>
+    template <typename... Args>
     [[nodiscard]] bool vk_check(const VkResult result, const std::format_string<Args...> fmt, Args&&... args)
     {
         if (result == VK_SUCCESS) return true;
@@ -94,7 +94,6 @@ namespace boza::rhi::vk
     }
 
     [[nodiscard]] bool vk_check(const VkResult result, const auto& msg) { return vk_check(result, "{}", msg); }
-
 
     // ===================================
     // Buffer Conversions
@@ -113,16 +112,16 @@ namespace boza::rhi::vk
         std::unreachable();
     }
 
-    VmaMemoryUsage to_vma(const BufferMemoryType memory_type)
+    VmaMemoryUsage to_vma(const Flags<BufferMemoryType> memory_type)
     {
-        switch (memory_type)
-        {
-            case BufferMemoryType::DeviceLocal: return VMA_MEMORY_USAGE_GPU_ONLY;
-            case BufferMemoryType::HostVisible: return VMA_MEMORY_USAGE_CPU_TO_GPU;
-            case BufferMemoryType::HostCoherent: return VMA_MEMORY_USAGE_CPU_ONLY;
-        }
+        const bool is_device_local = memory_type & BufferMemoryType::DeviceLocal;
+        const bool is_host_visible = memory_type & BufferMemoryType::HostVisible;
+        const bool is_host_coherent = memory_type & BufferMemoryType::HostCoherent;
 
-        std::unreachable();
+        if (is_device_local && !is_host_visible && !is_host_coherent) return VMA_MEMORY_USAGE_GPU_ONLY;
+        if (is_host_coherent) return VMA_MEMORY_USAGE_CPU_ONLY;
+        if (is_host_visible) return VMA_MEMORY_USAGE_CPU_TO_GPU;
+        return VMA_MEMORY_USAGE_AUTO;
     }
 
     // ===================================
@@ -151,6 +150,33 @@ namespace boza::rhi::vk
         }
 
         std::unreachable();
+    }
+
+    TextureFormat to_texture_format(const VkFormat format)
+    {
+        switch (format)
+        {
+            case VK_FORMAT_R8_UNORM: return TextureFormat::R8;
+            case VK_FORMAT_R8G8_UNORM: return TextureFormat::RG8;
+            case VK_FORMAT_R8G8B8_UNORM: return TextureFormat::RGB8;
+            case VK_FORMAT_R8G8B8A8_UNORM: return TextureFormat::RGBA8;
+            case VK_FORMAT_B8G8R8A8_UNORM: return TextureFormat::BGRA8;
+            case VK_FORMAT_R16_SFLOAT: return TextureFormat::R16F;
+            case VK_FORMAT_R16G16_SFLOAT: return TextureFormat::RG16F;
+            case VK_FORMAT_R16G16B16_SFLOAT: return TextureFormat::RGB16F;
+            case VK_FORMAT_R16G16B16A16_SFLOAT: return TextureFormat::RGBA16F;
+            case VK_FORMAT_R32_SFLOAT: return TextureFormat::R32F;
+            case VK_FORMAT_R32G32_SFLOAT: return TextureFormat::RG32F;
+            case VK_FORMAT_R32G32B32_SFLOAT: return TextureFormat::RGB32F;
+            case VK_FORMAT_R32G32B32A32_SFLOAT: return TextureFormat::RGBA32F;
+            case VK_FORMAT_D24_UNORM_S8_UINT: return TextureFormat::DEPTH24STENCIL8;
+            case VK_FORMAT_D32_SFLOAT: return TextureFormat::DEPTH32F;
+            default:
+                Log::warn(
+                    "Unsupported VkFormat {} for TextureFormat conversion, defaulting to BGRA8",
+                    static_cast<std::uint32_t>(format));
+                return TextureFormat::BGRA8;
+        }
     }
 
     VkSampleCountFlagBits to_vk(const TextureSampleCount samples)
@@ -340,28 +366,6 @@ namespace boza::rhi::vk
         return result;
     }
 
-    VkImageAspectFlags get_image_aspect_flags(const Flags<TextureUsage> usage)
-    {
-        if (usage & TextureUsage::DepthStencilAttachment) return VK_IMAGE_ASPECT_DEPTH_BIT;
-        return VK_IMAGE_ASPECT_COLOR_BIT;
-    }
-
-    VkImageAspectFlags get_image_aspect_flags(const TextureUsage usage)
-    {
-        switch (usage)
-        {
-            case TextureUsage::Sampled:
-            case TextureUsage::Storage:
-            case TextureUsage::ColorAttachment:
-            case TextureUsage::TransferSrc:
-            case TextureUsage::TransferDst:
-            case TextureUsage::InputAttachment: return VK_IMAGE_ASPECT_COLOR_BIT;
-            case TextureUsage::DepthStencilAttachment: return VK_IMAGE_ASPECT_DEPTH_BIT;
-        }
-
-        std::unreachable();
-    }
-
     VkImageLayout to_vk_image_layout(const TextureLayout layout)
     {
         switch (layout)
@@ -383,63 +387,85 @@ namespace boza::rhi::vk
     // Resource State and Synchronization
     // ===================================
 
-    std::pair<VkImageLayout, VkPipelineStageFlags> state_to_layout_and_stage(const ResourceState state)
+    std::pair<VkImageLayout, VkPipelineStageFlags2> state_to_layout_and_stage(const ResourceState state)
     {
         switch (state)
         {
-            case ResourceState::Undefined: return { VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT };
+            case ResourceState::Undefined: return { VK_IMAGE_LAYOUT_UNDEFINED, VK_PIPELINE_STAGE_2_NONE };
             case ResourceState::ShaderResource: return {
                     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+                    VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT
                 };
             case ResourceState::UnorderedAccess: return {
                     VK_IMAGE_LAYOUT_GENERAL,
-                    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT
+                    VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT
                 };
             case ResourceState::RenderTarget: return {
                     VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+                    VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT
                 };
             case ResourceState::DepthStencil: return {
                     VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                    VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT
+                    VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT
                 };
             case ResourceState::DepthRead: return {
                     VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+                    VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT
                 };
             case ResourceState::CopySource: return {
                     VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    VK_PIPELINE_STAGE_TRANSFER_BIT
+                    VK_PIPELINE_STAGE_2_TRANSFER_BIT
                 };
             case ResourceState::CopyDest: return {
                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    VK_PIPELINE_STAGE_TRANSFER_BIT
+                    VK_PIPELINE_STAGE_2_TRANSFER_BIT
                 };
             case ResourceState::Present: return {
                     VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
+                    VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT
                 };
-            default: return { VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT };
+            default: return { VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT };
         }
     }
 
-    VkAccessFlags state_to_access(const ResourceState state)
+    VkAccessFlags2 state_to_access(const ResourceState state)
     {
         switch (state)
         {
-            case ResourceState::Undefined: return VK_ACCESS_NONE;
-            case ResourceState::ShaderResource: return VK_ACCESS_SHADER_READ_BIT;
-            case ResourceState::UnorderedAccess: return VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-            case ResourceState::RenderTarget: return VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            case ResourceState::DepthStencil: return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-            case ResourceState::DepthRead: return VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-            case ResourceState::CopySource: return VK_ACCESS_TRANSFER_READ_BIT;
-            case ResourceState::CopyDest: return VK_ACCESS_TRANSFER_WRITE_BIT;
-            case ResourceState::Present: return VK_ACCESS_NONE;
+            case ResourceState::Undefined: return VK_ACCESS_2_NONE;
+            case ResourceState::ShaderResource: return VK_ACCESS_2_SHADER_READ_BIT;
+            case ResourceState::UnorderedAccess: return VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
+            case ResourceState::RenderTarget: return VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+            case ResourceState::DepthStencil: return VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            case ResourceState::DepthRead: return VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+            case ResourceState::CopySource: return VK_ACCESS_2_TRANSFER_READ_BIT;
+            case ResourceState::CopyDest: return VK_ACCESS_2_TRANSFER_WRITE_BIT;
+            case ResourceState::Present: return VK_ACCESS_2_NONE;
 
-            default: return VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_MEMORY_WRITE_BIT;
+            default: return VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
         }
+    }
+
+    VkPipelineStageFlags2 to_vk(const Flags<PipelineStage> stages)
+    {
+        VkPipelineStageFlags2 result = VK_PIPELINE_STAGE_2_NONE;
+
+        if (stages & PipelineStage::TopOfPipe) result |= VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+        if (stages & PipelineStage::DrawIndirect) result |= VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+        if (stages & PipelineStage::VertexInput) result |= VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT;
+        if (stages & PipelineStage::VertexShader) result |= VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
+        if (stages & PipelineStage::FragmentShader) result |= VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+        if (stages & PipelineStage::EarlyFragmentTests) result |= VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
+        if (stages & PipelineStage::LateFragmentTests) result |= VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
+        if (stages & PipelineStage::ColorAttachmentOutput) result |= VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+        if (stages & PipelineStage::ComputeShader) result |= VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+        if (stages & PipelineStage::Transfer) result |= VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+        if (stages & PipelineStage::BottomOfPipe) result |= VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
+        if (stages & PipelineStage::Host) result |= VK_PIPELINE_STAGE_2_HOST_BIT;
+        if (stages & PipelineStage::AllGraphics) result |= VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
+        if (stages & PipelineStage::AllCommands) result |= VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+
+        return result;
     }
 
     // ===================================

@@ -23,7 +23,7 @@ namespace boza::rhi::vk
             .pNext = nullptr,
             .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
             .maxSets = desc_.max_sets,
-            .poolSizeCount = static_cast<uint32_t>(pool_sizes.size()),
+            .poolSizeCount = static_cast<std::uint32_t>(pool_sizes.size()),
             .pPoolSizes = pool_sizes.data()
         };
 
@@ -46,26 +46,35 @@ namespace boza::rhi::vk
         }
     }
 
-
-    rhi::DescriptorSet* DescriptorPool::allocate_descriptor_set(rhi::DescriptorSetLayout* layout)
-    {
-        // Log::trace("Allocating single descriptor set");
-
-        return allocate_descriptor_sets(1, { &layout, 1 })[0];
-    }
-
     std::vector<rhi::DescriptorSet*> DescriptorPool::allocate_descriptor_sets(
-        const uint32_t                             count,
+        const std::uint32_t                        count,
         const std::span<rhi::DescriptorSetLayout*> layouts)
     {
         // Log::trace("Allocating {} descriptor set(s)", count);
+
+        if (count == 0) return {};
+
+        if (layouts.size() != count)
+        {
+            Log::critical(
+                "Descriptor set allocation requires matching count/layouts (count: {}, layouts: {})",
+                count,
+                layouts.size());
+            return {};
+        }
 
         const auto vk_device = static_cast<Device*>(desc_.device)->logical_device();
 
         std::vector<VkDescriptorSetLayout> vk_layouts;
         vk_layouts.reserve(layouts.size());
-        for(const auto& layout : layouts)
+        for (const auto& layout : layouts)
         {
+            if (!layout)
+            {
+                Log::critical("Cannot allocate descriptor sets with null layout");
+                return {};
+            }
+
             vk_layouts.push_back(static_cast<DescriptorSetLayout*>(layout)->vk_descriptor_set_layout());
         }
 
@@ -87,7 +96,7 @@ namespace boza::rhi::vk
         std::vector<rhi::DescriptorSet*> result;
         result.reserve(count);
 
-        for (uint32_t i = 0; i < count; ++i)
+        for (std::uint32_t i = 0; i < count; ++i)
         {
             DescriptorSetDesc set_desc{
                 .device = desc_.device,
@@ -103,16 +112,11 @@ namespace boza::rhi::vk
         return result;
     }
 
-
-    void DescriptorPool::free_descriptor_set(rhi::DescriptorSet* set)
-    {
-        // Log::trace("Freeing single descriptor set");
-        free_descriptor_sets({ &set, 1 });
-    }
-
     void DescriptorPool::free_descriptor_sets(const std::span<rhi::DescriptorSet*> sets)
     {
         // Log::trace("Freeing {} descriptor set(s)", sets.size());
+
+        if (sets.empty()) return;
 
         const auto vk_device = static_cast<Device*>(desc_.device)->logical_device();
 
@@ -121,17 +125,31 @@ namespace boza::rhi::vk
 
         for (const auto& set : sets)
         {
+            if (!set)
+            {
+                Log::warn("Skipping null descriptor set during free");
+                continue;
+            }
+
             vk_descriptor_sets.push_back(static_cast<DescriptorSet*>(set)->vk_descriptor_set());
-            delete set;
         }
 
-        vkFreeDescriptorSets(
+        if (vk_descriptor_sets.empty()) return;
+
+        const VkResult free_result = vkFreeDescriptorSets(
             vk_device,
             vk_descriptor_pool_,
-            static_cast<uint32_t>(vk_descriptor_sets.size()),
+            static_cast<std::uint32_t>(vk_descriptor_sets.size()),
             vk_descriptor_sets.data());
-    }
 
+        if (!vk_check(free_result, "Failed to free descriptor sets")) return;
+
+        for (const auto& set : sets)
+        {
+            if (!set) continue;
+            delete set;
+        }
+    }
 
     bool DescriptorPool::reset()
     {
@@ -145,7 +163,6 @@ namespace boza::rhi::vk
 
         return true;
     }
-
 
     VkDescriptorPool DescriptorPool::vk_descriptor_pool() const { return vk_descriptor_pool_; }
 }

@@ -38,4 +38,6 @@ add_subdirectory(shaders)
 add_subdirectory(boza)
 add_subdirectory(examples/material_showcase)
 add_subdirectory(examples/instancing_example)
+add_subdirectory(examples/shooting_example)
+#add_subdirectory(game) NOT WORKING, NEEDS FIXING 
 

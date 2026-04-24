@@ -51,7 +51,6 @@ namespace boza
         [[nodiscard]]
         static Scene get(std::string_view name);
 
-
         static inline GlobalProperty<
             &Scene::get_main_scene,
             &Scene::set_main_scene
@@ -60,7 +59,6 @@ namespace boza
         static inline GlobalProperty<
             &Scene::get_persistent_scene
         > persistent;
-
 
         [[msvc::no_unique_address]]
         Property<
@@ -91,7 +89,6 @@ namespace boza
         GameObject root_;
 
         static Scene main_scene_;
-
 
         friend class GameObject;
 

@@ -39,7 +39,6 @@ namespace boza
         }
     }
 
-
     void InputSystem::process_press_events(InputCapture& capture, Key key, const flat_map<Key, KeyState>& states)
     {
         if (auto it = capture.press_events_.find(key);
@@ -97,13 +96,12 @@ namespace boza
         }
     }
 
-
     static void on_key_callback(GLFWwindow*, int key_code, int, const int action, int)
     {
         if (key_code == GLFW_KEY_UNKNOWN) return;
 
         const auto key = static_cast<Key>(key_code);
-        const double time      = glfwGetTime();
+        const double time = glfwGetTime();
         auto& key_state = InputSystem::frame.key_states[key];
 
         if (action == GLFW_PRESS)
@@ -164,7 +162,6 @@ namespace boza
         InputSystem::last_cursor_pos = current_pos;
         InputSystem::frame.mouse_delta += delta;
     }
-
 
     void InputSystem::Begin::execute()
     {
@@ -236,7 +233,6 @@ namespace boza
         frame.mouse_delta = glm::vec2{ 0.0f, 0.0f };
         frame.scroll_delta = glm::vec2{ 0.0f, 0.0f };
     }
-
 
     bool Input::is_pressed(const Key key)
     {

@@ -7,6 +7,12 @@ namespace boza::rhi::vk
 {
     bool Instance::init()
     {
+        if (!desc_.window)
+        {
+            Log::error("Cannot initialize Vulkan instance: window is null");
+            return false;
+        }
+
         if (!vk_check(volkInitialize(), "Failed to initialize Volk")) return false;
 
         // Log::trace("Creating vulkan instance");
@@ -44,6 +50,12 @@ namespace boza::rhi::vk
 
     bool Instance::create_instance()
     {
+        if (!desc_.window)
+        {
+            Log::error("Cannot create Vulkan instance: window is null");
+            return false;
+        }
+
         VkApplicationInfo app_info
         {
             .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -84,9 +96,9 @@ namespace boza::rhi::vk
             .pNext = nullptr,
             .flags = flags,
             .pApplicationInfo = &app_info,
-            .enabledLayerCount = static_cast<uint32_t>(layers.size()),
+            .enabledLayerCount = static_cast<std::uint32_t>(layers.size()),
             .ppEnabledLayerNames = layers.data(),
-            .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
+            .enabledExtensionCount = static_cast<std::uint32_t>(extensions.size()),
             .ppEnabledExtensionNames = extensions.data()
         };
 
@@ -99,7 +111,7 @@ namespace boza::rhi::vk
         const std::span<const char*> extensions,
         const std::span<const char*> layers)
     {
-        uint32_t extension_count = 0;
+        std::uint32_t extension_count = 0;
         if (!vk_check(
             vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr),
             "Failed to enumerate extension properties"))
@@ -135,7 +147,7 @@ namespace boza::rhi::vk
             }
         }
 
-        uint32_t layer_count = 0;
+        std::uint32_t layer_count = 0;
 
         if (!vk_check(
             vkEnumerateInstanceLayerProperties(&layer_count, nullptr),
@@ -219,7 +231,7 @@ namespace boza::rhi::vk
                     default: Log::error(message); break;
                 }
 
-                return true;
+                return false;
             },
             .pUserData = nullptr
         };

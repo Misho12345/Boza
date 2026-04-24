@@ -6,7 +6,8 @@ export module boza.gfx:texture;
 
 import std;
 import boza.common;
-import :common;
+import boza.gfx.common;
+import :buffer;
 
 namespace boza::gfx
 {
@@ -15,84 +16,16 @@ namespace boza::gfx
 
 export namespace boza
 {
-    enum class TextureLayout : std::uint8_t
-    {
-        Undefined,
-        General,
-        ColorAttachment,
-        DepthStencilAttachment,
-        ShaderReadOnly,
-        TransferSrc,
-        TransferDst,
-        Present
-    };
-
-    enum class TextureFormat : std::uint8_t
-    {
-        R8,
-        RG8,
-        RGB8,
-        RGBA8,
-        BGRA8,
-        R16F,
-        RG16F,
-        RGB16F,
-        RGBA16F,
-        R32F,
-        RG32F,
-        RGB32F,
-        RGBA32F,
-        DEPTH24STENCIL8,
-        DEPTH32F
-    };
-
-    enum class TextureUsage
-    {
-        Sampled                = 1 << 0,
-        Storage                = 1 << 1,
-        ColorAttachment        = 1 << 2,
-        DepthStencilAttachment = 1 << 3,
-        TransferSrc            = 1 << 4,
-        TransferDst            = 1 << 5,
-        InputAttachment        = 1 << 6
-    };
-
-    constexpr BOZA_API Flags<TextureUsage> operator|(const TextureUsage left, const TextureUsage right) noexcept
-    {
-        return Flags(left) | Flags(right);
-    }
-
-    constexpr BOZA_API Flags<TextureUsage> operator&(const TextureUsage left, const TextureUsage right) noexcept
-    {
-        return Flags(left) & Flags(right);
-    }
-
-    constexpr BOZA_API Flags<TextureUsage> operator^(const TextureUsage left, const TextureUsage right) noexcept
-    {
-        return Flags(left) ^ Flags(right);
-    }
-
-    constexpr BOZA_API Flags<TextureUsage> operator~(const TextureUsage value) noexcept { return ~Flags(value); }
-
-    enum class TextureType : std::uint8_t
-    {
-        Texture1D,
-        Texture2D,
-        Texture3D,
-        TextureCube,
-        Texture1DArray,
-        Texture2DArray,
-        TextureCubeArray,
-    };
+    class Material;
 
     struct TextureSettings final
     {
-        TextureType         type{ TextureType::Texture2D };
-        TextureFormat       format{ TextureFormat::RGBA8 };
-        ResourceAccessMode  access_mode{ ResourceAccessMode::Static };
-        std::uint32_t       width{ 1u };
-        std::uint32_t       height{ 1u };
-        std::uint32_t       depth{ 1u };
+        TextureType type{ TextureType::Texture2D };
+        TextureFormat format{ TextureFormat::RGBA8 };
+        ResourceAccessMode access_mode{ ResourceAccessMode::Static };
+        std::uint32_t width{ 1u };
+        std::uint32_t height{ 1u };
+        std::uint32_t depth{ 1u };
         Flags<TextureUsage> usage_flags{ TextureUsage::Sampled | TextureUsage::TransferDst };
     };
 
@@ -113,8 +46,8 @@ export namespace boza
         Texture& operator=(Texture&&) noexcept;
 
         static Texture& copy(
-            std::string_view src_name,
-            std::string_view dst_name,
+            std::string_view   src_name,
+            std::string_view   dst_name,
             ResourceAccessMode access_mode);
 
         static Texture& create(
@@ -132,6 +65,9 @@ export namespace boza
 
         void upload(const void* data, std::size_t data_size) const;
         void upload_layer(const void* data, std::size_t data_size, std::uint32_t layer) const;
+        void upload_from(const Buffer& staging_buffer, std::uint32_t layer = 0, std::size_t size = 0) const;
+
+        [[nodiscard]] Buffer stage(std::size_t size = 0, std::uint32_t layer = 0) const;
 
         [[nodiscard]] std::vector<std::uint8_t> read_back() const;
         [[nodiscard]] bool save_to_file(const std::string& filepath) const;
@@ -144,11 +80,17 @@ export namespace boza
         [[msvc::no_unique_address]] Property<Texture, &Texture::get_type>   type{ this };
         [[msvc::no_unique_address]] Property<Texture, &Texture::get_format> format{ this };
 
-        [[nodiscard]] void* rhi_handle() const;
         [[nodiscard]] bool  is_valid() const { return !rhi_textures_.empty(); }
         [[nodiscard]] std::string_view name() const { return name_; }
 
     private:
+        using RhiTextureHandle = std::unique_ptr<void, void(*)(void*)>;
+
+        [[nodiscard]] void* rhi_handle() const;
+        [[nodiscard]] void* rhi_handle(std::uint32_t frame_index) const;
+
+        static void destroy_rhi_texture(void* handle);
+
         Texture(std::string_view name, const TextureSettings& settings);
         void cleanup();
 
@@ -156,8 +98,10 @@ export namespace boza
 
         std::string name_;
         TextureSettings settings_;
-        std::vector<void*> rhi_textures_{};
+        std::vector<RhiTextureHandle> rhi_textures_{};
 
+        friend class Material;
+        friend class ComputeDispatcher;
         friend class gfx::TextureLoader;
     };
 }

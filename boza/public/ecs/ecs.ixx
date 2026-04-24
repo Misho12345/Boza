@@ -7,9 +7,9 @@ export import :scene;
 
 export import :transform;
 
-export import :common;
-export import :system_registry;
-export import :system_stage;
+export import :system_common;
 export import :component_list;
+export import :system_stage;
+export import :system_registry;
 
 export import :transform_system;

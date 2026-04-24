@@ -2,7 +2,7 @@ export module boza.rhi.objects:shader_module;
 
 import std;
 import boza.common;
-import boza.gfx;
+import boza.gfx.common;
 import boza.core;
 import :graphics_object;
 
@@ -106,13 +106,13 @@ export namespace boza::rhi
         };
 
         [[nodiscard]] const MetaData& meta_data() const { return meta_data_; }
-        [[nodiscard]] ShaderStage     stage() const { return desc_.stage; }
-        [[nodiscard]] std::string     filename() const { return desc_.filename; }
+        [[nodiscard]] ShaderStage stage() const { return desc_.stage; }
+        [[nodiscard]] std::string filename() const { return desc_.filename; }
 
     protected:
         explicit ShaderModule(const ShaderModuleDesc& desc) : GraphicsObject(desc) {}
 
-        template<typename SegmentType>
+        template <typename SegmentType>
         static std::vector<SegmentType> read_file(const fs::path& path)
         {
             if (!exists(path))
@@ -130,8 +130,32 @@ export namespace boza::rhi
             }
 
             file.seekg(0, std::ios::end);
-            const std::streamsize size = file.tellg();
+            if (!file.good())
+            {
+                Log::critical("Failed to seek shader file {}", path.string());
+                return {};
+            }
+
+            const std::streampos end_pos = file.tellg();
+            if (end_pos < 0)
+            {
+                Log::critical("Failed to determine shader file size for {}", path.string());
+                return {};
+            }
+
+            const std::size_t size = end_pos;
             file.seekg(0, std::ios::beg);
+            if (!file.good())
+            {
+                Log::critical("Failed to seek shader file start {}", path.string());
+                return {};
+            }
+
+            if (size == 0)
+            {
+                Log::critical("Shader file {} is empty", path.string());
+                return {};
+            }
 
             if (size % sizeof(SegmentType) != 0)
             {
@@ -140,7 +164,7 @@ export namespace boza::rhi
             }
 
             std::vector<SegmentType> data(size / sizeof(SegmentType));
-            if (!file.read(reinterpret_cast<char*>(data.data()), size))
+            if (!file.read(reinterpret_cast<char*>(data.data()), static_cast<std::streamsize>(size)))
             {
                 Log::critical("Failed to read shader file {}", path.string());
                 return {};

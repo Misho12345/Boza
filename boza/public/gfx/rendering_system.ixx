@@ -32,6 +32,7 @@ namespace boza
         Buffer vertex_buffer;
         Buffer index_buffer;
         std::uint32_t index_count;
+        std::uint64_t mesh_revision{ 0 };
     };
 
     struct RenderElement
@@ -55,15 +56,8 @@ namespace boza
 
     export struct RenderingSystem final
     {
-        struct EngineBegin : EngineBeginStage<EngineBegin>
+        struct EngineBegin : EngineBeginStage<EngineBegin, RunBefore<InputSystem::Begin>>
         {
-            static SystemStageConfig config()
-            {
-                return {
-                    .run_before = { InputSystem::Begin::stage_info.system }
-                };
-            }
-
             static void execute();
         };
 
@@ -72,101 +66,52 @@ namespace boza
             static void execute();
         };
 
-        struct ProcessMeshChanged : EngineRenderStage<
-            ProcessMeshChanged,
+        struct ProcessMeshChanged : EngineRenderStage<ProcessMeshChanged,
+            RunAfter<SanityCheck>,
             With<MeshRenderer>,
             With<tags::MeshChanged>>
         {
-            static SystemStageConfig config()
-            {
-                return {
-                    .run_after = { SanityCheck::stage_info.system }
-                };
-            }
-
             static void execute(GameObject go, MeshRenderer& mr);
         };
 
-        struct ProcessMaterialChanged : EngineRenderStage<
-            ProcessMaterialChanged,
+        struct ProcessMaterialChanged : EngineRenderStage<ProcessMaterialChanged,
+            RunAfter<ProcessMeshChanged>,
             With<MeshRenderer>,
             With<tags::MaterialChanged>>
         {
-            static SystemStageConfig config()
-            {
-                return {
-                    .run_after = { ProcessMeshChanged::stage_info.system }
-                };
-            }
-
             static void execute(GameObject go, MeshRenderer& mr);
         };
 
-        struct ProcessInvalidated : EngineRenderStage<
-            ProcessInvalidated,
+        struct ProcessInvalidated : EngineRenderStage<ProcessInvalidated,
+            RunAfter<ProcessMaterialChanged>,
             With<MeshRenderer>,
             With<tags::RenderCacheInvalidated>>
         {
-            static SystemStageConfig config()
-            {
-                return {
-                    .include_disabled = true,
-                    .run_after = { ProcessMaterialChanged::stage_info.system }
-                };
-            }
-
+            static SystemStageConfig config() { return { .include_disabled = true }; }
             static void execute(GameObject go, MeshRenderer& mr);
         };
 
-        struct BeginFrame : EngineRenderStage<BeginFrame>
+        struct BeginFrame : EngineRenderStage<BeginFrame, RunAfter<ProcessInvalidated>>
         {
-            static SystemStageConfig config()
-            {
-                return {
-                    .run_after = { ProcessInvalidated::stage_info.system }
-                };
-            }
-
             static void execute();
         };
 
-        struct CameraUboUpdate : EngineRenderStage<
-            CameraUboUpdate,
+        struct CameraUboUpdate : EngineRenderStage<CameraUboUpdate,
+            RunAfter<BeginFrame>,
             With<const Camera>,
             With<const Transform>,
             With<tags::PrimaryCamera>>
         {
-            static SystemStageConfig config()
-            {
-                return {
-                    .run_after = { BeginFrame::stage_info.system }
-                };
-            }
-
             static void execute(const Camera& cam, const Transform& transform);
         };
 
-        struct CullEntities : EngineRenderStage<CullEntities>
+        struct CullEntities : EngineRenderStage<CullEntities, RunAfter<CameraUboUpdate>>
         {
-            static SystemStageConfig config()
-            {
-                return {
-                    .run_after = { CameraUboUpdate::stage_info.system }
-                };
-            }
-
             static void execute();
         };
 
-        struct EndFrame : EngineRenderStage<EndFrame>
+        struct EndFrame : EngineRenderStage<EndFrame, RunAfter<CullEntities>>
         {
-            static SystemStageConfig config()
-            {
-                return {
-                    .run_after = { CullEntities::stage_info.system }
-                };
-            }
-
             static void execute();
         };
 
@@ -196,6 +141,8 @@ namespace boza
         };
 
         static bool init_graphics();
+        static void clear_runtime_state();
+        static void shutdown_graphics(bool wait_for_device, bool destroy_window);
         static void setup_resources();
         static void wait_idle();
         static GpuMesh* get_or_create_gpu_mesh(Mesh* mesh);
@@ -208,6 +155,7 @@ namespace boza
         static void remove_from_unresolved(MeshRenderer& mr, GameObject go);
         static void insert_into_render_cache(MeshRenderer& mr, GameObject go, Mesh* mesh, Material* material);
         static void insert_into_unresolved(MeshRenderer& mr, GameObject go);
+        static void process_renderer_binding_change(GameObject go, MeshRenderer& mr, bool mesh_changed);
 
         static void clear_validity_caches();
         static void validate_render_cache();

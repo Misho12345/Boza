@@ -5,6 +5,31 @@ import boza.core;
 
 namespace boza::rhi
 {
+    static void merge_binding(
+        flat_map<std::string, BindingInfo>& bindings,
+        const std::string& name,
+        const BindingInfo& incoming)
+    {
+        const auto [it, inserted] = bindings.try_emplace(name, incoming);
+        if (inserted) return;
+
+        const auto& existing = it->second;
+
+        if (existing.set == incoming.set &&
+            existing.binding == incoming.binding &&
+            existing.offset == incoming.offset &&
+            existing.size == incoming.size &&
+            existing.descriptor_type == incoming.descriptor_type &&
+            existing.data_type == incoming.data_type &&
+            existing.is_push_constant == incoming.is_push_constant) return;
+
+        #ifdef BOZA_DEBUG
+        Log::warn(
+            "Descriptor binding '{}' has conflicting reflection entries; keeping first declaration",
+            name);
+        #endif
+    }
+
     void DescriptorReflection::build_from_shaders(const std::span<ShaderModule*> shaders)
     {
         bindings_.clear();
@@ -42,7 +67,7 @@ namespace boza::rhi
                     .data_type = resource.data_type,
                     .is_push_constant = false
                 };
-                bindings_[name] = info;
+                merge_binding(bindings_, name, info);
             }
 
             for (const auto& [name, resource] : metadata.storage_images)
@@ -56,7 +81,7 @@ namespace boza::rhi
                     .data_type = resource.data_type,
                     .is_push_constant = false
                 };
-                bindings_[name] = info;
+                merge_binding(bindings_, name, info);
             }
 
             for (const auto& [name, pc] : metadata.push_constants)
@@ -84,7 +109,7 @@ namespace boza::rhi
             .data_type = resource.data_type,
             .is_push_constant = false
         };
-        bindings_[buffer_name] = buffer_info;
+        merge_binding(bindings_, buffer_name, buffer_info);
 
         // Add individual members with dot notation
         for (const auto& member : resource.members)
@@ -100,14 +125,14 @@ namespace boza::rhi
                 .data_type = member.data_type,
                 .is_push_constant = false
             };
-            bindings_[full_name] = member_info;
+            merge_binding(bindings_, full_name, member_info);
         }
     }
 
     void DescriptorReflection::add_storage_buffer(
-        const std::string&                 buffer_name,
+        const std::string& buffer_name,
         const ShaderModule::ShaderResource& resource,
-        const Flags<ShaderStage>           stages)
+        const Flags<ShaderStage> stages)
     {
         const BindingInfo binding{
             .set = resource.set,
@@ -118,7 +143,7 @@ namespace boza::rhi
             .data_type = resource.data_type,
             .is_push_constant = false
         };
-        bindings_[buffer_name] = binding;
+        merge_binding(bindings_, buffer_name, binding);
 
         const ResourceInfo incoming{
             .set = resource.set,
@@ -165,9 +190,9 @@ namespace boza::rhi
     }
 
     void DescriptorReflection::add_push_constant_range(
-        const std::string&               range_name,
+        const std::string& range_name,
         const ShaderModule::PushConstant& pc,
-        const Flags<ShaderStage>         stages)
+        const Flags<ShaderStage> stages)
     {
         const PushConstantRangeInfo incoming{
             .offset = pc.offset,
@@ -214,7 +239,7 @@ namespace boza::rhi
             .data_type = ShaderDataType::Unknown,
             .is_push_constant = true
         };
-        bindings_[range_name] = range_binding;
+        merge_binding(bindings_, range_name, range_binding);
 
         for (const auto& member : range_info.members)
         {
@@ -229,7 +254,7 @@ namespace boza::rhi
                 .data_type = member.data_type,
                 .is_push_constant = true
             };
-            bindings_[full_name] = info;
+            merge_binding(bindings_, full_name, info);
         }
 
         std::size_t data_member_count = 0;
@@ -237,7 +262,8 @@ namespace boza::rhi
 
         for (const auto& member : range_info.members)
         {
-            if (member.name == "use_instancing") continue;
+            if (!struct_types_.contains(member.type_name)) continue;
+
             ++data_member_count;
             if (!data_member) data_member = &member;
         }
@@ -262,7 +288,7 @@ namespace boza::rhi
                 .is_push_constant = true
             };
 
-            bindings_[alias_name] = alias_binding;
+            merge_binding(bindings_, alias_name, alias_binding);
         }
     }
 
@@ -300,9 +326,8 @@ namespace boza::rhi
 
     std::optional<BindingInfo> DescriptorReflection::lookup(const std::string_view name) const
     {
-        const auto it = bindings_.find(std::string(name));
+        const auto it = bindings_.find(name);
         if (it != bindings_.end()) return it->second;
         return std::nullopt;
     }
 }
-

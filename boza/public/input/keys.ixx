@@ -26,51 +26,51 @@ export namespace boza
 
         LShift = GLFW_KEY_LEFT_SHIFT,
         RShift = GLFW_KEY_RIGHT_SHIFT,
-        Shift  = GLFW_KEY_LEFT_SHIFT,
+        Shift = GLFW_KEY_LEFT_SHIFT,
 
         LCtrl = GLFW_KEY_LEFT_CONTROL,
         RCtrl = GLFW_KEY_RIGHT_CONTROL,
-        Ctrl  = GLFW_KEY_LEFT_CONTROL,
+        Ctrl = GLFW_KEY_LEFT_CONTROL,
 
         LAlt = GLFW_KEY_LEFT_ALT,
         RAlt = GLFW_KEY_RIGHT_ALT,
-        Alt  = GLFW_KEY_LEFT_ALT,
+        Alt = GLFW_KEY_LEFT_ALT,
 
         LSuper = GLFW_KEY_LEFT_SUPER,
         RSuper = GLFW_KEY_RIGHT_SUPER,
 
-        Esc       = GLFW_KEY_ESCAPE,
-        CapsLock  = GLFW_KEY_CAPS_LOCK,
-        Space     = GLFW_KEY_SPACE,
-        Enter     = GLFW_KEY_ENTER,
+        Esc = GLFW_KEY_ESCAPE,
+        CapsLock = GLFW_KEY_CAPS_LOCK,
+        Space = GLFW_KEY_SPACE,
+        Enter = GLFW_KEY_ENTER,
         Backspace = GLFW_KEY_BACKSPACE,
-        Tab       = GLFW_KEY_TAB,
+        Tab = GLFW_KEY_TAB,
 
-        Insert   = GLFW_KEY_INSERT,
-        Delete   = GLFW_KEY_DELETE,
-        Home     = GLFW_KEY_HOME,
-        End      = GLFW_KEY_END,
-        PageUp   = GLFW_KEY_PAGE_UP,
+        Insert = GLFW_KEY_INSERT,
+        Delete = GLFW_KEY_DELETE,
+        Home = GLFW_KEY_HOME,
+        End = GLFW_KEY_END,
+        PageUp = GLFW_KEY_PAGE_UP,
         PageDown = GLFW_KEY_PAGE_DOWN,
 
         PrintScreen = GLFW_KEY_PRINT_SCREEN,
-        ScrollLock  = GLFW_KEY_SCROLL_LOCK,
-        Pause       = GLFW_KEY_PAUSE,
+        ScrollLock = GLFW_KEY_SCROLL_LOCK,
+        Pause = GLFW_KEY_PAUSE,
 
-        Dot         = GLFW_KEY_PERIOD,
-        Comma       = GLFW_KEY_COMMA,
-        Slash       = GLFW_KEY_SLASH,
-        Backslash   = GLFW_KEY_BACKSLASH,
-        Apostrophe  = GLFW_KEY_APOSTROPHE,
-        Semicolon   = GLFW_KEY_SEMICOLON,
-        Equal       = GLFW_KEY_EQUAL,
-        Minus       = GLFW_KEY_MINUS,
-        LBracket    = GLFW_KEY_LEFT_BRACKET,
-        RBracket    = GLFW_KEY_RIGHT_BRACKET,
+        Dot = GLFW_KEY_PERIOD,
+        Comma = GLFW_KEY_COMMA,
+        Slash = GLFW_KEY_SLASH,
+        Backslash = GLFW_KEY_BACKSLASH,
+        Apostrophe = GLFW_KEY_APOSTROPHE,
+        Semicolon = GLFW_KEY_SEMICOLON,
+        Equal = GLFW_KEY_EQUAL,
+        Minus = GLFW_KEY_MINUS,
+        LBracket = GLFW_KEY_LEFT_BRACKET,
+        RBracket = GLFW_KEY_RIGHT_BRACKET,
         GraveAccent = GLFW_KEY_GRAVE_ACCENT,
 
-        MouseLeft   = GLFW_MOUSE_BUTTON_LEFT,
-        MouseRight  = GLFW_MOUSE_BUTTON_RIGHT,
+        MouseLeft = GLFW_MOUSE_BUTTON_LEFT,
+        MouseRight = GLFW_MOUSE_BUTTON_RIGHT,
         MouseMiddle = GLFW_MOUSE_BUTTON_MIDDLE
     };
 
@@ -90,12 +90,12 @@ export namespace boza
 
         KeyCombo() = default;
         explicit KeyCombo(const Key key) : keys{ key } {}
-        explicit KeyCombo(std::vector<Key> k) : keys{ std::move(k) } {}
+        explicit KeyCombo(std::vector<Key> key_list) : keys{ std::move(key_list) } {}
 
-        bool contains(const Key key) const { return std::ranges::contains(keys, key); }
+        [[nodiscard]] bool contains(const Key key) const { return std::ranges::contains(keys, key); }
 
-        bool empty() const { return keys.empty(); }
-        std::size_t size() const { return keys.size(); }
+        [[nodiscard]] bool empty() const { return keys.empty(); }
+        [[nodiscard]] std::size_t size() const { return keys.size(); }
     };
 
     struct KeyBinding
@@ -105,9 +105,9 @@ export namespace boza
         KeyBinding() = default;
         explicit KeyBinding(const Key key) : combos{ KeyCombo{ key } } {}
         explicit KeyBinding(KeyCombo combo) : combos{ std::move(combo) } {}
-        explicit KeyBinding(std::vector<KeyCombo> c) : combos{ std::move(c) } {}
+        explicit KeyBinding(std::vector<KeyCombo> combo_list) : combos{ std::move(combo_list) } {}
 
-        bool empty() const { return combos.empty(); }
+        [[nodiscard]] bool empty() const { return combos.empty(); }
     };
 
     KeyCombo operator&(Key lhs, Key rhs);

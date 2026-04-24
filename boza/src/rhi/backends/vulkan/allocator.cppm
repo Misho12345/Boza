@@ -17,6 +17,8 @@ namespace boza::rhi::vk
     class Allocator final : public GraphicsObject<Allocator, AllocatorDesc>
     {
     public:
+        ~Allocator() override { destroy(); }
+
         [[nodiscard]]
         bool init() override;
         void destroy() override;

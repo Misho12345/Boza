@@ -1,11 +1,14 @@
 module boza.gfx;
 
 import :rendering_system;
+import :rendering_system_common;
 
 namespace boza
 {
     void RenderingSystem::CullEntities::execute()
     {
+        assert_render_thread();
+
         if (!frame_active_) return;
 
         for (auto& [material_ptr, mat_group] : render_cache_)

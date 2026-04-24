@@ -4,6 +4,7 @@ import std;
 import boza.common;
 import boza.core;
 import boza.gfx;
+import boza.gfx.resource_registry;
 
 export namespace boza::gfx
 {
@@ -63,7 +64,7 @@ export namespace boza::gfx
         Sampler& create(const SamplerDefinition& def);
         void destroy(std::string_view name);
 
-        mt::node_map<std::string, Sampler> samplers_;
+        ResourceRegistry<Sampler> samplers_;
         bool initialized_{ false };
 
         friend class Sampler;

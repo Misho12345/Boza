@@ -17,7 +17,6 @@ namespace boza
         ensure_component<Transform>().mark_dirty();
     }
 
-
     GameObject GameObject::create(const std::string_view obj_name, const Scene& obj_scene, const bool obj_active)
     {
         return create(obj_name, obj_scene.root(), obj_active);
@@ -33,13 +32,11 @@ namespace boza
         return GameObject{ obj_name, Scene::main().root(), obj_active };
     }
 
-
     void GameObject::destroy() const
     {
         (void)entity_.add<tags::PendingDestruction>();
         set_active_self(false);
     }
-
 
     GameObject::GameObject(const GameObject& other) : entity_{ other.entity_ } {}
     GameObject::GameObject(GameObject&& other) noexcept : entity_{ std::exchange(other.entity_, {}) } {}
@@ -55,7 +52,6 @@ namespace boza
         if (this != &other && entity_ != other.entity_) entity_ = std::exchange(other.entity_, {});
         return *this;
     }
-
 
     GameObject GameObject::find(const std::string_view obj_name)
     {
@@ -74,7 +70,6 @@ namespace boza
         return result;
     }
 
-
     bool GameObject::is_active() const { return entity_.enabled(); }
     bool GameObject::is_active_self() const { return !entity_.has<tags::DisabledSelf>(); }
 
@@ -85,7 +80,6 @@ namespace boza
 
         update_active_hierarchy(obj_active_self && (!parent().valid() || parent().is_active()));
     }
-
 
     std::string_view GameObject::get_name() const
     {
@@ -115,7 +109,6 @@ namespace boza
             current.children([&stack](const flecs::entity child) { stack.push_back(child); });
         }
     }
-
 
     void GameObject::update_active_hierarchy(const bool should_be_active) const
     {

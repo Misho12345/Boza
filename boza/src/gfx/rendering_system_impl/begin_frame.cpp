@@ -1,6 +1,7 @@
 module boza.gfx;
 
 import :rendering_system;
+import :rendering_system_common;
 
 import boza.core;
 import boza.rhi.render_context;
@@ -10,6 +11,8 @@ namespace boza
 {
     void RenderingSystem::BeginFrame::execute()
     {
+        assert_render_thread();
+
         frame_active_ = false;
 
         if (!swapchain_)
@@ -27,7 +30,13 @@ namespace boza
         rhi::RenderContext::set_current_command_buffer(swapchain_->current_command_buffer());
         gfx::MaterialLoader::instance().update_time_ubo(Time::time(), Time::delta_time());
 
-        swapchain_->begin_render_pass(swapchain_->current_image_index());
+        if (!swapchain_->begin_render_pass(swapchain_->current_image_index()))
+        {
+            swapchain_->abort_frame();
+            rhi::RenderContext::set_current_command_buffer(nullptr);
+            return;
+        }
+
         frame_active_ = true;
     }
 }

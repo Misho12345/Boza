@@ -11,10 +11,10 @@ export namespace boza::detail
     {
         std::uint32_t width{ 0 };
         std::uint32_t height{ 0 };
-        std::uint8_t  channels{ 0 };
+        std::uint8_t channels{ 0 };
 
         std::uint8_t* data{ nullptr };
-        std::size_t   size{ 0 };
+        std::size_t size{ 0 };
 
         bool stbi_loaded{ false };
 
@@ -23,9 +23,9 @@ export namespace boza::detail
         ImageData(
             const std::uint32_t width,
             const std::uint32_t height,
-            const std::uint8_t  channels,
-            std::uint8_t*       data,
-            const bool          stbi_loaded = false)
+            const std::uint8_t channels,
+            std::uint8_t* data,
+            const bool stbi_loaded = false)
             : width{ width },
               height{ height },
               channels{ channels },
@@ -99,8 +99,8 @@ export namespace boza::detail
                 image_data.channels <= 0)
                 return false;
 
-            std::string       ext = path.extension().string();
-            const std::string s   = path.string();
+            std::string ext = path.extension().string();
+            const std::string s = path.string();
 
             std::ranges::transform(ext, ext.begin(), [](const char c) {
                 return static_cast<char>(std::tolower(static_cast<unsigned char>(c)));

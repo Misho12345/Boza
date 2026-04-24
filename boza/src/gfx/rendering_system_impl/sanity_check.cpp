@@ -9,6 +9,8 @@ namespace boza
 {
     void RenderingSystem::SanityCheck::execute()
     {
+        assert_render_thread();
+
         destroyed_meshes_this_frame_.clear();
         destroyed_materials_this_frame_.clear();
 

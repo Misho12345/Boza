@@ -39,12 +39,12 @@ namespace boza
         bounds_.radius = std::sqrt(radius_squared);
     }
 
-
     Mesh::Mesh(Mesh&& other) noexcept
         : name_{ std::move(other.name_) },
           vertices_{ std::move(other.vertices_) },
           indices_{ std::move(other.indices_) },
-          bounds_{ other.bounds_ } {}
+          bounds_{ other.bounds_ },
+          revision_{ std::exchange(other.revision_, 1) } {}
 
     Mesh& Mesh::operator=(Mesh&& other) noexcept
     {
@@ -54,19 +54,20 @@ namespace boza
         vertices_ = std::move(other.vertices_);
         indices_ = std::move(other.indices_);
         bounds_ = std::exchange(other.bounds_, {});
+        revision_ = std::exchange(other.revision_, 1);
 
         return *this;
     }
 
     Mesh& Mesh::create(
-            std::string_view           name,
-            std::vector<Vertex>        vertices,
-            std::vector<std::uint32_t> indices)
+        std::string_view           name,
+        std::vector<Vertex>        vertices,
+        std::vector<std::uint32_t> indices)
     {
         if (const auto it = registry_.find(name); it != registry_.end())
         {
-            RenderingSystem::on_mesh_destroyed(&it->second);
-            valid_pointers_.erase(&it->second);
+            Log::warn("Mesh '{}' already exists, returning existing mesh", name);
+            return it->second;
         }
 
         auto [it, inserted] = registry_.try_emplace(
@@ -76,23 +77,35 @@ namespace boza
                 std::move(vertices),
                 std::move(indices)
             });
-        
-        if (!inserted)
-        {
-            Log::warn("Mesh '{}' already exists, returning existing mesh", name);
-            return it->second;
-        }
-        
+
+        if (!inserted) return it->second;
+
         it->second.recalculate_bounds();
         valid_pointers_.insert(&it->second);
         return it->second;
     }
 
+    Mesh& Mesh::replace(
+        const std::string_view name,
+        std::vector<Vertex>    vertices,
+        std::vector<std::uint32_t> indices)
+    {
+        if (auto* mesh = try_get(name))
+        {
+            mesh->vertices_ = std::move(vertices);
+            mesh->indices_ = std::move(indices);
+            mesh->recalculate_bounds();
+            ++mesh->revision_;
+            return *mesh;
+        }
+
+        return create(name, std::move(vertices), std::move(indices));
+    }
 
     Mesh& Mesh::get(const std::string_view name)
     {
         auto& registry = registry_;
-        auto it = registry.find(name);
+        auto  it       = registry.find(name);
         assert(it != registry.end(), "Mesh not found");
         return it->second;
     }

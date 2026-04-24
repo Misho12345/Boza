@@ -13,7 +13,7 @@ export namespace boza
     class BOZA_API KeyState final
     {
     public:
-        KeyState()  = default;
+        KeyState() = default;
         ~KeyState() = default;
 
         [[nodiscard]] bool is_pressed() const { return pressed_; }

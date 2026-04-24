@@ -18,7 +18,7 @@ namespace boza::gfx
     {
         if (initialized_) return;
 
-        auto [it, inserted] = samplers_.try_emplace(
+        auto [sampler, inserted] = samplers_.try_emplace(
             "boza_default_sampler",
             Sampler{
                 "boza_default_sampler",
@@ -33,7 +33,13 @@ namespace boza::gfx
                 1.0f
             });
 
-        if (!inserted || !it->second.rhi_handle()) Log::error("Failed to create default sampler");
+        if (!sampler || !sampler->rhi_handle())
+        {
+            Log::error("Failed to create default sampler");
+            if (inserted) samplers_.erase("boza_default_sampler");
+            initialized_ = false;
+            return;
+        }
 
         initialized_ = true;
     }
@@ -77,8 +83,12 @@ namespace boza::gfx
         const auto& j = json_opt.value();
         SamplerDefinition def;
 
-        const std::string filename = path.stem().string();
-        def.name = filename.ends_with(".smpl") ? filename.substr(0, filename.size() - 5) : filename;
+        def.name = detail::AssetPaths::sampler_id_from_path(path);
+        if (def.name.empty())
+        {
+            Log::error("Failed to derive sampler id from path: {}", path.string());
+            return std::nullopt;
+        }
 
         auto parse_filter = [](const std::string& str) -> SamplerFilter
         {
@@ -97,18 +107,27 @@ namespace boza::gfx
             return SamplerWrap::Repeat;
         };
 
-        if (j.contains("filter") && j["filter"].is_string()) def.filter = parse_filter(j["filter"].get<std::string>());
-        if (j.contains("wrap_u") && j["wrap_u"].is_string()) def.wrap_u = parse_wrap(j["wrap_u"].get<std::string>());
-        if (j.contains("wrap_v") && j["wrap_v"].is_string()) def.wrap_v = parse_wrap(j["wrap_v"].get<std::string>());
-        if (j.contains("wrap_w") && j["wrap_w"].is_string()) def.wrap_w = parse_wrap(j["wrap_w"].get<std::string>());
+        if (j.contains("filter") && j["filter"].is_string())
+            def.filter = parse_filter(j["filter"].get<std::string>());
+        if (j.contains("wrap_u") && j["wrap_u"].is_string())
+            def.wrap_u = parse_wrap(j["wrap_u"].get<std::string>());
+        if (j.contains("wrap_v") && j["wrap_v"].is_string())
+            def.wrap_v = parse_wrap(j["wrap_v"].get<std::string>());
+        if (j.contains("wrap_w") && j["wrap_w"].is_string())
+            def.wrap_w = parse_wrap(j["wrap_w"].get<std::string>());
 
-        if (j.contains("mipmap_mode") && j["mipmap_mode"].is_string()) def.mipmap_mode = parse_filter(j["mipmap_mode"].get<std::string>());
-        if (j.contains("mip_lod_bias") && j["mip_lod_bias"].is_number()) def.mip_lod_bias = j["mip_lod_bias"].get<float>();
+        if (j.contains("mipmap_mode") && j["mipmap_mode"].is_string())
+            def.mipmap_mode = parse_filter(j["mipmap_mode"].get<std::string>());
+        if (j.contains("mip_lod_bias") && j["mip_lod_bias"].is_number())
+            def.mip_lod_bias = j["mip_lod_bias"].get<float>();
 
-        if (j.contains("min_lod") && j["min_lod"].is_number()) def.min_lod = j["min_lod"].get<float>();
-        if (j.contains("max_lod") && j["max_lod"].is_number()) def.max_lod = j["max_lod"].get<float>();
+        if (j.contains("min_lod") && j["min_lod"].is_number())
+            def.min_lod = j["min_lod"].get<float>();
+        if (j.contains("max_lod") && j["max_lod"].is_number())
+            def.max_lod = j["max_lod"].get<float>();
 
-        if (j.contains("max_anisotropy") && j["max_anisotropy"].is_number()) def.max_anisotropy = j["max_anisotropy"].get<float>();
+        if (j.contains("max_anisotropy") && j["max_anisotropy"].is_number())
+            def.max_anisotropy = j["max_anisotropy"].get<float>();
 
         return def;
     }
@@ -127,10 +146,10 @@ namespace boza::gfx
     {
         const std::string name_str{ name };
 
-        if (samplers_.contains(name_str))
+        if (auto* existing = samplers_.find_ptr(name_str))
         {
             Log::warn("Sampler '{}' already exists, returning existing sampler", name_str);
-            return samplers_.at(name_str);
+            return *existing;
         }
 
         Sampler sampler{
@@ -146,16 +165,17 @@ namespace boza::gfx
             max_anisotropy
         };
 
-        auto [it, inserted] = samplers_.try_emplace(name_str, std::move(sampler));
+        auto [created_sampler, inserted] = samplers_.try_emplace(name_str, std::move(sampler));
 
-        if (!inserted || !it->second.rhi_handle())
+        if (!created_sampler || !created_sampler->rhi_handle())
         {
             Log::error("Failed to create sampler: {}", name_str);
+            if (inserted) samplers_.erase(name_str);
             return default_sampler();
         }
 
         // Log::trace("Created sampler: {}", name_str);
-        return it->second;
+        return *created_sampler;
     }
 
     Sampler& SamplerLoader::create(const SamplerDefinition& def)
@@ -181,9 +201,7 @@ namespace boza::gfx
 
     Sampler* SamplerLoader::try_get_sampler(const std::string_view name)
     {
-        const std::string name_str{ name };
-        auto it = samplers_.find(name_str);
-        return it != samplers_.end() ? &it->second : nullptr;
+        return samplers_.find_ptr(name);
     }
 
     void SamplerLoader::destroy(const std::string_view name)
@@ -196,20 +214,17 @@ namespace boza::gfx
             return;
         }
 
-        const auto it = samplers_.find(name_str);
-        if (it != samplers_.end())
+        if (samplers_.erase(name_str))
         {
             Log::trace("Destroyed sampler: {}", name_str);
-            samplers_.erase(it);
         }
         else Log::warn("Attempted to destroy non-existent sampler: {}", name_str);
     }
 
     Sampler& SamplerLoader::default_sampler()
     {
-        auto it = samplers_.find("boza_default_sampler");
-        assert(it != samplers_.end(), "Default sampler not initialized");
-        return it->second;
+        auto* sampler = samplers_.find_ptr("boza_default_sampler");
+        assert(sampler != nullptr, "Default sampler not initialized");
+        return *sampler;
     }
 }
-

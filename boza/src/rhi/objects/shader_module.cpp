@@ -93,10 +93,12 @@ namespace boza::rhi
         const json&                                      j,
         flat_map<std::string, ShaderModule::StructType>& struct_types)
     {
-        if (!j.contains("struct_types")) return;
+        if (!j.contains("struct_types") || !j.at("struct_types").is_array()) return;
 
-        for (const auto& struct_json : j["struct_types"])
+        for (const auto& struct_json : j.at("struct_types"))
         {
+            if (!struct_json.is_object()) continue;
+
             std::string struct_name;
             if (struct_json.contains("name")) struct_json.at("name").get_to(struct_name);
             if (struct_name.empty()) continue;
@@ -105,9 +107,9 @@ namespace boza::rhi
                 .size = static_cast<std::uint32_t>(struct_json.value("size", 0))
             };
 
-            if (struct_json.contains("members"))
+            if (struct_json.contains("members") && struct_json.at("members").is_array())
             {
-                for (const auto& member_json : struct_json["members"])
+                for (const auto& member_json : struct_json.at("members"))
                 {
                     struct_type.members.push_back(parse_member(member_json));
                 }
@@ -122,34 +124,52 @@ namespace boza::rhi
         const std::string&                                   type,
         flat_map<std::string, ShaderModule::ShaderResource>& resources)
     {
-        if (!j.contains(type)) return;
+        if (!j.contains(type) || !j.at(type).is_array()) return;
 
-        for (const auto& res : j[type])
+        for (const auto& res : j.at(type))
         {
+            if (!res.is_object()) continue;
+
+            if (!res.contains("name") || !res.at("name").is_string()) continue;
+
             ShaderModule::ShaderResource resource;
-            if (res.contains("set")) res.at("set").get_to(resource.set);
-            if (res.contains("binding")) res.at("binding").get_to(resource.binding);
-            if (res.contains("location")) res.at("location").get_to(resource.location);
-            if (res.contains("min_size")) res.at("min_size").get_to(resource.size);
-            else if (res.contains("size")) res.at("size").get_to(resource.size);
-            if (res.contains("vec_size")) res.at("vec_size").get_to(resource.vec_size);
-            if (res.contains("columns")) res.at("columns").get_to(resource.columns);
-            if (res.contains("type"))
+
+            if (res.contains("set") && res.at("set").is_number_unsigned())
+                resource.set = res.at("set").get<std::uint32_t>();
+
+            if (res.contains("binding") && res.at("binding").is_number_unsigned())
+                resource.binding = res.at("binding").get<std::uint32_t>();
+
+            if (res.contains("location") && res.at("location").is_number_unsigned())
+                resource.location = res.at("location").get<std::uint32_t>();
+
+            if (res.contains("min_size") && res.at("min_size").is_number_unsigned())
+                resource.size = res.at("min_size").get<std::uint32_t>();
+            else if (res.contains("size") && res.at("size").is_number_unsigned())
+                resource.size = res.at("size").get<std::uint32_t>();
+
+            if (res.contains("vec_size") && res.at("vec_size").is_number_unsigned())
+                resource.vec_size = res.at("vec_size").get<std::uint32_t>();
+
+            if (res.contains("columns") && res.at("columns").is_number_unsigned())
+                resource.columns = res.at("columns").get<std::uint32_t>();
+
+            if (res.contains("type") && res.at("type").is_string())
             {
                 res.at("type").get_to(resource.type_name);
                 resource.data_type = parse_data_type(resource.type_name);
             }
 
             // Parse uniform buffer members
-            if (res.contains("members"))
+            if (res.contains("members") && res.at("members").is_array())
             {
-                for (const auto& member_json : res["members"])
+                for (const auto& member_json : res.at("members"))
                 {
                     resource.members.push_back(parse_member(member_json));
                 }
             }
 
-            resources[res["name"]] = resource;
+            resources[res.at("name").get<std::string>()] = std::move(resource);
         }
     }
 
@@ -157,12 +177,18 @@ namespace boza::rhi
         const json&                                                  j,
         flat_map<std::string, ShaderModule::PushConstant>& push_constants)
     {
-        if (!j.contains("push_constants")) return;
+        if (!j.contains("push_constants") || !j.at("push_constants").is_array()) return;
 
-        for (const auto& pc_json : j["push_constants"])
+        for (const auto& pc_json : j.at("push_constants"))
         {
+            if (!pc_json.is_object()) continue;
+            if (!pc_json.contains("name") || !pc_json.at("name").is_string()) continue;
+
             std::string stage_str;
-            if (pc_json.contains("shader_stage")) { pc_json.at("shader_stage").get_to(stage_str); }
+            if (pc_json.contains("shader_stage") && pc_json.at("shader_stage").is_string())
+            {
+                pc_json.at("shader_stage").get_to(stage_str);
+            }
 
             ShaderModule::PushConstant range
             {
@@ -172,15 +198,15 @@ namespace boza::rhi
             };
 
             // Parse members
-            if (pc_json.contains("members"))
+            if (pc_json.contains("members") && pc_json.at("members").is_array())
             {
-                for (const auto& member_json : pc_json["members"])
+                for (const auto& member_json : pc_json.at("members"))
                 {
                     range.members.push_back(parse_member(member_json));
                 }
             }
 
-            push_constants[pc_json["name"]] = range;
+            push_constants[pc_json.at("name").get<std::string>()] = std::move(range);
         }
     }
 
@@ -191,8 +217,9 @@ namespace boza::rhi
 
     bool ShaderModule::get_meta_data()
     {
-        const fs::path shader_dir = AssetPaths::shaders_dir();
-        const fs::path shader_subdir = shader_dir / desc_.filename;
+        meta_data_ = {};
+
+        const fs::path shader_subdir = AssetPaths::shader(desc_.filename);
 
         const fs::path shader_name = fs::path(desc_.filename).stem();
         const fs::path meta_path = shader_subdir / (shader_name.string() + ".meta.json");
@@ -206,24 +233,42 @@ namespace boza::rhi
         }
 
         const auto& meta_json = meta_json_opt.value();
-
-        parse_struct_types(meta_json, meta_data_.struct_types);
-        parse_resources(meta_json, "uniform_buffers", meta_data_.uniform_buffers);
-        parse_resources(meta_json, "storage_buffers", meta_data_.storage_buffers);
-        parse_resources(meta_json, "stage_inputs", meta_data_.stage_inputs);
-        parse_resources(meta_json, "stage_outputs", meta_data_.stage_outputs);
-        parse_resources(meta_json, "subpass_inputs", meta_data_.subpass_inputs);
-        parse_resources(meta_json, "sampled_images", meta_data_.sampled_images);
-        parse_resources(meta_json, "storage_images", meta_data_.storage_images);
-        parse_push_constants(meta_json, meta_data_.push_constants);
-
-        if (meta_json.contains("work_group_size"))
+        if (!meta_json.is_object())
         {
-            const auto& wg = meta_json["work_group_size"];
-            meta_data_.work_group_size.x = wg.value("x", 1);
-            meta_data_.work_group_size.y = wg.value("y", 1);
-            meta_data_.work_group_size.z = wg.value("z", 1);
+            Log::error("Shader metadata for '{}' is not a JSON object", desc_.filename);
+            return false;
         }
+
+        MetaData parsed_meta_data{};
+
+        try
+        {
+            parse_struct_types(meta_json, parsed_meta_data.struct_types);
+            parse_resources(meta_json, "uniform_buffers", parsed_meta_data.uniform_buffers);
+            parse_resources(meta_json, "storage_buffers", parsed_meta_data.storage_buffers);
+            parse_resources(meta_json, "stage_inputs", parsed_meta_data.stage_inputs);
+            parse_resources(meta_json, "stage_outputs", parsed_meta_data.stage_outputs);
+            parse_resources(meta_json, "subpass_inputs", parsed_meta_data.subpass_inputs);
+            parse_resources(meta_json, "sampled_images", parsed_meta_data.sampled_images);
+            parse_resources(meta_json, "storage_images", parsed_meta_data.storage_images);
+            parse_push_constants(meta_json, parsed_meta_data.push_constants);
+
+            if (meta_json.contains("work_group_size") && meta_json.at("work_group_size").is_object())
+            {
+                const auto& wg = meta_json.at("work_group_size");
+                parsed_meta_data.work_group_size.x = wg.value("x", 1u);
+                parsed_meta_data.work_group_size.y = wg.value("y", 1u);
+                parsed_meta_data.work_group_size.z = wg.value("z", 1u);
+            }
+        }
+        catch (const std::exception& error)
+        {
+            meta_data_ = {};
+            Log::error("Failed to parse shader metadata for '{}': {}", desc_.filename, error.what());
+            return false;
+        }
+
+        meta_data_ = std::move(parsed_meta_data);
 
         return true;
     }

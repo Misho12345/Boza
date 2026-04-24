@@ -32,12 +32,12 @@ export namespace glm
  * // Output: "Color RGBA: (255, 128, 64, 255)"
  * @endcode
  */
-template<std::size_t L, typename T, glm::qualifier Q>
+template <std::size_t L, typename T, glm::qualifier Q>
 struct std::formatter<glm::vec<L, T, Q>, char>
 {
     constexpr auto parse(std::format_parse_context& ctx) -> decltype(ctx.begin()) { return ctx.begin(); }
 
-    template<typename FormatContext>
+    template <typename FormatContext>
     FormatContext::iterator format(const glm::vec<L, T, Q>& v, FormatContext& ctx) const
     {
         auto out = ctx.out();
@@ -50,7 +50,6 @@ struct std::formatter<glm::vec<L, T, Q>, char>
         return std::format_to(out, ")");
     }
 };
-
 
 /**
  * @brief Custom formatter for GLM quaternion types.
@@ -77,14 +76,14 @@ struct std::formatter<glm::vec<L, T, Q>, char>
  * std::string msg = std::format("Orient: {0} or {0:a}", rotation);
  * @endcode
  */
-template<typename T, glm::qualifier Q>
+template <typename T, glm::qualifier Q>
 struct std::formatter<glm::qua<T, Q>, char>
 {
     char presentation = 'c';
 
     constexpr auto parse(std::format_parse_context& ctx) -> decltype(ctx.begin())
     {
-        auto       it  = ctx.begin();
+        auto it = ctx.begin();
         const auto end = ctx.end();
 
         if (it != end && (*it == 'c' || *it == 'a')) presentation = *it++;
@@ -93,15 +92,15 @@ struct std::formatter<glm::qua<T, Q>, char>
         return it;
     }
 
-    template<typename FormatContext>
+    template <typename FormatContext>
     FormatContext::iterator format(const glm::qua<T, Q>& q, FormatContext& ctx) const
     {
         auto out = ctx.out();
 
         if (presentation == 'a')
         {
-            T                 angle = glm::angle(q);
-            glm::vec<3, T, Q> axis  = glm::axis(q);
+            T angle = glm::angle(q);
+            glm::vec<3, T, Q> axis = glm::axis(q);
             return std::format_to(out, "quat(axis: ({}, {}, {}), angle: {}°)",
                 axis.x, axis.y, axis.z, glm::degrees(angle));
         }
@@ -109,7 +108,6 @@ struct std::formatter<glm::qua<T, Q>, char>
         return std::format_to(out, "quat(w: {}, x: {}, y: {}, z: {})", q.w, q.x, q.y, q.z);
     }
 };
-
 
 /**
  * @brief Custom formatter for GLM matrix types.
@@ -149,14 +147,14 @@ struct std::formatter<glm::qua<T, Q>, char>
  * std::string formatted = std::format("Rotation 3x3:\n{:m}", rotation);
  * @endcode
  */
-template<std::size_t C, std::size_t R, typename T, glm::qualifier Q>
+template <std::size_t C, std::size_t R, typename T, glm::qualifier Q>
 struct std::formatter<glm::mat<C, R, T, Q>, char>
 {
     char presentation = 'c';
 
     constexpr auto parse(std::format_parse_context& ctx) -> decltype(ctx.begin())
     {
-        auto       it  = ctx.begin();
+        auto it = ctx.begin();
         const auto end = ctx.end();
 
         if (it != end && (*it == 'c' || *it == 'r' || *it == 'm')) presentation = *it++;
@@ -165,7 +163,7 @@ struct std::formatter<glm::mat<C, R, T, Q>, char>
         return it;
     }
 
-    template<typename FormatContext>
+    template <typename FormatContext>
     FormatContext::iterator format(const glm::mat<C, R, T, Q>& m, FormatContext& ctx) const
     {
         using length_t = glm::mat<C, R, T, Q>::length_type;

@@ -45,7 +45,7 @@ export namespace boza::rhi
     struct FenceDesc
     {
         Device* device;
-        bool    signaled = false;
+        bool    signaled{ false };
     };
 
     class Fence : public GraphicsObject<Fence, FenceDesc>

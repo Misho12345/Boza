@@ -4,6 +4,7 @@ module;
 
 export module boza.gfx:mesh_renderer;
 
+import std;
 import :mesh;
 import :material;
 

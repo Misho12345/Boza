@@ -4,7 +4,9 @@ module;
 
 export module boza.gfx:sampler;
 
+import std;
 import boza.common;
+import boza.gfx.common;
 
 namespace boza::gfx
 {
@@ -13,21 +15,6 @@ namespace boza::gfx
 
 export namespace boza
 {
-    enum class SamplerFilter : std::uint8_t
-    {
-        Nearest,
-        Linear,
-        Anisotropic
-    };
-
-    enum class SamplerWrap : std::uint8_t
-    {
-        Repeat,
-        ClampToEdge,
-        ClampToBorder,
-        Mirror
-    };
-
     class BOZA_API Sampler final
     {
         [[nodiscard]] SamplerFilter get_filter() const { return filter_; }
@@ -78,10 +65,15 @@ export namespace boza
         [[msvc::no_unique_address]] Property<Sampler, &Sampler::get_max_lod>        max_lod{ this };
         [[msvc::no_unique_address]] Property<Sampler, &Sampler::get_max_anisotropy> max_anisotropy{ this };
 
-        [[nodiscard]] void*            rhi_handle() const { return rhi_sampler_; }
         [[nodiscard]] std::string_view name() const { return name_; }
 
     private:
+        using RhiSamplerHandle = std::unique_ptr<void, void(*)(void*)>;
+
+        [[nodiscard]] void* rhi_handle() const { return rhi_sampler_.get(); }
+
+        static void destroy_rhi_sampler(void* handle);
+
         Sampler(
             std::string_view name,
             SamplerFilter    filter,
@@ -95,7 +87,7 @@ export namespace boza
             float            max_anisotropy);
 
         std::string name_;
-        void*       rhi_sampler_{ nullptr };
+        RhiSamplerHandle rhi_sampler_{ nullptr, &Sampler::destroy_rhi_sampler };
 
         SamplerFilter filter_;
         SamplerWrap   wrap_u_;
@@ -109,6 +101,7 @@ export namespace boza
         float max_lod_;
         float max_anisotropy_;
 
+        friend class Material;
         friend class gfx::SamplerLoader;
     };
 }

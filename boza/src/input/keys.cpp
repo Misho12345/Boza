@@ -4,7 +4,10 @@ import :keys;
 
 namespace boza
 {
-    KeyCombo operator&(const Key lhs, const Key rhs) { return KeyCombo{ std::vector{ lhs, rhs } }; }
+    KeyCombo operator&(const Key lhs, const Key rhs)
+    {
+        return KeyCombo{ std::vector{ lhs, rhs } };
+    }
 
     KeyCombo operator&(KeyCombo lhs, const Key rhs)
     {

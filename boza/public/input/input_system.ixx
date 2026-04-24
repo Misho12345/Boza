@@ -15,7 +15,10 @@ import :key_state;
 
 namespace boza
 {
-    namespace platform { class Window; }
+    namespace platform
+    {
+        class Window;
+    }
 
     export class BOZA_API Input final
     {
@@ -35,17 +38,17 @@ namespace boza
         struct InputFrameData final
         {
             flat_map<Key, KeyState> key_states{};
-            std::vector<Key>        keys_pressed{};
-            std::vector<Key>        keys_released{};
-            std::vector<Key>        keys_double_clicked{};
-            glm::vec2               mouse_delta{ 0.0f, 0.0f };
-            glm::vec2               scroll_delta{ 0.0f, 0.0f };
+            std::vector<Key> keys_pressed{};
+            std::vector<Key> keys_released{};
+            std::vector<Key> keys_double_clicked{};
+            glm::vec2 mouse_delta{ 0.0f, 0.0f };
+            glm::vec2 scroll_delta{ 0.0f, 0.0f };
         };
 
         static inline InputFrameData frame{};
 
         static inline glm::vec2 last_cursor_pos{ 0.0f, 0.0f };
-        static inline bool      first_cursor_move{ true };
+        static inline bool first_cursor_move{ true };
 
         struct Begin final : EngineBeginStage<Begin>
         {
@@ -57,15 +60,12 @@ namespace boza
             static void execute();
         };
 
-        struct Update final : EngineUpdateStage<Update, With<InputCapture>>
+        struct Update final : EngineUpdateStage<
+                                  Update,
+                                  RunAfter<Input>,
+                                  With<InputCapture>
+                              >
         {
-            static SystemStageConfig config()
-            {
-                return {
-                    .run_after = { Input::stage_info.system }
-                };
-            }
-
             static void execute(InputCapture& capture);
         };
 

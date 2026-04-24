@@ -1,6 +1,7 @@
 module boza.rhi.vulkan;
 
 import :command;
+import :sync;
 import :util;
 
 namespace boza::rhi::vk
@@ -43,7 +44,6 @@ namespace boza::rhi::vk
             vk_command_pool_ = nullptr;
         }
     }
-
 
     rhi::CommandBuffer* CommandPool::allocate_command_buffer(const bool is_primary)
     {
@@ -97,8 +97,7 @@ namespace boza::rhi::vk
         return cmd_buffer;
     }
 
-    // TODO: remove duplication with allocate_command_buffer
-    std::vector<rhi::CommandBuffer*> CommandPool::allocate_command_buffers(const uint32_t count, const bool is_primary)
+    std::vector<rhi::CommandBuffer*> CommandPool::allocate_command_buffers(const std::uint32_t count, const bool is_primary)
     {
         // Log::trace("Allocating {} command buffers for command pool ({})", count, desc.queue_family_index);
 
@@ -107,57 +106,12 @@ namespace boza::rhi::vk
         std::vector<rhi::CommandBuffer*> cmd_buffers;
         cmd_buffers.reserve(count);
 
-        const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
-
-        const VkCommandBufferAllocateInfo alloc_info
+        for (std::uint32_t i = 0; i < count; ++i)
         {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-            .pNext = nullptr,
-            .commandPool = vk_command_pool_,
-            .level = is_primary ? VK_COMMAND_BUFFER_LEVEL_PRIMARY : VK_COMMAND_BUFFER_LEVEL_SECONDARY,
-            .commandBufferCount = count,
-        };
-
-        std::vector<VkCommandBuffer> vk_command_buffers(count);
-        if (!vk_check(
-            vkAllocateCommandBuffers(vk_device, &alloc_info, vk_command_buffers.data()),
-            "Failed to allocate command buffers"))
-            return {};
-
-        for (uint32_t i = 0; i < count; ++i)
-        {
-            const CommandBufferDesc cmd_desc
-            {
-                .device = desc_.device,
-                .pool = this,
-                .is_primary = is_primary
-            };
-
-            auto* cmd_buffer = new CommandBuffer(cmd_desc);
+            auto* cmd_buffer = allocate_command_buffer(is_primary);
             if (!cmd_buffer)
             {
-                Log::critical("Failed to allocate command buffer object");
-                for (auto* buf : cmd_buffers)
-                {
-                    buf->destroy();
-                    delete buf;
-                }
-                vkFreeCommandBuffers(vk_device, vk_command_pool_, count, vk_command_buffers.data());
-                return {};
-            }
-
-            cmd_buffer->set_vk_command_buffer(vk_command_buffers[i]);
-
-            if (!cmd_buffer->init())
-            {
-                Log::critical("Failed to initialize command buffer");
-                delete cmd_buffer;
-                for (auto* buf : cmd_buffers)
-                {
-                    buf->destroy();
-                    delete buf;
-                }
-                vkFreeCommandBuffers(vk_device, vk_command_pool_, count, vk_command_buffers.data());
+                free_command_buffers(cmd_buffers);
                 return {};
             }
 
@@ -166,7 +120,6 @@ namespace boza::rhi::vk
 
         return cmd_buffers;
     }
-
 
     void CommandPool::free_command_buffer(rhi::CommandBuffer* command_buffer)
     {
@@ -178,7 +131,6 @@ namespace boza::rhi::vk
         const VkCommandBuffer vk_cmd = reinterpret_cast<CommandBuffer*>(command_buffer)->vk_command_buffer();
 
         vkFreeCommandBuffers(vk_device, vk_command_pool_, 1, &vk_cmd);
-        command_buffer->destroy();
         delete command_buffer;
     }
 
@@ -198,19 +150,14 @@ namespace boza::rhi::vk
 
         vkFreeCommandBuffers(
             vk_device, vk_command_pool_,
-            static_cast<uint32_t>(vk_cmd_buffers.size()),
+            static_cast<std::uint32_t>(vk_cmd_buffers.size()),
             vk_cmd_buffers.data());
 
-        for (auto* cmd : command_buffers)
+        for (const auto* cmd : command_buffers)
         {
-            if (cmd)
-            {
-                cmd->destroy();
-                delete cmd;
-            }
+            delete cmd;
         }
     }
-
 
     bool CommandPool::reset(const bool release_resources)
     {
@@ -259,8 +206,23 @@ namespace boza::rhi::vk
             return false;
         }
 
+        const auto fence = Fence::create<Fence>({
+            .device = desc_.device,
+            .signaled = false
+        });
+
+        if (!fence)
+        {
+            Log::critical("Failed to create fence for single-time command submission");
+            free_command_buffer(command_buffer);
+            return false;
+        }
+
         if (const auto queue = reinterpret_cast<CommandQueue*>(device->queue(desc_.queue_family_index));
-            !queue->submit({ command_buffer }) || !queue->wait_idle())
+            !queue->submit({
+                .command_buffers = { command_buffer },
+                .signal_fence    = fence.get()
+            }) || !fence->wait())
         {
             free_command_buffer(command_buffer);
             return false;

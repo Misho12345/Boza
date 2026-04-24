@@ -13,60 +13,89 @@ export namespace boza
 {
     struct BindingEvent
     {
-        BindingEvent()                               = default;
-        BindingEvent(const BindingEvent&)            = delete;
+        BindingEvent() = default;
+        BindingEvent(const BindingEvent&) = delete;
         BindingEvent& operator=(const BindingEvent&) = delete;
-        BindingEvent(BindingEvent&&)                 = default;
-        BindingEvent& operator=(BindingEvent&&)      = default;
+        BindingEvent(BindingEvent&&) = default;
+        BindingEvent& operator=(BindingEvent&&) = default;
 
-        KeyBinding                      binding;
+        KeyBinding binding;
         std::move_only_function<void()> callback;
     };
 
     class BOZA_API InputCapture final
     {
     public:
-        InputCapture()                               = default;
-        InputCapture(const InputCapture&)            = delete;
+        InputCapture() = default;
+        InputCapture(const InputCapture&) = delete;
         InputCapture& operator=(const InputCapture&) = delete;
-        InputCapture(InputCapture&&)                 = default;
-        InputCapture& operator=(InputCapture&&)      = default;
+        InputCapture(InputCapture&&) = default;
+        InputCapture& operator=(InputCapture&&) = default;
 
-        template <Action A> requires (A != Action::MouseMove && A != Action::MouseScroll)
+        template <Action A>
+            requires (A != Action::MouseMove && A != Action::MouseScroll)
         void on(Key key, std::move_only_function<void()> callback)
         {
-            if constexpr (A == Action::Press) press_events_.insert_or_assign(key, std::move(callback));
-            else if constexpr (A == Action::Release) release_events_.insert_or_assign(key, std::move(callback));
-            else if constexpr (A == Action::Hold) hold_events_.insert_or_assign(key, std::move(callback));
-            else if constexpr (A == Action::DoubleClick) double_click_events_.insert_or_assign(key, std::move(callback));
+            if constexpr (A == Action::Press)
+            {
+                press_events_.insert_or_assign(key, std::move(callback));
+            }
+            else if constexpr (A == Action::Release)
+            {
+                release_events_.insert_or_assign(key, std::move(callback));
+            }
+            else if constexpr (A == Action::Hold)
+            {
+                hold_events_.insert_or_assign(key, std::move(callback));
+            }
+            else if constexpr (A == Action::DoubleClick)
+            {
+                double_click_events_.insert_or_assign(key, std::move(callback));
+            }
         }
 
-        template <Action A> requires (A != Action::MouseMove && A != Action::MouseScroll)
+        template <Action A>
+            requires (A != Action::MouseMove && A != Action::MouseScroll)
         void on(KeyCombo combo, std::move_only_function<void()> callback)
         {
             on<A>(KeyBinding{ std::move(combo) }, std::move(callback));
         }
 
-        template <Action A> requires (A != Action::MouseMove && A != Action::MouseScroll)
+        template <Action A>
+            requires (A != Action::MouseMove && A != Action::MouseScroll)
         void on(KeyBinding binding, std::move_only_function<void()> callback)
         {
             BindingEvent event;
             event.binding = std::move(binding);
             event.callback = std::move(callback);
 
-            if constexpr (A == Action::Press) press_bindings_.push_back(std::move(event));
-            else if constexpr (A == Action::Release) release_bindings_.push_back(std::move(event));
-            else if constexpr (A == Action::Hold) hold_bindings_.push_back(std::move(event));
-            else if constexpr (A == Action::DoubleClick) double_click_bindings_.push_back(std::move(event));
+            if constexpr (A == Action::Press)
+            {
+                press_bindings_.push_back(std::move(event));
+            }
+            else if constexpr (A == Action::Release)
+            {
+                release_bindings_.push_back(std::move(event));
+            }
+            else if constexpr (A == Action::Hold)
+            {
+                hold_bindings_.push_back(std::move(event));
+            }
+            else if constexpr (A == Action::DoubleClick)
+            {
+                double_click_bindings_.push_back(std::move(event));
+            }
         }
 
-        template <Action A> requires (A == Action::MouseMove)
+        template <Action A>
+            requires (A == Action::MouseMove)
         void on(std::move_only_function<void(glm::vec2)> callback)
         {
             mouse_move_callbacks_.push_back(std::move(callback));
         }
 
-        template <Action A> requires (A == Action::MouseScroll)
+        template <Action A>
+            requires (A == Action::MouseScroll)
         void on(std::move_only_function<void(glm::vec2)> callback)
         {
             mouse_scroll_callbacks_.push_back(std::move(callback));

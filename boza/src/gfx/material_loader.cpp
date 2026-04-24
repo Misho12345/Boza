@@ -11,6 +11,19 @@ import boza.detail;
 
 namespace boza::gfx
 {
+    static MaterialSettings settings_from_definition(const MaterialDefinition& def)
+    {
+        return MaterialSettings{
+            .vertex_shader = def.vertex_shader,
+            .fragment_shader = def.fragment_shader,
+            .depth_compare_op = def.settings.depth_compare_op,
+            .depth_test_enable = def.settings.depth_test_enable,
+            .depth_write_enable = def.settings.depth_write_enable,
+            .cull_mode = def.settings.cull_mode,
+            .front_face = def.settings.front_face
+        };
+    }
+
     MaterialLoader& MaterialLoader::instance()
     {
         static MaterialLoader instance;
@@ -48,7 +61,7 @@ namespace boza::gfx
 
         static constexpr LightUBO light_data{
             .light_position = glm::vec4(5.0f, 5.0f, 5.0f, 1.0f),
-            .light_color = glm::vec4(1.0f, 1.0f, 1.0f, 2.0f),
+            .light_color = glm::vec4(1.0f, 1.0f, 1.0f, 1.5f),
             .view_pos = glm::vec4(0.0f, 0.0f, 5.0f, 1.0f)
         };
         light_ubo_->upload(&light_data, sizeof(LightUBO), 0);
@@ -75,8 +88,13 @@ namespace boza::gfx
         light_ubo_.reset();
         camera_ubo_.reset();
 
+        device_          = nullptr;
+        swapchain_       = nullptr;
+        descriptor_pool_ = nullptr;
+        resource_cache_ = nullptr;
+        api_             = {};
+
         definitions_.clear();
-        initialized_ = false;
     }
 
     bool MaterialLoader::load_all_material_definitions()
@@ -112,30 +130,19 @@ namespace boza::gfx
         {
             if (def.load_strategy == LoadStrategy::GameLoad)
             {
-                MaterialSettings settings{
-                    .vertex_shader = def.vertex_shader,
-                    .fragment_shader = def.fragment_shader,
-                    .depth_compare_op = def.settings.depth_compare_op,
-                    .depth_test_enable = def.settings.depth_test_enable,
-                    .depth_write_enable = def.settings.depth_write_enable,
-                    .cull_mode = def.settings.cull_mode,
-                    .front_face = def.settings.front_face
-                };
+                Material mat = create(name, settings_from_definition(def));
+                auto [material, inserted] = materials_.try_emplace(name, std::move(mat));
 
-                Material mat = create(name, settings);
-                auto [it, inserted] = materials_.try_emplace(name, std::move(mat));
-
-                if (inserted)
+                if (inserted && material && material->pipeline_)
                 {
-                    valid_pointers_.insert(&it->second);
-                    it->second.set_cpu_cull_enabled(def.cpu_cull_enabled);
-                    bind_engine_resources(&it->second);
-                    setup(&it->second, def);
+                    material->set_cpu_cull_enabled(def.cpu_cull_enabled);
+                    bind_engine_resources(material);
+                    setup(material, def);
                 }
                 else
                 {
                     Log::error("Failed to create material: {}", name);
-                    if (inserted) materials_.erase(it);
+                    if (inserted) materials_.erase(name);
                 }
             }
         }
@@ -155,30 +162,46 @@ namespace boza::gfx
 
         MaterialDefinition def;
 
-        const std::string filename = path.stem().string();
-
-        def.name = filename.ends_with(".mat") ? filename.substr(0, filename.size() - 4) : filename;
+        def.name = detail::AssetPaths::material_id_from_path(path);
+        if (def.name.empty())
+        {
+            Log::error("Failed to derive material id from path: {}", path.string());
+            return std::nullopt;
+        }
 
         if (!j.contains("vertex_shader") || !j["vertex_shader"].is_string())
         {
             Log::error("Material {} missing 'vertex_shader' string", def.name);
             return std::nullopt;
         }
-        def.vertex_shader = j["vertex_shader"].get<std::string>();
+        def.vertex_shader = detail::AssetPaths::normalize_resource_id(j["vertex_shader"].get<std::string>());
+        if (def.vertex_shader.empty())
+        {
+            Log::error("Material {} has invalid 'vertex_shader' path", def.name);
+            return std::nullopt;
+        }
 
         if (!j.contains("fragment_shader") || !j["fragment_shader"].is_string())
         {
             Log::error("Material {} missing 'fragment_shader' string", def.name);
             return std::nullopt;
         }
-        def.fragment_shader = j["fragment_shader"].get<std::string>();
+        def.fragment_shader = detail::AssetPaths::normalize_resource_id(j["fragment_shader"].get<std::string>());
+        if (def.fragment_shader.empty())
+        {
+            Log::error("Material {} has invalid 'fragment_shader' path", def.name);
+            return std::nullopt;
+        }
 
         if (j.contains("load_strategy") && j["load_strategy"].is_string())
         {
             const std::string strategy = j["load_strategy"].get<std::string>();
             if (strategy == "game_load") def.load_strategy = LoadStrategy::GameLoad;
             else if (strategy == "on_demand") def.load_strategy = LoadStrategy::OnDemand;
-            else Log::warn("Material {} has unknown load_strategy '{}', defaulting to game_load", def.name, strategy);
+            else
+            {
+                Log::warn("Material {} has unknown load_strategy '{}', defaulting to game_load", def.name, strategy);
+            }
         }
 
         if (j.contains("settings") && j["settings"].is_object())
@@ -232,8 +255,18 @@ namespace boza::gfx
 
                 if (val.is_object())
                 {
-                    if (val.contains("texture") && val["texture"].is_string()) info.texture_file = val["texture"].get<std::string>();
-                    if (val.contains("sampler") && val["sampler"].is_string()) info.sampler_file = val["sampler"].get<std::string>();
+                    if (val.contains("texture") && val["texture"].is_string())
+                    {
+                        info.texture_file = detail::AssetPaths::normalize_resource_id(val["texture"].get<std::string>());
+                        if (info.texture_file.empty())
+                            Log::warn("Material {} has invalid texture path for '{}'", def.name, key);
+                    }
+                    if (val.contains("sampler") && val["sampler"].is_string())
+                    {
+                        info.sampler_file = detail::AssetPaths::normalize_resource_id(val["sampler"].get<std::string>());
+                        if (info.sampler_file.empty())
+                            Log::warn("Material {} has invalid sampler path for '{}'", def.name, key);
+                    }
                 }
 
                 def.textures[key] = info;
@@ -256,7 +289,10 @@ namespace boza::gfx
                     }
                     else if (prop_val.is_number_integer())
                     {
-                        properties[prop_name] = prop_val.get<std::int64_t>() >= 0 ? prop_val.get<std::uint32_t>() : prop_val.get<std::int32_t>();
+                        properties[prop_name] =
+                            prop_val.get<std::int64_t>() >= 0
+                                ? prop_val.get<std::uint32_t>()
+                                : prop_val.get<std::int32_t>();
                     }
                     else if (prop_val.is_number_float())
                     {
@@ -303,66 +339,27 @@ namespace boza::gfx
         return def;
     }
 
-    void MaterialLoader::bind_engine_resources(const Material* material) const
+    void MaterialLoader::bind_engine_resources(Material* material) const
     {
         if (!material || material->descriptor_set_count() == 0) return;
 
-        const bool has_per_frame_sets = !material->descriptor_sets_per_frame_.empty();
-
-        std::uint32_t frame_index = 0;
-        if (has_per_frame_sets)
-        {
-            if (const auto* swapchain = rhi::RenderContext::swapchain())
-                frame_index = swapchain->current_frame();
-
-            frame_index %= static_cast<std::uint32_t>(material->descriptor_sets_per_frame_.size());
-        }
-
-        auto try_bind_ubo = [&](const std::string& ubo_name, const std::optional<Buffer>& buffer_opt, const std::size_t size)
+        auto try_bind_ubo = [&](const std::string& ubo_name, const std::optional<Buffer>& buffer_opt)
         {
             if (!buffer_opt) return;
 
             const auto info = material->lookup_binding(ubo_name);
             if (!info.has_value() ||
                 info->descriptor_type != static_cast<std::uint32_t>(rhi::DescriptorType::UniformBuffer))
-                return;
-
-            auto* rhi_buffer = static_cast<rhi::Buffer*>(buffer_opt->rhi_handle());
-            if (!rhi_buffer) return;
-
-            const rhi::DescriptorWrite write{
-                .binding = info->binding,
-                .array_element = 0,
-                .type = rhi::DescriptorType::UniformBuffer,
-                .info = rhi::UniformBuffer{
-                    .buffer = rhi_buffer,
-                    .offset = 0,
-                    .range = static_cast<std::uint32_t>(size)
-                }
-            };
-
-            if (has_per_frame_sets)
             {
-                const auto& frame_sets = material->descriptor_sets_per_frame_[frame_index];
-                if (info->set >= frame_sets.size()) return;
-
-                auto* frame_set = static_cast<rhi::DescriptorSet*>(frame_sets[info->set]);
-                if (!frame_set) return;
-
-                std::array writes{ write };
-                frame_set->update(writes);
                 return;
             }
 
-            auto* desc_set = static_cast<rhi::DescriptorSet*>(material->rhi_descriptor_set_handle(info->set));
-            if (!desc_set) return;
-            std::array writes{ write };
-            desc_set->update(writes);
+            material->update_buffer(ubo_name, *buffer_opt);
         };
 
-        try_bind_ubo("cameraUBO", camera_ubo_, sizeof(CameraUBO));
-        try_bind_ubo("lightUBO", light_ubo_, sizeof(LightUBO));
-        try_bind_ubo("timeUBO", time_ubo_, sizeof(TimeUBO));
+        try_bind_ubo("cameraUBO", camera_ubo_);
+        try_bind_ubo("lightUBO", light_ubo_);
+        try_bind_ubo("timeUBO", time_ubo_);
     }
 
     void MaterialLoader::setup(Material* material, const MaterialDefinition& def)
@@ -409,11 +406,18 @@ namespace boza::gfx
                 {
                     using D = std::decay_t<T>;
 
-                    if constexpr (std::same_as<D, bool>) material->update_property(full_name, static_cast<std::uint32_t>(val));
-                    else if constexpr (std::same_as<D, std::int32_t> ||
+                    if constexpr (std::same_as<D, bool>)
+                    {
+                        material->update_property(full_name, static_cast<std::uint32_t>(val));
+                    }
+                    else if constexpr (
+                        std::same_as<D, std::int32_t> ||
                         std::same_as<D, std::uint32_t> ||
                         std::same_as<D, float> ||
-                        std::same_as<D, double>) material->update_property(full_name, val);
+                        std::same_as<D, double>)
+                    {
+                        material->update_property(full_name, val);
+                    }
                     else if constexpr (std::same_as<D, std::vector<float>>)
                     {
                         if (val.size() == 2) material->update_property(full_name, glm::vec2(val[0], val[1]));
@@ -465,8 +469,7 @@ namespace boza::gfx
 
     Material* MaterialLoader::try_get_material(const std::string_view name)
     {
-        auto it = materials_.find(name);
-        if (it != materials_.end()) return &it->second;
+        if (auto* material = materials_.find_ptr(name)) return material;
 
         std::string name_str{ name };
 
@@ -476,30 +479,19 @@ namespace boza::gfx
             const auto& def = def_it->second;
             // Log::trace("Loading on-demand material: {}", name);
 
-            const MaterialSettings settings{
-                .vertex_shader = def.vertex_shader,
-                .fragment_shader = def.fragment_shader,
-                .depth_compare_op = def.settings.depth_compare_op,
-                .depth_test_enable = def.settings.depth_test_enable,
-                .depth_write_enable = def.settings.depth_write_enable,
-                .cull_mode = def.settings.cull_mode,
-                .front_face = def.settings.front_face
-            };
+            Material mat = create(name, settings_from_definition(def));
+            auto [material, inserted] = materials_.try_emplace(name_str, std::move(mat));
 
-            Material mat = create(name, settings);
-            auto [new_it, inserted] = materials_.try_emplace(name_str, std::move(mat));
-
-            if (inserted && new_it->second.pipeline_)
+            if (inserted && material && material->pipeline_)
             {
-                valid_pointers_.insert(&new_it->second);
-                new_it->second.set_cpu_cull_enabled(def.cpu_cull_enabled);
-                bind_engine_resources(&new_it->second);
-                setup(&new_it->second, def);
-                return &new_it->second;
+                material->set_cpu_cull_enabled(def.cpu_cull_enabled);
+                bind_engine_resources(material);
+                setup(material, def);
+                return material;
             }
 
             Log::error("Failed to create on-demand material: {}", name);
-            if (inserted) materials_.erase(new_it);
+            if (inserted) materials_.erase(name_str);
             return nullptr;
         }
 
@@ -512,61 +504,71 @@ namespace boza::gfx
 
         Material mat = create(name, settings);
 
-        std::string name_str{ name };
-        auto [it, inserted] = materials_.try_emplace(name_str, std::move(mat));
+        const std::string name_str{ name };
+        auto [material, inserted] = materials_.try_emplace(name_str, std::move(mat));
 
-        if (!inserted || !it->second.pipeline_)
+        if (!inserted) return *material;
+
+        if (!material->pipeline_)
         {
             Log::error("Failed to create material: {}", name);
-            if (inserted) materials_.erase(it);
-            std::abort();
+
+            if (auto* default_material = try_get_material("default"))
+            {
+                Log::warn("Falling back to default material after '{}' creation failure", name);
+                materials_.erase(name_str);
+                return *default_material;
+            }
+
+            Log::error("No default material available; keeping '{}' in invalid state", name);
+            return *material;
         }
 
-        valid_pointers_.insert(&it->second);
-        bind_engine_resources(&it->second);
-        return it->second;
+        bind_engine_resources(material);
+        return *material;
     }
 
     void MaterialLoader::destroy(const std::string_view name)
     {
-        const auto it = materials_.find(name);
-        if (it != materials_.end())
+        if (auto material = materials_.take(name))
         {
-            RenderingSystem::on_material_destroyed(&it->second);
-            valid_pointers_.erase(&it->second);
+            RenderingSystem::on_material_destroyed(material.get());
             Log::trace("Destroyed material: {}", name);
-            materials_.erase(it);
         }
         else Log::warn("Attempted to destroy non-existent material: {}", name);
     }
 
     bool MaterialLoader::exists(const Material* ptr) const
     {
-        return ptr && valid_pointers_.contains(ptr);
+        return materials_.exists(ptr);
     }
 
     Material MaterialLoader::create(
         const std::string_view name,
         const MaterialSettings& settings)
     {
+        auto& loader = instance();
         Material material{ name };
 
-        if (settings.vertex_shader.empty() || settings.fragment_shader.empty())
+        const std::string vertex_shader_id   = detail::AssetPaths::normalize_resource_id(settings.vertex_shader);
+        const std::string fragment_shader_id = detail::AssetPaths::normalize_resource_id(settings.fragment_shader);
+
+        if (vertex_shader_id.empty() || fragment_shader_id.empty())
         {
             Log::error("Material '{}': vertex or fragment shader name is empty", name);
             return material;
         }
 
-        if (!rhi::RenderContext::initialized() || !rhi::RenderContext::device())
+        if (!loader.initialized_ || !loader.device_)
         {
-            Log::error("Render context not initialized. Cannot create material.");
+            Log::error("MaterialLoader is not initialized. Cannot create material.");
             return material;
         }
 
-        auto* device          = rhi::RenderContext::device();
-        auto  api             = rhi::RenderContext::api();
-        auto* resource_cache  = rhi::RenderContext::resource_cache();
-        auto* descriptor_pool = rhi::RenderContext::descriptor_pool();
+        auto* device          = loader.device_;
+        auto  api             = loader.api_;
+        auto* resource_cache  = loader.resource_cache_;
+        auto* descriptor_pool = loader.descriptor_pool_;
 
         if (!resource_cache)
         {
@@ -582,13 +584,13 @@ namespace boza::gfx
 
         const rhi::ShaderModuleDesc vert_desc{
             .device = device,
-            .filename = settings.vertex_shader + ".vert",
+            .filename = vertex_shader_id + ".vert",
             .stage = rhi::ShaderStage::Vertex
         };
 
         const rhi::ShaderModuleDesc frag_desc{
             .device = device,
-            .filename = settings.fragment_shader + ".frag",
+            .filename = fragment_shader_id + ".frag",
             .stage = rhi::ShaderStage::Fragment
         };
 
@@ -598,7 +600,7 @@ namespace boza::gfx
 
         if (!vert_shader_shared)
         {
-            Log::error("Failed to load vertex shader: {}", settings.vertex_shader);
+            Log::error("Failed to load vertex shader: {}", vertex_shader_id);
             return material;
         }
 
@@ -608,7 +610,7 @@ namespace boza::gfx
 
         if (!frag_shader_shared)
         {
-            Log::error("Failed to load fragment shader: {}", settings.fragment_shader);
+            Log::error("Failed to load fragment shader: {}", fragment_shader_id);
             return material;
         }
 
@@ -621,13 +623,15 @@ namespace boza::gfx
         std::vector<rhi::DescriptorSetLayout*> descriptor_set_layouts;
 
         const std::size_t settings_hash = settings.hash();
-        const auto* cached = resource_cache->get_cached_pipeline(settings.vertex_shader, settings.fragment_shader, settings_hash);
+        const auto cached = resource_cache->get_cached_pipeline(vertex_shader_id, fragment_shader_id, settings_hash);
 
         if (cached)
         {
-            pipeline               = cached->pipeline;
-            pipeline_layout        = cached->layout;
-            descriptor_set_layouts = cached->descriptor_set_layouts;
+            pipeline               = cached->pipeline.get();
+            pipeline_layout        = cached->layout.get();
+            descriptor_set_layouts.reserve(cached->descriptor_set_layouts.size());
+            for (const auto& layout : cached->descriptor_set_layouts)
+                descriptor_set_layouts.push_back(layout.get());
         }
         else
         {
@@ -639,22 +643,17 @@ namespace boza::gfx
                 return material;
             }
 
-            pipeline_layout = builder.build_pipeline_layout();
-            if (!pipeline_layout)
+            auto pipeline_layout_owner = builder.build_pipeline_layout();
+            if (!pipeline_layout_owner)
             {
                 Log::error("Failed to create pipeline layout for material");
-                const auto& layouts = builder.get_descriptor_set_layouts();
-                for (auto* layout : layouts) { if (layout) layout->destroy(); }
                 return material;
             }
 
-            const auto* swapchain = rhi::RenderContext::swapchain();
+            const auto* swapchain = loader.swapchain_;
             if (!swapchain)
             {
-                Log::error("Swapchain not available in graphics context. Cannot create material.");
-                if (pipeline_layout) pipeline_layout->destroy();
-                const auto& layouts = builder.get_descriptor_set_layouts();
-                for (auto* layout : layouts) { if (layout) layout->destroy(); }
+                Log::error("Swapchain not available in MaterialLoader. Cannot create material.");
                 return material;
             }
 
@@ -669,30 +668,63 @@ namespace boza::gfx
                 .depth_compare_op = settings.depth_compare_op
             };
 
-            pipeline = builder.build_graphics_pipeline(swapchain, swapchain->depth_format(), raster_state, depth_state);
+            auto pipeline_owner = builder.build_graphics_pipeline(
+                pipeline_layout_owner.get(),
+                swapchain,
+                swapchain->depth_format(),
+                raster_state,
+                depth_state);
 
-            if (!pipeline)
+            if (!pipeline_owner)
             {
                 Log::error("Failed to create graphics pipeline for material");
-                if (pipeline_layout) pipeline_layout->destroy();
-                const auto& layouts = builder.get_descriptor_set_layouts();
-                for (auto* layout : layouts) { if (layout) layout->destroy(); }
                 return material;
             }
 
-            descriptor_set_layouts = builder.get_descriptor_set_layouts();
+            auto built_descriptor_set_layouts = builder.take_descriptor_set_layouts();
+            rhi::ResourceCache::CachedGraphicsPipeline cached_pipeline;
+            cached_pipeline.pipeline = std::move(pipeline_owner);
+            cached_pipeline.layout = std::move(pipeline_layout_owner);
 
-            resource_cache->cache_graphics_pipeline(
-                settings.vertex_shader, settings.fragment_shader, settings_hash, {
-                    .pipeline = pipeline,
-                    .layout = pipeline_layout,
-                    .descriptor_set_layouts = descriptor_set_layouts
-                });
+            pipeline = cached_pipeline.pipeline.get();
+            pipeline_layout = cached_pipeline.layout.get();
+
+            descriptor_set_layouts.reserve(built_descriptor_set_layouts.size());
+            cached_pipeline.descriptor_set_layouts.reserve(built_descriptor_set_layouts.size());
+            for (auto& layout : built_descriptor_set_layouts)
+            {
+                descriptor_set_layouts.push_back(layout.get());
+                cached_pipeline.descriptor_set_layouts.emplace_back(layout.release());
+            }
+
+            const auto stored_cached = resource_cache->cache_graphics_pipeline(
+                vertex_shader_id,
+                fragment_shader_id,
+                settings_hash,
+                std::move(cached_pipeline));
+
+            pipeline = stored_cached ? stored_cached->pipeline.get() : nullptr;
+            pipeline_layout = stored_cached ? stored_cached->layout.get() : nullptr;
+
+            descriptor_set_layouts.clear();
+            if (stored_cached)
+            {
+                descriptor_set_layouts.reserve(stored_cached->descriptor_set_layouts.size());
+                for (const auto& layout : stored_cached->descriptor_set_layouts)
+                {
+                    descriptor_set_layouts.push_back(layout.get());
+                }
+            }
         }
 
-        const std::uint32_t frame_count = std::max<std::uint32_t>(rhi::RenderContext::frames_in_flight(), 1u);
+        const std::uint32_t frame_count = std::max<std::uint32_t>(
+            loader.swapchain_ ? loader.swapchain_->max_frames_in_flight() : 1u,
+            1u);
 
         std::vector<std::vector<rhi::DescriptorSet*>> descriptor_sets_per_frame(frame_count);
+        std::vector<rhi::DescriptorSet*> allocated_descriptor_sets;
+        allocated_descriptor_sets.reserve(frame_count * descriptor_set_layouts.size());
+
         for (std::uint32_t frame_index = 0; frame_index < frame_count; ++frame_index)
         {
             auto& descriptor_sets = descriptor_sets_per_frame[frame_index];
@@ -704,10 +736,17 @@ namespace boza::gfx
                 if (!desc_set)
                 {
                     Log::error("Failed to allocate descriptor set for material (frame {})", frame_index);
+
+                    if (!allocated_descriptor_sets.empty())
+                    {
+                        descriptor_pool->free_descriptor_sets(allocated_descriptor_sets);
+                    }
+
                     return material;
                 }
 
                 descriptor_sets.push_back(desc_set);
+                allocated_descriptor_sets.push_back(desc_set);
             }
         }
 
@@ -745,13 +784,12 @@ namespace boza::gfx
         auto* reflection = new rhi::DescriptorReflection();
         std::array shaders{ vert_shader, frag_shader };
         reflection->build_from_shaders(shaders);
-        material.reflection_ = reflection;
+        material.reflection_.reset(reflection);
 
         return material;
     }
 
-
-    void MaterialLoader::update_time_ubo(const float time, const float delta_time) const
+    void MaterialLoader::update_time_ubo(const float time, const float delta_time)
     {
         if (!time_ubo_) return;
 

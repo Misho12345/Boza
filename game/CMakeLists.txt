@@ -1,0 +1,1 @@
+boza_add_executable(game)

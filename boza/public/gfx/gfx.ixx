@@ -1,7 +1,5 @@
 export module boza.gfx;
 
-export import :common;
-
 export import :material;
 export import :compute_dispatcher;
 
@@ -14,3 +12,5 @@ export import :rendering_system;
 
 export import :mesh_renderer;
 export import :camera;
+
+export import boza.gfx.common;

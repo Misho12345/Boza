@@ -1,5 +1,7 @@
 module boza.gfx;
 
+import :buffer;
+import :material;
 import :rendering_system;
 import :rendering_system_common;
 
@@ -10,6 +12,46 @@ import boza.gfx.material_loader;
 
 namespace boza
 {
+    namespace
+    {
+        std::mutex       render_thread_mutex_{};
+        std::thread::id  render_thread_{};
+        std::atomic_bool render_thread_set_{ false };
+    }
+
+    void assert_render_thread()
+    {
+        #ifdef BOZA_DEBUG
+        const std::thread::id current_thread = std::this_thread::get_id();
+
+        if (!render_thread_set_.load(std::memory_order_acquire))
+        {
+            std::scoped_lock lock{ render_thread_mutex_ };
+
+            if (!render_thread_set_.load(std::memory_order_relaxed))
+            {
+                render_thread_ = current_thread;
+                render_thread_set_.store(true, std::memory_order_release);
+                return;
+            }
+        }
+
+        assert(
+            render_thread_ == current_thread,
+            "RenderingSystem render cache accessed from a non-owner thread"
+        );
+        #endif
+    }
+
+    void clear_render_thread()
+    {
+        #ifdef BOZA_DEBUG
+        std::scoped_lock lock{ render_thread_mutex_ };
+        render_thread_ = {};
+        render_thread_set_.store(false, std::memory_order_release);
+        #endif
+    }
+
     [[nodiscard]]
     static bool is_within_range(
         const std::uint32_t member_offset,
@@ -20,13 +62,12 @@ namespace boza
         if (member_offset < range_offset) return false;
 
         const std::uint64_t member_end =
-                static_cast<std::uint64_t>(member_offset) + static_cast<std::uint64_t>(member_size);
+            static_cast<std::uint64_t>(member_offset) + static_cast<std::uint64_t>(member_size);
         const std::uint64_t range_end =
-                static_cast<std::uint64_t>(range_offset) + static_cast<std::uint64_t>(range_size);
+            static_cast<std::uint64_t>(range_offset) + static_cast<std::uint64_t>(range_size);
 
         return member_end <= range_end;
     }
-
 
     RenderingSystem::FrustumPlane RenderingSystem::FrustumState::normalize_plane(const glm::vec4& plane)
     {
@@ -68,7 +109,6 @@ namespace boza
         return true;
     }
 
-
     bool RenderingSystem::check_mesh_valid(Mesh* mesh)
     {
         if (!mesh) return false;
@@ -101,14 +141,13 @@ namespace boza
         return false;
     }
 
-
     void RenderingSystem::rebuild_pipeline_materials()
     {
         pipeline_materials_.clear();
 
         for (auto& [material_ptr, group] : render_cache_)
         {
-            auto* pipeline = static_cast<rhi::GraphicsPipeline*>(material_ptr->rhi_pipeline_handle());
+            auto* pipeline = static_cast<rhi::GraphicsPipeline*>(MaterialAccess::pipeline(*material_ptr));
             if (!pipeline) continue;
 
             auto& materials_vec = pipeline_materials_[pipeline];
@@ -118,13 +157,12 @@ namespace boza
         }
     }
 
-
     void RenderingSystem::remove_from_render_cache(MeshRenderer& mr, GameObject go)
     {
         if (!mr.in_render_cache_) return;
 
-        Material* mat = mr.cached_material_;
-        Mesh* mesh = mr.cached_mesh_;
+        Material* mat  = mr.cached_material_;
+        Mesh*     mesh = mr.cached_mesh_;
 
         if (mat && mesh)
         {
@@ -134,7 +172,8 @@ namespace boza
                 if (auto mesh_it = mat_group.mesh_buckets.find(mesh); mesh_it != mat_group.mesh_buckets.end())
                 {
                     auto& bucket = mesh_it->second;
-                    auto elem_it = std::ranges::find_if(bucket.elements,
+                    auto elem_it = std::ranges::find_if(
+                        bucket.elements,
                         [go](const RenderElement& el) { return el.entity == go; });
 
                     if (elem_it != bucket.elements.end())
@@ -193,7 +232,6 @@ namespace boza
         mr.in_unresolved_cache_ = true;
     }
 
-
     void reset_render_caches()
     {
         for (auto& per_binding : instance_buffers_ | std::views::values)
@@ -212,7 +250,6 @@ namespace boza
         instance_payload_scratch_.clear();
     }
 
-
     InstanceBufferState* get_instance_buffer(
         Material* material,
         const std::string& name)
@@ -220,8 +257,7 @@ namespace boza
         if (!material) return nullptr;
 
         auto& per_binding = instance_buffers_[material];
-        if (!per_binding.contains(name))
-            per_binding.emplace(name, InstanceBufferState{});
+        if (!per_binding.contains(name)) per_binding.emplace(name, InstanceBufferState{});
 
         auto it = per_binding.find(name);
         if (it == per_binding.end()) return nullptr;
@@ -253,7 +289,7 @@ namespace boza
             BufferUsage::Storage,
             ResourceAccessMode::Dynamic);
 
-        if (!new_buffer->rhi_handle())
+        if (!BufferAccess::handle(*new_buffer))
         {
             Log::error("Failed to allocate instance payload buffer");
             return false;
@@ -269,7 +305,7 @@ namespace boza
         MaterialRenderInfo info{};
         if (!material) return info;
 
-        const auto* reflection = static_cast<const rhi::DescriptorReflection*>(material->reflection_handle());
+        const auto* reflection = static_cast<const rhi::DescriptorReflection*>(MaterialAccess::reflection(*material));
         if (!reflection) return info;
 
         for (const auto& [range_name, range_info] : reflection->push_constant_ranges())
@@ -360,7 +396,6 @@ namespace boza
         if (!inserted && inserted_it == material_render_infos_.end()) return nullptr;
         return &inserted_it->second;
     }
-
 
     bool validate_instancing(
         [[maybe_unused]] Material* material,
@@ -559,7 +594,6 @@ namespace boza
         #endif
     }
 
-
     void push_ranges(
         rhi::CommandBuffer* cmd,
         Material& material,
@@ -569,10 +603,10 @@ namespace boza
     {
         if (!render_info || render_info->ranges.empty()) return;
 
-        auto* pipeline_layout = static_cast<rhi::PipelineLayout*>(material.rhi_pipeline_layout_handle());
+        auto* pipeline_layout = static_cast<rhi::PipelineLayout*>(MaterialAccess::pipeline_layout(material));
         if (!pipeline_layout) return;
 
-        const std::span<const std::uint8_t> push_staging = material.push_constant_staging();
+        const std::span<const std::uint8_t> push_staging = MaterialAccess::push_constant_staging(material);
 
         for (const PushConstantRangeRuntime& range : render_info->ranges)
         {
@@ -627,7 +661,6 @@ namespace boza
                 push_constant_scratch_.data());
         }
     }
-
 
     std::size_t gather_matrices_fast(
         const MeshBucket& bucket,
@@ -716,7 +749,7 @@ namespace boza
 
         buffer_state->buffer->upload(instance_payload_scratch_.data(), actual_payload_size, 0);
 
-        const auto buffer_handle = buffer_state->buffer->rhi_handle();
+        const auto buffer_handle = BufferAccess::handle(*buffer_state->buffer);
         if (buffer_state->bound_handle != buffer_handle)
         {
             material->update_buffer(ssbo_name, *buffer_state->buffer);
@@ -749,7 +782,7 @@ namespace boza
 
         instance_payload_scratch_.resize(payload_size);
 
-        const std::span<const std::uint8_t> push_staging = material->push_constant_staging();
+        const std::span<const std::uint8_t> push_staging = MaterialAccess::push_constant_staging(*material);
 
         const std::size_t data_base_offset =
             static_cast<std::size_t>(range.offset) +
@@ -793,7 +826,6 @@ namespace boza
 
         return upload_to_instance_buffer(material, range.instancing_ssbo_name, actual_payload_size);
     }
-
 
     const PushConstantRangeRuntime* select_fallback_range(
         [[maybe_unused]] Material& material,
@@ -854,7 +886,7 @@ namespace boza
         if (!ensure_buffer_capacity(*buffer_state, stride) || !buffer_state->buffer)
             return;
 
-        const auto buffer_handle = buffer_state->buffer->rhi_handle();
+        const auto buffer_handle = BufferAccess::handle(*buffer_state->buffer);
         if (buffer_state->bound_handle == buffer_handle)
             return;
 
@@ -890,9 +922,10 @@ namespace boza
         bind_fallback_ssbo(material, *selected_range);
     }
 
-
     void RenderingSystem::on_mesh_destroyed(Mesh* mesh)
     {
+        assert_render_thread();
+
         if (!mesh) return;
 
         destroyed_meshes_this_frame_.insert(mesh);
@@ -915,6 +948,8 @@ namespace boza
 
     void RenderingSystem::on_material_destroyed(Material* material)
     {
+        assert_render_thread();
+
         if (!material) return;
 
         destroyed_materials_this_frame_.insert(material);

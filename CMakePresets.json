@@ -7,34 +7,14 @@
   },
   "configurePresets": [
     {
-      "name": "Debug",
-      "description": "Debug build",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/Debug",
+      "name": "default",
+      "displayName": "Default",
+      "description": "Multi-config build with Ninja Multi-Config",
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "YES",
-        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "CMAKE_RUNTIME_OUTPUT_DIRECTORY": "${sourceDir}/build/Debug/bin",
-        "CMAKE_LIBRARY_OUTPUT_DIRECTORY": "${sourceDir}/build/Debug/lib",
-        "CMAKE_ARCHIVE_OUTPUT_DIRECTORY": "${sourceDir}/build/Debug/lib"
-      },
-      "warnings": {
-        "dev": false
-      }
-    },
-    {
-      "name": "Release",
-      "description": "Release build",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/Release",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "YES",
-        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "CMAKE_RUNTIME_OUTPUT_DIRECTORY": "${sourceDir}/build/Release/bin",
-        "CMAKE_LIBRARY_OUTPUT_DIRECTORY": "${sourceDir}/build/Release/lib",
-        "CMAKE_ARCHIVE_OUTPUT_DIRECTORY": "${sourceDir}/build/Release/lib"
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
       },
       "warnings": {
         "dev": false
@@ -44,16 +24,18 @@
   "buildPresets": [
     {
       "name": "Debug",
-      "configurePreset": "Debug",
-      "description": "Build boza_game (Debug)",
-      "targets": ["all"],
+      "configurePreset": "default",
+      "description": "Build Debug",
+      "configuration": "Debug",
+      "targets": [ "all" ],
       "jobs": 4
     },
     {
       "name": "Release",
-      "configurePreset": "Release",
-      "description": "Build boza_game (Release)",
-      "targets": ["all"],
+      "configurePreset": "default",
+      "description": "Build Release",
+      "configuration": "Release",
+      "targets": [ "all" ],
       "jobs": 4
     }
   ]

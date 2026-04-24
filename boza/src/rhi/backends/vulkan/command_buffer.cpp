@@ -51,7 +51,6 @@ namespace boza::rhi::vk
         return true;
     }
 
-
     bool CommandBuffer::reset(const bool release_resources)
     {
         // Log::trace("Resetting command buffer (release_resources: {})", release_resources);
@@ -66,30 +65,28 @@ namespace boza::rhi::vk
         return true;
     }
 
-
     void CommandBuffer::draw(
-        const uint32_t vertex_count,
-        const uint32_t instance_count,
-        const uint32_t first_vertex,
-        const uint32_t first_instance)
+        const std::uint32_t vertex_count,
+        const std::uint32_t instance_count,
+        const std::uint32_t first_vertex,
+        const std::uint32_t first_instance)
     {
         // Log::trace("Draw call: {} vertices, {} instances", vertex_count, instance_count);
         vkCmdDraw(vk_command_buffer_, vertex_count, instance_count, first_vertex, first_instance);
     }
 
     void CommandBuffer::draw_indexed(
-        const uint32_t index_count,
-        const uint32_t instance_count,
-        const uint32_t first_index,
-        const int32_t  vertex_offset,
-        const uint32_t first_instance)
+        const std::uint32_t index_count,
+        const std::uint32_t instance_count,
+        const std::uint32_t first_index,
+        const std::int32_t  vertex_offset,
+        const std::uint32_t first_instance)
     {
         // Log::trace("Draw indexed call: {} indices, {} instances", index_count, instance_count);
         vkCmdDrawIndexed(vk_command_buffer_, index_count, instance_count, first_index, vertex_offset, first_instance);
     }
 
-
-    void CommandBuffer::dispatch(const uint32_t group_x, const uint32_t group_y, const uint32_t group_z)
+    void CommandBuffer::dispatch(const std::uint32_t group_x, const std::uint32_t group_y, const std::uint32_t group_z)
     {
         // Log::trace("Dispatch compute: {}x{}x{} groups", group_x, group_y, group_z);
         vkCmdDispatch(vk_command_buffer_, group_x, group_y, group_z);
@@ -111,19 +108,10 @@ namespace boza::rhi::vk
         current_pipeline_bind_point_ = VK_PIPELINE_BIND_POINT_COMPUTE;
     }
 
-    void CommandBuffer::bind_descriptor_set(
-        rhi::PipelineLayout* layout,
-        rhi::DescriptorSet*  set,
-        const uint32_t       set_index)
-    {
-        // Log::trace("Binding descriptor set at index {}", set_index);
-        bind_descriptor_sets(layout, { &set, 1 }, set_index);
-    }
-
     void CommandBuffer::bind_descriptor_sets(
         rhi::PipelineLayout*                 layout,
         const std::span<rhi::DescriptorSet*> sets,
-        const uint32_t                       first_set)
+        const std::uint32_t                  first_set)
     {
         // Log::trace("Binding {} descriptor set(s) starting at index {}", sets.size(), first_set);
 
@@ -145,13 +133,13 @@ namespace boza::rhi::vk
             current_pipeline_bind_point_,
             vk_layout->vk_pipeline_layout(),
             first_set,
-            static_cast<uint32_t>(vk_sets.size()),
+            static_cast<std::uint32_t>(vk_sets.size()),
             vk_sets.data(),
             0,
             nullptr);
     }
 
-    void CommandBuffer::bind_vertex_buffer(rhi::Buffer* buffer, const uint32_t binding, const uint64_t offset)
+    void CommandBuffer::bind_vertex_buffer(rhi::Buffer* buffer, const std::uint32_t binding, const std::uint64_t offset)
     {
         // Log::trace("Binding vertex buffer at binding {} with offset {}", binding, offset);
         const auto*        vk_buffer = reinterpret_cast<Buffer*>(buffer);
@@ -160,35 +148,68 @@ namespace boza::rhi::vk
         vkCmdBindVertexBuffers(vk_command_buffer_, binding, 1, &vk_buf, &vk_offset);
     }
 
-    void CommandBuffer::bind_index_buffer(rhi::Buffer* buffer, const uint64_t offset, const bool use_uint16)
+    void CommandBuffer::bind_index_buffer(
+        rhi::Buffer*     buffer,
+        const std::uint64_t offset,
+        const IndexType  index_type)
     {
-        // Log::trace("Binding index buffer with offset {} ({})", offset, use_uint16 ? "uint16" : "uint32");
+        // Log::trace("Binding index buffer with offset {}", offset);
         const auto*       vk_buffer  = reinterpret_cast<Buffer*>(buffer);
-        const VkIndexType index_type = use_uint16 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32;
-        vkCmdBindIndexBuffer(vk_command_buffer_, vk_buffer->vk_buffer(), offset, index_type);
+
+        VkIndexType vk_index_type = VK_INDEX_TYPE_UINT32;
+        if (index_type == IndexType::Uint16) vk_index_type = VK_INDEX_TYPE_UINT16;
+
+        vkCmdBindIndexBuffer(vk_command_buffer_, vk_buffer->vk_buffer(), offset, vk_index_type);
     }
 
     void CommandBuffer::push_constants(
         rhi::PipelineLayout* layout,
         const ShaderStage    stage,
-        const uint32_t       offset,
-        const uint32_t       size,
+        const std::uint32_t  offset,
+        const std::uint32_t  size,
         const void*          data)
     {
         // Log::trace("Pushing constants: {} bytes at offset {}", size, offset);
         const auto* vk_layout = reinterpret_cast<PipelineLayout*>(layout);
 
         VkShaderStageFlags stage_flags = 0;
-        if (static_cast<uint8_t>(stage) & static_cast<uint8_t>(ShaderStage::Vertex)) stage_flags |= VK_SHADER_STAGE_VERTEX_BIT;
-        if (static_cast<uint8_t>(stage) & static_cast<uint8_t>(ShaderStage::Fragment)) stage_flags |= VK_SHADER_STAGE_FRAGMENT_BIT;
-        if (static_cast<uint8_t>(stage) & static_cast<uint8_t>(ShaderStage::Compute)) stage_flags |= VK_SHADER_STAGE_COMPUTE_BIT;
-        if (static_cast<uint8_t>(stage) & static_cast<uint8_t>(ShaderStage::TessControl)) stage_flags |= VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
-        if (static_cast<uint8_t>(stage) & static_cast<uint8_t>(ShaderStage::TessEvaluation)) stage_flags |= VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-        if (static_cast<uint8_t>(stage) & static_cast<uint8_t>(ShaderStage::Geometry)) stage_flags |= VK_SHADER_STAGE_GEOMETRY_BIT;
+        if (static_cast<std::uint8_t>(stage) & static_cast<std::uint8_t>(ShaderStage::Vertex)) stage_flags |= VK_SHADER_STAGE_VERTEX_BIT;
+        if (static_cast<std::uint8_t>(stage) & static_cast<std::uint8_t>(ShaderStage::Fragment)) stage_flags |= VK_SHADER_STAGE_FRAGMENT_BIT;
+        if (static_cast<std::uint8_t>(stage) & static_cast<std::uint8_t>(ShaderStage::Compute)) stage_flags |= VK_SHADER_STAGE_COMPUTE_BIT;
+        if (static_cast<std::uint8_t>(stage) & static_cast<std::uint8_t>(ShaderStage::TessControl)) stage_flags |= VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
+        if (static_cast<std::uint8_t>(stage) & static_cast<std::uint8_t>(ShaderStage::TessEvaluation)) stage_flags |= VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+        if (static_cast<std::uint8_t>(stage) & static_cast<std::uint8_t>(ShaderStage::Geometry)) stage_flags |= VK_SHADER_STAGE_GEOMETRY_BIT;
 
         vkCmdPushConstants(vk_command_buffer_, vk_layout->vk_pipeline_layout(), stage_flags, offset, size, data);
     }
 
+    void CommandBuffer::compute_memory_barrier()
+    {
+        static constexpr VkMemoryBarrier2 barrier
+        {
+            .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+            .pNext = nullptr,
+            .srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+            .srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT,
+            .dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+            .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT
+        };
+
+        constexpr VkDependencyInfo dependency_info
+        {
+            .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+            .pNext = nullptr,
+            .dependencyFlags = 0,
+            .memoryBarrierCount = 1,
+            .pMemoryBarriers = &barrier,
+            .bufferMemoryBarrierCount = 0,
+            .pBufferMemoryBarriers = nullptr,
+            .imageMemoryBarrierCount = 0,
+            .pImageMemoryBarriers = nullptr
+        };
+
+        vkCmdPipelineBarrier2(vk_command_buffer_, &dependency_info);
+    }
 
     void CommandBuffer::image_barrier(
         rhi::Texture*       texture,
@@ -196,12 +217,17 @@ namespace boza::rhi::vk
         const ResourceState new_state)
     {
         const auto* vk_texture = reinterpret_cast<Texture*>(texture);
+        if (!vk_texture)
+        {
+            Log::warn("Cannot insert image barrier for null texture");
+            return;
+        }
 
         auto [old_layout, src_stage] = state_to_layout_and_stage(old_state);
         auto [new_layout, dst_stage] = state_to_layout_and_stage(new_state);
 
-        const VkAccessFlags src_access = state_to_access(old_state);
-        const VkAccessFlags dst_access = state_to_access(new_state);
+        const VkAccessFlags2 src_access = state_to_access(old_state);
+        const VkAccessFlags2 dst_access = state_to_access(new_state);
 
         pipeline_image_barrier(
             vk_texture->vk_image(),
@@ -211,37 +237,39 @@ namespace boza::rhi::vk
             src_access,
             dst_stage,
             dst_access,
-            VK_IMAGE_ASPECT_COLOR_BIT,
-            0, 1, 0, 1);
+            vk_texture->aspect_mask(),
+            0,
+            vk_texture->mip_levels(),
+            0,
+            vk_texture->layer_count());
     }
-
 
     void CommandBuffer::pipeline_image_barrier(
         const VkImage       image,
         const VkImageLayout old_layout,
         const VkImageLayout new_layout,
 
-        const uint32_t src_stage_mask,
-        const uint32_t src_access_mask,
-        const uint32_t dst_stage_mask,
-        const uint32_t dst_access_mask,
+        const VkPipelineStageFlags2 src_stage_mask,
+        const VkAccessFlags2        src_access_mask,
+        const VkPipelineStageFlags2 dst_stage_mask,
+        const VkAccessFlags2        dst_access_mask,
 
         const VkImageAspectFlags aspect_mask,
-        const uint32_t           base_mip_level,
-        const uint32_t           level_count,
-        const uint32_t           base_array_layer,
-        const uint32_t           layer_count) const
+        const std::uint32_t    base_mip_level,
+        const std::uint32_t    level_count,
+        const std::uint32_t    base_array_layer,
+        const std::uint32_t    layer_count) const
     {
-        // Log::trace("Pipeline image barrier: layout transition {} -> {}", static_cast<uint32_t>(old_layout), static_cast<uint32_t>(new_layout));
+        // Log::trace("Pipeline image barrier: layout transition {} -> {}", static_cast<std::uint32_t>(old_layout), static_cast<std::uint32_t>(new_layout));
 
         VkImageMemoryBarrier2 barrier
         {
             .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
             .pNext = nullptr,
-            .srcStageMask = static_cast<VkPipelineStageFlags2>(src_stage_mask),
-            .srcAccessMask = static_cast<VkAccessFlags2>(src_access_mask),
-            .dstStageMask = static_cast<VkPipelineStageFlags2>(dst_stage_mask),
-            .dstAccessMask = static_cast<VkAccessFlags2>(dst_access_mask),
+            .srcStageMask = src_stage_mask,
+            .srcAccessMask = src_access_mask,
+            .dstStageMask = dst_stage_mask,
+            .dstAccessMask = dst_access_mask,
             .oldLayout = old_layout,
             .newLayout = new_layout,
             .srcQueueFamilyIndex = vk_queue_family_ignored,
@@ -271,7 +299,6 @@ namespace boza::rhi::vk
 
         vkCmdPipelineBarrier2(vk_command_buffer_, &dependency_info);
     }
-
 
     VkCommandBuffer CommandBuffer::vk_command_buffer() const { return vk_command_buffer_; }
 

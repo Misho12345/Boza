@@ -4,8 +4,10 @@ module;
 
 export module boza.rhi.factory;
 
+import std;
 import boza.rhi.api;
 import boza.rhi.objects;
+import boza.core;
 
 #ifdef BOZA_OPENGL_ENABLED
 import boza.rhi.opengl;
@@ -27,9 +29,8 @@ import boza.rhi.dx11;
 import boza.rhi.dx12;
 #endif
 
-
 #define FACTORY_FUNC(CLASS, CLASS_LOWER)                                                            \
-    CLASS* create_ ## CLASS_LOWER(const GraphicsApi api, const CLASS ## Desc& desc)                 \
+    std::unique_ptr<CLASS> create_ ## CLASS_LOWER(const GraphicsApi api, const CLASS ## Desc& desc) \
     {                                                                                               \
         switch (api)                                                                                \
         {                                                                                           \
@@ -38,10 +39,10 @@ import boza.rhi.dx12;
             BOZA_IF_METAL (case GraphicsApi::Metal:     return CLASS::create<ml::CLASS>(desc);)     \
             BOZA_IF_DX11  (case GraphicsApi::DirectX11: return CLASS::create<dx11::CLASS>(desc);)   \
             BOZA_IF_DX12  (case GraphicsApi::DirectX12: return CLASS::create<dx12::CLASS>(desc);)   \
-            default: return nullptr;                                                                \
         }                                                                                           \
+        Log::error("Unsupported graphics API '{}' when creating {}", static_cast<int>(api), #CLASS); \
+        return nullptr;                                                                             \
     }
-
 
 export namespace boza::rhi
 {

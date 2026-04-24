@@ -2,7 +2,7 @@ export module boza.rhi.objects:resources;
 
 import std;
 import boza.common;
-import boza.gfx;
+import boza.gfx.common;
 import :graphics_object;
 
 export namespace boza::rhi
@@ -15,17 +15,41 @@ export namespace boza::rhi
 
     enum class BufferMemoryType : std::uint8_t
     {
-        DeviceLocal,
-        HostVisible,
-        HostCoherent
+        None         = 0,
+        DeviceLocal  = 1 << 0,
+        HostVisible  = 1 << 1,
+        HostCoherent = 1 << 2
     };
+
+    constexpr Flags<BufferMemoryType> operator|(const BufferMemoryType left, const BufferMemoryType right) noexcept
+    {
+        return Flags(left) | Flags(right);
+    }
+
+    constexpr Flags<BufferMemoryType> operator&(const BufferMemoryType left, const BufferMemoryType right) noexcept
+    {
+        return Flags(left) & Flags(right);
+    }
+
+    constexpr Flags<BufferMemoryType> operator^(const BufferMemoryType left, const BufferMemoryType right) noexcept
+    {
+        return Flags(left) ^ Flags(right);
+    }
+
+    constexpr Flags<BufferMemoryType> operator~(const BufferMemoryType value) noexcept { return ~Flags(value); }
+
+    [[nodiscard]]
+    constexpr bool has_memory_type(const Flags<BufferMemoryType> memory_type, const BufferMemoryType flag) noexcept
+    {
+        return (memory_type & flag).any();
+    }
 
     struct BufferDesc
     {
-        Device*            device;
-        size_t             size;
-        BufferUsage        usage;
-        BufferMemoryType   memory_type;
+        Device*                device;
+        std::size_t            size;
+        BufferUsage            usage;
+        Flags<BufferMemoryType> memory_type;
     };
 
     class Buffer : public GraphicsObject<Buffer, BufferDesc>
@@ -34,10 +58,25 @@ export namespace boza::rhi
         virtual void* map() = 0;
         virtual void  unmap() = 0;
 
+        [[nodiscard]] virtual std::unique_ptr<Buffer> stage(std::size_t byte_size = 0) const = 0;
+        [[nodiscard]] virtual std::size_t size() const { return desc_.size; }
+
+        void upload(const std::span<const std::uint8_t> data, const std::size_t offset = 0)
+        {
+            upload(data.data(), data.size(), offset);
+        }
+
         [[nodiscard]]
-        virtual size_t size() const = 0;
-        virtual void   upload(const void* data, size_t size, size_t offset) = 0;
-        virtual void   read_back(void* data, size_t size, size_t offset) = 0;
+        std::vector<std::uint8_t> read_back(const std::size_t size, const std::size_t offset = 0)
+        {
+            std::vector<std::uint8_t> data(size);
+            read_back(data.data(), size, offset);
+            return data;
+        }
+
+        virtual void   upload(const void* data, std::size_t size, std::size_t offset) = 0;
+        virtual void   read_back(void* data, std::size_t size, std::size_t offset) = 0;
+        virtual bool   upload_from(Buffer* staging_buffer, std::size_t size = 0, std::size_t src_offset = 0, std::size_t dst_offset = 0) = 0;
 
     protected:
         explicit Buffer(const BufferDesc& desc) : GraphicsObject(desc) {}
@@ -77,9 +116,9 @@ export namespace boza::rhi
     {
         Device* device;
 
-        TextureType         type;
-        TextureFormat       format;
-        TextureSampleCount  sample_count{ TextureSampleCount::Count1 };
+        TextureType        type;
+        TextureFormat      format;
+        TextureSampleCount sample_count{ TextureSampleCount::Count1 };
         Flags<TextureUsage> usage;
 
         std::uint32_t width{ 1 };
@@ -93,8 +132,23 @@ export namespace boza::rhi
     class Texture : public GraphicsObject<Texture, TextureDesc>
     {
     public:
-        virtual void upload(const void* data, size_t size, std::uint32_t layer) = 0;
-        virtual void read_back(void* data, size_t size, std::uint32_t layer) = 0;
+        [[nodiscard]] virtual std::unique_ptr<Buffer> stage(std::size_t size = 0, std::uint32_t layer = 0) const = 0;
+
+        void upload(const std::span<const std::uint8_t> data, const std::uint32_t layer = 0)
+        {
+            upload(data.data(), data.size(), layer);
+        }
+
+        [[nodiscard]] std::vector<std::uint8_t> read_back(const std::size_t size, const std::uint32_t layer = 0)
+        {
+            std::vector<std::uint8_t> data(size);
+            read_back(data.data(), size, layer);
+            return data;
+        }
+
+        virtual void upload(const void* data, std::size_t size, std::uint32_t layer) = 0;
+        virtual void read_back(void* data, std::size_t size, std::uint32_t layer) = 0;
+        virtual bool upload_from(Buffer* staging_buffer, std::size_t size = 0, std::uint32_t layer = 0) = 0;
         virtual void transition_layout(TextureLayout old_layout, TextureLayout new_layout) = 0;
 
         [[nodiscard]] std::uint32_t width() const { return desc_.width; }

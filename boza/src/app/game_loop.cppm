@@ -15,9 +15,8 @@ namespace boza::app
         [[nodiscard]] bool run_engine_begin_stages() const;
         void run() const;
 
-        [[nodiscard]]
-        float get_target_fps() const;
-        void set_target_fps(float fps);
+        [[nodiscard]] float get_target_fps() const;
+        void set_target_fps(const float fps);
 
     private:
         GameLoopConfig config_{};

@@ -20,10 +20,11 @@ export namespace boza::rhi::vk
         void* map() override;
         void  unmap() override;
 
-        [[nodiscard]]
-        size_t size() const override;
-        void   upload(const void* data, size_t size, size_t offset) override;
-        void   read_back(void* data, size_t size, size_t offset) override;
+        [[nodiscard]] std::unique_ptr<rhi::Buffer> stage(std::size_t size = 0) const override;
+
+        void   upload(const void* data, std::size_t size, std::size_t offset) override;
+        void   read_back(void* data, std::size_t size, std::size_t offset) override;
+        bool   upload_from(rhi::Buffer* staging_buffer, std::size_t size = 0, std::size_t src_offset = 0, std::size_t dst_offset = 0) override;
 
         [[nodiscard]]
         VkBuffer vk_buffer() const;
@@ -48,12 +49,18 @@ export namespace boza::rhi::vk
         bool init() override;
         void destroy() override;
 
-        void upload(const void* data, size_t size, std::uint32_t layer) override;
-        void read_back(void* data, size_t size, std::uint32_t layer) override;
+        [[nodiscard]] std::unique_ptr<rhi::Buffer> stage(std::size_t size = 0, std::uint32_t layer = 0) const override;
+
+        void upload(const void* data, std::size_t size, std::uint32_t layer) override;
+        void read_back(void* data, std::size_t size, std::uint32_t layer) override;
+        bool upload_from(rhi::Buffer* staging_buffer, std::size_t size = 0, std::uint32_t layer = 0) override;
         void transition_layout(TextureLayout old_layout, TextureLayout new_layout) override;
 
         [[nodiscard]] VkImage vk_image() const;
         [[nodiscard]] VkImageView vk_image_view() const;
+        [[nodiscard]] VkImageAspectFlags aspect_mask() const;
+        [[nodiscard]] std::uint32_t mip_levels() const { return desc_.mip_levels; }
+        [[nodiscard]] std::uint32_t layer_count() const;
 
     private:
         explicit Texture(const TextureDesc& desc) : rhi::Texture(desc) {}
@@ -62,6 +69,7 @@ export namespace boza::rhi::vk
         VkImageView       image_view_{ nullptr };
         VmaAllocation     allocation_{ nullptr };
         VmaAllocationInfo allocation_info_{};
+        mutable std::vector<VkImageLayout> layer_layouts_{};
 
         void transition_layout_internal(VkImageLayout old_layout, VkImageLayout new_layout) const;
 

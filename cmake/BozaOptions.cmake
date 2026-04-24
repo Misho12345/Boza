@@ -127,8 +127,31 @@ if (MSVC)
             _CRT_SECURE_NO_WARNINGS
             _SCL_SECURE_NO_WARNINGS
     )
+    add_compile_options(
+            $<$<CONFIG:Release>:/O2>
+            $<$<CONFIG:Release>:/GL>
+            $<$<CONFIG:Release>:/Oi>
+            $<$<CONFIG:Release>:/Gy>
+    )
+    add_link_options(
+            $<$<CONFIG:Release>:/LTCG>
+            $<$<CONFIG:Release>:/OPT:REF>
+            $<$<CONFIG:Release>:/OPT:ICF>
+    )
 else ()
     add_compile_options(-fvisibility=hidden)
+    add_compile_options(
+            $<$<CONFIG:Debug>:-O1>
+
+            $<$<CONFIG:Release>:-O3>
+            $<$<CONFIG:Release>:-march=native>
+            $<$<CONFIG:Release>:-flto>
+            $<$<CONFIG:Release>:-fomit-frame-pointer>
+    )
+    add_link_options(
+            $<$<CONFIG:Release>:-flto>
+            $<$<CONFIG:Release>:-Wl,--gc-sections>
+    )
 endif ()
 
 # === Profiling ===

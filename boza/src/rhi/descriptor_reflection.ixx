@@ -2,7 +2,7 @@ export module boza.rhi:descriptor_reflection;
 
 import std;
 import boza.common;
-import boza.gfx;
+import boza.gfx.common;
 import boza.rhi.objects;
 
 export namespace boza::rhi
@@ -69,14 +69,14 @@ export namespace boza::rhi
             const ShaderModule::ShaderResource& resource);
 
         void add_storage_buffer(
-            const std::string&               buffer_name,
+            const std::string& buffer_name,
             const ShaderModule::ShaderResource& resource,
-            Flags<ShaderStage>               stages);
+            Flags<ShaderStage> stages);
 
         void add_push_constant_range(
-            const std::string&         range_name,
+            const std::string& range_name,
             const ShaderModule::PushConstant& pc,
-            Flags<ShaderStage>         stages);
+            Flags<ShaderStage> stages);
 
         void add_push_constant_members(
             const std::string& range_name,
@@ -85,4 +85,3 @@ export namespace boza::rhi
         void merge_struct_types(const flat_map<std::string, ShaderModule::StructType>& struct_types);
     };
 }
-

@@ -10,6 +10,7 @@ namespace boza::rhi::vk
         // Log::trace("Creating vulkan pipeline layout");
 
         const auto* device = reinterpret_cast<Device*>(desc_.device);
+        bool has_push_constant_conflict = false;
 
         for (const auto* shader : desc_.shaders)
         {
@@ -21,7 +22,6 @@ namespace boza::rhi::vk
 
                 auto& existing = it->second;
 
-                #ifdef BOZA_DEBUG
                 if (existing.offset != pc.offset || existing.size != pc.size)
                 {
                     Log::warn(
@@ -31,8 +31,9 @@ namespace boza::rhi::vk
                         existing.size,
                         pc.offset,
                         pc.size);
+
+                    has_push_constant_conflict = true;
                 }
-                #endif
 
                 const auto merged_stage_bits =
                     static_cast<std::underlying_type_t<ShaderStage>>(existing.stage) |
@@ -46,16 +47,22 @@ namespace boza::rhi::vk
             }
         }
 
+        if (has_push_constant_conflict)
+        {
+            Log::error("Cannot create pipeline layout due to conflicting push constant ranges");
+            return false;
+        }
+
         std::vector<VkPushConstantRange> push_constant_ranges;
         push_constant_ranges.reserve(push_constants_.size());
 
         for (const auto& pc : push_constants_ | std::views::values)
         {
-            VkPushConstantRange range{};
-            range.stageFlags = to_vk(pc.stage);
-            range.offset = pc.offset;
-            range.size = pc.size;
-            push_constant_ranges.push_back(range);
+            push_constant_ranges.emplace_back(
+                to_vk(Flags<ShaderStage>{ pc.stage }),
+                pc.offset,
+                pc.size
+            );
         }
 
         std::vector<VkDescriptorSetLayout> vk_set_layouts;
@@ -70,9 +77,9 @@ namespace boza::rhi::vk
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .setLayoutCount = static_cast<uint32_t>(vk_set_layouts.size()),
+            .setLayoutCount = static_cast<std::uint32_t>(vk_set_layouts.size()),
             .pSetLayouts = vk_set_layouts.empty() ? nullptr : vk_set_layouts.data(),
-            .pushConstantRangeCount = static_cast<uint32_t>(push_constant_ranges.size()),
+            .pushConstantRangeCount = static_cast<std::uint32_t>(push_constant_ranges.size()),
             .pPushConstantRanges = push_constant_ranges.empty() ? nullptr : push_constant_ranges.data()
         };
 

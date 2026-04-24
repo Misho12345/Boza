@@ -32,4 +32,3 @@ export namespace boza::app
         static GameplaySettings gameplay;
     };
 }
-

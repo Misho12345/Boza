@@ -15,15 +15,15 @@ export namespace boza::rhi
 
     struct PushConstantRange
     {
-        ShaderStage   stage;
+        Flags<ShaderStage> stages;
         std::uint32_t offset;
         std::uint32_t size;
     };
 
     struct PipelineLayoutDesc
     {
-        Device*                           device;
-        std::vector<ShaderModule*>        shaders;
+        Device* device;
+        std::vector<ShaderModule*> shaders;
         std::vector<DescriptorSetLayout*> set_layouts;
     };
 
@@ -92,7 +92,7 @@ export namespace boza::rhi
     {
         std::uint32_t binding;
         std::uint32_t stride;
-        bool          per_instance{ false };
+        bool per_instance{ false };
     };
 
     struct RasterizationState
@@ -132,7 +132,7 @@ export namespace boza::rhi
 
     struct ColorBlendState
     {
-        bool                              logic_op_enable{ false };
+        bool logic_op_enable{ false };
         std::vector<ColorBlendAttachment> attachments;
         std::array<float, 4>              blend_constants{ 0.0f, 0.0f, 0.0f, 0.0f };
     };
@@ -164,8 +164,8 @@ export namespace boza::rhi
         std::vector<ShaderModule*> shaders;
         PipelineLayout*            layout;
 
-        PrimitiveTopology                 topology{ PrimitiveTopology::TriangleList };
-        std::vector<VertexInputBinding>   bindings;
+        PrimitiveTopology topology{ PrimitiveTopology::TriangleList };
+        std::vector<VertexInputBinding> bindings;
         std::vector<VertexInputAttribute> attributes;
 
         RasterizationState rasterization;
@@ -173,10 +173,9 @@ export namespace boza::rhi
         ColorBlendState    color_blend;
         MultisampleState   multisample;
 
-        // Dynamic rendering format info
-        std::vector<std::uint32_t> color_attachment_formats; // VkFormat values
-        DepthFormat                depth_attachment_format{ DepthFormat::None };
-        std::uint32_t              stencil_attachment_format{ 0 };
+        std::vector<TextureFormat> color_attachment_formats;
+        DepthFormat depth_attachment_format{ DepthFormat::None };
+        DepthFormat stencil_attachment_format{ DepthFormat::None };
     };
 
     class GraphicsPipeline : public GraphicsObject<GraphicsPipeline, GraphicsPipelineDesc>
@@ -194,8 +193,8 @@ export namespace boza::rhi
 
     struct ComputePipelineDesc
     {
-        Device*         device;
-        ShaderModule*   shader;
+        Device* device;
+        ShaderModule* shader;
         PipelineLayout* layout;
     };
 

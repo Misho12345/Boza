@@ -31,9 +31,9 @@ export namespace boza::rhi
 
     struct CommandPoolDesc
     {
-        Device*                  device;
+        Device* device;
         Flags<CommandPoolOption> flags;
-        std::uint32_t            queue_family_index;
+        std::uint32_t queue_family_index;
     };
 
     class CommandBuffer;
@@ -42,7 +42,7 @@ export namespace boza::rhi
     class CommandPool : public GraphicsObject<CommandPool, CommandPoolDesc>
     {
     public:
-        virtual CommandBuffer*              allocate_command_buffer(bool is_primary = true) = 0;
+        virtual CommandBuffer* allocate_command_buffer(bool is_primary = true) = 0;
         virtual std::vector<CommandBuffer*> allocate_command_buffers(std::uint32_t count, bool is_primary = true) = 0;
 
         virtual void free_command_buffer(CommandBuffer* command_buffer) = 0;
@@ -51,7 +51,7 @@ export namespace boza::rhi
         virtual bool reset(bool release_resources = false) = 0;
 
         virtual CommandBuffer* begin_single_time_commands() = 0;
-        virtual bool           end_single_time_commands(CommandBuffer* command_buffer) = 0;
+        virtual bool end_single_time_commands(CommandBuffer* command_buffer) = 0;
 
     protected:
         explicit CommandPool(const CommandPoolDesc& desc) : GraphicsObject(desc) {}
@@ -129,9 +129,13 @@ export namespace boza::rhi
         virtual void bind_compute_pipeline(ComputePipeline* pipeline) = 0;
 
         virtual void bind_vertex_buffer(Buffer* buffer, std::uint32_t binding = 0, std::uint64_t offset = 0) = 0;
-        virtual void bind_index_buffer(Buffer* buffer, std::uint64_t offset = 0, bool use_uint16 = false) = 0;
+        virtual void bind_index_buffer(Buffer* buffer, std::uint64_t offset = 0, IndexType index_type = IndexType::Uint32) = 0;
 
-        virtual void bind_descriptor_set(PipelineLayout* layout, DescriptorSet* set, std::uint32_t set_index) = 0;
+        virtual void bind_descriptor_set(PipelineLayout* layout, DescriptorSet* set, const std::uint32_t set_index)
+        {
+            bind_descriptor_sets(layout, { &set, 1 }, set_index);
+        }
+
         virtual void bind_descriptor_sets(
             PipelineLayout*           layout,
             std::span<DescriptorSet*> sets,
@@ -143,6 +147,8 @@ export namespace boza::rhi
             std::uint32_t   offset,
             std::uint32_t   size,
             const void*     data) = 0;
+
+        virtual void compute_memory_barrier() = 0;
 
         virtual void image_barrier(
             Texture*      texture,
@@ -168,22 +174,59 @@ export namespace boza::rhi
         All      = 0b1111
     };
 
+    enum class PipelineStage : std::uint32_t
+    {
+        None                   = 0,
+        TopOfPipe              = 1 << 0,
+        DrawIndirect           = 1 << 1,
+        VertexInput            = 1 << 2,
+        VertexShader           = 1 << 3,
+        FragmentShader         = 1 << 4,
+        EarlyFragmentTests     = 1 << 5,
+        LateFragmentTests      = 1 << 6,
+        ColorAttachmentOutput  = 1 << 7,
+        ComputeShader          = 1 << 8,
+        Transfer               = 1 << 9,
+        BottomOfPipe           = 1 << 10,
+        Host                   = 1 << 11,
+        AllGraphics            = 1 << 12,
+        AllCommands            = 1 << 13
+    };
+
+    constexpr Flags<PipelineStage> operator|(const PipelineStage left, const PipelineStage right) noexcept
+    {
+        return Flags(left) | Flags(right);
+    }
+
+    constexpr Flags<PipelineStage> operator&(const PipelineStage left, const PipelineStage right) noexcept
+    {
+        return Flags(left) & Flags(right);
+    }
+
+    constexpr Flags<PipelineStage> operator^(const PipelineStage left, const PipelineStage right) noexcept
+    {
+        return Flags(left) ^ Flags(right);
+    }
+
+    constexpr Flags<PipelineStage> operator~(const PipelineStage value) noexcept { return ~Flags(value); }
+
     struct SubmitInfo
     {
         std::vector<CommandBuffer*> command_buffers;
-        std::vector<Semaphore*>     wait_semaphores;
-        std::vector<std::uint32_t>  wait_stages;
-        std::vector<Semaphore*>     signal_semaphores;
-        Fence*                      signal_fence{ nullptr };
+        std::vector<Semaphore*> wait_semaphores;
+        std::vector<Flags<PipelineStage>> wait_stages;
+        std::vector<std::uint64_t> wait_values;
+        std::vector<Semaphore*> signal_semaphores;
+        std::vector<std::uint64_t> signal_values;
+        Fence* signal_fence{ nullptr };
     };
 
     struct CommandQueueDesc
     {
-        Device*                 device;
-        std::uint32_t           family_index;
+        Device* device;
+        std::uint32_t family_index;
         Flags<CommandQueueType> type;
     };
-
 
     enum class PresentResult : std::uint8_t
     {
@@ -195,11 +238,10 @@ export namespace boza::rhi
 
     struct PresentInfo
     {
-        std::vector<Swapchain*>    swapchains;
+        std::vector<Swapchain*> swapchains;
         std::vector<std::uint32_t> image_indices;
-        std::vector<Semaphore*>    wait_semaphores;
+        std::vector<Semaphore*> wait_semaphores;
     };
-
 
     class CommandQueue : public GraphicsObject<CommandQueue, CommandQueueDesc>
     {
@@ -207,13 +249,31 @@ export namespace boza::rhi
         virtual bool submit(const SubmitInfo& submit_info) = 0;
         virtual bool submit(
             const std::vector<CommandBuffer*>& command_buffers,
-            Fence*                             signal_fence = nullptr) = 0;
+            Fence*                             signal_fence = nullptr)
+        {
+            return submit({
+                .command_buffers = command_buffers,
+                .wait_semaphores = {},
+                .wait_stages = {},
+                .wait_values = {},
+                .signal_semaphores = {},
+                .signal_values = {},
+                .signal_fence = signal_fence
+            });
+        }
 
         virtual PresentResult present(const PresentInfo& present_info) = 0;
         virtual PresentResult present(
             Swapchain*                     swapchain,
             std::uint32_t                  image_index,
-            const std::vector<Semaphore*>& wait_semaphores = {}) = 0;
+            const std::vector<Semaphore*>& wait_semaphores = {})
+        {
+            return present({
+                .swapchains = { swapchain },
+                .image_indices = { image_index },
+                .wait_semaphores = wait_semaphores
+            });
+        }
 
         virtual bool wait_idle() = 0;
 

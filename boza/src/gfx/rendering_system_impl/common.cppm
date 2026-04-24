@@ -57,6 +57,9 @@ namespace boza
     constexpr std::string_view model_field_name_ = "model";
     constexpr std::string_view instancing_field_name_ = "use_instancing";
 
+    void assert_render_thread();
+    void clear_render_thread();
+
     void reset_render_caches();
 
     MaterialRenderInfo build_material_render_info(Material* material);
@@ -65,7 +68,7 @@ namespace boza
     void push_ranges(
         rhi::CommandBuffer* cmd,
         Material& material,
-        const MaterialRenderInfo* info,
+        const MaterialRenderInfo* render_info,
         const glm::mat4* model,
         bool use_instancing);
 

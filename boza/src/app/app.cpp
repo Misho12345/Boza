@@ -16,8 +16,8 @@ import :game_loop;
 
 namespace boza
 {
-    using platform::Window;
     using detail::AssetPaths;
+    using platform::Window;
 
     struct App::Impl
     {
@@ -26,7 +26,6 @@ namespace boza
         bool          initialized{ false };
     };
 
-
     App::App() : impl_{ std::make_unique<Impl>() }
     {
         assert(s_instance_ == nullptr, "App instance already exists");
@@ -34,8 +33,10 @@ namespace boza
         s_instance_ = this;
     }
 
-    App::~App() { s_instance_ = nullptr; }
-
+    App::~App()
+    {
+        s_instance_ = nullptr;
+    }
 
     bool App::init()
     {
@@ -60,7 +61,7 @@ namespace boza
         rhi::RenderContext::set_window(&impl_->window);
 
         impl_->game_loop.init({
-            .target_fps       = app::GameSettings::gameplay.target_fps,
+            .target_fps = app::GameSettings::gameplay.target_fps,
             .physics_update_rate = app::GameSettings::gameplay.physics_update_rate
         });
 
@@ -100,15 +101,16 @@ namespace boza
         Log::trace("App shutdown complete");
     }
 
-
     void App::toggle_fullscreen()
     {
         assert(s_instance_ != nullptr, "App instance does not exist");
         s_instance_->impl_->window.toggle_fullscreen();
     }
 
-    void App::quit() { Scene::world().quit(); }
-
+    void App::quit()
+    {
+        Scene::world().quit();
+    }
 
     void App::set_cursor_state(const CursorState state)
     {
@@ -121,7 +123,6 @@ namespace boza
         assert(s_instance_ != nullptr, "App instance does not exist");
         return s_instance_->impl_->window.cursor_state();
     }
-
 
     void App::set_target_fps(const float fps)
     {

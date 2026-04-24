@@ -39,7 +39,7 @@ namespace boza
             return;
         }
 
-        rhi_sampler_ = create_sampler(
+        auto rhi_sampler = create_sampler(
             rhi::RenderContext::api(), {
                 .device = rhi::RenderContext::device(),
                 .type = TextureType::Texture2D,
@@ -54,20 +54,19 @@ namespace boza
                 .max_anisotropy = max_anisotropy_
             });
 
-        if (!rhi_sampler_) Log::error("Failed to create sampler: {}", name_);
+        if (!rhi_sampler)
+        {
+            Log::error("Failed to create sampler: {}", name_);
+            return;
+        }
+
+        rhi_sampler_.reset(rhi_sampler.release());
     }
 
-    Sampler::~Sampler()
-    {
-        if (!rhi_sampler_) return;
-
-        auto* sampler = static_cast<rhi::Sampler*>(rhi_sampler_);
-        sampler->destroy();
-        delete sampler;
-    }
+    Sampler::~Sampler() = default;
 
     Sampler::Sampler(Sampler&& other) noexcept
-        :    name_{ std::move(other.name_) },
+        : name_{ std::move(other.name_) },
           filter_{ other.filter_ },
           wrap_u_{ other.wrap_u_ },
           wrap_v_{ other.wrap_v_ },
@@ -77,18 +76,11 @@ namespace boza
           min_lod_{ other.min_lod_ },
           max_lod_{ other.max_lod_ },
           max_anisotropy_{ other.max_anisotropy_ },
-          rhi_sampler_{ std::exchange(other.rhi_sampler_, nullptr) } {}
+          rhi_sampler_{ std::move(other.rhi_sampler_) } {}
 
     Sampler& Sampler::operator=(Sampler&& other) noexcept
     {
         if (this == &other) return *this;
-
-        if (rhi_sampler_)
-        {
-            auto* sampler = static_cast<rhi::Sampler*>(rhi_sampler_);
-            sampler->destroy();
-            delete sampler;
-        }
 
         name_           = std::move(other.name_);
         filter_         = other.filter_;
@@ -100,25 +92,39 @@ namespace boza
         min_lod_        = other.min_lod_;
         max_lod_        = other.max_lod_;
         max_anisotropy_ = other.max_anisotropy_;
-        rhi_sampler_    = std::exchange(other.rhi_sampler_, nullptr);
+        rhi_sampler_    = std::move(other.rhi_sampler_);
 
         return *this;
     }
 
+    void Sampler::destroy_rhi_sampler(void* handle)
+    {
+        delete static_cast<rhi::Sampler*>(handle);
+    }
+
     Sampler& Sampler::create(
         const std::string_view name,
-        const SamplerFilter filter,
-        const SamplerWrap wrap_u,
-        const SamplerWrap wrap_v,
-        const SamplerWrap wrap_w,
+        const SamplerFilter    filter,
+        const SamplerWrap      wrap_u,
+        const SamplerWrap      wrap_v,
+        const SamplerWrap      wrap_w,
         const SamplerFilter mipmap_mode,
-        const float mip_lod_bias,
-        const float min_lod,
-        const float max_lod,
-        const float max_anisotropy)
+        const float         mip_lod_bias,
+        const float         min_lod,
+        const float         max_lod,
+        const float         max_anisotropy)
     {
         return gfx::SamplerLoader::instance().create(
-            name, filter, wrap_u, wrap_v, wrap_w, mipmap_mode, mip_lod_bias, min_lod, max_lod, max_anisotropy);
+            name,
+            filter,
+            wrap_u,
+            wrap_v,
+            wrap_w,
+            mipmap_mode,
+            mip_lod_bias,
+            min_lod,
+            max_lod,
+            max_anisotropy);
     }
 
     Sampler& Sampler::get(const std::string_view name) { return gfx::SamplerLoader::instance().get_sampler(name); }

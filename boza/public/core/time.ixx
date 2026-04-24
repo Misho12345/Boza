@@ -6,7 +6,10 @@ export module boza.core:time;
 
 import std;
 
-namespace boza::app { class GameLoop; }
+namespace boza::app
+{
+    class GameLoop;
+}
 
 export namespace boza
 {

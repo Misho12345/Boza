@@ -42,7 +42,7 @@ private:
         Material& grass = Material::create(
             "grass",
             {
-                .vertex_shader   = "grass_sway",
+                .vertex_shader   = "instancing_example/grass_sway",
                 .fragment_shader = "default",
                 .cull_mode       = CullMode::None
             });

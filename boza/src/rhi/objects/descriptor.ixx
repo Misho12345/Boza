@@ -33,10 +33,10 @@ export namespace boza::rhi
 
     struct DescriptorSetLayoutBinding
     {
-        std::uint32_t      binding;
-        DescriptorType     type;
+        std::uint32_t binding;
+        DescriptorType type;
         Flags<ShaderStage> stages;
-        std::uint32_t      count;
+        std::uint32_t count;
     };
 
     struct DescriptorSetLayoutDesc
@@ -58,7 +58,7 @@ export namespace boza::rhi
     struct DescriptorPoolSize
     {
         DescriptorType type;
-        std::uint32_t  count;
+        std::uint32_t count;
     };
 
     struct DescriptorPoolDesc
@@ -72,12 +72,24 @@ export namespace boza::rhi
     class DescriptorPool : public GraphicsObject<DescriptorPool, DescriptorPoolDesc>
     {
     public:
-        virtual DescriptorSet*              allocate_descriptor_set(DescriptorSetLayout* layout) = 0;
+        virtual DescriptorSet* allocate_descriptor_set(DescriptorSetLayout* layout)
+        {
+            if (!layout) return nullptr;
+
+            const auto sets = allocate_descriptor_sets(1, { &layout, 1 });
+            return sets.empty() ? nullptr : sets.front();
+        }
+
         virtual std::vector<DescriptorSet*> allocate_descriptor_sets(
             std::uint32_t                   count,
             std::span<DescriptorSetLayout*> layouts) = 0;
 
-        virtual void free_descriptor_set(DescriptorSet* set) = 0;
+        virtual void free_descriptor_set(DescriptorSet* set)
+        {
+            if (!set) return;
+            free_descriptor_sets({ &set, 1 });
+        }
+
         virtual void free_descriptor_sets(std::span<DescriptorSet*> sets) = 0;
 
         virtual bool reset() = 0;
@@ -88,7 +100,6 @@ export namespace boza::rhi
         flat_map<std::size_t, std::vector<DescriptorSet*>> free_sets_by_layout_;
         std::uint64_t current_generation_{ 0 };
     };
-
 
     /// --------------------------
     /// ===== Descriptor Set =====
@@ -123,8 +134,8 @@ export namespace boza::rhi
 
     struct DescriptorWrite
     {
-        std::uint32_t  binding;
-        std::uint32_t  array_element;
+        std::uint32_t binding;
+        std::uint32_t array_element;
         DescriptorType type;
         DescriptorInfo info;
     };
@@ -146,10 +157,14 @@ export namespace boza::rhi
 
         virtual void update(std::span<DescriptorWrite> writes) = 0;
 
-        std::uint64_t generation{ 0 };
+        [[nodiscard]] std::uint64_t generation() const { return generation_; }
+        void set_generation(const std::uint64_t generation) { generation_ = generation; }
 
     protected:
         explicit DescriptorSet(const DescriptorSetDesc& desc) : desc_(desc) {}
         DescriptorSetDesc desc_;
+
+    private:
+        std::uint64_t generation_{ 0 };
     };
 }

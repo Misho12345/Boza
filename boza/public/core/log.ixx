@@ -8,7 +8,10 @@ export module boza.core:log;
 import std;
 import boza.common;
 
-namespace boza { class App; }
+namespace boza
+{
+    class App;
+}
 
 export namespace boza
 {
@@ -69,7 +72,8 @@ export namespace boza
          * @param args Arguments to format
          * @note Won't be logged in Release mode
          */
-        template<typename... Args> static void trace(const std::format_string<Args...> fmt, Args&&... args)
+        template <typename... Args>
+        static void trace(const std::format_string<Args...> fmt, Args&&... args)
         {
             log(spdlog::level::trace, fmt, std::forward<Args>(args)...);
         }
@@ -80,7 +84,8 @@ export namespace boza
          * @param args Arguments to format
          * @note Won't be logged in Release mode
          */
-        template<typename... Args> static void debug(const std::format_string<Args...> fmt, Args&&... args)
+        template <typename... Args>
+        static void debug(const std::format_string<Args...> fmt, Args&&... args)
         {
             log(spdlog::level::debug, fmt, std::forward<Args>(args)...);
         }
@@ -90,7 +95,8 @@ export namespace boza
          * @param fmt Format string (std::format compatible)
          * @param args Arguments to format
          */
-        template<typename... Args> static void info(const std::format_string<Args...> fmt, Args&&... args)
+        template <typename... Args>
+        static void info(const std::format_string<Args...> fmt, Args&&... args)
         {
             log(spdlog::level::info, fmt, std::forward<Args>(args)...);
         }
@@ -100,7 +106,8 @@ export namespace boza
          * @param fmt Format string (std::format compatible)
          * @param args Arguments to format
          */
-        template<typename... Args> static void warn(const std::format_string<Args...> fmt, Args&&... args)
+        template <typename... Args>
+        static void warn(const std::format_string<Args...> fmt, Args&&... args)
         {
             log(spdlog::level::warn, fmt, std::forward<Args>(args)...);
         }
@@ -110,7 +117,8 @@ export namespace boza
          * @param fmt Format string (std::format compatible)
          * @param args Arguments to format
          */
-        template<typename... Args> static void error(const std::format_string<Args...> fmt, Args&&... args)
+        template <typename... Args>
+        static void error(const std::format_string<Args...> fmt, Args&&... args)
         {
             log(spdlog::level::err, fmt, std::forward<Args>(args)...);
         }
@@ -120,11 +128,11 @@ export namespace boza
          * @param fmt Format string (std::format compatible)
          * @param args Arguments to format
          */
-        template<typename... Args> static void critical(const std::format_string<Args...> fmt, Args&&... args)
+        template <typename... Args>
+        static void critical(const std::format_string<Args...> fmt, Args&&... args)
         {
             log(spdlog::level::critical, fmt, std::forward<Args>(args)...);
         }
-
 
     private:
         /**
@@ -133,10 +141,10 @@ export namespace boza
          * @param fmt Format string (std::format compatible)
          * @param args Arguments to format
          */
-        template<typename... Args>
+        template <typename... Args>
         static void log(spdlog::level::level_enum level, const std::format_string<Args...> fmt, Args&&... args)
         {
-            auto message = std::vformat(fmt.get(), std::make_format_args(args...));
+            const auto message = std::vformat(fmt.get(), std::make_format_args(args...));
             log()->log(level, message);
         }
 

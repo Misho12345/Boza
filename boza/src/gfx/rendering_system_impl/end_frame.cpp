@@ -1,5 +1,7 @@
 module boza.gfx;
 
+import :buffer;
+import :material;
 import :rendering_system;
 import :rendering_system_common;
 
@@ -12,6 +14,8 @@ namespace boza
 {
     void RenderingSystem::submit_draws()
     {
+        assert_render_thread();
+
         auto* cmd = rhi::RenderContext::current_command_buffer();
         if (!cmd) return;
 
@@ -33,7 +37,7 @@ namespace boza
                 ensure_fallback_ssbo_bound(*material, render_info);
 
                 gfx::MaterialLoader::instance().bind_engine_resources(material);
-                material->bind();
+                MaterialAccess::bind_descriptor_sets(*material);
 
                 draw_material_meshes(cmd, material, mat_group, render_info, max_instance_index);
             }
@@ -56,8 +60,8 @@ namespace boza
             auto* gpu_mesh = get_or_create_gpu_mesh(mesh_ptr);
             if (!gpu_mesh) continue;
 
-            auto* vertex_buffer_rhi = static_cast<rhi::Buffer*>(gpu_mesh->vertex_buffer.rhi_handle());
-            auto* index_buffer_rhi = static_cast<rhi::Buffer*>(gpu_mesh->index_buffer.rhi_handle());
+            auto* vertex_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(gpu_mesh->vertex_buffer));
+            auto* index_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(gpu_mesh->index_buffer));
             if (!vertex_buffer_rhi || !index_buffer_rhi) continue;
 
             cmd->bind_vertex_buffer(vertex_buffer_rhi);
@@ -123,9 +127,10 @@ namespace boza
         }
     }
 
-
     void RenderingSystem::EndFrame::execute()
     {
+        assert_render_thread();
+
         auto* cmd = rhi::RenderContext::current_command_buffer();
         if (!swapchain_ || !cmd)
         {
@@ -133,20 +138,20 @@ namespace boza
             return;
         }
 
-        if (frame_active_)
-            submit_draws();
+        if (frame_active_) submit_draws();
 
         const std::uint32_t image_idx = swapchain_->current_image_index();
 
         rhi::RenderContext::set_current_command_buffer(nullptr);
         if (!swapchain_->end_render_pass(image_idx))
         {
+            swapchain_->abort_frame();
             frame_active_ = false;
             return;
         }
 
-        if (!swapchain_->end_frame())
-            Log::error("Swapchain end_frame failed");
+        const rhi::PresentResult end_result = swapchain_->end_frame_result();
+        if (end_result == rhi::PresentResult::Error) Log::error("Swapchain end_frame failed");
 
         frame_active_ = false;
     }

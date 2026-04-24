@@ -1,8 +1,9 @@
 module boza.app;
 
+import std;
+
 import :game_loop;
 
-import std;
 import boza.ecs;
 import boza.core;
 import boza.app.game_settings;
@@ -54,11 +55,15 @@ namespace boza::app
         registry.call_destroy_stages();
     }
 
-    float GameLoop::get_target_fps() const { return config_.target_fps; }
-    void  GameLoop::set_target_fps(const float fps)
+    float GameLoop::get_target_fps() const
+    {
+        return config_.target_fps;
+    }
+
+    void GameLoop::set_target_fps(const float fps)
     {
         config_.target_fps = fps;
-        auto& world = Scene::world();
+        const auto& world = Scene::world();
         world.set_target_fps(config_.target_fps > 0.0f ? config_.target_fps : 0.0f);
         world.reset_clock();
     }
