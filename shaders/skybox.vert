@@ -13,12 +13,10 @@ layout(set = 0, binding = 0) uniform CameraUBO {
 
 void main()
 {
-    float one = clamp(inNormal.x + inTexCoord.x + 1.0f, 0.0f, 1.0f); // to silence unused warnings
-
-    fragDir = inPosition;
+    fragDir = inPosition + inNormal * 0.0 + vec3(inTexCoord, 0.0) * 0.0;
 
     mat4 viewRotation = mat4(mat3(cameraUBO.view));
-    vec4 pos = cameraUBO.proj * viewRotation * vec4(inPosition, one);
+    vec4 pos = cameraUBO.proj * viewRotation * vec4(inPosition, 1.0);
 
     gl_Position = pos.xyww;
 }

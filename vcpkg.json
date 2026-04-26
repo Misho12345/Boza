@@ -13,6 +13,7 @@
     "glm",
     "flecs",
     "stb",
+    "openexr",
     "spdlog",
     "gtl",
     "nlohmann-json",

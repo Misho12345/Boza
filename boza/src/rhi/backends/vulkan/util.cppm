@@ -105,8 +105,9 @@ namespace boza::rhi::vk
         {
             case BufferUsage::Vertex: return VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
             case BufferUsage::Index: return VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-            case BufferUsage::Uniform: return VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+            case BufferUsage::Uniform: return VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
             case BufferUsage::Storage: return VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+            case BufferUsage::StorageIndirect: return VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
             case BufferUsage::Staging: return VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         }
         std::unreachable();
@@ -132,6 +133,7 @@ namespace boza::rhi::vk
     {
         switch (format)
         {
+            case TextureFormat::Undefined: return VK_FORMAT_UNDEFINED;
             case TextureFormat::R8: return VK_FORMAT_R8_UNORM;
             case TextureFormat::RG8: return VK_FORMAT_R8G8_UNORM;
             case TextureFormat::RGB8: return VK_FORMAT_R8G8B8_UNORM;
@@ -156,6 +158,7 @@ namespace boza::rhi::vk
     {
         switch (format)
         {
+            case VK_FORMAT_UNDEFINED: return TextureFormat::Undefined;
             case VK_FORMAT_R8_UNORM: return TextureFormat::R8;
             case VK_FORMAT_R8G8_UNORM: return TextureFormat::RG8;
             case VK_FORMAT_R8G8B8_UNORM: return TextureFormat::RGB8;
@@ -571,6 +574,7 @@ namespace boza::rhi::vk
             case PrimitiveTopology::TriangleStrip: return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
             case PrimitiveTopology::LineList: return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
             case PrimitiveTopology::PointList: return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+            case PrimitiveTopology::PatchList: return VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
         }
 
         std::unreachable();

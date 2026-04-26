@@ -360,10 +360,10 @@ namespace boza::rhi::vk
             .dynamicRendering = true,
         };
 
-        enabled_features_ = {
-            .imageCubeArray = supported_features_.imageCubeArray,
-            .samplerAnisotropy = supported_features_.samplerAnisotropy
-        };
+        enabled_features_ = {};
+        enabled_features_.imageCubeArray = supported_features_.imageCubeArray;
+        enabled_features_.samplerAnisotropy = supported_features_.samplerAnisotropy;
+        enabled_features_.tessellationShader = supported_features_.tessellationShader;
 
         const VkDeviceCreateInfo device_create_info
         {

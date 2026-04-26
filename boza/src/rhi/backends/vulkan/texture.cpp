@@ -13,6 +13,7 @@ namespace boza::rhi::vk
         {
             switch (format)
             {
+                case TextureFormat::Undefined: return 4;
                 case TextureFormat::R8: return 1;
                 case TextureFormat::RG8: return 2;
                 case TextureFormat::RGB8: return 3;
@@ -119,6 +120,37 @@ namespace boza::rhi::vk
             "Failed to create image view"))
             return false;
 
+        if (total_layers > 1)
+        {
+            layer_image_views_.reserve(total_layers);
+
+            for (std::uint32_t layer = 0; layer < total_layers; ++layer)
+            {
+                const VkImageViewCreateInfo layer_image_view_create_info
+                {
+                    .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                    .image = image_,
+                    .viewType = VK_IMAGE_VIEW_TYPE_2D,
+                    .format = to_vk(desc_.format),
+                    .subresourceRange = {
+                        .aspectMask = image_aspect_flags_for_desc(desc_),
+                        .baseMipLevel = 0,
+                        .levelCount = desc_.mip_levels,
+                        .baseArrayLayer = layer,
+                        .layerCount = 1,
+                    },
+                };
+
+                VkImageView layer_image_view{ nullptr };
+                if (!vk_check(
+                    vkCreateImageView(vk_device, &layer_image_view_create_info, nullptr, &layer_image_view),
+                    "Failed to create texture layer image view"))
+                    return false;
+
+                layer_image_views_.push_back(layer_image_view);
+            }
+        }
+
         layer_layouts_.assign(total_layers, VK_IMAGE_LAYOUT_UNDEFINED);
 
         if (desc_.usage & TextureUsage::Storage)
@@ -137,8 +169,18 @@ namespace boza::rhi::vk
         if (image_view_)
         {
             const auto vk_device = reinterpret_cast<Device*>(desc_.device)->logical_device();
+            for (VkImageView layer_image_view : layer_image_views_)
+            {
+                vkDestroyImageView(vk_device, layer_image_view, nullptr);
+            }
+            layer_image_views_.clear();
+
             vkDestroyImageView(vk_device, image_view_, nullptr);
             image_view_ = nullptr;
+        }
+        else
+        {
+            layer_image_views_.clear();
         }
 
         if (image_)
@@ -733,4 +775,26 @@ namespace boza::rhi::vk
 
     VkImage     Texture::vk_image() const { return image_; }
     VkImageView Texture::vk_image_view() const { return image_view_; }
+
+    VkImageLayout Texture::vk_layout(const std::uint32_t layer) const
+    {
+        if (layer_layouts_.empty()) return VK_IMAGE_LAYOUT_UNDEFINED;
+        if (layer >= layer_layouts_.size()) return layer_layouts_.back();
+        return layer_layouts_[layer];
+    }
+
+    VkImageView Texture::vk_layer_image_view(const std::uint32_t layer) const
+    {
+        if (layer_image_views_.empty()) return image_view_;
+        if (layer >= layer_image_views_.size())
+        {
+            Log::warn(
+                "Texture layer image view {} out of bounds ({} layers)",
+                layer,
+                layer_image_views_.size());
+            return image_view_;
+        }
+
+        return layer_image_views_[layer];
+    }
 }

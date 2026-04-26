@@ -3,6 +3,7 @@ module boza.gfx;
 import :compute_dispatcher;
 import :texture;
 import :buffer;
+import :sampler;
 
 import boza.rhi;
 import boza.rhi.render_context;
@@ -232,7 +233,11 @@ namespace boza
     {
         wait();
 
-        if (impl_->descriptor_pool && !impl_->descriptor_sets.empty())
+        if (!rhi::RenderContext::initialized()) return;
+
+        if (impl_->descriptor_pool &&
+            rhi::RenderContext::descriptor_pool() == impl_->descriptor_pool &&
+            !impl_->descriptor_sets.empty())
         {
             impl_->descriptor_pool->free_descriptor_sets(impl_->descriptor_sets);
         }
@@ -285,6 +290,67 @@ namespace boza
             .array_element = 0,
             .type = rhi::DescriptorType::StorageImage,
             .info = rhi::StorageImage{ .texture = texture_handle }
+        };
+
+        desc_set->update({ &write, 1 });
+        mark_set_dirty(info.set);
+        touch_generation();
+        return *this;
+    }
+
+    ComputeDispatcher& ComputeDispatcher::set(
+        const std::string& name,
+        const Texture&     texture,
+        const Sampler&     sampler)
+    {
+        std::scoped_lock lock{ mutex_ };
+        if (failed_.load(std::memory_order_relaxed)) return *this;
+        if (!wait_for_pending_dispatch_locked()) return *this;
+
+        const auto binding_info = impl_->reflection.lookup(name);
+        if (!binding_info.has_value())
+        {
+            Log::warn("Compute sampled texture '{}' not found in shader reflection", name);
+            return *this;
+        }
+
+        const auto& info = binding_info.value();
+        if (info.descriptor_type != rhi::DescriptorType::CombinedImageSampler)
+        {
+            Log::warn("Compute property '{}' is not a combined image sampler", name);
+            return *this;
+        }
+
+        if (info.set >= impl_->descriptor_sets.size())
+        {
+            Log::error("Invalid descriptor set index {} for property '{}'", info.set, name);
+            return *this;
+        }
+
+        auto* desc_set = impl_->descriptor_sets[info.set];
+        if (!desc_set)
+        {
+            Log::error("Descriptor set {} is null", info.set);
+            return *this;
+        }
+
+        auto* texture_handle = static_cast<rhi::Texture*>(texture.rhi_handle());
+        auto* sampler_handle = static_cast<rhi::Sampler*>(sampler.rhi_handle());
+        if (!texture_handle || !sampler_handle)
+        {
+            Log::error("Compute sampled texture '{}' has an invalid RHI texture or sampler handle", name);
+            return *this;
+        }
+
+        rhi::DescriptorWrite write
+        {
+            .binding = info.binding,
+            .array_element = 0,
+            .type = rhi::DescriptorType::CombinedImageSampler,
+            .info = rhi::CombinedImageSampler{
+                .texture = texture_handle,
+                .sampler = sampler_handle
+            }
         };
 
         desc_set->update({ &write, 1 });
@@ -387,6 +453,73 @@ namespace boza
         return *this;
     }
 
+    ComputeDispatcher& ComputeDispatcher::dispatch_on_current_command_buffer(
+        const std::uint32_t width,
+        const std::uint32_t height,
+        const std::uint32_t depth)
+    {
+        return dispatch_on_current_command_buffer(glm::uvec3{ width, height, depth });
+    }
+
+    ComputeDispatcher& ComputeDispatcher::dispatch_on_current_command_buffer(const glm::uvec2& size)
+    {
+        return dispatch_on_current_command_buffer(glm::uvec3{ size, 1u });
+    }
+
+    ComputeDispatcher& ComputeDispatcher::dispatch_on_current_command_buffer(const glm::uvec3& size)
+    {
+        std::scoped_lock lock{ mutex_ };
+        if (failed_.load(std::memory_order_relaxed)) return *this;
+        if (!wait_for_pending_dispatch_locked()) return *this;
+
+        const auto groups = resolve_group_counts(size, false);
+        if (!groups.has_value())
+        {
+            failed_.store(true, std::memory_order_relaxed);
+            return *this;
+        }
+
+        auto* cmd = rhi::RenderContext::current_command_buffer();
+        if (!cmd)
+        {
+            Log::error("Cannot record compute dispatch: no active command buffer");
+            failed_.store(true, std::memory_order_relaxed);
+            return *this;
+        }
+
+        if (!impl_->pipeline)
+        {
+            Log::error("Cannot record compute dispatch: pipeline is null");
+            failed_.store(true, std::memory_order_relaxed);
+            return *this;
+        }
+
+        cmd->bind_compute_pipeline(impl_->pipeline);
+
+        if (!impl_->descriptor_sets.empty())
+        {
+            cmd->bind_descriptor_sets(
+                impl_->pipeline->get_layout(),
+                std::span<rhi::DescriptorSet*>{ impl_->descriptor_sets.data(), impl_->descriptor_sets.size() },
+                0);
+        }
+
+        if (impl_->has_push_constants && impl_->push_constant_size > 0)
+        {
+            cmd->push_constants(
+                impl_->pipeline_layout,
+                rhi::ShaderStage::Compute,
+                0,
+                impl_->push_constant_size,
+                impl_->push_constant_staging.data()
+            );
+        }
+
+        cmd->dispatch(groups->x, groups->y, groups->z);
+        impl_->dispatch_status = ComputeDispatchStatus::Idle;
+        return *this;
+    }
+
     ComputeDispatcher& ComputeDispatcher::dispatch_groups(
         const std::uint32_t x,
         const std::uint32_t y,
@@ -420,6 +553,73 @@ namespace boza
             Log::error("Compute dispatch failed with exception");
         }
 
+        return *this;
+    }
+
+    ComputeDispatcher& ComputeDispatcher::dispatch_groups_on_current_command_buffer(
+        const std::uint32_t x,
+        const std::uint32_t y,
+        const std::uint32_t z)
+    {
+        return dispatch_groups_on_current_command_buffer(glm::uvec3{ x, y, z });
+    }
+
+    ComputeDispatcher& ComputeDispatcher::dispatch_groups_on_current_command_buffer(const glm::uvec2& groups)
+    {
+        return dispatch_groups_on_current_command_buffer(glm::uvec3{ groups, 1u });
+    }
+
+    ComputeDispatcher& ComputeDispatcher::dispatch_groups_on_current_command_buffer(const glm::uvec3& groups)
+    {
+        std::scoped_lock lock{ mutex_ };
+        if (failed_.load(std::memory_order_relaxed)) return *this;
+        if (!wait_for_pending_dispatch_locked()) return *this;
+
+        const auto resolved_groups = resolve_group_counts(groups, true);
+        if (!resolved_groups.has_value())
+        {
+            failed_.store(true, std::memory_order_relaxed);
+            return *this;
+        }
+
+        auto* cmd = rhi::RenderContext::current_command_buffer();
+        if (!cmd)
+        {
+            Log::error("Cannot record compute dispatch: no active command buffer");
+            failed_.store(true, std::memory_order_relaxed);
+            return *this;
+        }
+
+        if (!impl_->pipeline)
+        {
+            Log::error("Cannot record compute dispatch: pipeline is null");
+            failed_.store(true, std::memory_order_relaxed);
+            return *this;
+        }
+
+        cmd->bind_compute_pipeline(impl_->pipeline);
+
+        if (!impl_->descriptor_sets.empty())
+        {
+            cmd->bind_descriptor_sets(
+                impl_->pipeline->get_layout(),
+                std::span<rhi::DescriptorSet*>{ impl_->descriptor_sets.data(), impl_->descriptor_sets.size() },
+                0);
+        }
+
+        if (impl_->has_push_constants && impl_->push_constant_size > 0)
+        {
+            cmd->push_constants(
+                impl_->pipeline_layout,
+                rhi::ShaderStage::Compute,
+                0,
+                impl_->push_constant_size,
+                impl_->push_constant_staging.data()
+            );
+        }
+
+        cmd->dispatch(resolved_groups->x, resolved_groups->y, resolved_groups->z);
+        impl_->dispatch_status = ComputeDispatchStatus::Idle;
         return *this;
     }
 
@@ -584,7 +784,10 @@ namespace boza
 
         if (!impl_->descriptor_sets.empty())
         {
-            cmd->bind_descriptor_sets(impl_->pipeline->get_layout(), impl_->descriptor_sets, 0);
+            cmd->bind_descriptor_sets(
+                impl_->pipeline->get_layout(),
+                std::span<rhi::DescriptorSet*>{ impl_->descriptor_sets.data(), impl_->descriptor_sets.size() },
+                0);
         }
 
         if (impl_->has_push_constants && impl_->push_constant_size > 0)

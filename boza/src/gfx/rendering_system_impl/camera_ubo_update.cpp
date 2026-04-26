@@ -36,5 +36,14 @@ namespace boza
         frustum_.set_from_view_projection(ubo_data.proj * ubo_data.view);
 
         camera_ubo->upload(&ubo_data, sizeof(gfx::CameraUBO), 0);
+
+        gfx::MaterialLoader::instance().begin_light_update(
+            glm::vec3{ transform.position },
+            ubo_data.view,
+            ubo_data.proj,
+            window->width(),
+            window->height(),
+            cam.near_clip,
+            cam.far_clip);
     }
 }

@@ -1,0 +1,60 @@
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+struct CullInstance {
+    mat4 model;
+    vec4 sphere;
+};
+
+struct DrawIndexedIndirectCommand {
+    uint index_count;
+    uint instance_count;
+    uint first_index;
+    int vertex_offset;
+    uint first_instance;
+};
+
+layout(set = 0, binding = 0, std430) readonly buffer CullParamsBuffer {
+    vec4 frustum_planes[6];
+    uvec4 counts;
+} cull_params;
+
+layout(set = 0, binding = 1, std430) readonly buffer CullCandidateBuffer {
+    CullInstance instances[];
+} cull_candidates;
+
+layout(set = 0, binding = 2, std430) writeonly buffer CulledInstanceBuffer {
+    mat4 models[];
+} culled_instances;
+
+layout(set = 0, binding = 3, std430) buffer IndirectDrawBuffer {
+    DrawIndexedIndirectCommand command;
+} indirect_draw;
+
+bool sphere_visible(vec3 center, float radius)
+{
+    for (uint i = 0u; i < 6u; ++i) {
+        vec4 plane = cull_params.frustum_planes[i];
+        if (dot(plane.xyz, center) + plane.w < -radius) return false;
+    }
+
+    return true;
+}
+
+void main()
+{
+    uint index = gl_GlobalInvocationID.x;
+    uint candidate_count = cull_params.counts.x;
+    uint candidate_stride = max(cull_params.counts.z, 1u);
+    uint output_base_instance = cull_params.counts.w;
+
+    if (index >= candidate_count) return;
+    if ((index % candidate_stride) != 0u) return;
+
+    CullInstance instance = cull_candidates.instances[index];
+    if (!sphere_visible(instance.sphere.xyz, instance.sphere.w)) return;
+
+    uint visible_index = atomicAdd(indirect_draw.command.instance_count, 1u);
+    culled_instances.models[output_base_instance + visible_index] = instance.model;
+}

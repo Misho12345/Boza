@@ -21,6 +21,7 @@ public:
         create_pyramid_mesh();
 
         setup_camera();
+        setup_lights();
         setup_skybox();
 
         Scene::main = scene_a_ = Scene::create("SceneA");
@@ -33,6 +34,7 @@ public:
             auto& mr = obj.add_component<MeshRenderer>();
             mr.mesh_name = "cube";
             mr.material_name = "material_showcase/dancho";
+            obj.add_component<ShadowCaster>();
 
             setup_orbiting_cubes(obj, 32, 32);
         }
@@ -50,6 +52,7 @@ public:
             auto& mr = showcase_obj_.add_component<MeshRenderer>();
             mr.mesh_name = meshes_[current_mesh_];
             mr.material_name = materials_[current_material_];
+            showcase_obj_.add_component<ShadowCaster>();
 
             auto& ic = showcase_obj_.add_component<InputCapture>();
             ic.on<Action::Press>(Key::M, &cycle_mesh);
@@ -146,6 +149,40 @@ private:
         mr.material_name = "skybox";
     }
 
+    static void setup_lights()
+    {
+        auto key = GameObject::create("KeyLight", Scene::persistent());
+        key.get_component<Transform>().look_at(glm::vec3{ -0.5f, -1.0f, -0.4f });
+        auto& sun = key.add_component<DirectionalLight>();
+        sun.color = glm::vec3{ 1.0f, 0.94f, 0.82f };
+        sun.intensity = 1.25f;
+        sun.casts_shadows = true;
+        sun.shadow_strength = 0.35f;
+
+        const std::array colors{
+            glm::vec3{ 1.0f, 0.25f, 0.18f },
+            glm::vec3{ 0.2f, 0.55f, 1.0f },
+            glm::vec3{ 0.55f, 1.0f, 0.35f }
+        };
+
+        for (std::uint32_t i = 0; i < colors.size(); ++i)
+        {
+            auto light = GameObject::create(std::format("ShowcasePointLight_{}", i), Scene::persistent());
+            light.get_component<Transform>().local_position = glm::vec3{
+                std::cos(static_cast<float>(i) * glm::two_pi<float>() / colors.size()) * 42.0f,
+                24.0f,
+                std::sin(static_cast<float>(i) * glm::two_pi<float>() / colors.size()) * 42.0f
+            };
+
+            auto& point = light.add_component<PointLight>();
+            point.color = colors[i];
+            point.intensity = 2.0f;
+            point.range = 85.0f;
+            point.casts_shadows = i == 0;
+            point.shadow_strength = 0.45f;
+        }
+    }
+
     static void setup_orbiting_cubes(
         const GameObject&   parent,
         const std::uint32_t orbits,
@@ -165,7 +202,9 @@ private:
                 auto& mr = cube.add_component<MeshRenderer>();
                 mr.mesh_name = "cube";
                 mr.material_name = Random::pick(materials_);
+                cube.add_component<ShadowCaster>();
                 cube.add_component<Orbiter>(axis, (i + 2) * 2.0f, 10.0f + i * 3.0f, j * (360.0f / per_orbit_count));
+
             }
         }
     }

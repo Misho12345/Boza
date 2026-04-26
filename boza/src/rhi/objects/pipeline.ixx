@@ -42,7 +42,8 @@ export namespace boza::rhi
         TriangleList,
         TriangleStrip,
         LineList,
-        PointList
+        PointList,
+        PatchList
     };
 
     enum class PolygonMode : std::uint8_t
@@ -165,6 +166,7 @@ export namespace boza::rhi
         PipelineLayout*            layout;
 
         PrimitiveTopology topology{ PrimitiveTopology::TriangleList };
+        std::uint32_t patch_control_points{ 3 };
         std::vector<VertexInputBinding> bindings;
         std::vector<VertexInputAttribute> attributes;
 

@@ -16,6 +16,7 @@ namespace boza::tags
     struct MeshChanged {};
     struct MaterialChanged {};
     struct RenderCacheInvalidated {};
+    export struct ShadowOnly {};
 }
 
 namespace boza
@@ -81,4 +82,3 @@ namespace boza
         friend class GameObject;
     };
 }
-

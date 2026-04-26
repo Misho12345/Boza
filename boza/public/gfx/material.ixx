@@ -15,6 +15,7 @@ namespace boza::gfx
 
 namespace boza
 {
+    struct MaterialSettings;
     class Material;
 
     struct MaterialAccess
@@ -23,6 +24,8 @@ namespace boza
         static void* pipeline_layout(const Material& material);
         static const void* reflection(const Material& material);
         static std::span<const std::uint8_t> push_constant_staging(const Material& material);
+        static std::span<void* const> descriptor_set_layouts(const Material& material);
+        static const MaterialSettings& settings(const Material& material);
         static void bind_descriptor_sets(const Material& material);
     };
 }
@@ -36,6 +39,8 @@ export namespace boza
     struct MaterialSettings
     {
         std::string vertex_shader;
+        std::string tess_control_shader;
+        std::string tess_evaluation_shader;
         std::string fragment_shader;
         CompareOp   depth_compare_op{ CompareOp::Less };
         bool        depth_test_enable{ true };
@@ -50,12 +55,14 @@ export namespace boza
             std::size_t h{ 0 };
 
             h ^= std::hash<std::string>{}(vertex_shader);
-            h ^= std::hash<std::string>{}(fragment_shader) << 1;
-            h ^= std::hash<std::uint8_t>{}(static_cast<std::uint8_t>(depth_compare_op)) << 2;
-            h ^= std::hash<bool>{}(depth_test_enable) << 8;
-            h ^= std::hash<bool>{}(depth_write_enable) << 9;
-            h ^= std::hash<std::uint8_t>{}(static_cast<std::uint8_t>(cull_mode)) << 10;
-            h ^= std::hash<std::uint8_t>{}(static_cast<std::uint8_t>(front_face)) << 14;
+            h ^= std::hash<std::string>{}(tess_control_shader) << 1;
+            h ^= std::hash<std::string>{}(tess_evaluation_shader) << 2;
+            h ^= std::hash<std::string>{}(fragment_shader) << 3;
+            h ^= std::hash<std::uint8_t>{}(static_cast<std::uint8_t>(depth_compare_op)) << 4;
+            h ^= std::hash<bool>{}(depth_test_enable) << 10;
+            h ^= std::hash<bool>{}(depth_write_enable) << 11;
+            h ^= std::hash<std::uint8_t>{}(static_cast<std::uint8_t>(cull_mode)) << 12;
+            h ^= std::hash<std::uint8_t>{}(static_cast<std::uint8_t>(front_face)) << 16;
             return h;
         }
     };
@@ -133,6 +140,9 @@ export namespace boza
         bool cpu_cull_enabled() const { return cpu_cull_enabled_; }
         void set_cpu_cull_enabled(const bool enabled) { cpu_cull_enabled_ = enabled; }
 
+        [[nodiscard]] bool shadow_only() const { return shadow_only_; }
+        void set_shadow_only(const bool enabled) { shadow_only_ = enabled; }
+
     private:
         using RhiOwnedHandle = std::unique_ptr<void, void(*)(void*)>;
 
@@ -143,6 +153,7 @@ export namespace boza
         void cleanup();
 
         std::string name_;
+        MaterialSettings settings_{};
 
         void*                     pipeline_{ nullptr };
         void*                     pipeline_layout_{ nullptr };
@@ -165,6 +176,7 @@ export namespace boza
 
         void* descriptor_pool_{ nullptr };
         bool  cpu_cull_enabled_{ true };
+        bool  shadow_only_{ false };
 
         [[nodiscard]] void* rhi_pipeline_layout_handle() const { return pipeline_layout_; }
         [[nodiscard]] void* rhi_pipeline_handle() const { return pipeline_; }

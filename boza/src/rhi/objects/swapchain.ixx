@@ -36,6 +36,7 @@ export namespace boza::rhi
         PresentMode preferred_present_mode{ PresentMode::Mailbox };
         std::uint32_t preferred_image_count{ 3 };
         std::uint32_t max_frames_in_flight{ 2 };
+        TextureSampleCount sample_count{ TextureSampleCount::Count4 };
         bool enable_depth{ false };
         DepthFormat depth_format{ DepthFormat::Auto };
 
@@ -105,8 +106,14 @@ export namespace boza::rhi
             return result == PresentResult::Success || result == PresentResult::Suboptimal;
         }
 
-        virtual bool begin_render_pass(std::uint32_t image_idx) = 0;
+        virtual bool begin_render_pass(
+            std::uint32_t image_idx,
+            Texture* depth_texture = nullptr,
+            bool clear_depth = true) = 0;
         virtual bool end_render_pass(std::uint32_t image_idx) = 0;
+
+        virtual bool begin_depth_prepass(std::uint32_t image_idx, float clear_depth = 1.0f) = 0;
+        virtual bool end_depth_prepass(std::uint32_t image_idx) = 0;
 
         virtual std::uint32_t width() const = 0;
         virtual std::uint32_t height() const = 0;
@@ -115,6 +122,7 @@ export namespace boza::rhi
         virtual std::uint32_t current_image_index() const = 0;
         virtual TextureFormat format() const = 0;
         virtual DepthFormat depth_format() const = 0;
+        virtual TextureSampleCount sample_count() const = 0;
         virtual std::uint32_t max_frames_in_flight() const = 0;
 
         virtual CommandBuffer* current_command_buffer() = 0;

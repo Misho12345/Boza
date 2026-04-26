@@ -12,5 +12,6 @@ export import :rendering_system;
 
 export import :mesh_renderer;
 export import :camera;
+export import :light;
 
 export import boza.gfx.common;

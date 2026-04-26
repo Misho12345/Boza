@@ -86,6 +86,27 @@ namespace boza::rhi::vk
         vkCmdDrawIndexed(vk_command_buffer_, index_count, instance_count, first_index, vertex_offset, first_instance);
     }
 
+    void CommandBuffer::draw_indexed_indirect(
+        rhi::Buffer*        buffer,
+        const std::uint64_t offset,
+        const std::uint32_t draw_count,
+        const std::uint32_t stride)
+    {
+        const auto* vk_buffer = reinterpret_cast<Buffer*>(buffer);
+        if (!vk_buffer)
+        {
+            Log::warn("Cannot draw indexed indirect with a null buffer");
+            return;
+        }
+
+        vkCmdDrawIndexedIndirect(
+            vk_command_buffer_,
+            vk_buffer->vk_buffer(),
+            offset,
+            draw_count,
+            stride);
+    }
+
     void CommandBuffer::dispatch(const std::uint32_t group_x, const std::uint32_t group_y, const std::uint32_t group_z)
     {
         // Log::trace("Dispatch compute: {}x{}x{} groups", group_x, group_y, group_z);
@@ -183,6 +204,88 @@ namespace boza::rhi::vk
         vkCmdPushConstants(vk_command_buffer_, vk_layout->vk_pipeline_layout(), stage_flags, offset, size, data);
     }
 
+    void CommandBuffer::begin_depth_rendering(
+        rhi::Texture*       depth_texture,
+        const std::uint32_t width,
+        const std::uint32_t height,
+        const float         clear_depth,
+        const bool          flip_y)
+    {
+        begin_depth_rendering_layer(depth_texture, 0, width, height, clear_depth, flip_y);
+    }
+
+    void CommandBuffer::begin_depth_rendering_layer(
+        rhi::Texture*       depth_texture,
+        const std::uint32_t layer,
+        const std::uint32_t width,
+        const std::uint32_t height,
+        const float         clear_depth,
+        const bool          flip_y)
+    {
+        const auto* vk_texture = reinterpret_cast<Texture*>(depth_texture);
+        if (!vk_texture)
+        {
+            Log::warn("Cannot begin depth rendering with a null texture");
+            return;
+        }
+
+        const VkClearValue clear_value{ .depthStencil = { clear_depth, 0 } };
+
+        const VkRenderingAttachmentInfo depth_attachment
+        {
+            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .pNext = nullptr,
+            .imageView = vk_texture->vk_layer_image_view(layer),
+            .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+            .resolveMode = VK_RESOLVE_MODE_NONE,
+            .resolveImageView = nullptr,
+            .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .clearValue = clear_value
+        };
+
+        const VkRenderingInfo rendering_info
+        {
+            .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+            .pNext = nullptr,
+            .flags = {},
+            .renderArea = { .offset = { 0, 0 }, .extent = { width, height } },
+            .layerCount = 1,
+            .viewMask = 0,
+            .colorAttachmentCount = 0,
+            .pColorAttachments = nullptr,
+            .pDepthAttachment = &depth_attachment,
+            .pStencilAttachment = nullptr
+        };
+
+        vkCmdBeginRendering(vk_command_buffer_, &rendering_info);
+
+        const VkViewport viewport
+        {
+            .x = 0.0f,
+            .y = flip_y ? static_cast<float>(height) : 0.0f,
+            .width = static_cast<float>(width),
+            .height = flip_y ? -static_cast<float>(height) : static_cast<float>(height),
+            .minDepth = 0.0f,
+            .maxDepth = 1.0f
+        };
+
+        const VkRect2D scissor
+        {
+            .offset = { 0, 0 },
+            .extent = { width, height }
+        };
+
+        vkCmdSetViewport(vk_command_buffer_, 0, 1, &viewport);
+        vkCmdSetScissor(vk_command_buffer_, 0, 1, &scissor);
+    }
+
+    void CommandBuffer::end_rendering()
+    {
+        vkCmdEndRendering(vk_command_buffer_);
+    }
+
     void CommandBuffer::compute_memory_barrier()
     {
         static constexpr VkMemoryBarrier2 barrier
@@ -193,6 +296,68 @@ namespace boza::rhi::vk
             .srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT,
             .dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
             .dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT
+        };
+
+        constexpr VkDependencyInfo dependency_info
+        {
+            .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+            .pNext = nullptr,
+            .dependencyFlags = 0,
+            .memoryBarrierCount = 1,
+            .pMemoryBarriers = &barrier,
+            .bufferMemoryBarrierCount = 0,
+            .pBufferMemoryBarriers = nullptr,
+            .imageMemoryBarrierCount = 0,
+            .pImageMemoryBarriers = nullptr
+        };
+
+        vkCmdPipelineBarrier2(vk_command_buffer_, &dependency_info);
+    }
+
+    void CommandBuffer::compute_to_draw_barrier()
+    {
+        static constexpr VkMemoryBarrier2 barrier
+        {
+            .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+            .pNext = nullptr,
+            .srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+            .srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT,
+            .dstStageMask =
+                VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT |
+                VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT |
+                VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+            .dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT | VK_ACCESS_2_SHADER_READ_BIT
+        };
+
+        constexpr VkDependencyInfo dependency_info
+        {
+            .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+            .pNext = nullptr,
+            .dependencyFlags = 0,
+            .memoryBarrierCount = 1,
+            .pMemoryBarriers = &barrier,
+            .bufferMemoryBarrierCount = 0,
+            .pBufferMemoryBarriers = nullptr,
+            .imageMemoryBarrierCount = 0,
+            .pImageMemoryBarriers = nullptr
+        };
+
+        vkCmdPipelineBarrier2(vk_command_buffer_, &dependency_info);
+    }
+
+    void CommandBuffer::draw_to_compute_barrier()
+    {
+        static constexpr VkMemoryBarrier2 barrier
+        {
+            .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+            .pNext = nullptr,
+            .srcStageMask =
+                VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT |
+                VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT |
+                VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+            .srcAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT | VK_ACCESS_2_SHADER_READ_BIT,
+            .dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+            .dstAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT
         };
 
         constexpr VkDependencyInfo dependency_info

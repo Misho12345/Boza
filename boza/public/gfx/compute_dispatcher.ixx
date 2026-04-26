@@ -13,6 +13,7 @@ export namespace boza
 {
     class Texture;
     class Buffer;
+    class Sampler;
     class ComputeDispatchGroup;
 
     enum class ComputeDispatchStatus : std::uint8_t
@@ -44,6 +45,7 @@ export namespace boza
         }
 
         ComputeDispatcher& set(const std::string& name, const Texture& texture);
+        ComputeDispatcher& set(const std::string& name, const Texture& texture, const Sampler& sampler);
         ComputeDispatcher& set(const std::string& name, const Buffer& buffer);
 
         ComputeDispatcher& dispatch(
@@ -53,12 +55,26 @@ export namespace boza
         ComputeDispatcher& dispatch(const glm::uvec2& size);
         ComputeDispatcher& dispatch(const glm::uvec3& size);
 
+        ComputeDispatcher& dispatch_on_current_command_buffer(
+            std::uint32_t width,
+            std::uint32_t height = 1,
+            std::uint32_t depth = 1);
+        ComputeDispatcher& dispatch_on_current_command_buffer(const glm::uvec2& size);
+        ComputeDispatcher& dispatch_on_current_command_buffer(const glm::uvec3& size);
+
         ComputeDispatcher& dispatch_groups(
             std::uint32_t x,
             std::uint32_t y = 1,
             std::uint32_t z = 1);
         ComputeDispatcher& dispatch_groups(const glm::uvec2& groups);
         ComputeDispatcher& dispatch_groups(const glm::uvec3& groups);
+
+        ComputeDispatcher& dispatch_groups_on_current_command_buffer(
+            std::uint32_t x,
+            std::uint32_t y = 1,
+            std::uint32_t z = 1);
+        ComputeDispatcher& dispatch_groups_on_current_command_buffer(const glm::uvec2& groups);
+        ComputeDispatcher& dispatch_groups_on_current_command_buffer(const glm::uvec3& groups);
 
         ComputeDispatcher& wait();
 

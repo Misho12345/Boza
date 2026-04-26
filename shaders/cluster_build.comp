@@ -1,0 +1,53 @@
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+struct LightingUBO {
+    vec4 view_pos;
+    vec4 ambient_color;
+    uvec4 light_counts;
+    uvec4 cluster_grid;
+    vec4 screen_params;
+    vec4 shadow_params;
+    vec4 directional_shadow_splits;
+    mat4 directional_shadow_view_projections[4];
+};
+
+struct GpuClusterRecord {
+    uvec4 point_spot_ranges;
+};
+
+layout(set = 0, binding = 0, std430) readonly buffer LightingDataBuffer {
+    LightingUBO data;
+} lighting_data;
+
+layout(set = 0, binding = 1, std430) buffer ClusterRecordBuffer {
+    GpuClusterRecord items[];
+} cluster_records;
+
+layout(set = 0, binding = 2, std430) buffer ClusterLightIndexBuffer {
+    uint items[];
+} cluster_light_indices;
+
+struct ClusterLightCounter {
+    uint next_index;
+    uint overflow_count;
+};
+
+layout(set = 0, binding = 3, std430) buffer ClusterLightCounterBuffer {
+    ClusterLightCounter data;
+} cluster_light_counter;
+
+void main()
+{
+    uint cluster_index = gl_GlobalInvocationID.x;
+    uint cluster_count = lighting_data.data.cluster_grid.w;
+
+    if (cluster_index >= cluster_count) return;
+
+    cluster_records.items[cluster_index].point_spot_ranges = uvec4(0u);
+    if (cluster_index == 0u) {
+        cluster_light_counter.data.next_index = 0u;
+        cluster_light_counter.data.overflow_count = 0u;
+    }
+}

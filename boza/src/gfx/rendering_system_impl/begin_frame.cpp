@@ -28,14 +28,8 @@ namespace boza
         }
 
         rhi::RenderContext::set_current_command_buffer(swapchain_->current_command_buffer());
+        gfx::MaterialLoader::instance().log_cluster_cull_feedback();
         gfx::MaterialLoader::instance().update_time_ubo(Time::time(), Time::delta_time());
-
-        if (!swapchain_->begin_render_pass(swapchain_->current_image_index()))
-        {
-            swapchain_->abort_frame();
-            rhi::RenderContext::set_current_command_buffer(nullptr);
-            return;
-        }
 
         frame_active_ = true;
     }

@@ -15,6 +15,19 @@ namespace boza::gfx
 
     namespace
     {
+        constexpr TextureSettings internal_texture_settings()
+        {
+            return TextureSettings{
+                .type = TextureType::Texture2D,
+                .format = TextureFormat::RGBA8,
+                .access_mode = ResourceAccessMode::Static,
+                .width = 1,
+                .height = 1,
+                .depth = 1,
+                .usage_flags = TextureUsage::Sampled | TextureUsage::TransferDst
+            };
+        }
+
         constexpr TextureSettings error_texture_settings(const TextureType type)
         {
             return TextureSettings{
@@ -32,11 +45,24 @@ namespace boza::gfx
         {
             return type == TextureType::TextureCube || type == TextureType::TextureCubeArray ? 6 : 1;
         }
+
     }
 
-    constexpr TextureFormat format_from_channels(const int channels)
+    constexpr TextureFormat format_from_image(const ImageData& image_data)
     {
-        switch (channels)
+        if (image_data.hdr)
+        {
+            switch (image_data.channels)
+            {
+                case 1: return image_data.bytes_per_channel >= 4 ? TextureFormat::R32F : TextureFormat::R16F;
+                case 2: return image_data.bytes_per_channel >= 4 ? TextureFormat::RG32F : TextureFormat::RG16F;
+                case 3: return image_data.bytes_per_channel >= 4 ? TextureFormat::RGB32F : TextureFormat::RGB16F;
+                case 4: return image_data.bytes_per_channel >= 4 ? TextureFormat::RGBA32F : TextureFormat::RGBA16F;
+                default: std::unreachable();
+            }
+        }
+
+        switch (image_data.channels)
         {
             case 1: return TextureFormat::R8;
             case 2: return TextureFormat::RG8;
@@ -89,6 +115,10 @@ namespace boza::gfx
                 texture->upload_layer(magenta.data(), magenta.size(), layer);
             }
         }
+
+        create("__boza_white", internal_texture_settings()).upload_layer(std::array<std::uint8_t, 4>{ 255, 255, 255, 255 }.data(), 4, 0);
+        create("__boza_black", internal_texture_settings()).upload_layer(std::array<std::uint8_t, 4>{ 0, 0, 0, 255 }.data(), 4, 0);
+        create("__boza_flat_normal", internal_texture_settings()).upload_layer(std::array<std::uint8_t, 4>{ 128, 128, 255, 255 }.data(), 4, 0);
 
         initialized_ = created_any_error_texture;
     }
@@ -166,7 +196,7 @@ namespace boza::gfx
                 name_str,
                 TextureSettings{
                     .type        = type,
-                    .format      = format_from_channels(image_data.channels),
+                    .format      = format_from_image(image_data),
                     .access_mode = ResourceAccessMode::Static,
                     .width       = image_data.width,
                     .height      = image_data.height,
@@ -240,7 +270,7 @@ namespace boza::gfx
                 name_str,
                 TextureSettings{
                     .type        = TextureType::TextureCube,
-                    .format      = format_from_channels(image_data.channels),
+                    .format      = format_from_image(image_data),
                     .access_mode = ResourceAccessMode::Static,
                     .width       = face_width,
                     .height      = face_height,
@@ -256,9 +286,10 @@ namespace boza::gfx
             return error_texture(TextureType::TextureCube);
         }
 
-        const std::size_t face_size       = face_width * face_height * image_data.channels;
-        const std::size_t row_pitch       = image_data.width * image_data.channels;
-        const std::size_t face_row_pitch  = face_width * image_data.channels;
+        const std::size_t pixel_stride    = static_cast<std::size_t>(image_data.channels) * image_data.bytes_per_channel;
+        const std::size_t face_size       = face_width * face_height * pixel_stride;
+        const std::size_t row_pitch       = image_data.width * pixel_stride;
+        const std::size_t face_row_pitch  = face_width * pixel_stride;
 
         std::vector<std::uint8_t> face_data(face_size);
 

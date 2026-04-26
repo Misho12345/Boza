@@ -49,6 +49,7 @@ target_compile_definitions(boza_engine
 
 # === Core Dependencies ===
 find_package(glm CONFIG REQUIRED)
+find_package(OpenEXR CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(flecs CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
@@ -61,6 +62,7 @@ target_sources(boza_engine
 
 target_link_libraries(boza_engine PUBLIC
         flecs::flecs
+        OpenEXR::OpenEXR
         spdlog::spdlog
         glfw
 )

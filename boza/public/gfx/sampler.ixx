@@ -102,6 +102,7 @@ export namespace boza
         float max_anisotropy_;
 
         friend class Material;
+        friend class ComputeDispatcher;
         friend class gfx::SamplerLoader;
     };
 }

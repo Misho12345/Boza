@@ -1,0 +1,190 @@
+#version 450
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+struct CameraUBO {
+    mat4 view;
+    mat4 proj;
+};
+
+struct LightingUBO {
+    vec4 view_pos;
+    vec4 ambient_color;
+    uvec4 light_counts;
+    uvec4 cluster_grid;
+    vec4 screen_params;
+    vec4 shadow_params;
+    vec4 directional_shadow_splits;
+    mat4 directional_shadow_view_projections[4];
+};
+
+struct GpuPointLight {
+    vec4 position_range;
+    vec4 color_intensity;
+    vec4 shadow_data;
+};
+
+struct GpuSpotLight {
+    vec4 position_range;
+    vec4 direction_angles;
+    vec4 color_intensity;
+    vec4 shadow_data;
+};
+
+struct GpuClusterRecord {
+    uvec4 point_spot_ranges;
+};
+
+struct ClusterLightCounter {
+    uint next_index;
+    uint overflow_count;
+};
+
+layout(set = 0, binding = 0, std430) readonly buffer CameraDataBuffer {
+    CameraUBO data;
+} camera_data;
+
+layout(set = 0, binding = 1, std430) readonly buffer LightingDataBuffer {
+    LightingUBO data;
+} lighting_data;
+
+layout(set = 0, binding = 2, std430) readonly buffer PointLightBuffer {
+    GpuPointLight items[];
+} point_lights;
+
+layout(set = 0, binding = 3, std430) readonly buffer SpotLightBuffer {
+    GpuSpotLight items[];
+} spot_lights;
+
+layout(set = 0, binding = 4, std430) buffer ClusterRecordBuffer {
+    GpuClusterRecord items[];
+} cluster_records;
+
+layout(set = 0, binding = 5, std430) buffer ClusterLightIndexBuffer {
+    uint items[];
+} cluster_light_indices;
+
+layout(set = 0, binding = 6, std430) buffer ClusterLightCounterBuffer {
+    ClusterLightCounter data;
+} cluster_light_counter;
+
+float depth_to_cluster_slice(float view_depth, float near_clip, float far_clip, uint slice_count)
+{
+    if (slice_count <= 1u) return 0.0;
+
+    float clamped_near = max(near_clip, 0.001);
+    float clamped_far = max(far_clip, clamped_near + 0.001);
+    float depth_ratio = max(view_depth / clamped_near, 1.0);
+    float max_ratio = max(clamped_far / clamped_near, 1.0001);
+    float normalized = clamp(log2(depth_ratio) / log2(max_ratio), 0.0, 0.999999);
+
+    return floor(normalized * float(slice_count));
+}
+
+bool light_cluster_bounds(vec3 position, float radius, out uvec3 min_bounds, out uvec3 max_bounds)
+{
+    vec4 view_center = camera_data.data.view * vec4(position, 1.0);
+    float depth = abs(view_center.z);
+
+    float near_clip = max(lighting_data.data.screen_params.z, 0.001);
+    float far_clip = max(lighting_data.data.screen_params.w, near_clip + 1.0);
+    if (depth + radius < near_clip || depth - radius > far_clip) return false;
+
+    vec4 clip_center = camera_data.data.proj * view_center;
+    if (abs(clip_center.w) <= 1e-5) return false;
+
+    vec2 ndc_center = clip_center.xy / clip_center.w;
+    float depth_for_radius = max(depth, near_clip);
+    float ndc_radius_x = abs(radius * camera_data.data.proj[0][0] / depth_for_radius);
+    float ndc_radius_y = abs(radius * camera_data.data.proj[1][1] / depth_for_radius);
+
+    uvec3 cluster_grid = max(lighting_data.data.cluster_grid.xyz, uvec3(1u));
+    vec2 screen_size = max(lighting_data.data.screen_params.xy, vec2(1.0));
+    float min_screen_x = ((ndc_center.x - ndc_radius_x) * 0.5 + 0.5) * screen_size.x;
+    float max_screen_x = ((ndc_center.x + ndc_radius_x) * 0.5 + 0.5) * screen_size.x;
+    float min_screen_y = ((ndc_center.y - ndc_radius_y) * 0.5 + 0.5) * screen_size.y;
+    float max_screen_y = ((ndc_center.y + ndc_radius_y) * 0.5 + 0.5) * screen_size.y;
+
+    min_bounds.x = uint(clamp(floor(min_screen_x / screen_size.x * float(cluster_grid.x)), 0.0, float(cluster_grid.x - 1u)));
+    max_bounds.x = uint(clamp(floor(max_screen_x / screen_size.x * float(cluster_grid.x)), 0.0, float(cluster_grid.x - 1u)));
+    min_bounds.y = uint(clamp(floor(min_screen_y / screen_size.y * float(cluster_grid.y)), 0.0, float(cluster_grid.y - 1u)));
+    max_bounds.y = uint(clamp(floor(max_screen_y / screen_size.y * float(cluster_grid.y)), 0.0, float(cluster_grid.y - 1u)));
+    min_bounds.z = uint(depth_to_cluster_slice(max(depth - radius, near_clip), near_clip, far_clip, cluster_grid.z));
+    max_bounds.z = uint(depth_to_cluster_slice(min(depth + radius, far_clip), near_clip, far_clip, cluster_grid.z));
+
+    return true;
+}
+
+bool cluster_contains_light(uint cluster_index, vec3 position, float radius)
+{
+    uvec3 cluster_grid = lighting_data.data.cluster_grid.xyz;
+    uint xy_count = cluster_grid.x * cluster_grid.y;
+    uvec3 cluster_coords = uvec3(
+        cluster_index % cluster_grid.x,
+        (cluster_index / cluster_grid.x) % cluster_grid.y,
+        cluster_index / xy_count);
+
+    uvec3 min_bounds;
+    uvec3 max_bounds;
+    if (!light_cluster_bounds(position, radius, min_bounds, max_bounds)) return false;
+
+    return all(greaterThanEqual(cluster_coords, min_bounds)) &&
+        all(lessThanEqual(cluster_coords, max_bounds));
+}
+
+void main()
+{
+    uint cluster_index = gl_GlobalInvocationID.x;
+    uint cluster_count = lighting_data.data.cluster_grid.w;
+    if (cluster_index >= cluster_count) return;
+
+    uint point_indices[256];
+    uint spot_indices[256];
+    uint point_count = 0u;
+    uint spot_count = 0u;
+
+    for (uint i = 0u; i < lighting_data.data.light_counts.x; ++i)
+    {
+        if (point_count >= 256u) break;
+        GpuPointLight light = point_lights.items[i];
+        if (cluster_contains_light(cluster_index, light.position_range.xyz, light.position_range.w))
+            point_indices[point_count++] = i;
+    }
+
+    for (uint i = 0u; i < lighting_data.data.light_counts.z; ++i)
+    {
+        if (spot_count >= 256u) break;
+        GpuSpotLight light = spot_lights.items[i];
+        if (cluster_contains_light(cluster_index, light.position_range.xyz, light.position_range.w))
+            spot_indices[spot_count++] = i;
+    }
+
+    uint total_count = point_count + spot_count;
+    if (total_count == 0u)
+    {
+        cluster_records.items[cluster_index].point_spot_ranges = uvec4(0u);
+        return;
+    }
+
+    uint base_offset = atomicAdd(cluster_light_counter.data.next_index, total_count);
+    uint index_capacity = cluster_light_indices.items.length();
+
+    if (base_offset >= index_capacity || base_offset + total_count > index_capacity)
+    {
+        atomicAdd(cluster_light_counter.data.overflow_count, 1u);
+        cluster_records.items[cluster_index].point_spot_ranges = uvec4(0u);
+        return;
+    }
+
+    for (uint i = 0u; i < point_count; ++i)
+        cluster_light_indices.items[base_offset + i] = point_indices[i];
+
+    for (uint i = 0u; i < spot_count; ++i)
+        cluster_light_indices.items[base_offset + point_count + i] = spot_indices[i];
+
+    cluster_records.items[cluster_index].point_spot_ranges = uvec4(
+        base_offset,
+        point_count,
+        base_offset + point_count,
+        spot_count);
+}

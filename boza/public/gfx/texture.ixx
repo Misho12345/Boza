@@ -14,6 +14,19 @@ namespace boza::gfx
     class TextureLoader;
 }
 
+namespace boza
+{
+    class Texture;
+
+    struct TextureAccess
+    {
+        static void* handle(const Texture& texture);
+        static void* handle(const Texture& texture, std::uint32_t frame_index);
+        static TextureLayout layout(const Texture& texture);
+        static void set_layout(Texture& texture, TextureLayout layout);
+    };
+}
+
 export namespace boza
 {
     class Material;
@@ -99,7 +112,9 @@ export namespace boza
         std::string name_;
         TextureSettings settings_;
         std::vector<RhiTextureHandle> rhi_textures_{};
+        std::vector<TextureLayout> layouts_{};
 
+        friend struct TextureAccess;
         friend class Material;
         friend class ComputeDispatcher;
         friend class gfx::TextureLoader;

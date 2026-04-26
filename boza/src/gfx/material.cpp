@@ -26,6 +26,14 @@ namespace boza
     {
         return material.push_constant_staging();
     }
+    std::span<void* const> MaterialAccess::descriptor_set_layouts(const Material& material)
+    {
+        return material.descriptor_set_layouts_;
+    }
+    const MaterialSettings& MaterialAccess::settings(const Material& material)
+    {
+        return material.settings_;
+    }
     void MaterialAccess::bind_descriptor_sets(const Material& material) { material.bind_descriptor_sets(); }
 
     Material::Material(const std::string_view name)
@@ -86,6 +94,7 @@ namespace boza
 
     Material::Material(Material&& other) noexcept
         : name_{ std::move(other.name_) },
+          settings_{ std::move(other.settings_) },
           pipeline_{ std::exchange(other.pipeline_, nullptr) },
           pipeline_layout_{ std::exchange(other.pipeline_layout_, nullptr) },
           descriptor_set_layouts_{ std::move(other.descriptor_set_layouts_) },
@@ -101,7 +110,8 @@ namespace boza
           bound_sampler_handles_{ std::move(other.bound_sampler_handles_) },
           default_samplers_{ std::move(other.default_samplers_) },
           descriptor_pool_{ std::exchange(other.descriptor_pool_, nullptr) },
-          cpu_cull_enabled_{ std::exchange(other.cpu_cull_enabled_, true) } {}
+          cpu_cull_enabled_{ std::exchange(other.cpu_cull_enabled_, true) },
+          shadow_only_{ std::exchange(other.shadow_only_, false) } {}
 
     Material& Material::operator=(Material&& other) noexcept
     {
@@ -110,6 +120,7 @@ namespace boza
         cleanup();
 
         name_ = std::move(other.name_);
+        settings_ = std::move(other.settings_);
         pipeline_ = std::exchange(other.pipeline_, nullptr);
         pipeline_layout_ = std::exchange(other.pipeline_layout_, nullptr);
         descriptor_set_layouts_ = std::move(other.descriptor_set_layouts_);
@@ -126,6 +137,7 @@ namespace boza
         default_samplers_ = std::move(other.default_samplers_);
         descriptor_pool_ = std::exchange(other.descriptor_pool_, nullptr);
         cpu_cull_enabled_ = std::exchange(other.cpu_cull_enabled_, true);
+        shadow_only_ = std::exchange(other.shadow_only_, false);
 
         return *this;
     }

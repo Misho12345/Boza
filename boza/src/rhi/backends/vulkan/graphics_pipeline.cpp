@@ -28,10 +28,30 @@ namespace boza::rhi::vk
         {
             return shader && shader->stage() == ShaderStage::Vertex;
         });
+        const bool has_tess_control_stage = std::ranges::any_of(desc_.shaders, [](const rhi::ShaderModule* shader)
+        {
+            return shader && shader->stage() == ShaderStage::TessControl;
+        });
+        const bool has_tess_evaluation_stage = std::ranges::any_of(desc_.shaders, [](const rhi::ShaderModule* shader)
+        {
+            return shader && shader->stage() == ShaderStage::TessEvaluation;
+        });
 
         if (!has_vertex_stage)
         {
             Log::error("Cannot create graphics pipeline: missing vertex shader stage");
+            return false;
+        }
+
+        if (has_tess_control_stage != has_tess_evaluation_stage)
+        {
+            Log::error("Cannot create graphics pipeline: tessellation requires both control and evaluation shader stages");
+            return false;
+        }
+
+        if (has_tess_control_stage && desc_.topology != PrimitiveTopology::PatchList)
+        {
+            Log::error("Cannot create graphics pipeline: tessellation pipelines must use patch-list topology");
             return false;
         }
 
@@ -118,6 +138,14 @@ namespace boza::rhi::vk
             .flags = 0,
             .topology = to_vk(desc_.topology),
             .primitiveRestartEnable = false
+        };
+
+        const VkPipelineTessellationStateCreateInfo tessellation_state
+        {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .patchControlPoints = desc_.patch_control_points
         };
 
         static constexpr VkPipelineViewportStateCreateInfo viewport_state
@@ -311,7 +339,7 @@ namespace boza::rhi::vk
             .pStages = shader_stages.data(),
             .pVertexInputState = &vertex_input_info,
             .pInputAssemblyState = &input_assembly,
-            .pTessellationState = nullptr,
+            .pTessellationState = has_tess_control_stage ? &tessellation_state : nullptr,
             .pViewportState = &viewport_state,
             .pRasterizationState = &rasterizer,
             .pMultisampleState = &multisampling,

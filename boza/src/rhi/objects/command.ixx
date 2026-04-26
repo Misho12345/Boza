@@ -17,6 +17,7 @@ export namespace boza::rhi
     class GraphicsPipeline;
     class ComputePipeline;
     class Buffer;
+    class Texture;
 
     /// ------------------------
     /// ===== Command Pool =====
@@ -123,6 +124,12 @@ export namespace boza::rhi
             std::int32_t  vertex_offset  = 0,
             std::uint32_t first_instance = 0) = 0;
 
+        virtual void draw_indexed_indirect(
+            Buffer*       buffer,
+            std::uint64_t offset,
+            std::uint32_t draw_count,
+            std::uint32_t stride) = 0;
+
         virtual void dispatch(std::uint32_t group_x, std::uint32_t group_y, std::uint32_t group_z) = 0;
 
         virtual void bind_graphics_pipeline(GraphicsPipeline* pipeline) = 0;
@@ -148,7 +155,24 @@ export namespace boza::rhi
             std::uint32_t   size,
             const void*     data) = 0;
 
+        virtual void begin_depth_rendering(
+            Texture*      depth_texture,
+            std::uint32_t width,
+            std::uint32_t height,
+            float         clear_depth = 1.0f,
+            bool          flip_y = false) = 0;
+        virtual void begin_depth_rendering_layer(
+            Texture*      depth_texture,
+            std::uint32_t layer,
+            std::uint32_t width,
+            std::uint32_t height,
+            float         clear_depth = 1.0f,
+            bool          flip_y = false) = 0;
+        virtual void end_rendering() = 0;
+
         virtual void compute_memory_barrier() = 0;
+        virtual void compute_to_draw_barrier() = 0;
+        virtual void draw_to_compute_barrier() = 0;
 
         virtual void image_barrier(
             Texture*      texture,

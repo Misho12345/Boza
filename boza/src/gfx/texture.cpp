@@ -15,10 +15,44 @@ import boza.gfx.texture_loader;
 
 namespace boza
 {
+    void* TextureAccess::handle(const Texture& texture) { return texture.rhi_handle(); }
+    void* TextureAccess::handle(const Texture& texture, const std::uint32_t frame_index)
+    {
+        return texture.rhi_handle(frame_index);
+    }
+
+    TextureLayout TextureAccess::layout(const Texture& texture)
+    {
+        if (texture.layouts_.empty()) return TextureLayout::Undefined;
+
+        if (texture.settings_.access_mode != ResourceAccessMode::Dynamic)
+            return texture.layouts_.front();
+
+        const auto* swapchain = rhi::RenderContext::swapchain();
+        const std::uint32_t frame_index = swapchain ? swapchain->current_frame() : 0u;
+        return texture.layouts_[frame_index % texture.layouts_.size()];
+    }
+
+    void TextureAccess::set_layout(Texture& texture, const TextureLayout layout)
+    {
+        if (texture.layouts_.empty()) return;
+
+        if (texture.settings_.access_mode != ResourceAccessMode::Dynamic)
+        {
+            texture.layouts_.front() = layout;
+            return;
+        }
+
+        const auto* swapchain = rhi::RenderContext::swapchain();
+        const std::uint32_t frame_index = swapchain ? swapchain->current_frame() : 0u;
+        texture.layouts_[frame_index % texture.layouts_.size()] = layout;
+    }
+
     constexpr std::uint8_t channels_for_format(const TextureFormat format)
     {
         switch (format)
         {
+            case TextureFormat::Undefined: return 4;
             case TextureFormat::R8:
             case TextureFormat::R16F:
             case TextureFormat::R32F: return 1;
@@ -40,6 +74,7 @@ namespace boza
     {
         switch (format)
         {
+            case TextureFormat::Undefined: return 4;
             case TextureFormat::R8: return 1;
             case TextureFormat::RG8: return 2;
             case TextureFormat::RGB8: return 3;
@@ -60,6 +95,32 @@ namespace boza
             case TextureFormat::DEPTH32F: return 4;
 
             default: return 4;
+        }
+    }
+
+    constexpr std::uint8_t bytes_per_channel_for_format(const TextureFormat format)
+    {
+        switch (format)
+        {
+            case TextureFormat::R8:
+            case TextureFormat::RG8:
+            case TextureFormat::RGB8:
+            case TextureFormat::RGBA8:
+            case TextureFormat::BGRA8: return 1;
+
+            case TextureFormat::R16F:
+            case TextureFormat::RG16F:
+            case TextureFormat::RGB16F:
+            case TextureFormat::RGBA16F: return 2;
+
+            case TextureFormat::R32F:
+            case TextureFormat::RG32F:
+            case TextureFormat::RGB32F:
+            case TextureFormat::RGBA32F: return 4;
+
+            case TextureFormat::DEPTH24STENCIL8:
+            case TextureFormat::DEPTH32F: return 4;
+            default: return 1;
         }
     }
 
@@ -93,11 +154,21 @@ namespace boza
                                                 : 1;
 
         rhi_textures_.reserve(texture_count);
+        layouts_.assign(texture_count, TextureLayout::Undefined);
 
         const bool is_cube =
             settings_.type == TextureType::TextureCube ||
-            settings_.type == TextureType::TextureCubeArray ||
-            settings_.type == TextureType::Texture3D;
+            settings_.type == TextureType::TextureCubeArray;
+
+        const bool is_array =
+            settings_.type == TextureType::Texture1DArray ||
+            settings_.type == TextureType::Texture2DArray ||
+            settings_.type == TextureType::TextureCubeArray;
+
+        const std::uint32_t image_depth = settings_.type == TextureType::Texture3D
+                                             ? std::max(settings_.depth, 1u)
+                                             : 1u;
+        const std::uint32_t array_layers = is_array ? std::max(settings_.depth, 1u) : 1u;
 
         for (std::uint32_t i = 0; i < texture_count; ++i)
         {
@@ -109,8 +180,8 @@ namespace boza
                     .usage        = settings_.usage_flags,
                     .width        = settings_.width,
                     .height       = settings_.height,
-                    .depth        = settings_.depth,
-                    .array_layers = is_cube ? 1 : settings_.depth,
+                    .depth        = image_depth,
+                    .array_layers = is_cube ? std::max(settings_.depth, 1u) : array_layers,
                 });
 
             if (!rhi_texture)
@@ -134,12 +205,14 @@ namespace boza
     void Texture::cleanup()
     {
         rhi_textures_.clear();
+        layouts_.clear();
     }
 
     Texture::Texture(Texture&& other) noexcept
         : name_{ std::move(other.name_) },
           settings_{ std::exchange(other.settings_, {}) },
-          rhi_textures_{ std::move(other.rhi_textures_) } {}
+          rhi_textures_{ std::move(other.rhi_textures_) },
+          layouts_{ std::move(other.layouts_) } {}
 
     Texture& Texture::operator=(Texture&& other) noexcept
     {
@@ -149,6 +222,7 @@ namespace boza
 
         name_ = std::move(other.name_);
         rhi_textures_ = std::move(other.rhi_textures_);
+        layouts_ = std::move(other.layouts_);
         settings_     = std::exchange(other.settings_, {});
 
         return *this;
@@ -319,6 +393,7 @@ namespace boza
             settings_.width,
             settings_.height,
             channels_for_format(settings_.format),
+            bytes_per_channel_for_format(settings_.format),
             data.data()
         };
 
@@ -386,6 +461,7 @@ namespace boza
         if (auto* texture = static_cast<rhi::Texture*>(get_validated_texture()))
         {
             texture->transition_layout(old_layout, new_layout);
+            const_cast<Texture*>(this)->layouts_.assign(layouts_.size(), new_layout);
         }
     }
 }

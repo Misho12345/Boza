@@ -28,6 +28,7 @@ namespace boza::rhi::vk
         if (!query_swapchain_support() ||
             !create_vk_swapchain() ||
             !create_image_views() ||
+            !create_color_resources() ||
             !create_depth_resources() ||
             !create_command_buffers() ||
             !create_sync_objects())
@@ -57,6 +58,7 @@ namespace boza::rhi::vk
             }
         }
 
+        destroy_color_resources();
         destroy_depth_resources();
 
         for (const auto& image_view : image_views_)
@@ -411,7 +413,10 @@ namespace boza::rhi::vk
     }
 
 
-    bool Swapchain::begin_render_pass(const std::uint32_t image_idx)
+    bool Swapchain::begin_render_pass(
+        const std::uint32_t image_idx,
+        rhi::Texture* const depth_texture,
+        const bool clear_depth)
     {
         // Log::trace("Beginning render pass for image {}", image_idx);
 
@@ -447,26 +452,96 @@ namespace boza::rhi::vk
             }
         };
 
-        const VkClearValue clear_depth{ .depthStencil = { desc_.clear_depth, desc_.clear_stencil } };
+        const VkClearValue clear_depth_value{ .depthStencil = { desc_.clear_depth, desc_.clear_stencil } };
+
+        const bool use_msaa = desc_.sample_count != TextureSampleCount::Count1 && color_image_view_ != nullptr;
+
+        if (use_msaa && color_image_layout_ != VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+        {
+            cmd_buffer->pipeline_image_barrier(
+                color_image_,
+                color_image_layout_,
+                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                color_image_layout_ == VK_IMAGE_LAYOUT_UNDEFINED
+                    ? VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT
+                    : VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                color_image_layout_ == VK_IMAGE_LAYOUT_UNDEFINED
+                    ? VK_ACCESS_2_NONE
+                    : (VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT),
+                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+                VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+                VK_IMAGE_ASPECT_COLOR_BIT,
+                0,
+                1,
+                0,
+                1);
+
+            color_image_layout_ = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        }
 
         const VkRenderingAttachmentInfo color_attachment
         {
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
             .pNext = nullptr,
-            .imageView = image_views_[image_idx],
+            .imageView = use_msaa ? color_image_view_ : image_views_[image_idx],
             .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-            .resolveMode = VK_RESOLVE_MODE_NONE,
-            .resolveImageView = nullptr,
-            .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .resolveMode = use_msaa ? VK_RESOLVE_MODE_AVERAGE_BIT : VK_RESOLVE_MODE_NONE,
+            .resolveImageView = use_msaa ? image_views_[image_idx] : nullptr,
+            .resolveImageLayout = use_msaa ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_UNDEFINED,
             .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .storeOp = use_msaa ? VK_ATTACHMENT_STORE_OP_DONT_CARE : VK_ATTACHMENT_STORE_OP_STORE,
             .clearValue = clear_color
         };
 
         VkRenderingAttachmentInfo depth_attachment{};
         const VkRenderingAttachmentInfo* depth_attachment_ptr = nullptr;
 
-        if (depth_image_view_ != nullptr)
+        if (depth_texture != nullptr && !use_msaa)
+        {
+            auto* vk_depth_texture = reinterpret_cast<Texture*>(depth_texture);
+            const VkImageLayout current_layout = vk_depth_texture->vk_layout();
+
+            if (current_layout != VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+            {
+                cmd_buffer->pipeline_image_barrier(
+                    vk_depth_texture->vk_image(),
+                    current_layout,
+                    VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                    current_layout == VK_IMAGE_LAYOUT_UNDEFINED
+                        ? VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT
+                        : VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                    current_layout == VK_IMAGE_LAYOUT_UNDEFINED
+                        ? VK_ACCESS_2_NONE
+                        : (VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT),
+                    VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+                    VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+                    vk_depth_texture->aspect_mask(),
+                    0,
+                    vk_depth_texture->mip_levels(),
+                    0,
+                    vk_depth_texture->layer_count());
+
+                for (auto& layout : vk_depth_texture->layer_layouts_)
+                    layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            }
+
+            depth_attachment = {
+                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                .pNext = nullptr,
+                .imageView = vk_depth_texture->vk_image_view(),
+                .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                .resolveMode = VK_RESOLVE_MODE_NONE,
+                .resolveImageView = nullptr,
+                .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                .loadOp = clear_depth ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
+                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                .clearValue = clear_depth ? clear_depth_value : VkClearValue{}
+            };
+
+            depth_attachment_ptr = &depth_attachment;
+        }
+
+        if (depth_attachment_ptr == nullptr && depth_image_view_ != nullptr)
         {
             depth_attachment = {
                 .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -478,7 +553,7 @@ namespace boza::rhi::vk
                 .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
                 .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-                .clearValue = clear_depth
+                .clearValue = clear_depth_value
             };
             depth_attachment_ptr = &depth_attachment;
         }
@@ -552,6 +627,83 @@ namespace boza::rhi::vk
         return true;
     }
 
+    bool Swapchain::begin_depth_prepass(const std::uint32_t image_idx, const float clear_depth)
+    {
+        if (image_idx >= images_.size())
+        {
+            Log::critical("Invalid image index for begin_depth_prepass");
+            return false;
+        }
+
+        if (depth_image_view_ == nullptr)
+        {
+            Log::critical("Cannot begin depth prepass without a depth buffer");
+            return false;
+        }
+
+        const auto& frame = frames_[current_frame_];
+        const CommandBuffer* cmd_buffer = reinterpret_cast<CommandBuffer*>(frame.cmd_buffer.get());
+
+        const VkClearValue clear_value{ .depthStencil = { clear_depth, 0 } };
+        const VkRenderingAttachmentInfo depth_attachment
+        {
+            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .pNext = nullptr,
+            .imageView = depth_image_view_,
+            .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+            .resolveMode = VK_RESOLVE_MODE_NONE,
+            .resolveImageView = nullptr,
+            .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .clearValue = clear_value
+        };
+
+        const VkRenderingInfo rendering_info
+        {
+            .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+            .pNext = nullptr,
+            .flags = {},
+            .renderArea = { .offset = { 0, 0 }, .extent = extent_ },
+            .layerCount = 1,
+            .viewMask = 0,
+            .colorAttachmentCount = 0,
+            .pColorAttachments = nullptr,
+            .pDepthAttachment = &depth_attachment,
+            .pStencilAttachment = nullptr
+        };
+
+        vkCmdBeginRendering(cmd_buffer->vk_command_buffer(), &rendering_info);
+
+        const VkViewport viewport
+        {
+            .x = 0.0f,
+            .y = static_cast<float>(extent_.height),
+            .width = static_cast<float>(extent_.width),
+            .height = -static_cast<float>(extent_.height),
+            .minDepth = 0.0f,
+            .maxDepth = 1.0f
+        };
+
+        const VkRect2D scissor
+        {
+            .offset = { 0, 0 },
+            .extent = extent_
+        };
+
+        vkCmdSetViewport(cmd_buffer->vk_command_buffer(), 0, 1, &viewport);
+        vkCmdSetScissor(cmd_buffer->vk_command_buffer(), 0, 1, &scissor);
+        return true;
+    }
+
+    bool Swapchain::end_depth_prepass([[maybe_unused]] const std::uint32_t image_idx)
+    {
+        const auto& frame = frames_[current_frame_];
+        const CommandBuffer* cmd_buffer = reinterpret_cast<CommandBuffer*>(frame.cmd_buffer.get());
+        vkCmdEndRendering(cmd_buffer->vk_command_buffer());
+        return true;
+    }
+
 
     TextureFormat Swapchain::format() const { return to_texture_format(surface_format_.format); }
 
@@ -588,7 +740,8 @@ namespace boza::rhi::vk
         images_.clear();
         image_layouts_.clear();
 
-        // Destroy old depth resources before creating new ones
+        // Destroy old multisample/depth resources before creating new ones
+        destroy_color_resources();
         destroy_depth_resources();
 
         std::vector<VkCommandBuffer> command_buffers;
@@ -635,6 +788,7 @@ namespace boza::rhi::vk
         }
 
         if (!create_image_views()) return false;
+        if (!create_color_resources()) return false;
         if (!create_depth_resources()) return false;
         if (!create_command_buffers()) return false;
         if (!create_sync_objects()) return false;
@@ -1033,7 +1187,7 @@ namespace boza::rhi::vk
             .extent = { extent_.width, extent_.height, 1 },
             .mipLevels = 1,
             .arrayLayers = 1,
-            .samples = VK_SAMPLE_COUNT_1_BIT,
+            .samples = to_vk(desc_.sample_count),
             .tiling = VK_IMAGE_TILING_OPTIMAL,
             .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
@@ -1137,6 +1291,145 @@ namespace boza::rhi::vk
 
         // Log::trace("Created depth buffer with format {}", depth_format_);
         return true;
+    }
+
+    bool Swapchain::create_color_resources()
+    {
+        if (desc_.sample_count == TextureSampleCount::Count1)
+        {
+            color_image_layout_ = VK_IMAGE_LAYOUT_UNDEFINED;
+            return true;
+        }
+
+        const Device* device = reinterpret_cast<Device*>(desc_.device);
+        const VkDevice vk_device = device->logical_device();
+
+        const VkImageCreateInfo image_info
+        {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .imageType = VK_IMAGE_TYPE_2D,
+            .format = surface_format_.format,
+            .extent = { extent_.width, extent_.height, 1 },
+            .mipLevels = 1,
+            .arrayLayers = 1,
+            .samples = to_vk(desc_.sample_count),
+            .tiling = VK_IMAGE_TILING_OPTIMAL,
+            .usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+            .queueFamilyIndexCount = 0,
+            .pQueueFamilyIndices = nullptr,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+        };
+
+        static constexpr VmaAllocationCreateInfo alloc_info
+        {
+            .flags = 0,
+            .usage = VMA_MEMORY_USAGE_GPU_ONLY,
+            .requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+            .preferredFlags = 0,
+            .memoryTypeBits = 0,
+            .pool = nullptr,
+            .pUserData = nullptr,
+            .priority = 0.0f
+        };
+
+        if (!vk_check(
+            vmaCreateImage(device->allocator()->vma_allocator(), &image_info, &alloc_info, &color_image_, &color_allocation_, nullptr),
+            "Failed to create multisample color image"))
+            return false;
+
+        const VkImageViewCreateInfo view_info
+        {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .image = color_image_,
+            .viewType = VK_IMAGE_VIEW_TYPE_2D,
+            .format = surface_format_.format,
+            .components = {},
+            .subresourceRange = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1
+            }
+        };
+
+        if (!vk_check(
+            vkCreateImageView(vk_device, &view_info, nullptr, &color_image_view_),
+            "Failed to create multisample color image view"))
+        {
+            destroy_color_resources();
+            return false;
+        }
+
+        auto* command_pool = reinterpret_cast<CommandPool*>(
+            desc_.device->command_pool(desc_.device->queue_family_indices().graphics_family));
+        if (!command_pool)
+        {
+            Log::error("Failed to get graphics command pool for multisample color transition");
+            destroy_color_resources();
+            return false;
+        }
+
+        auto* command_buffer = reinterpret_cast<CommandBuffer*>(command_pool->begin_single_time_commands());
+        if (!command_buffer)
+        {
+            Log::error("Failed to begin multisample color layout transition commands");
+            destroy_color_resources();
+            return false;
+        }
+
+        command_buffer->pipeline_image_barrier(
+            color_image_,
+            VK_IMAGE_LAYOUT_UNDEFINED,
+            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+            VK_ACCESS_2_NONE,
+            VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+            VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+            VK_IMAGE_ASPECT_COLOR_BIT,
+            0,
+            1,
+            0,
+            1);
+
+        if (!command_pool->end_single_time_commands(command_buffer))
+        {
+            Log::error("Failed to submit multisample color layout transition commands");
+            destroy_color_resources();
+            return false;
+        }
+
+        color_image_layout_ = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        return true;
+    }
+
+    void Swapchain::destroy_color_resources()
+    {
+        if (color_image_view_ == nullptr && color_image_ == nullptr)
+            return;
+
+        const Device* device = reinterpret_cast<Device*>(desc_.device);
+        const VkDevice vk_device = device->logical_device();
+
+        if (color_image_view_ != nullptr)
+        {
+            vkDestroyImageView(vk_device, color_image_view_, nullptr);
+            color_image_view_ = nullptr;
+        }
+
+        if (color_image_ != nullptr)
+        {
+            vmaDestroyImage(device->allocator()->vma_allocator(), color_image_, color_allocation_);
+            color_image_ = nullptr;
+            color_allocation_ = nullptr;
+        }
+
+        color_image_layout_ = VK_IMAGE_LAYOUT_UNDEFINED;
     }
 
     void Swapchain::destroy_depth_resources()

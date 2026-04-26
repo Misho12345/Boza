@@ -125,11 +125,24 @@ namespace shooting_example
 
     void create_materials()
     {
-        (void)create_tint_material("shooting_example/floor", glm::vec4{ 0.24f, 0.31f, 0.23f, 1.0f });
-        (void)create_tint_material("shooting_example/wall", glm::vec4{ 0.47f, 0.51f, 0.58f, 1.0f });
+        (void)create_tint_material("shooting_example/floor", glm::vec4{ 0.18f, 0.38f, 0.16f, 1.0f });
+        (void)create_tint_material("shooting_example/wall", glm::vec4{ 0.40f, 0.45f, 0.58f, 1.0f });
         (void)create_tint_material("shooting_example/gun_body", glm::vec4{ 0.16f, 0.16f, 0.18f, 1.0f });
         (void)create_tint_material("shooting_example/gun_trim", glm::vec4{ 0.50f, 0.42f, 0.22f, 1.0f });
         (void)create_tint_material("shooting_example/bullet", glm::vec4{ 1.0f, 0.1f, 0.1f, 1.0f }, CullMode::None);
+
+        Material& tracer = Material::create(
+            "shooting_example/tracer",
+            {
+                .vertex_shader   = "material_showcase/unlit",
+                .fragment_shader = "material_showcase/unlit",
+                .cull_mode       = CullMode::None
+            });
+
+        tracer["albedo_map"] = Texture::get_or_load("default.png");
+        tracer["material.albedo_color"] = glm::vec4{ 1.0f, 0.18f, 0.05f, 1.0f };
+        tracer["material.properties"] = glm::vec4{ 0.0f };
+        tracer.set_cpu_cull_enabled(false);
     }
 
     GameObject create_box(
@@ -138,7 +151,8 @@ namespace shooting_example
         const glm::vec3&       position,
         const glm::vec3&       scale,
         const std::string_view material_name,
-        const glm::quat&       rotation = glm::identity<glm::quat>())
+        const glm::quat&       rotation = glm::identity<glm::quat>(),
+        const bool             casts_shadow = true)
     {
         GameObject box = GameObject::create(name, parent);
 
@@ -150,6 +164,8 @@ namespace shooting_example
         auto& renderer     = box.add_component<MeshRenderer>();
         renderer.mesh_name = "shooting_example/cube";
         renderer.material_name = material_name;
+
+        if (casts_shadow) box.add_component<ShadowCaster>();
 
         return box;
     }
@@ -166,6 +182,26 @@ namespace shooting_example
         return wall;
     }
 
+    void setup_lights()
+    {
+        auto key = GameObject::create("ArenaKeyLight");
+        key.get_component<Transform>().look_at(glm::vec3{ -0.35f, -0.85f, -0.25f });
+        auto& sun = key.add_component<DirectionalLight>();
+        sun.color = glm::vec3{ 1.0f, 0.96f, 0.86f };
+        sun.intensity = 2.65f;
+        sun.casts_shadows = true;
+        sun.shadow_strength = 0.58f;
+
+        auto cool = GameObject::create("ArenaCoolSideLight");
+        cool.get_component<Transform>().local_position = glm::vec3{ -38.0f, 6.0f, 24.0f };
+        auto& fill = cool.add_component<PointLight>();
+        fill.color = glm::vec3{ 0.25f, 0.45f, 1.0f };
+        fill.intensity = 2.6f;
+        fill.range = 55.0f;
+        fill.casts_shadows = false;
+        fill.shadow_strength = 0.0f;
+    }
+
     void create_environment()
     {
         world.arena           = GameObject::create("Arena");
@@ -177,26 +213,30 @@ namespace shooting_example
             "Floor",
             world.arena,
             glm::vec3{ 0.0f, -0.5f, 0.0f },
-            glm::vec3{ 120.0f, 1.0f, 120.0f },
-            "shooting_example/floor");
+            glm::vec3{ 88.0f, 1.0f, 88.0f },
+            "shooting_example/floor",
+            glm::identity<glm::quat>(),
+            false);
 
-        (void)create_wall("NorthWall", glm::vec3{ 0.0f, 2.0f, -58.0f }, glm::vec3{ 116.0f, 4.0f, 1.0f }, 0.0f);
-        (void)create_wall("SouthWall", glm::vec3{ 0.0f, 2.0f, 58.0f }, glm::vec3{ 116.0f, 4.0f, 1.0f }, 0.0f);
-        (void)create_wall("WestWall", glm::vec3{ -58.0f, 2.0f, 0.0f }, glm::vec3{ 1.0f, 4.0f, 116.0f }, 0.0f);
-        (void)create_wall("EastWall", glm::vec3{ 58.0f, 2.0f, 0.0f }, glm::vec3{ 1.0f, 4.0f, 116.0f }, 0.0f);
+        (void)create_wall("NorthWall", glm::vec3{ 0.0f, 2.0f, -42.0f }, glm::vec3{ 84.0f, 4.0f, 1.0f }, 0.0f);
+        (void)create_wall("SouthWall", glm::vec3{ 0.0f, 2.0f, 42.0f }, glm::vec3{ 84.0f, 4.0f, 1.0f }, 0.0f);
+        (void)create_wall("WestWall", glm::vec3{ -42.0f, 2.0f, 0.0f }, glm::vec3{ 1.0f, 4.0f, 84.0f }, 0.0f);
+        (void)create_wall("EastWall", glm::vec3{ 42.0f, 2.0f, 0.0f }, glm::vec3{ 1.0f, 4.0f, 84.0f }, 0.0f);
 
-        (void)create_wall("CenterSpine", glm::vec3{ 0.0f, 2.0f, 14.0f }, glm::vec3{ 18.0f, 4.0f, 1.0f }, 90.0f);
-        (void)create_wall("AngledCoverA", glm::vec3{ -20.0f, 2.0f, -8.0f }, glm::vec3{ 22.0f, 4.0f, 1.0f }, 28.0f);
-        (void)create_wall("AngledCoverB", glm::vec3{ 22.0f, 2.0f, -14.0f }, glm::vec3{ 18.0f, 4.0f, 1.0f }, -30.0f);
-        (void)create_wall("LaneBlockA", glm::vec3{ -30.0f, 2.0f, 28.0f }, glm::vec3{ 12.0f, 4.0f, 1.0f }, -18.0f);
-        (void)create_wall("LaneBlockB", glm::vec3{ 30.0f, 2.0f, 24.0f }, glm::vec3{ 12.0f, 4.0f, 1.0f }, 18.0f);
+        (void)create_wall("CenterSpine", glm::vec3{ 0.0f, 2.0f, 10.0f }, glm::vec3{ 14.0f, 4.0f, 1.0f }, 90.0f);
+        (void)create_wall("AngledCoverA", glm::vec3{ -14.0f, 2.0f, -6.0f }, glm::vec3{ 18.0f, 4.0f, 1.0f }, 28.0f);
+        (void)create_wall("AngledCoverB", glm::vec3{ 16.0f, 2.0f, -10.0f }, glm::vec3{ 16.0f, 4.0f, 1.0f }, -30.0f);
+        (void)create_wall("LaneBlockA", glm::vec3{ -22.0f, 2.0f, 20.0f }, glm::vec3{ 10.0f, 4.0f, 1.0f }, -18.0f);
+        (void)create_wall("LaneBlockB", glm::vec3{ 22.0f, 2.0f, 18.0f }, glm::vec3{ 10.0f, 4.0f, 1.0f }, 18.0f);
 
         world.tracer = create_box(
             "ShotTracer",
             world.projectiles_root,
             glm::vec3{ 0.0f, -100.0f, 0.0f },
             glm::vec3{ 0.0f },
-            "shooting_example/bullet");
+            "shooting_example/tracer",
+            glm::identity<glm::quat>(),
+            false);
 
         world.tracer.add_component<ShotTracer>();
     }
@@ -232,6 +272,8 @@ namespace shooting_example
         auto& renderer = enemy_go.add_component<MeshRenderer>();
         renderer.mesh_name = "shooting_example/cube";
         renderer.material  = material;
+
+        enemy_go.add_component<ShadowCaster>();
 
         enemy_go.add_component<BoxCollider>();
 
@@ -334,21 +376,27 @@ namespace shooting_example
             world.gun,
             glm::vec3{ 0.12f, -0.02f, 0.18f },
             glm::vec3{ 0.18f, 0.14f, 0.42f },
-            "shooting_example/gun_body");
+            "shooting_example/gun_body",
+            glm::identity<glm::quat>(),
+            false);
 
         (void)create_box(
             "GunBarrel",
             world.gun,
             glm::vec3{ 0.18f, 0.0f, 0.50f },
             glm::vec3{ 0.06f, 0.05f, 0.28f },
-            "shooting_example/gun_trim");
+            "shooting_example/gun_trim",
+            glm::identity<glm::quat>(),
+            false);
 
         (void)create_box(
             "GunGrip",
             world.gun,
-            glm::vec3{ 0.02f, -0.18f, 0.04f },
-            glm::vec3{ 0.08f, 0.20f, 0.12f },
-            "shooting_example/gun_trim");
+            glm::vec3{ 0.12f, -0.19f, 0.05f },
+            glm::vec3{ 0.075f, 0.23f, 0.11f },
+            "shooting_example/gun_trim",
+            glm::identity<glm::quat>(),
+            false);
 
         world.muzzle = GameObject::create("Muzzle", world.gun);
 
@@ -377,6 +425,7 @@ public:
 
         shooting_example::create_environment();
         shooting_example::setup_player();
+        shooting_example::setup_lights();
         shooting_example::setup_skybox();
         shooting_example::spawn_enemies();
 

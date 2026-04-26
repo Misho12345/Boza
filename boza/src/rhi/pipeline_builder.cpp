@@ -25,6 +25,22 @@ namespace boza::rhi
         std::unreachable();
     }
 
+    static SampleCount to_pipeline_sample_count(const TextureSampleCount sample_count)
+    {
+        switch (sample_count)
+        {
+            case TextureSampleCount::Count1: return SampleCount::Count1;
+            case TextureSampleCount::Count2: return SampleCount::Count2;
+            case TextureSampleCount::Count4: return SampleCount::Count4;
+            case TextureSampleCount::Count8: return SampleCount::Count8;
+            case TextureSampleCount::Count16: return SampleCount::Count16;
+            case TextureSampleCount::Count32: return SampleCount::Count32;
+            case TextureSampleCount::Count64: return SampleCount::Count64;
+        }
+
+        std::unreachable();
+    }
+
     PipelineBuilder::PipelineBuilder(const GraphicsApi api, Device* device, std::vector<ShaderModule*> shaders)
         : api_{ api },
           device_{ device },
@@ -112,6 +128,7 @@ namespace boza::rhi
         const RasterizationState&         rasterization,
         const DepthStencilState&          depth_stencil,
         const ColorBlendState&            color_blend,
+        const MultisampleState&           multisample,
         const PrimitiveTopology           topology) const
     {
         if (!pipeline_layout)
@@ -184,6 +201,7 @@ namespace boza::rhi
                 .rasterization = rasterization,
                 .depth_stencil = depth_stencil,
                 .color_blend = adjusted_color_blend,
+                .multisample = multisample,
                 .color_attachment_formats = color_attachment_formats,
                 .depth_attachment_format = depth_attachment_format,
                 .stencil_attachment_format = DepthFormat::None
@@ -202,6 +220,7 @@ namespace boza::rhi
         const RasterizationState& rasterization,
         const DepthStencilState& depth_stencil,
         const ColorBlendState&   color_blend,
+        const MultisampleState&  multisample,
         const PrimitiveTopology  topology) const
     {
         if (!swapchain)
@@ -210,6 +229,9 @@ namespace boza::rhi
             return nullptr;
         }
 
+        MultisampleState resolved_multisample = multisample;
+        resolved_multisample.sample_count = to_pipeline_sample_count(swapchain->sample_count());
+
         return build_graphics_pipeline(
             pipeline_layout,
             { swapchain->format() },
@@ -217,6 +239,7 @@ namespace boza::rhi
             rasterization,
             depth_stencil,
             color_blend,
+            resolved_multisample,
             topology
         );
     }

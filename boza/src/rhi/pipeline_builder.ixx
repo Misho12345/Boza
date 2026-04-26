@@ -26,6 +26,7 @@ export namespace boza::rhi
             const RasterizationState& rasterization = {},
             const DepthStencilState& depth_stencil = {},
             const ColorBlendState& color_blend = {},
+            const MultisampleState& multisample = {},
             PrimitiveTopology topology = PrimitiveTopology::TriangleList) const;
 
         [[nodiscard]]
@@ -36,6 +37,7 @@ export namespace boza::rhi
             const RasterizationState& rasterization = {},
             const DepthStencilState& depth_stencil = {},
             const ColorBlendState& color_blend = {},
+            const MultisampleState& multisample = {},
             PrimitiveTopology topology = PrimitiveTopology::TriangleList) const;
 
         [[nodiscard]]

@@ -10,6 +10,7 @@ import :mesh;
 import :buffer;
 import :mesh_renderer;
 import :camera;
+import :light;
 
 namespace boza
 {
@@ -105,7 +106,49 @@ namespace boza
             static void execute(const Camera& cam, const Transform& transform);
         };
 
-        struct CullEntities : EngineRenderStage<CullEntities, RunAfter<CameraUboUpdate>>
+        struct GatherPointLights : EngineRenderStage<GatherPointLights,
+            RunAfter<CameraUboUpdate>,
+            With<const Transform>,
+            With<const PointLight>>
+        {
+            static void execute(const Transform& transform, const PointLight& light);
+        };
+
+        struct GatherDirectionalLights : EngineRenderStage<GatherDirectionalLights,
+            RunAfter<CameraUboUpdate>,
+            With<const Transform>,
+            With<const DirectionalLight>>
+        {
+            static void execute(const Transform& transform, const DirectionalLight& light);
+        };
+
+        struct GatherSpotLights : EngineRenderStage<GatherSpotLights,
+            RunAfter<CameraUboUpdate>,
+            With<const Transform>,
+            With<const SpotLight>>
+        {
+            static void execute(const Transform& transform, const SpotLight& light);
+        };
+
+        struct GatherShadowCasters : EngineRenderStage<GatherShadowCasters,
+            RunAfter<CameraUboUpdate>,
+            With<const Transform>,
+            With<const ShadowCaster>,
+            Opt<const MeshRenderer>>
+        {
+            static void execute(const Transform& transform, const ShadowCaster& caster, const MeshRenderer* renderer);
+        };
+
+        struct UploadLightBuffers : EngineRenderStage<UploadLightBuffers,
+            RunAfter<GatherPointLights>,
+            RunAfter<GatherDirectionalLights>,
+            RunAfter<GatherSpotLights>,
+            RunAfter<GatherShadowCasters>>
+        {
+            static void execute();
+        };
+
+        struct CullEntities : EngineRenderStage<CullEntities, RunAfter<UploadLightBuffers>>
         {
             static void execute();
         };
@@ -166,7 +209,18 @@ namespace boza
         static void validate_unresolved_list();
         static void try_resolve_unresolved();
 
-        static void submit_draws();
+        static void submit_draws(bool bind_frame_resources = true);
+        static void prepare_frame_material_bindings();
+        static void execute_gpu_instance_culling_pass();
+        static void execute_depth_prepass();
+        static void execute_shadow_caster_cull_pass();
+        static void execute_directional_shadow_pass();
+        static void execute_point_shadow_pass();
+        static void execute_spot_shadow_pass();
+        static bool execute_clustered_light_culling_pass();
+        static bool execute_ssao_pass();
+        static void execute_forward_pass();
+
         static void draw_material_meshes(
             rhi::CommandBuffer* cmd,
             Material* material,
@@ -177,6 +231,7 @@ namespace boza
         static bool try_instanced_draw(
             rhi::CommandBuffer* cmd,
             Material* material,
+            Mesh* mesh,
             const MeshBucket& bucket,
             void* render_info,
             GpuMesh* gpu_mesh);
@@ -187,6 +242,24 @@ namespace boza
             const MeshBucket& bucket,
             void* render_info,
             GpuMesh* gpu_mesh);
+
+        static bool ensure_shadow_pipeline(Material* material);
+        static void bind_shadow_camera(Material& material, const glm::mat4& light_view_projection);
+        static void collect_shadow_models(const Mesh& mesh, const MeshBucket& bucket, const FrustumState& shadow_frustum);
+        static void render_shadow_bucket(
+            rhi::CommandBuffer* cmd,
+            Material* material,
+            const Mesh& mesh,
+            std::span<const glm::mat4> models,
+            void* render_info,
+            const glm::mat4& light_view_projection,
+            bool shadow_mode = true);
+        static void render_shadow_pass(
+            Texture* shadow_map,
+            std::span<const glm::mat4> matrices,
+            bool& layout_initialized,
+            std::string_view log_label,
+            std::uint32_t dispatcher_pass_index);
 
         static std::unique_ptr<rhi::Instance> instance_;
         static std::unique_ptr<rhi::Device> device_;

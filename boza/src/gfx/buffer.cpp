@@ -34,7 +34,9 @@ namespace boza
         {
             memory_type = rhi::BufferMemoryType::DeviceLocal;
         }
-        else if ((usage == BufferUsage::Uniform || usage == BufferUsage::Storage) &&
+        else if ((usage == BufferUsage::Uniform ||
+                  usage == BufferUsage::Storage ||
+                  usage == BufferUsage::StorageIndirect) &&
                  buffer_access_mode == ResourceAccessMode::Static)
         {
             memory_type = rhi::BufferMemoryType::DeviceLocal;

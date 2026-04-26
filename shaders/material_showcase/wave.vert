@@ -28,8 +28,10 @@ layout(set = 0, binding = 5) readonly buffer PcInstances {
 } pc_instances;
 
 layout(push_constant) uniform PushConstants {
+    mat4 shadow_view_projection;
     WaveData push;
     uint use_instancing;
+    uint render_mode;
 } pc;
 
 mat4 resolve_model_matrix() {
@@ -50,7 +52,11 @@ void main() {
     mat4 model_matrix = resolve_model_matrix();
 
     vec4 worldPos = model_matrix * vec4(pos, 1.0);
-    gl_Position = cameraUBO.proj * cameraUBO.view * worldPos;
+    if (pc.render_mode != 0u) {
+        gl_Position = pc.shadow_view_projection * worldPos;
+    } else {
+        gl_Position = cameraUBO.proj * cameraUBO.view * worldPos;
+    }
     fragPosWorld = worldPos.xyz;
 
     mat3 normalMatrix = transpose(inverse(mat3(model_matrix)));

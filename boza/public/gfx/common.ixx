@@ -71,6 +71,7 @@ namespace boza
         Index,
         Uniform,
         Storage,
+        StorageIndirect,
         Staging
     };
 
@@ -132,6 +133,7 @@ namespace boza
 
     export enum class TextureFormat : std::uint8_t
     {
+        Undefined,
         R8,
         RG8,
         RGB8,

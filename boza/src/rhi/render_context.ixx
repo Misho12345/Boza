@@ -51,7 +51,8 @@ export namespace boza::rhi
 
     private:
         RenderContext() = default;
-        static RenderContext& instance();
+
+        [[nodiscard]] static RenderContext& instance();
 
         platform::Window* window_{ nullptr };
         Device*           device_{ nullptr };

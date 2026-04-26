@@ -34,8 +34,10 @@ layout(set = 0, binding = 6) uniform GrassSettingsUBO {
 } grassSettings;
 
 layout(push_constant) uniform PushConstants {
+    mat4 shadow_view_projection;
     GrassData pc_data;
     uint use_instancing;
+    uint render_mode;
 } pc;
 
 mat4 resolve_model_matrix()
@@ -97,7 +99,11 @@ void main()
     vec4 worldPos = modelMatrix * vec4(swayedPosition, 1.0);
     fragPosWorld = worldPos.xyz;
 
-    gl_Position = cameraUBO.proj * cameraUBO.view * worldPos;
+    if (pc.render_mode != 0u) {
+        gl_Position = pc.shadow_view_projection * worldPos;
+    } else {
+        gl_Position = cameraUBO.proj * cameraUBO.view * worldPos;
+    }
 
     mat3 normalMatrix = mat3(transpose(inverse(modelMatrix)));
     fragNormal = normalize(normalMatrix * inNormal);

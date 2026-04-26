@@ -20,8 +20,10 @@ layout(set = 0, binding = 5) readonly buffer PcInstances {
 } pc_instances;
 
 layout(push_constant) uniform PushConstants {
+    mat4 shadow_view_projection;
     UnlitData params;
     uint use_instancing;
+    uint render_mode;
 } pc;
 
 mat4 resolve_model_matrix() {
@@ -35,6 +37,11 @@ mat4 resolve_model_matrix() {
 void main() {
     mat4 model_matrix = resolve_model_matrix();
 
-    gl_Position = cameraUBO.proj * cameraUBO.view * model_matrix * vec4(inPosition, 1.0);
+    vec4 world_pos = model_matrix * vec4(inPosition, 1.0);
+    if (pc.render_mode != 0u) {
+        gl_Position = pc.shadow_view_projection * world_pos;
+    } else {
+        gl_Position = cameraUBO.proj * cameraUBO.view * world_pos;
+    }
     fragTexCoord = inTexCoord + clamp(0.0f, inNormal.y, inNormal.z) * inNormal.x;
 }

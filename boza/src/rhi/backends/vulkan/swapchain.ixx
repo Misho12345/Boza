@@ -21,8 +21,13 @@ export namespace boza::rhi::vk
 
         void abort_frame() override;
 
-        bool begin_render_pass(std::uint32_t image_idx) override;
+        bool begin_render_pass(
+            std::uint32_t image_idx,
+            rhi::Texture* depth_texture = nullptr,
+            bool clear_depth = true) override;
         bool end_render_pass(std::uint32_t image_idx) override;
+        bool begin_depth_prepass(std::uint32_t image_idx, float clear_depth = 1.0f) override;
+        bool end_depth_prepass(std::uint32_t image_idx) override;
 
         std::uint32_t width() const override;
         std::uint32_t height() const override;
@@ -36,6 +41,7 @@ export namespace boza::rhi::vk
         [[nodiscard]] VkSwapchainKHR vk_swapchain() const;
         [[nodiscard]] TextureFormat format() const override;
         [[nodiscard]] DepthFormat depth_format() const override { return depth_format_; }
+        [[nodiscard]] TextureSampleCount sample_count() const override { return desc_.sample_count; }
         [[nodiscard]] std::uint32_t max_frames_in_flight() const override { return desc_.max_frames_in_flight; }
 
         [[nodiscard]] VkFormat vk_depth_format() const { return vk_depth_format_; }
@@ -56,9 +62,11 @@ export namespace boza::rhi::vk
         bool create_vk_swapchain(VkSwapchainKHR old_swapchain = nullptr);
         bool query_swapchain_support();
         bool create_image_views();
+        bool create_color_resources();
         bool create_sync_objects();
         bool create_command_buffers();
         bool create_depth_resources();
+        void destroy_color_resources();
         void destroy_depth_resources();
 
         VkPresentModeKHR choose_present_mode() const;
@@ -76,6 +84,11 @@ export namespace boza::rhi::vk
         std::vector<VkImage>       images_;
         std::vector<VkImageView>   image_views_;
         std::vector<VkImageLayout> image_layouts_;
+
+        VkImage        color_image_{ nullptr };
+        VkImageView    color_image_view_{ nullptr };
+        VmaAllocation  color_allocation_{ nullptr };
+        VkImageLayout  color_image_layout_{ VK_IMAGE_LAYOUT_UNDEFINED };
 
         // Depth buffer resources
         VkImage        depth_image_{ nullptr };

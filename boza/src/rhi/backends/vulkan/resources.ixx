@@ -7,6 +7,7 @@ import <vk_all>;
 export namespace boza::rhi::vk
 {
     class Texture;
+    class Swapchain;
 
     class Buffer final : public rhi::Buffer
     {
@@ -58,6 +59,8 @@ export namespace boza::rhi::vk
 
         [[nodiscard]] VkImage vk_image() const;
         [[nodiscard]] VkImageView vk_image_view() const;
+        [[nodiscard]] VkImageView vk_layer_image_view(std::uint32_t layer) const;
+        [[nodiscard]] VkImageLayout vk_layout(std::uint32_t layer = 0) const;
         [[nodiscard]] VkImageAspectFlags aspect_mask() const;
         [[nodiscard]] std::uint32_t mip_levels() const { return desc_.mip_levels; }
         [[nodiscard]] std::uint32_t layer_count() const;
@@ -67,6 +70,7 @@ export namespace boza::rhi::vk
 
         VkImage           image_{ nullptr };
         VkImageView       image_view_{ nullptr };
+        mutable std::vector<VkImageView> layer_image_views_{};
         VmaAllocation     allocation_{ nullptr };
         VmaAllocationInfo allocation_info_{};
         mutable std::vector<VkImageLayout> layer_layouts_{};
@@ -74,6 +78,7 @@ export namespace boza::rhi::vk
         void transition_layout_internal(VkImageLayout old_layout, VkImageLayout new_layout) const;
 
         friend GraphicsObject;
+        friend Swapchain;
     };
 
     class Sampler final : public rhi::Sampler

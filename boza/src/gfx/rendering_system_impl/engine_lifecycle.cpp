@@ -136,12 +136,12 @@ namespace boza
             descriptor_pool_ = create_descriptor_pool(
                 api, {
                     .device     = device_.get(),
-                    .max_sets   = 300,
+                    .max_sets   = 1000,
                     .pool_sizes = {
-                        { rhi::DescriptorType::UniformBuffer, 300 },
-                        { rhi::DescriptorType::CombinedImageSampler, 300 },
-                        { rhi::DescriptorType::StorageBuffer, 300 },
-                        { rhi::DescriptorType::StorageImage, 100 }
+                        { rhi::DescriptorType::UniformBuffer, 1000 },
+                        { rhi::DescriptorType::CombinedImageSampler, 1000 },
+                        { rhi::DescriptorType::StorageBuffer, 2000 },
+                        { rhi::DescriptorType::StorageImage, 300 }
                     }
                 });
 

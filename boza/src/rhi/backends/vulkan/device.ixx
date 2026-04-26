@@ -29,6 +29,7 @@ export namespace boza::rhi::vk
         [[nodiscard]] Allocator* allocator() const;
         [[nodiscard]] bool sampler_anisotropy_enabled() const { return enabled_features_.samplerAnisotropy == VK_TRUE; }
         [[nodiscard]] bool image_cube_array_enabled() const { return enabled_features_.imageCubeArray == VK_TRUE; }
+        [[nodiscard]] bool tessellation_shader_enabled() const { return enabled_features_.tessellationShader == VK_TRUE; }
 
     private:
         explicit Device(const DeviceDesc& desc) : rhi::Device(desc) {}

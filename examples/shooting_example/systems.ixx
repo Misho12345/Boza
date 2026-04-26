@@ -1,7 +1,10 @@
 export module shooting_example:systems;
 
 import std;
-import boza;
+import boza.common;
+import boza.core;
+import boza.ecs;
+import boza.input;
 
 import :components;
 import :shared;
@@ -77,7 +80,7 @@ namespace shooting_example
         const glm::vec3 direction = delta / length;
         tracer_transform->local_position = start + direction * (length * 0.5f);
         tracer_transform->local_rotation = look_rotation(direction);
-        tracer_transform->local_scale    = glm::vec3{ 0.025f, 0.025f, length };
+        tracer_transform->local_scale    = glm::vec3{ 0.0075f, 0.0075f, length };
         tracer->time_remaining           = 0.07f;
     }
 

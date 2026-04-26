@@ -61,6 +61,12 @@ export namespace boza::rhi::vk
             std::int32_t  vertex_offset  = 0,
             std::uint32_t first_instance = 0) override;
 
+        void draw_indexed_indirect(
+            Buffer*       buffer,
+            std::uint64_t offset,
+            std::uint32_t draw_count,
+            std::uint32_t stride) override;
+
         void dispatch(std::uint32_t group_x, std::uint32_t group_y, std::uint32_t group_z) override;
 
         void bind_graphics_pipeline(GraphicsPipeline* pipeline) override;
@@ -73,7 +79,24 @@ export namespace boza::rhi::vk
 
         void push_constants(PipelineLayout* layout, ShaderStage stage, std::uint32_t offset, std::uint32_t size, const void* data) override;
 
+        void begin_depth_rendering(
+            Texture*      depth_texture,
+            std::uint32_t width,
+            std::uint32_t height,
+            float         clear_depth = 1.0f,
+            bool          flip_y = false) override;
+        void begin_depth_rendering_layer(
+            Texture*      depth_texture,
+            std::uint32_t layer,
+            std::uint32_t width,
+            std::uint32_t height,
+            float         clear_depth = 1.0f,
+            bool          flip_y = false) override;
+        void end_rendering() override;
+
         void compute_memory_barrier() override;
+        void compute_to_draw_barrier() override;
+        void draw_to_compute_barrier() override;
 
         void image_barrier(Texture* texture, ResourceState old_state, ResourceState new_state) override;
 
