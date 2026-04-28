@@ -43,11 +43,15 @@ layout(set = 0, binding = 13) uniform sampler2DArray directional_shadow_map;
 
 float sample_shadow_map_array(sampler2DArray shadow_map, vec2 uv, float layer, float receiver_depth, float strength)
 {
-    const vec2 poisson_disk[4] = vec2[](
-        vec2(-0.411, -0.209),
-        vec2(0.398, -0.317),
-        vec2(-0.147, 0.451),
-        vec2(0.284, 0.196)
+    const vec2 poisson_disk[16] = vec2[](
+        vec2(-0.94201624, -0.39906216), vec2(0.94558609, -0.76890725),
+        vec2(-0.09418410, -0.92938870), vec2(0.34495938, 0.29387760),
+        vec2(-0.91588581, 0.45771432), vec2(-0.81544232, -0.87912464),
+        vec2(-0.38277543, 0.27676845), vec2(0.97484398, 0.75648379),
+        vec2(0.44323325, -0.97511554), vec2(0.53742981, -0.47373420),
+        vec2(-0.26496911, -0.41893023), vec2(0.79197514, 0.19090188),
+        vec2(-0.24188840, 0.99706507), vec2(-0.81409955, 0.91437590),
+        vec2(0.19984126, 0.78641367), vec2(0.14383161, -0.14100790)
     );
 
     vec2 texel_size = 1.0 / vec2(textureSize(shadow_map, 0).xy);
@@ -55,7 +59,7 @@ float sample_shadow_map_array(sampler2DArray shadow_map, vec2 uv, float layer, f
     float filter_width = max(0.00012, texel_size.x * 1.6);
     float visibility = 0.0;
 
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < 16; ++i)
     {
         vec2 offset = poisson_disk[i] * texel_size * 1.5;
         float map_depth = texture(shadow_map, vec3(uv + offset, layer)).r;
@@ -63,7 +67,7 @@ float sample_shadow_map_array(sampler2DArray shadow_map, vec2 uv, float layer, f
         visibility += mix(shadowed_value, 1.0, lit);
     }
 
-    return visibility * 0.25;
+    return visibility / 16.0;
 }
 
 float directional_shadow_factor(vec3 world_pos, vec3 normal, vec3 light_dir, float strength)

@@ -16,6 +16,7 @@
     "openexr",
     "spdlog",
     "gtl",
+    "tinyobjloader",
     "nlohmann-json",
     {
       "name": "mimalloc",

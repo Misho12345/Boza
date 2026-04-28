@@ -12,6 +12,7 @@ export namespace boza::detail
 
         static fs::path shaders_dir() { return fs::current_path() / "shaders"; }
         static fs::path textures_dir() { return assets_dir() / "textures"; }
+        static fs::path meshes_dir() { return assets_dir() / "meshes"; }
 
         static fs::path scenes_dir() { return assets_dir() / "scenes"; }
         static fs::path prefabs_dir() { return assets_dir() / "prefabs"; }
@@ -26,6 +27,7 @@ export namespace boza::detail
 
         static fs::path shader(const std::string& shader_name) { return shaders_dir() / normalize_resource_id(shader_name); }
         static fs::path texture(const std::string& texture_name) { return textures_dir() / normalize_resource_id(texture_name); }
+        static fs::path mesh(const std::string& relative_path) { return meshes_dir() / normalize_resource_id(relative_path); }
 
         static fs::path scene(const std::string& relative_path) { return scenes_dir() / (normalize_resource_id(relative_path) + ".scene.json"); }
         static fs::path prefab(const std::string& prefab_name) { return prefabs_dir() / (normalize_resource_id(prefab_name) + ".prefab.json"); }

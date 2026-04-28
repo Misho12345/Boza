@@ -165,7 +165,10 @@ namespace boza
 
     void InputSystem::Begin::execute()
     {
-        auto* glfw_window = static_cast<GLFWwindow*>(rhi::RenderContext::window()->native_handle());
+        auto* window = rhi::RenderContext::window();
+        if (!window) return;
+
+        auto* glfw_window = static_cast<GLFWwindow*>(window->native_handle());
         if (!glfw_window) return;
 
         glfwSetKeyCallback(glfw_window, on_key_callback);
@@ -200,6 +203,7 @@ namespace boza
         frame.scroll_delta = glm::vec2{ 0.0f, 0.0f };
 
         platform::Window* window = rhi::RenderContext::window();
+        if (!window) return;
         window->poll_events();
         if (window->should_close()) App::quit();
     }
@@ -218,7 +222,10 @@ namespace boza
 
     void InputSystem::Destroy::execute()
     {
-        auto* glfw_window = static_cast<GLFWwindow*>(rhi::RenderContext::window()->native_handle());
+        auto* window = rhi::RenderContext::window();
+        if (!window) return;
+
+        auto* glfw_window = static_cast<GLFWwindow*>(window->native_handle());
         if (!glfw_window) return;
 
         glfwSetKeyCallback(glfw_window, nullptr);

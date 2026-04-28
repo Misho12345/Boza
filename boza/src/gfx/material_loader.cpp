@@ -227,8 +227,6 @@ namespace boza::gfx
     {
         return MaterialSettings{
             .vertex_shader = def.vertex_shader,
-            .tess_control_shader = def.tess_control_shader,
-            .tess_evaluation_shader = def.tess_evaluation_shader,
             .fragment_shader = def.fragment_shader,
             .depth_compare_op = def.settings.depth_compare_op,
             .depth_test_enable = def.settings.depth_test_enable,
@@ -671,26 +669,6 @@ namespace boza::gfx
             return std::nullopt;
         }
 
-        if (j.contains("tess_control_shader") && j["tess_control_shader"].is_string())
-        {
-            def.tess_control_shader = detail::AssetPaths::normalize_resource_id(j["tess_control_shader"].get<std::string>());
-            if (def.tess_control_shader.empty())
-            {
-                Log::error("Material {} has invalid 'tess_control_shader' path", def.name);
-                return std::nullopt;
-            }
-        }
-
-        if (j.contains("tess_evaluation_shader") && j["tess_evaluation_shader"].is_string())
-        {
-            def.tess_evaluation_shader = detail::AssetPaths::normalize_resource_id(j["tess_evaluation_shader"].get<std::string>());
-            if (def.tess_evaluation_shader.empty())
-            {
-                Log::error("Material {} has invalid 'tess_evaluation_shader' path", def.name);
-                return std::nullopt;
-            }
-        }
-
         if (j.contains("load_strategy") && j["load_strategy"].is_string())
         {
             const std::string strategy = j["load_strategy"].get<std::string>();
@@ -1082,24 +1060,12 @@ namespace boza::gfx
         Material material{ name };
         material.settings_ = settings;
 
-        const std::string vertex_shader_id   = detail::AssetPaths::normalize_resource_id(settings.vertex_shader);
-        const std::string tess_control_shader_id = detail::AssetPaths::normalize_resource_id(settings.tess_control_shader);
-        const std::string tess_evaluation_shader_id = detail::AssetPaths::normalize_resource_id(settings.tess_evaluation_shader);
+        const std::string vertex_shader_id = detail::AssetPaths::normalize_resource_id(settings.vertex_shader);
         const std::string fragment_shader_id = detail::AssetPaths::normalize_resource_id(settings.fragment_shader);
 
         if (vertex_shader_id.empty() || fragment_shader_id.empty())
         {
             Log::error("Material '{}': vertex or fragment shader name is empty", name);
-            return material;
-        }
-
-        const bool uses_tessellation =
-            !tess_control_shader_id.empty() ||
-            !tess_evaluation_shader_id.empty();
-
-        if (uses_tessellation && (tess_control_shader_id.empty() || tess_evaluation_shader_id.empty()))
-        {
-            Log::error("Material '{}': tessellation requires both tess_control_shader and tess_evaluation_shader", name);
             return material;
         }
 
@@ -1159,49 +1125,7 @@ namespace boza::gfx
         }
 
         rhi::ShaderModule* vert_shader = vert_shader_shared.get();
-        std::shared_ptr<rhi::ShaderModule> tess_control_shader_shared{};
-        std::shared_ptr<rhi::ShaderModule> tess_evaluation_shader_shared{};
-        rhi::ShaderModule* tess_control_shader = nullptr;
-        rhi::ShaderModule* tess_evaluation_shader = nullptr;
         rhi::ShaderModule* frag_shader = frag_shader_shared.get();
-
-        if (uses_tessellation)
-        {
-            const rhi::ShaderModuleDesc tess_control_desc{
-                .device = device,
-                .filename = tess_control_shader_id + ".tesc",
-                .stage = rhi::ShaderStage::TessControl
-            };
-
-            tess_control_shader_shared = resource_cache->get_or_create_shader(
-                tess_control_desc,
-                [api](const rhi::ShaderModuleDesc& desc) { return create_shader_module(api, desc); });
-
-            if (!tess_control_shader_shared)
-            {
-                Log::error("Failed to load tessellation control shader: {}", tess_control_shader_id);
-                return material;
-            }
-
-            const rhi::ShaderModuleDesc tess_evaluation_desc{
-                .device = device,
-                .filename = tess_evaluation_shader_id + ".tese",
-                .stage = rhi::ShaderStage::TessEvaluation
-            };
-
-            tess_evaluation_shader_shared = resource_cache->get_or_create_shader(
-                tess_evaluation_desc,
-                [api](const rhi::ShaderModuleDesc& desc) { return create_shader_module(api, desc); });
-
-            if (!tess_evaluation_shader_shared)
-            {
-                Log::error("Failed to load tessellation evaluation shader: {}", tess_evaluation_shader_id);
-                return material;
-            }
-
-            tess_control_shader = tess_control_shader_shared.get();
-            tess_evaluation_shader = tess_evaluation_shader_shared.get();
-        }
 
         rhi::GraphicsPipeline* pipeline        = nullptr;
         rhi::PipelineLayout*   pipeline_layout = nullptr;
@@ -1222,10 +1146,7 @@ namespace boza::gfx
         }
         else
         {
-            std::vector<rhi::ShaderModule*> pipeline_shaders{ vert_shader };
-            if (tess_control_shader) pipeline_shaders.push_back(tess_control_shader);
-            if (tess_evaluation_shader) pipeline_shaders.push_back(tess_evaluation_shader);
-            pipeline_shaders.push_back(frag_shader);
+            std::vector<rhi::ShaderModule*> pipeline_shaders{ vert_shader, frag_shader };
 
             rhi::PipelineBuilder builder(api, device, pipeline_shaders);
 
@@ -1268,7 +1189,7 @@ namespace boza::gfx
                 depth_state,
                 {},
                 {},
-                uses_tessellation ? rhi::PrimitiveTopology::PatchList : rhi::PrimitiveTopology::TriangleList);
+                rhi::PrimitiveTopology::TriangleList);
 
             if (!pipeline_owner)
             {
@@ -1377,10 +1298,7 @@ namespace boza::gfx
         material.descriptor_pool_ = descriptor_pool;
 
         auto* reflection = new rhi::DescriptorReflection();
-        std::vector<rhi::ShaderModule*> reflection_shaders{ vert_shader };
-        if (tess_control_shader) reflection_shaders.push_back(tess_control_shader);
-        if (tess_evaluation_shader) reflection_shaders.push_back(tess_evaluation_shader);
-        reflection_shaders.push_back(frag_shader);
+        std::vector<rhi::ShaderModule*> reflection_shaders{ vert_shader, frag_shader };
         reflection->build_from_shaders(reflection_shaders);
         material.reflection_.reset(reflection);
 
@@ -1411,7 +1329,6 @@ namespace boza::gfx
         bind_default_texture("metallic_map", "__boza_black");
         bind_default_texture("ao_map", "__boza_white");
         bind_default_texture("ssao_texture", "__boza_white");
-        bind_default_texture("height_map", "__boza_black");
 
         return material;
     }

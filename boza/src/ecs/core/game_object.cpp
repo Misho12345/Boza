@@ -118,6 +118,8 @@ namespace boza
             else (void)entity_.disable();
         }
 
+        (void)entity_.add<tags::RenderTransformDirty>();
+
         for_each_child([=](const GameObject obj) { obj.update_active_hierarchy(should_be_active && obj.is_active_self()); });
     }
 }

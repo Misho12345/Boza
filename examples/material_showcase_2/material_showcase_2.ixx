@@ -31,10 +31,8 @@ namespace
         float metallic_bias{ 0.0f };
         float roughness_scale{ 1.0f };
         float uv_scale{ 1.0f };
-        float displacement_scale{ 0.0f };
-        float tessellation_scale{ 1.0f };
         SurfaceMapping mapping{ SurfaceMapping::Uv };
-        bool heightfield_displacement{ false };
+        CullMode cull_mode{ CullMode::Back };
     };
 
     struct Showcase2CameraController
@@ -99,195 +97,22 @@ namespace
 
     void create_cube_mesh()
     {
-        Mesh::create(
-            "showcase2/cube",
-            std::vector<Vertex>{
-                { { -0.5f, -0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } },
-                { { 0.5f, -0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f } },
-                { { 0.5f, 0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f } },
-                { { -0.5f, 0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f } },
-                { { 0.5f, -0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 0.0f, 0.0f } },
-                { { -0.5f, -0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 1.0f, 0.0f } },
-                { { -0.5f, 0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 1.0f, 1.0f } },
-                { { 0.5f, 0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 0.0f, 1.0f } },
-                { { -0.5f, 0.5f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
-                { { 0.5f, 0.5f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
-                { { 0.5f, 0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f } },
-                { { -0.5f, 0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } },
-                { { -0.5f, -0.5f, -0.5f }, { 0.0f, -1.0f, 0.0f }, { 0.0f, 0.0f } },
-                { { 0.5f, -0.5f, -0.5f }, { 0.0f, -1.0f, 0.0f }, { 1.0f, 0.0f } },
-                { { 0.5f, -0.5f, 0.5f }, { 0.0f, -1.0f, 0.0f }, { 1.0f, 1.0f } },
-                { { -0.5f, -0.5f, 0.5f }, { 0.0f, -1.0f, 0.0f }, { 0.0f, 1.0f } },
-                { { 0.5f, -0.5f, 0.5f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
-                { { 0.5f, -0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f } },
-                { { 0.5f, 0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f } },
-                { { 0.5f, 0.5f, 0.5f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f } },
-                { { -0.5f, -0.5f, -0.5f }, { -1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
-                { { -0.5f, -0.5f, 0.5f }, { -1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f } },
-                { { -0.5f, 0.5f, 0.5f }, { -1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f } },
-                { { -0.5f, 0.5f, -0.5f }, { -1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f } }
-            },
-            std::vector<std::uint32_t>{
-                0, 1, 2, 0, 2, 3,
-                4, 5, 6, 4, 6, 7,
-                8, 9, 10, 8, 10, 11,
-                12, 13, 14, 12, 14, 15,
-                16, 17, 18, 16, 18, 19,
-                20, 21, 22, 20, 22, 23
-            });
+        Mesh::create_obj("cube", "primitives/cube.obj");
     }
 
     void create_pyramid_mesh()
     {
-        std::vector<Vertex> vertices;
-        std::vector<std::uint32_t> indices;
-
-        auto append_triangle = [&](const glm::vec3& a, const glm::vec3& b, const glm::vec3& c,
-                                   const glm::vec2& uv_a, const glm::vec2& uv_b, const glm::vec2& uv_c)
-        {
-            const glm::vec3 normal = glm::normalize(glm::cross(c - a, b - a));
-            const std::uint32_t base = static_cast<std::uint32_t>(vertices.size());
-            vertices.push_back(Vertex{ a, normal, uv_a });
-            vertices.push_back(Vertex{ b, normal, uv_b });
-            vertices.push_back(Vertex{ c, normal, uv_c });
-            indices.insert(indices.end(), { base, base + 2u, base + 1u });
-        };
-
-        const glm::vec3 apex{ 0.0f, 0.5f, 0.0f };
-        const glm::vec3 lbf{ -0.5f, -0.5f, 0.5f };
-        const glm::vec3 rbf{ 0.5f, -0.5f, 0.5f };
-        const glm::vec3 lbb{ -0.5f, -0.5f, -0.5f };
-        const glm::vec3 rbb{ 0.5f, -0.5f, -0.5f };
-
-        append_triangle(lbf, rbf, apex, { 0.0f, 0.0f }, { 1.0f, 0.0f }, { 0.5f, 1.0f });
-        append_triangle(rbb, lbb, apex, { 0.0f, 0.0f }, { 1.0f, 0.0f }, { 0.5f, 1.0f });
-        append_triangle(lbb, lbf, apex, { 0.0f, 0.0f }, { 1.0f, 0.0f }, { 0.5f, 1.0f });
-        append_triangle(rbf, rbb, apex, { 0.0f, 0.0f }, { 1.0f, 0.0f }, { 0.5f, 1.0f });
-
-        append_triangle(lbb, rbb, rbf, { 0.0f, 0.0f }, { 1.0f, 0.0f }, { 1.0f, 1.0f });
-        append_triangle(lbb, rbf, lbf, { 0.0f, 0.0f }, { 1.0f, 1.0f }, { 0.0f, 1.0f });
-
-        Mesh::create("showcase2/pyramid", std::move(vertices), std::move(indices));
+        Mesh::create_obj("pyramid", "primitives/pyramid.obj");
     }
 
     void create_slope_mesh()
     {
-        std::vector<Vertex> vertices;
-        std::vector<std::uint32_t> indices;
-
-        auto append_triangle = [&](const glm::vec3& a, const glm::vec3& b, const glm::vec3& c,
-                                   const glm::vec2& uv_a, const glm::vec2& uv_b, const glm::vec2& uv_c,
-                                   const bool reverse_winding = true)
-        {
-            const glm::vec3 normal = reverse_winding
-                ? glm::normalize(glm::cross(c - a, b - a))
-                : glm::normalize(glm::cross(b - a, c - a));
-            const std::uint32_t base = static_cast<std::uint32_t>(vertices.size());
-            vertices.push_back(Vertex{ a, normal, uv_a });
-            vertices.push_back(Vertex{ b, normal, uv_b });
-            vertices.push_back(Vertex{ c, normal, uv_c });
-            if (reverse_winding) indices.insert(indices.end(), { base, base + 2u, base + 1u });
-            else indices.insert(indices.end(), { base, base + 1u, base + 2u });
-        };
-
-        const glm::vec3 lbf{ -0.5f, -0.5f, 0.5f };
-        const glm::vec3 rbf{ 0.5f, -0.5f, 0.5f };
-        const glm::vec3 lbb{ -0.5f, -0.5f, -0.5f };
-        const glm::vec3 rbb{ 0.5f, -0.5f, -0.5f };
-        const glm::vec3 ltb{ -0.5f, 0.5f, -0.5f };
-        const glm::vec3 rtb{ 0.5f, 0.5f, -0.5f };
-
-        append_triangle(lbb, rbb, rbf, { 0.0f, 0.0f }, { 1.0f, 0.0f }, { 1.0f, 1.0f });
-        append_triangle(lbb, rbf, lbf, { 0.0f, 0.0f }, { 1.0f, 1.0f }, { 0.0f, 1.0f });
-
-        append_triangle(rbb, lbb, ltb, { 0.0f, 0.0f }, { 1.0f, 0.0f }, { 1.0f, 1.0f });
-        append_triangle(rbb, ltb, rtb, { 0.0f, 0.0f }, { 1.0f, 1.0f }, { 0.0f, 1.0f });
-
-        append_triangle(lbb, lbf, ltb, { 0.0f, 0.0f }, { 1.0f, 0.0f }, { 0.0f, 1.0f });
-        append_triangle(rbf, rbb, rtb, { 0.0f, 0.0f }, { 1.0f, 0.0f }, { 0.0f, 1.0f });
-
-        append_triangle(ltb, rtb, rbf, { 0.0f, 0.0f }, { 1.0f, 0.0f }, { 1.0f, 1.0f }, false);
-        append_triangle(ltb, rbf, lbf, { 0.0f, 0.0f }, { 1.0f, 1.0f }, { 0.0f, 1.0f }, false);
-
-        Mesh::create("showcase2/slope", std::move(vertices), std::move(indices));
+        Mesh::create_obj("slope", "primitives/slope.obj");
     }
 
     void create_icosphere_mesh()
     {
-        constexpr float radius = 0.5f;
-        const float phi = (1.0f + std::sqrt(5.0f)) * 0.5f;
-
-        std::vector<glm::vec3> positions{
-            glm::normalize(glm::vec3{ -1.0f, phi, 0.0f }),
-            glm::normalize(glm::vec3{ 1.0f, phi, 0.0f }),
-            glm::normalize(glm::vec3{ -1.0f, -phi, 0.0f }),
-            glm::normalize(glm::vec3{ 1.0f, -phi, 0.0f }),
-            glm::normalize(glm::vec3{ 0.0f, -1.0f, phi }),
-            glm::normalize(glm::vec3{ 0.0f, 1.0f, phi }),
-            glm::normalize(glm::vec3{ 0.0f, -1.0f, -phi }),
-            glm::normalize(glm::vec3{ 0.0f, 1.0f, -phi }),
-            glm::normalize(glm::vec3{ phi, 0.0f, -1.0f }),
-            glm::normalize(glm::vec3{ phi, 0.0f, 1.0f }),
-            glm::normalize(glm::vec3{ -phi, 0.0f, -1.0f }),
-            glm::normalize(glm::vec3{ -phi, 0.0f, 1.0f })
-        };
-
-        std::vector<glm::uvec3> faces{
-            { 0u, 11u, 5u }, { 0u, 5u, 1u }, { 0u, 1u, 7u }, { 0u, 7u, 10u }, { 0u, 10u, 11u },
-            { 1u, 5u, 9u }, { 5u, 11u, 4u }, { 11u, 10u, 2u }, { 10u, 7u, 6u }, { 7u, 1u, 8u },
-            { 3u, 9u, 4u }, { 3u, 4u, 2u }, { 3u, 2u, 6u }, { 3u, 6u, 8u }, { 3u, 8u, 9u },
-            { 4u, 9u, 5u }, { 2u, 4u, 11u }, { 6u, 2u, 10u }, { 8u, 6u, 7u }, { 9u, 8u, 1u }
-        };
-
-        std::unordered_map<std::uint64_t, std::uint32_t> midpoint_cache;
-        auto midpoint_index = [&](const std::uint32_t a, const std::uint32_t b)
-        {
-            const std::uint32_t min_index = std::min(a, b);
-            const std::uint32_t max_index = std::max(a, b);
-            const std::uint64_t key = (static_cast<std::uint64_t>(min_index) << 32) | max_index;
-
-            if (const auto it = midpoint_cache.find(key); it != midpoint_cache.end()) return it->second;
-
-            const glm::vec3 midpoint = glm::normalize((positions[a] + positions[b]) * 0.5f);
-            const std::uint32_t index = static_cast<std::uint32_t>(positions.size());
-            positions.push_back(midpoint);
-            midpoint_cache.emplace(key, index);
-            return index;
-        };
-
-        std::vector<glm::uvec3> subdivided_faces;
-        subdivided_faces.reserve(faces.size() * 4u);
-
-        for (const glm::uvec3& face : faces)
-        {
-            const std::uint32_t ab = midpoint_index(face.x, face.y);
-            const std::uint32_t bc = midpoint_index(face.y, face.z);
-            const std::uint32_t ca = midpoint_index(face.z, face.x);
-
-            subdivided_faces.insert(subdivided_faces.end(), {
-                glm::uvec3{ face.x, ab, ca },
-                glm::uvec3{ face.y, bc, ab },
-                glm::uvec3{ face.z, ca, bc },
-                glm::uvec3{ ab, bc, ca }
-            });
-        }
-
-        std::vector<Vertex> vertices;
-        vertices.reserve(positions.size());
-        for (const glm::vec3& unit_pos : positions)
-        {
-            const glm::vec3 normal = glm::normalize(unit_pos);
-            const float u = 0.5f + std::atan2(normal.z, normal.x) / glm::two_pi<float>();
-            const float v = 0.5f - std::asin(normal.y) / glm::pi<float>();
-            vertices.push_back(Vertex{ unit_pos * radius, normal, glm::vec2{ u, v } });
-        }
-
-        std::vector<std::uint32_t> indices;
-        indices.reserve(subdivided_faces.size() * 3u);
-        for (const glm::uvec3& face : subdivided_faces)
-            indices.insert(indices.end(), { face.x, face.y, face.z });
-
-        Mesh::create("showcase2/icosphere", std::move(vertices), std::move(indices));
+        Mesh::create_obj("icosphere", "primitives/icosphere.obj");
     }
 
     [[nodiscard]] float rect_distance_2d(const glm::vec2 p, const glm::vec2 center, const glm::vec2 half_extents)
@@ -385,7 +210,7 @@ namespace
             }
         }
 
-        Mesh::create("showcase2/terrain", std::move(vertices), std::move(indices));
+        Mesh::create("material_showcase2/terrain", std::move(vertices), std::move(indices));
     }
 
     void create_surface_material(
@@ -397,17 +222,13 @@ namespace
     {
         Material& material = Material::create(material_name, {
             .vertex_shader = "default",
-            .tess_control_shader = controls.displacement_scale > 0.0f ? "default" : "",
-            .tess_evaluation_shader = controls.displacement_scale > 0.0f ? "default" : "",
             .fragment_shader = "default",
-            .cull_mode = CullMode::Back
+            .cull_mode = controls.cull_mode
         });
 
         material["albedo_map"] = Texture::get_or_load(folder + "/diff.jpg");
         material["normal_map"] = Texture::get_or_load(folder + "/nor_gl.exr");
         material["roughness_map"] = Texture::get_or_load(roughness_map);
-        if (controls.displacement_scale > 0.0f)
-            material["height_map"] = Texture::get_or_load(folder + "/disp.png");
 
         if (!metallic_map.empty())
             material["metallic_map"] = Texture::get_or_load(metallic_map);
@@ -419,84 +240,64 @@ namespace
             controls.uv_scale,
             0.0f };
         material["material.detail"] = glm::vec4{
-            controls.displacement_scale,
+            0.0f,
             surface_mapping_value(controls.mapping),
-            controls.heightfield_displacement ? 1.0f : 0.0f,
-            controls.tessellation_scale };
+            0.0f,
+            0.0f };
     }
 
     void create_materials()
     {
-        create_surface_material("showcase2/brick_floor", "brick_floor", "brick_floor/rough.jpg", {
+        create_surface_material("material_showcase2/brick_floor", "brick_floor", "brick_floor/rough.jpg", {
             .roughness_scale = 0.9f,
             .uv_scale = 0.38f,
-            .tessellation_scale = 1.0f,
             .mapping = SurfaceMapping::WorldBox });
-        create_surface_material("showcase2/castle_brick", "castle_brick_02_red", "castle_brick_02_red/rough.jpg", {
+        create_surface_material("material_showcase2/castle_brick", "castle_brick_02_red", "castle_brick_02_red/rough.jpg", {
             .roughness_scale = 0.95f,
             .uv_scale = 0.34f,
-            .displacement_scale = 0.065f,
-            .tessellation_scale = 1.4f,
             .mapping = SurfaceMapping::WorldBox });
-        create_surface_material("showcase2/damaged_plaster", "damaged_plaster", "damaged_plaster/rough.exr", {
+        create_surface_material("material_showcase2/damaged_plaster", "damaged_plaster", "damaged_plaster/rough.exr", {
             .roughness_scale = 0.85f,
             .uv_scale = 0.28f,
-            .displacement_scale = 0.035f,
-            .tessellation_scale = 1.2f,
             .mapping = SurfaceMapping::WorldBox });
-        create_surface_material("showcase2/herringbone_parquet", "herringbone_parquet", "herringbone_parquet/rough.exr", {
+        create_surface_material("material_showcase2/herringbone_parquet", "herringbone_parquet", "herringbone_parquet/rough.exr", {
             .roughness_scale = 0.65f,
             .uv_scale = 0.42f,
-            .tessellation_scale = 1.0f,
             .mapping = SurfaceMapping::WorldBox });
-        create_surface_material("showcase2/interior_tiles", "interior_tiles", "interior_tiles/rough.exr", {
+        create_surface_material("material_showcase2/interior_tiles", "interior_tiles", "interior_tiles/rough.exr", {
             .roughness_scale = 0.55f,
             .uv_scale = 0.34f,
-            .tessellation_scale = 1.0f,
             .mapping = SurfaceMapping::WorldBox });
-        create_surface_material("showcase2/plaster_stone", "plaster_stone_wall_02", "plaster_stone_wall_02/rough.exr", {
+        create_surface_material("material_showcase2/plaster_stone", "plaster_stone_wall_02", "plaster_stone_wall_02/rough.exr", {
             .roughness_scale = 0.9f,
             .uv_scale = 0.26f,
-            .displacement_scale = 0.072f,
-            .tessellation_scale = 1.5f,
             .mapping = SurfaceMapping::WorldBox });
-        create_surface_material("showcase2/rocky_terrain", "rocky_terrain_02", "rocky_terrain_02/rough.exr", {
+        create_surface_material("material_showcase2/rocky_terrain", "rocky_terrain_02", "rocky_terrain_02/rough.exr", {
             .roughness_scale = 1.0f,
             .uv_scale = 0.1f,
-            .displacement_scale = 0.18f,
-            .tessellation_scale = 2.6f,
-            .mapping = SurfaceMapping::Triplanar,
-            .heightfield_displacement = true });
-        create_surface_material("showcase2/rusty_metal_03", "rusty_metal_03", "rusty_metal_03/rough.exr", {
+            .mapping = SurfaceMapping::Triplanar });
+        create_surface_material("material_showcase2/rusty_metal_03", "rusty_metal_03", "rusty_metal_03/rough.exr", {
             .metallic_bias = 0.55f,
             .roughness_scale = 0.7f,
             .uv_scale = 0.34f,
-            .displacement_scale = 0.006f,
-            .tessellation_scale = 0.8f,
             .mapping = SurfaceMapping::WorldBox });
         create_surface_material(
-            "showcase2/rusty_metal_04",
+            "material_showcase2/rusty_metal_04",
             "rusty_metal_04",
             "rusty_metal_04/rough.exr",
             {
                 .roughness_scale = 0.65f,
                 .uv_scale = 0.34f,
-                .displacement_scale = 0.004f,
-                .tessellation_scale = 0.75f,
                 .mapping = SurfaceMapping::WorldBox },
             "rusty_metal_04/metal.exr");
-        create_surface_material("showcase2/rusty_metal_grid", "rusty_metal_grid", "rusty_metal_grid/rough.exr", {
+        create_surface_material("material_showcase2/rusty_metal_grid", "rusty_metal_grid", "rusty_metal_grid/rough.exr", {
             .metallic_bias = 0.85f,
             .roughness_scale = 0.55f,
             .uv_scale = 0.44f,
-            .displacement_scale = 0.008f,
-            .tessellation_scale = 0.85f,
             .mapping = SurfaceMapping::WorldBox });
-        create_surface_material("showcase2/dirt", "dirt", "dirt/rough.exr", {
+        create_surface_material("material_showcase2/dirt", "dirt", "dirt/rough.exr", {
             .roughness_scale = 1.0f,
             .uv_scale = 0.11f,
-            .displacement_scale = 0.028f,
-            .tessellation_scale = 1.2f,
             .mapping = SurfaceMapping::Triplanar });
     }
 
@@ -504,7 +305,7 @@ namespace
         const std::string_view mesh_name,
         const glm::vec3& scale)
     {
-        if (mesh_name == "showcase2/icosphere")
+        if (mesh_name == "icosphere")
         {
             const float uniform_scale = std::max({ scale.x, scale.y, scale.z });
             return glm::vec3{ uniform_scale };
@@ -534,7 +335,7 @@ namespace
         transform.local_scale = scale;
 
         auto& renderer = object.add_component<MeshRenderer>();
-        renderer.mesh_name = "showcase2/cube";
+        renderer.mesh_name = "cube";
         renderer.material_name = material_name;
         object.add_component<ShadowCaster>();
         return object;
@@ -781,8 +582,8 @@ namespace
             point.shadow_strength = 0.58f;
 
             auto& renderer = light.add_component<MeshRenderer>();
-            renderer.mesh_name = "showcase2/cube";
-            renderer.material_name = i % 2 == 0 ? "showcase2/rusty_metal_04" : "showcase2/rusty_metal_03";
+            renderer.mesh_name = "cube";
+            renderer.material_name = i % 2 == 0 ? "material_showcase2/rusty_metal_04" : "material_showcase2/rusty_metal_03";
             light.get_component<Transform>().local_scale = glm::vec3{ 0.65f };
         }
 
@@ -830,8 +631,8 @@ namespace
             spot.shadow_strength = 0.62f;
 
             auto& renderer = light.add_component<MeshRenderer>();
-            renderer.mesh_name = "showcase2/cube";
-            renderer.material_name = "showcase2/rusty_metal_grid";
+            renderer.mesh_name = "cube";
+            renderer.material_name = "material_showcase2/rusty_metal_grid";
             transform.local_scale = glm::vec3{ 0.75f, 0.4f, 0.75f };
         }
 
@@ -879,8 +680,8 @@ namespace
             spot.shadow_strength = 0.66f;
 
             auto& renderer = light.add_component<MeshRenderer>();
-            renderer.mesh_name = "showcase2/cube";
-            renderer.material_name = i % 2 == 0 ? "showcase2/rusty_metal_04" : "showcase2/rusty_metal_03";
+            renderer.mesh_name = "cube";
+            renderer.material_name = i % 2 == 0 ? "material_showcase2/rusty_metal_04" : "material_showcase2/rusty_metal_03";
             transform.local_scale = glm::vec3{ 0.6f, 0.36f, 0.6f };
         }
     }
@@ -897,88 +698,88 @@ namespace
 
         auto terrain = GameObject::create("Showcase2Terrain");
         auto& terrain_renderer = terrain.add_component<MeshRenderer>();
-        terrain_renderer.mesh_name = "showcase2/terrain";
-        terrain_renderer.material_name = "showcase2/rocky_terrain";
+        terrain_renderer.mesh_name = "material_showcase2/terrain";
+        terrain_renderer.material_name = "material_showcase2/rocky_terrain";
         terrain.add_component<ShadowCaster>();
 
-        create_block("CentralCourt", glm::vec3{ 0.0f, 3.0f, 0.0f }, glm::vec3{ 62.0f, 2.0f, 46.0f }, "showcase2/brick_floor");
-        create_block("CentralCourtInset", glm::vec3{ 0.0f, 4.2f, 0.0f }, glm::vec3{ 52.0f, 0.4f, 38.0f }, "showcase2/interior_tiles");
-        create_block("GrandWalkNorthSouth", glm::vec3{ 0.0f, 4.3f, 0.0f }, glm::vec3{ 14.0f, 0.6f, 56.0f }, "showcase2/herringbone_parquet");
-        create_block("GrandWalkEastWest", glm::vec3{ 0.0f, 4.3f, 0.0f }, glm::vec3{ 42.0f, 0.6f, 10.0f }, "showcase2/herringbone_parquet");
-        create_block("NorthTerrace", glm::vec3{ 0.0f, 4.4f, 36.0f }, glm::vec3{ 40.0f, 0.8f, 12.0f }, "showcase2/brick_floor");
-        create_block("SouthTerrace", glm::vec3{ 0.0f, 4.4f, -36.0f }, glm::vec3{ 40.0f, 0.8f, 12.0f }, "showcase2/brick_floor");
-        create_block("EastWingFloor", glm::vec3{ 46.0f, 4.4f, -20.0f }, glm::vec3{ 22.0f, 0.8f, 18.0f }, "showcase2/rusty_metal_grid");
-        create_block("WestWingFloor", glm::vec3{ -46.0f, 4.4f, 20.0f }, glm::vec3{ 22.0f, 0.8f, 18.0f }, "showcase2/plaster_stone");
+        create_block("CentralCourt", glm::vec3{ 0.0f, 3.0f, 0.0f }, glm::vec3{ 62.0f, 2.0f, 46.0f }, "material_showcase2/brick_floor");
+        create_block("CentralCourtInset", glm::vec3{ 0.0f, 4.2f, 0.0f }, glm::vec3{ 52.0f, 0.4f, 38.0f }, "material_showcase2/interior_tiles");
+        create_block("GrandWalkNorthSouth", glm::vec3{ 0.0f, 4.3f, 0.0f }, glm::vec3{ 14.0f, 0.6f, 56.0f }, "material_showcase2/herringbone_parquet");
+        create_block("GrandWalkEastWest", glm::vec3{ 0.0f, 4.3f, 0.0f }, glm::vec3{ 42.0f, 0.6f, 10.0f }, "material_showcase2/herringbone_parquet");
+        create_block("NorthTerrace", glm::vec3{ 0.0f, 4.4f, 36.0f }, glm::vec3{ 40.0f, 0.8f, 12.0f }, "material_showcase2/brick_floor");
+        create_block("SouthTerrace", glm::vec3{ 0.0f, 4.4f, -36.0f }, glm::vec3{ 40.0f, 0.8f, 12.0f }, "material_showcase2/brick_floor");
+        create_block("EastWingFloor", glm::vec3{ 46.0f, 4.4f, -20.0f }, glm::vec3{ 22.0f, 0.8f, 18.0f }, "material_showcase2/rusty_metal_grid");
+        create_block("WestWingFloor", glm::vec3{ -46.0f, 4.4f, 20.0f }, glm::vec3{ 22.0f, 0.8f, 18.0f }, "material_showcase2/plaster_stone");
 
-        create_block("NorthParapet", glm::vec3{ 0.0f, 5.2f, 22.0f }, glm::vec3{ 58.0f, 1.6f, 2.6f }, "showcase2/castle_brick");
-        create_block("SouthParapet", glm::vec3{ 0.0f, 5.2f, -22.0f }, glm::vec3{ 58.0f, 1.6f, 2.6f }, "showcase2/plaster_stone");
-        create_block("EastParapet", glm::vec3{ 30.0f, 5.2f, 0.0f }, glm::vec3{ 2.6f, 1.6f, 42.0f }, "showcase2/rusty_metal_grid");
-        create_block("WestParapet", glm::vec3{ -30.0f, 5.2f, 0.0f }, glm::vec3{ 2.6f, 1.6f, 42.0f }, "showcase2/damaged_plaster");
+        create_block("NorthParapet", glm::vec3{ 0.0f, 5.2f, 22.0f }, glm::vec3{ 58.0f, 1.6f, 2.6f }, "material_showcase2/castle_brick");
+        create_block("SouthParapet", glm::vec3{ 0.0f, 5.2f, -22.0f }, glm::vec3{ 58.0f, 1.6f, 2.6f }, "material_showcase2/plaster_stone");
+        create_block("EastParapet", glm::vec3{ 30.0f, 5.2f, 0.0f }, glm::vec3{ 2.6f, 1.6f, 42.0f }, "material_showcase2/rusty_metal_grid");
+        create_block("WestParapet", glm::vec3{ -30.0f, 5.2f, 0.0f }, glm::vec3{ 2.6f, 1.6f, 42.0f }, "material_showcase2/damaged_plaster");
 
-        create_block("CentralDaisBase", glm::vec3{ 0.0f, 5.8f, 0.0f }, glm::vec3{ 18.0f, 3.6f, 14.0f }, "showcase2/plaster_stone");
-        create_block("CentralDaisInset", glm::vec3{ 0.0f, 8.0f, 0.0f }, glm::vec3{ 12.0f, 0.8f, 8.0f }, "showcase2/rusty_metal_grid");
-        create_block("CentralMonolith", glm::vec3{ 0.0f, 15.2f, 0.0f }, glm::vec3{ 4.4f, 13.6f, 4.4f }, "showcase2/plaster_stone");
-        create_block("CentralMonolithCap", glm::vec3{ 0.0f, 22.6f, 0.0f }, glm::vec3{ 7.4f, 1.2f, 7.4f }, "showcase2/rusty_metal_03");
+        create_block("CentralDaisBase", glm::vec3{ 0.0f, 5.8f, 0.0f }, glm::vec3{ 18.0f, 3.6f, 14.0f }, "material_showcase2/plaster_stone");
+        create_block("CentralDaisInset", glm::vec3{ 0.0f, 8.0f, 0.0f }, glm::vec3{ 12.0f, 0.8f, 8.0f }, "material_showcase2/rusty_metal_grid");
+        create_block("CentralMonolith", glm::vec3{ 0.0f, 15.2f, 0.0f }, glm::vec3{ 4.4f, 13.6f, 4.4f }, "material_showcase2/plaster_stone");
+        create_block("CentralMonolithCap", glm::vec3{ 0.0f, 22.6f, 0.0f }, glm::vec3{ 7.4f, 1.2f, 7.4f }, "material_showcase2/rusty_metal_03");
 
-        build_arch("NorthGate", glm::vec3{ 0.0f, inset_top, 27.0f }, "showcase2/plaster_stone");
-        build_arch("SouthGate", glm::vec3{ 0.0f, inset_top, -27.0f }, "showcase2/castle_brick");
+        build_arch("NorthGate", glm::vec3{ 0.0f, inset_top, 27.0f }, "material_showcase2/plaster_stone");
+        build_arch("SouthGate", glm::vec3{ 0.0f, inset_top, -27.0f }, "material_showcase2/castle_brick");
 
         build_colonnade(
             "WestColonnade",
             glm::vec3{ -22.0f, inset_top, -18.0f },
             glm::vec3{ 0.0f, 0.0f, 12.0f },
             4u,
-            "showcase2/damaged_plaster",
-            "showcase2/plaster_stone");
+            "material_showcase2/damaged_plaster",
+            "material_showcase2/plaster_stone");
         build_colonnade(
             "EastColonnade",
             glm::vec3{ 22.0f, inset_top, -18.0f },
             glm::vec3{ 0.0f, 0.0f, 12.0f },
             4u,
-            "showcase2/castle_brick",
-            "showcase2/plaster_stone");
+            "material_showcase2/castle_brick",
+            "material_showcase2/plaster_stone");
 
         build_pavilion(
             "EastPavilion",
             glm::vec3{ 46.0f, terrace_top, -20.0f },
-            "showcase2/brick_floor",
-            "showcase2/rusty_metal_04",
-            "showcase2/rusty_metal_grid");
+            "material_showcase2/brick_floor",
+            "material_showcase2/rusty_metal_04",
+            "material_showcase2/rusty_metal_grid");
         build_pavilion(
             "WestPavilion",
             glm::vec3{ -46.0f, terrace_top, 20.0f },
-            "showcase2/herringbone_parquet",
-            "showcase2/plaster_stone",
-            "showcase2/castle_brick");
+            "material_showcase2/herringbone_parquet",
+            "material_showcase2/plaster_stone",
+            "material_showcase2/castle_brick");
 
         constexpr std::array<std::string_view, 12> showcase_materials{
-            "showcase2/castle_brick",
-            "showcase2/plaster_stone",
-            "showcase2/damaged_plaster",
-            "showcase2/rusty_metal_grid",
-            "showcase2/herringbone_parquet",
-            "showcase2/interior_tiles",
-            "showcase2/rusty_metal_03",
-            "showcase2/rusty_metal_04",
-            "showcase2/brick_floor",
-            "showcase2/dirt",
-            "showcase2/plaster_stone",
-            "showcase2/castle_brick"
+            "material_showcase2/castle_brick",
+            "material_showcase2/plaster_stone",
+            "material_showcase2/damaged_plaster",
+            "material_showcase2/rusty_metal_grid",
+            "material_showcase2/herringbone_parquet",
+            "material_showcase2/interior_tiles",
+            "material_showcase2/rusty_metal_03",
+            "material_showcase2/rusty_metal_04",
+            "material_showcase2/brick_floor",
+            "material_showcase2/dirt",
+            "material_showcase2/plaster_stone",
+            "material_showcase2/castle_brick"
         };
 
         constexpr std::array<std::string_view, 12> showcase_meshes{
-            "showcase2/pyramid",
-            "showcase2/icosphere",
-            "showcase2/slope",
-            "showcase2/cube",
-            "showcase2/icosphere",
-            "showcase2/pyramid",
-            "showcase2/slope",
-            "showcase2/cube",
-            "showcase2/icosphere",
-            "showcase2/pyramid",
-            "showcase2/slope",
-            "showcase2/icosphere"
+            "pyramid",
+            "icosphere",
+            "slope",
+            "cube",
+            "icosphere",
+            "pyramid",
+            "slope",
+            "cube",
+            "icosphere",
+            "pyramid",
+            "slope",
+            "icosphere"
         };
 
         constexpr std::array showcase_x{ -24.0f, -8.0f, 8.0f, 24.0f };
@@ -1003,7 +804,7 @@ namespace
                 std::format("NorthPlinth_{}", i),
                 glm::vec3{ showcase_x[i], terrace_top + 1.8f, 36.0f },
                 glm::vec3{ 5.0f, 3.6f, 5.0f },
-                "showcase2/plaster_stone");
+                "material_showcase2/plaster_stone");
             create_mesh_piece(
                 std::format("NorthShowcase_{}", i),
                 showcase_meshes[i],
@@ -1016,7 +817,7 @@ namespace
                 std::format("SouthPlinth_{}", i),
                 glm::vec3{ showcase_x[i], terrace_top + 1.8f, -36.0f },
                 glm::vec3{ 5.0f, 3.6f, 5.0f },
-                "showcase2/castle_brick");
+                "material_showcase2/castle_brick");
             create_mesh_piece(
                 std::format("SouthShowcase_{}", i),
                 showcase_meshes[i + 4u],
@@ -1042,7 +843,7 @@ namespace
                 std::format("GalleryPedestal_{}", i),
                 gallery_positions[i] + glm::vec3{ 0.0f, 1.8f, 0.0f },
                 glm::vec3{ 5.4f, 3.6f, 5.4f },
-                i % 2 == 0 ? "showcase2/plaster_stone" : "showcase2/castle_brick");
+                i % 2 == 0 ? "material_showcase2/plaster_stone" : "material_showcase2/castle_brick");
             create_mesh_piece(
                 std::format("GalleryShowcase_{}", i),
                 showcase_meshes[i + 8u],
@@ -1056,51 +857,51 @@ namespace
             "NorthCauseway",
             glm::vec3{ 0.0f, terrain_anchor(0.0f, 52.0f, 0.5f), 52.0f },
             glm::vec3{ 34.0f, 1.0f, 8.0f },
-            "showcase2/brick_floor");
+            "material_showcase2/brick_floor");
         create_block(
             "SouthCauseway",
             glm::vec3{ 0.0f, terrain_anchor(0.0f, -52.0f, 0.5f), -52.0f },
             glm::vec3{ 34.0f, 1.0f, 8.0f },
-            "showcase2/herringbone_parquet");
+            "material_showcase2/herringbone_parquet");
         create_block(
             "EastGalleryDeck",
             glm::vec3{ 58.0f, terrain_anchor(58.0f, 6.0f, 2.0f), 6.0f },
             glm::vec3{ 10.0f, 4.0f, 26.0f },
-            "showcase2/rusty_metal_grid");
+            "material_showcase2/rusty_metal_grid");
         create_block(
             "WestGalleryDeck",
             glm::vec3{ -58.0f, terrain_anchor(-58.0f, 6.0f, 2.0f), 6.0f },
             glm::vec3{ 10.0f, 4.0f, 26.0f },
-            "showcase2/plaster_stone");
+            "material_showcase2/plaster_stone");
 
-        build_staircase("NorthStairs", glm::vec3{ -18.0f, 4.8f, 20.0f }, glm::vec3{ 0.0f, 0.6f, 2.6f }, 5u, "showcase2/interior_tiles");
-        build_staircase("SouthStairs", glm::vec3{ 18.0f, 4.8f, -20.0f }, glm::vec3{ 0.0f, 0.6f, -2.6f }, 5u, "showcase2/herringbone_parquet");
+        build_staircase("NorthStairs", glm::vec3{ -18.0f, 4.8f, 20.0f }, glm::vec3{ 0.0f, 0.6f, 2.6f }, 5u, "material_showcase2/interior_tiles");
+        build_staircase("SouthStairs", glm::vec3{ 18.0f, 4.8f, -20.0f }, glm::vec3{ 0.0f, 0.6f, -2.6f }, 5u, "material_showcase2/herringbone_parquet");
 
         create_mesh_piece(
             "NorthCausewaySphere",
-            "showcase2/icosphere",
-            glm::vec3{ 0.0f, resting_center_y("showcase2/icosphere", glm::vec3{ 5.2f }, terrain_height(0.0f, 52.0f) + 1.0f, 0.2f), 52.0f },
+            "icosphere",
+            glm::vec3{ 0.0f, resting_center_y("icosphere", glm::vec3{ 5.2f }, terrain_height(0.0f, 52.0f) + 1.0f, 0.2f), 52.0f },
             glm::vec3{ 5.2f },
-            "showcase2/rusty_metal_03");
+            "material_showcase2/rusty_metal_03");
         create_mesh_piece(
             "WestSlopeMarker",
-            "showcase2/slope",
+            "slope",
             glm::vec3{ -58.0f, terrain_anchor(-58.0f, -10.0f, 3.5f), -10.0f },
             glm::vec3{ 8.0f, 7.0f, 10.0f },
-            "showcase2/damaged_plaster",
+            "material_showcase2/damaged_plaster",
             glm::angleAxis(glm::radians(90.0f), glm::vec3{ 0.0f, 1.0f, 0.0f }));
         create_mesh_piece(
             "EastPyramidMarker",
-            "showcase2/pyramid",
+            "pyramid",
             glm::vec3{ 58.0f, terrain_anchor(58.0f, -10.0f, 4.5f), -10.0f },
             glm::vec3{ 7.2f, 9.0f, 7.2f },
-            "showcase2/castle_brick",
+            "material_showcase2/castle_brick",
             glm::angleAxis(glm::radians(20.0f), glm::vec3{ 0.0f, 1.0f, 0.0f }));
 
-        build_tower("CourtTower_NW", glm::vec3{ -32.0f, inset_top, 24.0f }, "showcase2/castle_brick");
-        build_tower("CourtTower_NE", glm::vec3{ 32.0f, inset_top, 24.0f }, "showcase2/plaster_stone");
-        build_tower("CourtTower_SW", glm::vec3{ -32.0f, inset_top, -24.0f }, "showcase2/damaged_plaster");
-        build_tower("CourtTower_SE", glm::vec3{ 32.0f, inset_top, -24.0f }, "showcase2/rusty_metal_grid");
+        build_tower("CourtTower_NW", glm::vec3{ -32.0f, inset_top, 24.0f }, "material_showcase2/castle_brick");
+        build_tower("CourtTower_NE", glm::vec3{ 32.0f, inset_top, 24.0f }, "material_showcase2/plaster_stone");
+        build_tower("CourtTower_SW", glm::vec3{ -32.0f, inset_top, -24.0f }, "material_showcase2/damaged_plaster");
+        build_tower("CourtTower_SE", glm::vec3{ 32.0f, inset_top, -24.0f }, "material_showcase2/rusty_metal_grid");
 
         constexpr std::array terrain_mounds{
             glm::vec2{ -46.0f, 48.0f },
@@ -1118,7 +919,7 @@ namespace
                 std::format("TerrainMound_{}", i),
                 glm::vec3{ x, terrain_anchor(x, z, mound_height * 0.5f), z },
                 glm::vec3{ 12.0f - static_cast<float>(i % 2) * 2.0f, mound_height, 9.0f },
-                i < 2 ? "showcase2/dirt" : "showcase2/damaged_plaster");
+                i < 2 ? "material_showcase2/dirt" : "material_showcase2/damaged_plaster");
         }
 
         for (std::uint32_t i = 0; i < 5; ++i)
@@ -1129,12 +930,12 @@ namespace
                 std::format("NorthWall_{}", i),
                 glm::vec3{ north_x, terrain_anchor(north_x, 62.0f, 6.0f + static_cast<float>(i % 2)), 62.0f },
                 glm::vec3{ 12.0f, 12.0f + static_cast<float>(i % 2) * 2.0f, 4.0f },
-                i % 2 == 0 ? "showcase2/castle_brick" : "showcase2/plaster_stone");
+                i % 2 == 0 ? "material_showcase2/castle_brick" : "material_showcase2/plaster_stone");
             create_block(
                 std::format("SouthWall_{}", i),
                 glm::vec3{ south_x, terrain_anchor(south_x, -62.0f, 6.0f + static_cast<float>((i + 1u) % 2)), -62.0f },
                 glm::vec3{ 12.0f, 12.0f + static_cast<float>((i + 1u) % 2) * 2.0f, 4.0f },
-                i % 2 == 0 ? "showcase2/damaged_plaster" : "showcase2/rusty_metal_grid");
+                i % 2 == 0 ? "material_showcase2/damaged_plaster" : "material_showcase2/rusty_metal_grid");
         }
 
         for (std::uint32_t i = 0; i < 6; ++i)
@@ -1144,18 +945,18 @@ namespace
                 std::format("WestWall_{}", i),
                 glm::vec3{ -68.0f, terrain_anchor(-68.0f, wall_z, 6.0f + static_cast<float>(i % 2)), wall_z },
                 glm::vec3{ 4.0f, 12.0f + static_cast<float>(i % 2) * 2.0f, 11.0f },
-                i % 2 == 0 ? "showcase2/damaged_plaster" : "showcase2/plaster_stone");
+                i % 2 == 0 ? "material_showcase2/damaged_plaster" : "material_showcase2/plaster_stone");
             create_block(
                 std::format("EastWall_{}", i),
                 glm::vec3{ 68.0f, terrain_anchor(68.0f, wall_z, 6.0f + static_cast<float>((i + 1u) % 2)), wall_z },
                 glm::vec3{ 4.0f, 12.0f + static_cast<float>((i + 1u) % 2) * 2.0f, 11.0f },
-                i % 2 == 0 ? "showcase2/castle_brick" : "showcase2/rusty_metal_grid");
+                i % 2 == 0 ? "material_showcase2/castle_brick" : "material_showcase2/rusty_metal_grid");
         }
 
-        build_tower("OuterTower_NW", glm::vec3{ -72.0f, terrain_height(-72.0f, 56.0f), 56.0f }, "showcase2/plaster_stone");
-        build_tower("OuterTower_NE", glm::vec3{ 72.0f, terrain_height(72.0f, 56.0f), 56.0f }, "showcase2/castle_brick");
-        build_tower("OuterTower_SW", glm::vec3{ -72.0f, terrain_height(-72.0f, -56.0f), -56.0f }, "showcase2/damaged_plaster");
-        build_tower("OuterTower_SE", glm::vec3{ 72.0f, terrain_height(72.0f, -56.0f), -56.0f }, "showcase2/rusty_metal_grid");
+        build_tower("OuterTower_NW", glm::vec3{ -72.0f, terrain_height(-72.0f, 56.0f), 56.0f }, "material_showcase2/plaster_stone");
+        build_tower("OuterTower_NE", glm::vec3{ 72.0f, terrain_height(72.0f, 56.0f), 56.0f }, "material_showcase2/castle_brick");
+        build_tower("OuterTower_SW", glm::vec3{ -72.0f, terrain_height(-72.0f, -56.0f), -56.0f }, "material_showcase2/damaged_plaster");
+        build_tower("OuterTower_SE", glm::vec3{ 72.0f, terrain_height(72.0f, -56.0f), -56.0f }, "material_showcase2/rusty_metal_grid");
     }
 }
 

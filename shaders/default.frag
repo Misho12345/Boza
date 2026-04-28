@@ -449,13 +449,6 @@ void main()
 
     vec3 shading_normal = mapping_normal;
 
-    if (material.detail.x > 0.0001)
-    {
-        vec3 geometric_normal = cross(dFdx(fragPosWorld), dFdy(fragPosWorld));
-        if (dot(geometric_normal, geometric_normal) > 1e-8)
-            shading_normal = normalize(geometric_normal);
-    }
-
     if (!gl_FrontFacing) shading_normal = -shading_normal;
     vec2 uv_scale = resolve_uv_scale();
     vec2 surface_uv = fragTexCoord * uv_scale;

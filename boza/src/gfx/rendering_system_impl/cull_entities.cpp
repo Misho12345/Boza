@@ -58,8 +58,6 @@ namespace boza
                     gpu_indirect_instancing_enabled_ &&
                     frustum_.valid &&
                     material_supports_gpu_cull &&
-                    MaterialAccess::settings(*material_ptr).tess_control_shader.empty() &&
-                    MaterialAccess::settings(*material_ptr).tess_evaluation_shader.empty() &&
                     bucket.elements.size() >= instancing_threshold_;
 
                 if (log_cull_frame && bucket.elements.size() >= instancing_threshold_)
@@ -71,6 +69,23 @@ namespace boza
                         bucket.elements.size(),
                         perform_cpu_cull,
                         perform_gpu_cull);
+                }
+
+                if (perform_gpu_cull)
+                {
+                    if (!upload_mesh_bucket_candidates(bucket, mesh_ptr, material_ptr))
+                    {
+                        bucket.num_visible = 0;
+                        continue;
+                    }
+
+                    bucket.num_visible = bucket.candidate_count;
+                    mat_group.num_visible += bucket.num_visible;
+
+                    for (auto& elem : bucket.elements)
+                        elem.visible = elem.candidate_valid;
+
+                    continue;
                 }
 
                 for (auto& elem : bucket.elements)

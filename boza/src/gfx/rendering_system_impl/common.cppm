@@ -1,10 +1,12 @@
 module boza.gfx:rendering_system_common;
 
 import std;
+import <flecs.h>;
 import boza.common;
 import boza.core;
 import boza.rhi;
 import :compute_dispatcher;
+import :gpu_driven_instances;
 
 import :rendering_system;
 import :buffer;
@@ -115,6 +117,28 @@ namespace boza
         void* uploaded_candidate_handle{ nullptr };
     };
 
+    struct GpuDrivenBatchState
+    {
+        std::unique_ptr<Buffer> params_buffer{};
+        std::unique_ptr<Buffer> visible_buffer{};
+        std::unique_ptr<Buffer> indirect_buffer{};
+
+        std::size_t params_capacity_bytes{ 0 };
+        std::size_t visible_capacity_bytes{ 0 };
+        std::size_t indirect_capacity_bytes{ 0 };
+
+        void* bound_visible_handle{ nullptr };
+    };
+
+    struct GpuDrivenBatchView
+    {
+        std::uint64_t entity_id{ 0 };
+        flecs::entity entity{};
+        Mesh* mesh{ nullptr };
+        Material* material{ nullptr };
+        GpuDrivenInstances* instances{ nullptr };
+    };
+
     struct DirectionalShadowPushConstants
     {
         glm::mat4 light_view_projection{ 1.0f };
@@ -150,6 +174,7 @@ namespace boza
     flat_map<Material*, flat_map<Mesh*, GpuCullBufferState>> gpu_cull_buffers_{};
     flat_map<Material*, flat_map<Mesh*, ShadowCullBufferState>> shadow_gpu_cull_buffers_{};
     flat_map<Material*, ShadowPipelineState> shadow_pipelines_{};
+    flat_map<std::uint64_t, GpuDrivenBatchState> gpu_driven_batch_states_{};
 
     std::unique_ptr<Buffer> shadow_camera_buffer_{};
     bool directional_shadow_map_layout_initialized_{ false };
@@ -162,6 +187,8 @@ namespace boza
     std::vector<std::unique_ptr<ComputeDispatcher>> cluster_build_dispatchers_{};
     std::vector<std::unique_ptr<ComputeDispatcher>> light_cull_dispatchers_{};
     std::vector<std::unique_ptr<ComputeDispatcher>> ssao_dispatchers_{};
+    std::vector<std::unique_ptr<ComputeDispatcher>> gpu_driven_forward_cull_dispatchers_{};
+    std::vector<std::unique_ptr<ComputeDispatcher>> gpu_driven_shadow_cull_dispatchers_{};
     std::array<glm::vec4, 6> gpu_cull_frustum_planes_{};
 
     std::vector<std::uint8_t> push_constant_scratch_{};
@@ -173,8 +200,8 @@ namespace boza
     constexpr std::size_t initial_gpu_cull_buffer_bytes_ = 65'536 * sizeof(GpuCullInstance);
     constexpr std::uint32_t shadow_dispatcher_pass_count_ = 3u;
     constexpr std::uint32_t max_shadow_dispatcher_layers_ = 32u;
-    constexpr bool gpu_indirect_instancing_enabled_ = true;
-    constexpr bool gpu_shadow_instancing_enabled_ = true;
+    constexpr bool gpu_indirect_instancing_enabled_ = false;
+    constexpr bool gpu_shadow_instancing_enabled_ = false;
     constexpr std::string_view model_field_name_ = "model";
     constexpr std::string_view instancing_field_name_ = "use_instancing";
     constexpr std::string_view shadow_view_projection_field_name_ = "shadow_view_projection";
@@ -193,6 +220,18 @@ namespace boza
         const ShadowCaster& caster,
         const Mesh* mesh,
         ShadowCasterGeometry& geometry);
+    bool refresh_render_element_candidate(
+        RenderElement& element,
+        Mesh* mesh,
+        Material* material);
+    bool ensure_mesh_bucket_candidate_buffers(
+        MeshBucket& bucket,
+        std::size_t forward_candidate_count,
+        std::size_t shadow_candidate_count);
+    bool upload_mesh_bucket_candidates(
+        MeshBucket& bucket,
+        Mesh* mesh,
+        Material* material);
 
     void reset_render_caches();
     void clear_shadow_cull_results();
@@ -235,6 +274,22 @@ namespace boza
 
     [[nodiscard]] GpuCullBufferState* get_gpu_cull_buffer_state(Material* material, Mesh* mesh);
     [[nodiscard]] ShadowCullBufferState* get_shadow_gpu_cull_buffer_state(Material* material, Mesh* mesh);
+    bool ensure_generic_gpu_cull_capacity(GpuCullBufferState& state, std::size_t candidate_count);
+    bool ensure_generic_shadow_gpu_cull_capacity(ShadowCullBufferState& state, std::size_t candidate_count);
+    [[nodiscard]] GpuDrivenBatchState* get_gpu_driven_batch_state(std::uint64_t entity_id);
+    void collect_gpu_driven_batches(std::vector<GpuDrivenBatchView>& batches);
+    bool ensure_gpu_driven_batch_capacity(
+        GpuDrivenBatchState& state,
+        std::size_t required_visible_bytes);
+    bool dispatch_gpu_driven_cull(
+        const Buffer& candidates,
+        std::uint32_t candidate_count,
+        GpuMesh& gpu_mesh,
+        Buffer& params_buffer,
+        Buffer& visible_buffer,
+        Buffer& indirect_buffer,
+        const std::array<glm::vec4, 6>& frustum_planes,
+        ComputeDispatcher& dispatcher);
     bool prepare_gpu_shadow_culled_instance_payload(
         Material* material,
         Mesh* mesh,

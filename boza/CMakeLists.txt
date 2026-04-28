@@ -53,6 +53,7 @@ find_package(OpenEXR CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(flecs CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
+find_package(tinyobjloader CONFIG REQUIRED)
 
 target_sources(boza_engine
         PUBLIC FILE_SET CXX_MODULES
@@ -65,6 +66,7 @@ target_link_libraries(boza_engine PUBLIC
         OpenEXR::OpenEXR
         spdlog::spdlog
         glfw
+        tinyobjloader::tinyobjloader
 )
 
 # === Header Units Setup ===

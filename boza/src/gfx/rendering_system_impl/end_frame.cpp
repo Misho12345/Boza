@@ -7,6 +7,7 @@ import :rendering_system;
 import :rendering_system_common;
 import :texture;
 
+import <flecs.h>;
 import boza.core;
 import boza.rhi;
 import boza.rhi.render_context;
@@ -75,33 +76,6 @@ namespace boza
         cmd->bind_vertex_buffer(vertex_buffer_rhi);
         cmd->bind_index_buffer(index_buffer_rhi);
 
-        const bool should_instance =
-            render_info &&
-            render_info->instancing_range_index.has_value() &&
-            models.size() >= instancing_threshold_ &&
-            models.size() <= std::numeric_limits<std::uint32_t>::max();
-
-        if (should_instance)
-        {
-            const std::size_t range_index = *render_info->instancing_range_index;
-            if (range_index < render_info->ranges.size())
-            {
-                const PushConstantRangeRuntime& range = render_info->ranges[range_index];
-                if (upload_instance_payload_from_models(material, models, range))
-                {
-                    MaterialAccess::bind_descriptor_sets(*material);
-                    push_ranges(cmd, *material, render_info, nullptr, true, &light_view_projection, shadow_mode);
-                    cmd->draw_indexed(
-                        gpu_mesh->index_count,
-                        static_cast<std::uint32_t>(models.size()),
-                        0,
-                        0,
-                        0);
-                    return;
-                }
-            }
-        }
-
         MaterialAccess::bind_descriptor_sets(*material);
 
         for (const glm::mat4& model_matrix : models)
@@ -160,11 +134,6 @@ namespace boza
             const MaterialSettings& material_settings = MaterialAccess::settings(*material);
             if (material_settings.cull_mode == CullMode::None) continue;
 
-            // Tessellated materials displace the surface in TES, so the flat shadow/depth-only
-            // pipeline writes incorrect depths and punches holes into the forward pass.
-            if (!material_settings.tess_control_shader.empty() ||
-                !material_settings.tess_evaluation_shader.empty()) continue;
-
             if (!ensure_shadow_pipeline(material)) continue;
 
             MaterialRenderInfo* render_info = get_or_build_render_info(material);
@@ -213,7 +182,7 @@ namespace boza
         const std::span<const glm::mat4> matrices,
         bool& layout_initialized,
         const std::string_view log_label,
-        const std::uint32_t dispatcher_pass_index)
+        [[maybe_unused]] const std::uint32_t dispatcher_pass_index)
     {
         assert_render_thread();
 
@@ -235,6 +204,9 @@ namespace boza
 
         std::uint32_t shadow_draws = 0;
         bool previous_layer_used_gpu_shadow_work = false;
+        ComputeDispatcher* gpu_driven_shadow_dispatcher = get_frame_dispatcher(
+            gpu_driven_shadow_cull_dispatchers_,
+            "gpu_frustum_cull");
 
         for (std::uint32_t layer = 0; layer < matrices.size(); ++layer)
         {
@@ -266,75 +238,87 @@ namespace boza
                     render_info &&
                     render_info->instancing_range_index.has_value() &&
                     *render_info->instancing_range_index < render_info->ranges.size() &&
-                    supports_gpu_culled_instancing(render_info->ranges[*render_info->instancing_range_index]) &&
-                    MaterialAccess::settings(*material).tess_control_shader.empty() &&
-                    MaterialAccess::settings(*material).tess_evaluation_shader.empty();
+                    supports_gpu_culled_instancing(render_info->ranges[*render_info->instancing_range_index]);
 
                 if (!supports_shadow_instancing) continue;
 
-                const PushConstantRangeRuntime& range =
-                    render_info->ranges[*render_info->instancing_range_index];
-
-                std::size_t total_shadow_instance_capacity = 0;
-                for (const auto& [mesh, bucket] : mat_group.mesh_buckets)
-                {
-                    for (const RenderElement& elem : bucket.elements)
-                    {
-                        if (!elem.entity.valid() || !elem.entity.active) continue;
-                        if (!std::as_const(elem.entity).try_get_component<ShadowCaster>()) continue;
-                        ++total_shadow_instance_capacity;
-                    }
-                }
-
-                if (total_shadow_instance_capacity == 0) continue;
-
-                InstanceBufferState* instance_buffer_state = get_instance_buffer(material, range.instancing_ssbo_name);
-                if (!instance_buffer_state) continue;
-
-                const std::size_t required_bytes =
-                    total_shadow_instance_capacity * static_cast<std::size_t>(range.instancing_stride);
-                if (!ensure_buffer_capacity(*instance_buffer_state, required_bytes) || !instance_buffer_state->buffer)
-                    continue;
-
-                const auto buffer_handle = BufferAccess::handle(*instance_buffer_state->buffer);
-                if (instance_buffer_state->bound_handle != buffer_handle)
-                {
-                    material->update_buffer(range.instancing_ssbo_name, *instance_buffer_state->buffer);
-                    instance_buffer_state->bound_handle = buffer_handle;
-                }
-
-                std::uint32_t first_instance = 0;
-
                 for (auto& [mesh, bucket] : mat_group.mesh_buckets)
                 {
+                    if (bucket.elements.size() < instancing_threshold_) continue;
+
+                    if (!upload_mesh_bucket_candidates(bucket, mesh, material)) continue;
+                    if (!bucket.shadow_candidate_buffer || bucket.shadow_candidate_count == 0u) continue;
+
                     auto* gpu_mesh = get_or_create_gpu_mesh(mesh);
                     if (!gpu_mesh) continue;
 
-                    std::uint32_t shadow_candidate_count = 0;
-                    for (const RenderElement& elem : bucket.elements)
-                    {
-                        if (!elem.entity.valid() || !elem.entity.active) continue;
-                        if (!std::as_const(elem.entity).try_get_component<ShadowCaster>()) continue;
-                        ++shadow_candidate_count;
-                    }
+                    ShadowCullBufferState* state = get_shadow_gpu_cull_buffer_state(material, mesh);
+                    if (!state) continue;
 
-                    if (shadow_candidate_count == 0) continue;
+                    if (!ensure_generic_shadow_gpu_cull_capacity(*state, bucket.shadow_candidate_count)) continue;
+                    if (!state->params_buffer || !state->culled_instance_buffer || !state->indirect_buffer) continue;
 
                     has_gpu_shadow_work =
-                        prepare_gpu_shadow_culled_instance_payload(
-                            material,
-                            mesh,
-                            bucket,
-                            range,
-                            gpu_mesh,
-                            layer,
-                            dispatcher_pass_index,
+                        dispatch_gpu_driven_cull(
+                            *bucket.shadow_candidate_buffer,
+                            bucket.shadow_candidate_count,
+                            *gpu_mesh,
+                            *state->params_buffer,
+                            *state->culled_instance_buffer,
+                            *state->indirect_buffer,
                             shadow_frustum_planes,
-                            *instance_buffer_state->buffer,
-                            first_instance) || has_gpu_shadow_work;
-
-                    first_instance += shadow_candidate_count;
+                            *gpu_driven_shadow_dispatcher) || has_gpu_shadow_work;
                 }
+            }
+
+            if (gpu_driven_shadow_dispatcher && !gpu_driven_shadow_dispatcher->failed())
+            {
+                Scene::world().each(
+                    [&](const flecs::entity entity, MeshRenderer& mr, GpuDrivenInstances& gpu_instances)
+                {
+                    if (!entity.is_valid() || !entity.enabled()) return;
+                    if (!gpu_instances.casts_shadows) return;
+                    if (entity.has<tags::ShadowOnly>()) return;
+
+                    Material* material = mr.material;
+                    Mesh* mesh = mr.mesh;
+                    const Buffer* candidates = gpu_instances.shadow_candidates();
+                    const std::uint32_t candidate_count = gpu_instances.shadow_count();
+
+                    if (!material || !mesh || !candidates || candidate_count == 0u) return;
+                    if (!ensure_shadow_pipeline(material)) return;
+
+                    MaterialRenderInfo* render_info = get_or_build_render_info(material);
+                    if (!render_info || !render_info->instancing_range_index.has_value()) return;
+
+                    const std::size_t range_index = *render_info->instancing_range_index;
+                    if (range_index >= render_info->ranges.size()) return;
+
+                    const PushConstantRangeRuntime& range = render_info->ranges[range_index];
+                    if (!supports_gpu_culled_instancing(range)) return;
+
+                    GpuMesh* gpu_mesh = get_or_create_gpu_mesh(mesh);
+                    if (!gpu_mesh) return;
+
+                    GpuDrivenBatchState* state = get_gpu_driven_batch_state(entity.id());
+                    if (!state) return;
+
+                    const std::size_t required_visible_bytes =
+                        static_cast<std::size_t>(candidate_count) * static_cast<std::size_t>(range.instancing_stride);
+
+                    if (!ensure_gpu_driven_batch_capacity(*state, required_visible_bytes)) return;
+
+                    has_gpu_shadow_work =
+                        dispatch_gpu_driven_cull(
+                            *candidates,
+                            candidate_count,
+                            *gpu_mesh,
+                            *state->params_buffer,
+                            *state->visible_buffer,
+                            *state->indirect_buffer,
+                            shadow_frustum_planes,
+                            *gpu_driven_shadow_dispatcher) || has_gpu_shadow_work;
+                });
             }
 
             if (has_gpu_shadow_work)
@@ -347,15 +331,6 @@ namespace boza
                 if (!material || !ensure_shadow_pipeline(material)) continue;
 
                 MaterialRenderInfo* render_info = get_or_build_render_info(material);
-                const bool supports_shadow_instancing =
-                    gpu_shadow_instancing_enabled_ &&
-                    render_info &&
-                    render_info->instancing_range_index.has_value() &&
-                    *render_info->instancing_range_index < render_info->ranges.size() &&
-                    supports_gpu_culled_instancing(render_info->ranges[*render_info->instancing_range_index]) &&
-                    MaterialAccess::settings(*material).tess_control_shader.empty() &&
-                    MaterialAccess::settings(*material).tess_evaluation_shader.empty();
-
                 auto shadow_pipeline_it = shadow_pipelines_.find(material);
                 if (shadow_pipeline_it == shadow_pipelines_.end()) continue;
 
@@ -363,40 +338,6 @@ namespace boza
 
                 for (auto& [mesh, bucket] : mat_group.mesh_buckets)
                 {
-                    auto* gpu_mesh = get_or_create_gpu_mesh(mesh);
-                    if (!gpu_mesh) continue;
-
-                    auto* vertex_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(gpu_mesh->vertex_buffer));
-                    auto* index_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(gpu_mesh->index_buffer));
-                    if (!vertex_buffer_rhi || !index_buffer_rhi) continue;
-
-                    cmd->bind_vertex_buffer(vertex_buffer_rhi);
-                    cmd->bind_index_buffer(index_buffer_rhi);
-
-                    bool drew_indirect = false;
-                    if (supports_shadow_instancing)
-                    {
-                        if (ShadowCullBufferState* state = get_shadow_gpu_cull_buffer_state(material, mesh);
-                            state && state->indirect_buffer)
-                        {
-                            auto* indirect_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(*state->indirect_buffer));
-                            if (indirect_buffer_rhi)
-                            {
-                                MaterialAccess::bind_descriptor_sets(*material);
-                                push_ranges(cmd, *material, render_info, nullptr, true, &light_view_projection, true);
-                                cmd->draw_indexed_indirect(
-                                    indirect_buffer_rhi,
-                                    0,
-                                    1,
-                                    sizeof(GpuIndexedDrawCommand));
-                                drew_indirect = true;
-                                ++shadow_draws;
-                            }
-                        }
-                    }
-
-                    if (drew_indirect) continue;
-
                     collect_shadow_models(*mesh, bucket, shadow_frustum);
                     render_shadow_bucket(
                         cmd,
@@ -410,6 +351,76 @@ namespace boza
                     shadow_draws += static_cast<std::uint32_t>(shadow_instance_models_.size());
                 }
             }
+
+            Scene::world().each(
+                [&](const flecs::entity entity, MeshRenderer& mr, GpuDrivenInstances& gpu_instances)
+            {
+                if (!entity.is_valid() || !entity.enabled()) return;
+                if (!gpu_instances.casts_shadows) return;
+
+                Material* material = mr.material;
+                Mesh* mesh = mr.mesh;
+                const std::uint32_t candidate_count = gpu_instances.shadow_count();
+
+                if (!material || !mesh || candidate_count == 0u) return;
+                if (!ensure_shadow_pipeline(material)) return;
+
+                MaterialRenderInfo* render_info = get_or_build_render_info(material);
+                if (!render_info || !render_info->instancing_range_index.has_value()) return;
+
+                const std::size_t range_index = *render_info->instancing_range_index;
+                if (range_index >= render_info->ranges.size()) return;
+
+                const PushConstantRangeRuntime& range = render_info->ranges[range_index];
+
+                auto shadow_pipeline_it = shadow_pipelines_.find(material);
+                if (shadow_pipeline_it == shadow_pipelines_.end()) return;
+
+                GpuMesh* gpu_mesh = get_or_create_gpu_mesh(mesh);
+                if (!gpu_mesh) return;
+
+                auto* vertex_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(gpu_mesh->vertex_buffer));
+                auto* index_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(gpu_mesh->index_buffer));
+                if (!vertex_buffer_rhi || !index_buffer_rhi) return;
+
+                if (entity.has<tags::ShadowOnly>())
+                {
+                    const Buffer* candidates = gpu_instances.shadow_candidates();
+                    if (!candidates) return;
+
+                    cmd->bind_graphics_pipeline(shadow_pipeline_it->second.pipeline.get());
+                    cmd->bind_vertex_buffer(vertex_buffer_rhi);
+                    cmd->bind_index_buffer(index_buffer_rhi);
+                    material->update_buffer(range.instancing_ssbo_name, *candidates);
+                    MaterialAccess::bind_descriptor_sets(*material);
+                    push_ranges(cmd, *material, render_info, nullptr, true, &light_view_projection, true);
+                    cmd->draw_indexed(gpu_mesh->index_count, candidate_count, 0, 0, 0);
+                    ++shadow_draws;
+                    return;
+                }
+
+                if (!supports_gpu_culled_instancing(range)) return;
+
+                GpuDrivenBatchState* state = get_gpu_driven_batch_state(entity.id());
+                if (!state || !state->visible_buffer || !state->indirect_buffer) return;
+
+                auto* indirect_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(*state->indirect_buffer));
+                if (!vertex_buffer_rhi || !index_buffer_rhi || !indirect_buffer_rhi) return;
+
+                cmd->bind_graphics_pipeline(shadow_pipeline_it->second.pipeline.get());
+                cmd->bind_vertex_buffer(vertex_buffer_rhi);
+                cmd->bind_index_buffer(index_buffer_rhi);
+
+                material->update_buffer(range.instancing_ssbo_name, *state->visible_buffer);
+                MaterialAccess::bind_descriptor_sets(*material);
+                push_ranges(cmd, *material, render_info, nullptr, true, &light_view_projection, true);
+                cmd->draw_indexed_indirect(
+                    indirect_buffer_rhi,
+                    0,
+                    1,
+                    sizeof(GpuIndexedDrawCommand));
+                ++shadow_draws;
+            });
 
             cmd->end_rendering();
             previous_layer_used_gpu_shadow_work = has_gpu_shadow_work;
@@ -506,6 +517,20 @@ namespace boza
             material_loader.bind_engine_resources(material);
             bind_frame_render_resources(*material);
         }
+
+        Scene::world().each(
+            [&](const flecs::entity entity, MeshRenderer& mr, GpuDrivenInstances&)
+        {
+            if (!entity.is_valid() || !entity.enabled()) return;
+
+            Material* material = mr.material;
+            if (!material) return;
+
+            MaterialRenderInfo* render_info = get_or_build_render_info(material);
+            ensure_fallback_ssbo_bound(*material, render_info);
+            material_loader.bind_engine_resources(material);
+            bind_frame_render_resources(*material);
+        });
     }
 
     void RenderingSystem::execute_gpu_instance_culling_pass()
@@ -521,56 +546,87 @@ namespace boza
             if (range_index >= render_info->ranges.size()) continue;
 
             const PushConstantRangeRuntime& range = render_info->ranges[range_index];
-            if (!MaterialAccess::settings(*material).tess_control_shader.empty() ||
-                !MaterialAccess::settings(*material).tess_evaluation_shader.empty()) continue;
             if (!supports_gpu_culled_instancing(range)) continue;
-
-            std::size_t total_instance_capacity = 0;
-            for (const auto& [mesh, bucket] : mat_group.mesh_buckets)
-            {
-                if (bucket.num_visible < instancing_threshold_) continue;
-                total_instance_capacity += bucket.num_visible;
-            }
-
-            if (total_instance_capacity == 0) continue;
-
-            InstanceBufferState* instance_buffer_state = get_instance_buffer(material, range.instancing_ssbo_name);
-            if (!instance_buffer_state) continue;
-
-            const std::size_t required_bytes =
-                total_instance_capacity * static_cast<std::size_t>(range.instancing_stride);
-
-            if (!ensure_buffer_capacity(*instance_buffer_state, required_bytes) || !instance_buffer_state->buffer)
-                continue;
-
-            const auto buffer_handle = BufferAccess::handle(*instance_buffer_state->buffer);
-            if (instance_buffer_state->bound_handle != buffer_handle)
-            {
-                material->update_buffer(range.instancing_ssbo_name, *instance_buffer_state->buffer);
-                instance_buffer_state->bound_handle = buffer_handle;
-            }
-
-            std::uint32_t first_instance = 0;
 
             for (auto& [mesh, bucket] : mat_group.mesh_buckets)
             {
                 if (bucket.num_visible < instancing_threshold_) continue;
 
+                if (!upload_mesh_bucket_candidates(bucket, mesh, material)) continue;
+                if (!bucket.candidate_buffer || bucket.candidate_count == 0u) continue;
+
                 GpuMesh* gpu_mesh = get_or_create_gpu_mesh(mesh);
                 if (!gpu_mesh) continue;
 
-                (void)prepare_gpu_culled_instance_payload(
-                    material,
-                    mesh,
-                    bucket,
-                    range,
-                    gpu_mesh,
-                    *instance_buffer_state->buffer,
-                    first_instance);
+                GpuCullBufferState* state = get_gpu_cull_buffer_state(material, mesh);
+                if (!state) continue;
 
-                first_instance += static_cast<std::uint32_t>(bucket.num_visible);
+                if (!ensure_generic_gpu_cull_capacity(*state, bucket.candidate_count)) continue;
+                if (!state->params_buffer || !state->culled_instance_buffer || !state->indirect_buffer) continue;
+
+                ComputeDispatcher* dispatcher = get_frame_dispatcher(state->dispatchers, "gpu_frustum_cull");
+                if (!dispatcher || dispatcher->failed()) continue;
+
+                (void)dispatch_gpu_driven_cull(
+                    *bucket.candidate_buffer,
+                    bucket.candidate_count,
+                    *gpu_mesh,
+                    *state->params_buffer,
+                    *state->culled_instance_buffer,
+                    *state->indirect_buffer,
+                    gpu_cull_frustum_planes_,
+                    *dispatcher);
             }
         }
+
+        ComputeDispatcher* gpu_driven_forward_dispatcher = get_frame_dispatcher(
+            gpu_driven_forward_cull_dispatchers_,
+            "gpu_frustum_cull");
+
+        if (!gpu_driven_forward_dispatcher || gpu_driven_forward_dispatcher->failed()) return;
+
+        Scene::world().each(
+            [&](const flecs::entity entity, MeshRenderer& mr, GpuDrivenInstances& gpu_instances)
+        {
+            if (!entity.is_valid() || !entity.enabled()) return;
+
+            Material* material = mr.material;
+            Mesh* mesh = mr.mesh;
+            const Buffer* candidates = gpu_instances.forward_candidates();
+            const std::uint32_t candidate_count = gpu_instances.forward_count();
+
+            if (!material || !mesh || !candidates || candidate_count == 0u) return;
+
+            MaterialRenderInfo* render_info = get_or_build_render_info(material);
+            if (!render_info || !render_info->instancing_range_index.has_value()) return;
+
+            const std::size_t range_index = *render_info->instancing_range_index;
+            if (range_index >= render_info->ranges.size()) return;
+
+            const PushConstantRangeRuntime& range = render_info->ranges[range_index];
+            if (!supports_gpu_culled_instancing(range)) return;
+
+            GpuMesh* gpu_mesh = get_or_create_gpu_mesh(mesh);
+            if (!gpu_mesh) return;
+
+            GpuDrivenBatchState* state = get_gpu_driven_batch_state(entity.id());
+            if (!state) return;
+
+            const std::size_t required_visible_bytes =
+                static_cast<std::size_t>(candidate_count) * static_cast<std::size_t>(range.instancing_stride);
+
+            if (!ensure_gpu_driven_batch_capacity(*state, required_visible_bytes)) return;
+
+            (void)dispatch_gpu_driven_cull(
+                *candidates,
+                candidate_count,
+                *gpu_mesh,
+                *state->params_buffer,
+                *state->visible_buffer,
+                *state->indirect_buffer,
+                gpu_cull_frustum_planes_,
+                *gpu_driven_forward_dispatcher);
+        });
     }
 
     bool RenderingSystem::execute_clustered_light_culling_pass()
@@ -794,6 +850,54 @@ namespace boza
             }
         }
 
+        Scene::world().each(
+            [&](const flecs::entity entity, MeshRenderer& mr, GpuDrivenInstances& gpu_instances)
+        {
+            if (!entity.is_valid() || !entity.enabled()) return;
+            if (entity.has<tags::ShadowOnly>()) return;
+
+            Material* material = mr.material;
+            Mesh* mesh = mr.mesh;
+            const std::uint32_t candidate_count = gpu_instances.forward_count();
+
+            if (!material || !mesh || candidate_count == 0u || material->shadow_only()) return;
+
+            MaterialRenderInfo* render_info = get_or_build_render_info(material);
+            if (!render_info || !render_info->instancing_range_index.has_value()) return;
+
+            const std::size_t range_index = *render_info->instancing_range_index;
+            if (range_index >= render_info->ranges.size()) return;
+
+            const PushConstantRangeRuntime& range = render_info->ranges[range_index];
+            if (!supports_gpu_culled_instancing(range)) return;
+
+            GpuMesh* gpu_mesh = get_or_create_gpu_mesh(mesh);
+            if (!gpu_mesh) return;
+
+            GpuDrivenBatchState* state = get_gpu_driven_batch_state(entity.id());
+            if (!state || !state->visible_buffer || !state->indirect_buffer) return;
+
+            auto* pipeline = static_cast<rhi::GraphicsPipeline*>(MaterialAccess::pipeline(*material));
+            auto* vertex_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(gpu_mesh->vertex_buffer));
+            auto* index_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(gpu_mesh->index_buffer));
+            auto* indirect_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(*state->indirect_buffer));
+
+            if (!pipeline || !vertex_buffer_rhi || !index_buffer_rhi || !indirect_buffer_rhi) return;
+
+            cmd->bind_graphics_pipeline(pipeline);
+            cmd->bind_vertex_buffer(vertex_buffer_rhi);
+            cmd->bind_index_buffer(index_buffer_rhi);
+
+            material->update_buffer(range.instancing_ssbo_name, *state->visible_buffer);
+            MaterialAccess::bind_descriptor_sets(*material);
+            push_ranges(cmd, *material, render_info, nullptr, true, nullptr, false);
+            cmd->draw_indexed_indirect(
+                indirect_buffer_rhi,
+                0,
+                1,
+                sizeof(GpuIndexedDrawCommand));
+        });
+
         ++submit_log_frame;
     }
 
@@ -806,9 +910,103 @@ namespace boza
     {
         auto* render_info = static_cast<MaterialRenderInfo*>(render_info_opaque);
 
+        const PushConstantRangeRuntime* direct_instancing_range = nullptr;
+        bool supports_direct_instancing = false;
+        if (render_info && render_info->instancing_range_index.has_value())
+        {
+            const std::size_t range_index = *render_info->instancing_range_index;
+            if (range_index < render_info->ranges.size())
+            {
+                const PushConstantRangeRuntime& range = render_info->ranges[range_index];
+                supports_direct_instancing =
+                    !gpu_indirect_instancing_enabled_ &&
+                    range.has_model_field &&
+                    range.model_offset_in_range >= range.data_offset_in_range &&
+                    range.model_offset_in_range == range.data_offset_in_range &&
+                    range.data_size == sizeof(glm::mat4) &&
+                    range.instancing_stride == sizeof(glm::mat4);
+                if (supports_direct_instancing)
+                    direct_instancing_range = &range;
+            }
+        }
+
+        struct InstancedDrawPlan final
+        {
+            Mesh* mesh_ptr{ nullptr };
+            GpuMesh* gpu_mesh{ nullptr };
+            std::uint32_t first_instance{ 0 };
+            std::uint32_t instance_count{ 0 };
+        };
+
+        std::vector<InstancedDrawPlan> instanced_plans{};
+        std::vector<glm::mat4> instanced_models{};
+        flat_set<Mesh*> instanced_meshes{};
+
+        if (supports_direct_instancing && direct_instancing_range)
+        {
+            for (auto& [mesh_ptr, bucket] : mat_group.mesh_buckets)
+            {
+                if (bucket.num_visible < instancing_threshold_ || bucket.num_visible > max_instance_index) continue;
+
+                auto* gpu_mesh = get_or_create_gpu_mesh(mesh_ptr);
+                if (!gpu_mesh) continue;
+
+                const std::uint32_t first_instance = static_cast<std::uint32_t>(instanced_models.size());
+
+                for (const auto& elem : bucket.elements)
+                {
+                    if (!elem.visible) continue;
+
+                    const auto* transform = std::as_const(elem.entity).try_get_component<Transform>();
+                    if (!transform) continue;
+
+                    instanced_models.push_back(transform->world_matrix());
+                }
+
+                const std::uint32_t instance_count = static_cast<std::uint32_t>(instanced_models.size()) - first_instance;
+                if (instance_count == 0) continue;
+
+                instanced_plans.push_back(InstancedDrawPlan{
+                    .mesh_ptr = mesh_ptr,
+                    .gpu_mesh = gpu_mesh,
+                    .first_instance = first_instance,
+                    .instance_count = instance_count
+                });
+                instanced_meshes.insert(mesh_ptr);
+            }
+
+            if (!instanced_plans.empty() &&
+                upload_instance_payload_from_models(material, instanced_models, *direct_instancing_range))
+            {
+                MaterialAccess::bind_descriptor_sets(*material);
+
+                for (const InstancedDrawPlan& plan : instanced_plans)
+                {
+                    auto* vertex_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(plan.gpu_mesh->vertex_buffer));
+                    auto* index_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(plan.gpu_mesh->index_buffer));
+                    if (!vertex_buffer_rhi || !index_buffer_rhi) continue;
+
+                    cmd->bind_vertex_buffer(vertex_buffer_rhi);
+                    cmd->bind_index_buffer(index_buffer_rhi);
+                    push_ranges(cmd, *material, render_info, nullptr, true, nullptr, false);
+                    cmd->draw_indexed(
+                        plan.gpu_mesh->index_count,
+                        plan.instance_count,
+                        0,
+                        0,
+                        plan.first_instance);
+                }
+            }
+            else
+            {
+                instanced_meshes.clear();
+            }
+        }
+
         for (auto& [mesh_ptr, bucket] : mat_group.mesh_buckets)
         {
             if (bucket.num_visible == 0) continue;
+            if (instanced_meshes.contains(mesh_ptr)) continue;
 
             auto* gpu_mesh = get_or_create_gpu_mesh(mesh_ptr);
             if (!gpu_mesh) continue;
@@ -854,6 +1052,9 @@ namespace boza
         void* render_info_opaque,
         GpuMesh* gpu_mesh)
     {
+        (void)bucket;
+        (void)gpu_mesh;
+
         auto* render_info = static_cast<MaterialRenderInfo*>(render_info_opaque);
         const std::size_t range_index = *render_info->instancing_range_index;
         if (range_index >= render_info->ranges.size())
@@ -863,15 +1064,20 @@ namespace boza
 
         if (gpu_indirect_instancing_enabled_ &&
             frustum_.valid &&
-            MaterialAccess::settings(*material).tess_control_shader.empty() &&
-            MaterialAccess::settings(*material).tess_evaluation_shader.empty() &&
             supports_gpu_culled_instancing(range))
         {
             GpuCullBufferState* state = get_gpu_cull_buffer_state(material, mesh);
-            if (!state || !state->indirect_buffer) return false;
+            if (!state || !state->culled_instance_buffer || !state->indirect_buffer) return false;
 
             auto* indirect_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(*state->indirect_buffer));
             if (!indirect_buffer_rhi) return false;
+
+            const auto visible_handle = BufferAccess::handle(*state->culled_instance_buffer);
+            if (state->bound_culled_handle != visible_handle)
+            {
+                material->update_buffer(range.instancing_ssbo_name, *state->culled_instance_buffer);
+                state->bound_culled_handle = visible_handle;
+            }
 
             push_ranges(cmd, *material, render_info, nullptr, true, nullptr, false);
             cmd->draw_indexed_indirect(
@@ -883,18 +1089,7 @@ namespace boza
             return true;
         }
 
-        if (!upload_instance_payload(material, bucket, range)) return false;
-
-        MaterialAccess::bind_descriptor_sets(*material);
-        push_ranges(cmd, *material, render_info, nullptr, true, nullptr, false);
-        cmd->draw_indexed(
-            gpu_mesh->index_count,
-            bucket.num_visible,
-            0,
-            0,
-            0);
-
-        return true;
+        return false;
 
     }
 

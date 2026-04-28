@@ -56,8 +56,7 @@ namespace boza
         {
             const auto& settings = MaterialAccess::settings(material);
             if (settings.vertex_shader == "instancing_example/grass_sway")
-                return std::max(8.0f, max_scale * 3.25f);
-            if (!settings.tess_control_shader.empty() && !settings.tess_evaluation_shader.empty()) return 1.5f;
+                return std::max(1.25f, max_scale * 1.15f);
             return 0.0f;
         }
     }
@@ -100,6 +99,169 @@ namespace boza
             std::max(glm::length(geometry.half_extents), min_extent)
         };
 
+        return true;
+    }
+
+    bool refresh_render_element_candidate(
+        RenderElement& element,
+        Mesh* mesh,
+        Material* material)
+    {
+        if (!element.entity.valid() || !element.entity.active || !mesh || !material)
+        {
+            element.candidate_valid = false;
+            element.casts_shadows = false;
+            return false;
+        }
+
+        const auto* transform = std::as_const(element.entity).try_get_component<Transform>();
+        if (!transform)
+        {
+            element.candidate_valid = false;
+            element.casts_shadows = false;
+            return false;
+        }
+
+        const glm::mat4 model_matrix = transform->world_matrix();
+        const glm::vec3 world_center = glm::vec3(model_matrix * glm::vec4{ mesh->bounds->center, 1.0f });
+
+        const float scale_x = length(glm::vec3{ model_matrix[0] });
+        const float scale_y = length(glm::vec3{ model_matrix[1] });
+        const float scale_z = length(glm::vec3{ model_matrix[2] });
+        const float max_scale = std::max({ scale_x, scale_y, scale_z });
+
+        element.model = model_matrix;
+        element.sphere = glm::vec4{
+            world_center,
+            mesh->bounds->radius * max_scale + cull_radius_padding(*material, max_scale)
+        };
+        element.casts_shadows = element.entity.has_component<ShadowCaster>();
+        element.candidate_valid = true;
+        return true;
+    }
+
+    bool ensure_mesh_bucket_candidate_buffers(
+        MeshBucket& bucket,
+        const std::size_t forward_candidate_count,
+        const std::size_t shadow_candidate_count)
+    {
+        const std::size_t forward_required_bytes =
+            std::max<std::size_t>(forward_candidate_count, 1u) * sizeof(GpuCullInstance);
+        const std::size_t shadow_required_bytes =
+            std::max<std::size_t>(shadow_candidate_count, 1u) * sizeof(GpuCullInstance);
+
+        if (!bucket.candidate_buffer || static_cast<std::size_t>(bucket.candidate_buffer->size) < forward_required_bytes)
+        {
+            bucket.candidate_buffer = std::make_shared<Buffer>(
+                std::max(forward_required_bytes, initial_gpu_cull_buffer_bytes_),
+                BufferUsage::Storage,
+                ResourceAccessMode::Static);
+
+            if (!bucket.candidate_buffer || !BufferAccess::handle(*bucket.candidate_buffer))
+            {
+                Log::error("Failed to allocate mesh bucket candidate buffer");
+                bucket.candidate_buffer.reset();
+                return false;
+            }
+        }
+
+        if (shadow_candidate_count == 0u)
+        {
+            bucket.shadow_candidate_buffer.reset();
+            return true;
+        }
+
+        if (!bucket.shadow_candidate_buffer || static_cast<std::size_t>(bucket.shadow_candidate_buffer->size) < shadow_required_bytes)
+        {
+            bucket.shadow_candidate_buffer = std::make_shared<Buffer>(
+                std::max(shadow_required_bytes, initial_gpu_cull_buffer_bytes_),
+                BufferUsage::Storage,
+                ResourceAccessMode::Static);
+
+            if (!bucket.shadow_candidate_buffer || !BufferAccess::handle(*bucket.shadow_candidate_buffer))
+            {
+                Log::error("Failed to allocate mesh bucket shadow candidate buffer");
+                bucket.shadow_candidate_buffer.reset();
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    bool upload_mesh_bucket_candidates(
+        MeshBucket& bucket,
+        Mesh* mesh,
+        Material* material)
+    {
+        if (!mesh || !material) return false;
+
+        if (bucket.mesh_revision != mesh->revision())
+        {
+            bucket.mesh_revision = mesh->revision();
+            bucket.candidates_dirty = true;
+            bucket.shadow_candidates_dirty = true;
+
+            for (RenderElement& element : bucket.elements)
+                (void)refresh_render_element_candidate(element, mesh, material);
+        }
+
+        if (!bucket.candidates_dirty && !bucket.shadow_candidates_dirty) return true;
+
+        bucket.candidate_count = 0u;
+        bucket.shadow_candidate_count = 0u;
+
+        for (const RenderElement& element : bucket.elements)
+        {
+            if (!element.candidate_valid) continue;
+            ++bucket.candidate_count;
+            if (element.casts_shadows) ++bucket.shadow_candidate_count;
+        }
+
+        if (bucket.candidate_count == 0u)
+        {
+            bucket.candidates_dirty = false;
+            bucket.shadow_candidates_dirty = false;
+            return true;
+        }
+
+        if (!ensure_mesh_bucket_candidate_buffers(bucket, bucket.candidate_count, bucket.shadow_candidate_count))
+            return false;
+
+        gpu_cull_instance_scratch_.clear();
+        gpu_cull_instance_scratch_.reserve(bucket.candidate_count);
+
+        for (const RenderElement& element : bucket.elements)
+        {
+            if (!element.candidate_valid) continue;
+            gpu_cull_instance_scratch_.push_back({
+                .model = element.model,
+                .sphere = element.sphere
+            });
+        }
+
+        bucket.candidate_buffer->upload(std::span{ gpu_cull_instance_scratch_ });
+
+        if (bucket.shadow_candidate_count > 0u && bucket.shadow_candidate_buffer)
+        {
+            gpu_cull_instance_scratch_.clear();
+            gpu_cull_instance_scratch_.reserve(bucket.shadow_candidate_count);
+
+            for (const RenderElement& element : bucket.elements)
+            {
+                if (!element.candidate_valid || !element.casts_shadows) continue;
+                gpu_cull_instance_scratch_.push_back({
+                    .model = element.model,
+                    .sphere = element.sphere
+                });
+            }
+
+            if (!gpu_cull_instance_scratch_.empty())
+                bucket.shadow_candidate_buffer->upload(std::span{ gpu_cull_instance_scratch_ });
+        }
+
+        bucket.candidates_dirty = false;
+        bucket.shadow_candidates_dirty = false;
         return true;
     }
 
@@ -292,6 +454,8 @@ namespace boza
                         if (elem_it != bucket.elements.end() - 1)
                             *elem_it = std::move(bucket.elements.back());
                         bucket.elements.pop_back();
+                        bucket.candidates_dirty = true;
+                        bucket.shadow_candidates_dirty = true;
                     }
 
                     if (bucket.elements.empty())
@@ -327,7 +491,13 @@ namespace boza
         auto& mat_group = render_cache_[material];
         auto& bucket = mat_group.mesh_buckets[mesh];
 
-        bucket.elements.emplace_back(go, false);
+        RenderElement element{};
+        element.entity = go;
+        (void)refresh_render_element_candidate(element, mesh, material);
+        bucket.elements.push_back(std::move(element));
+        bucket.mesh_revision = mesh->revision();
+        bucket.candidates_dirty = true;
+        bucket.shadow_candidates_dirty = true;
 
         mr.in_render_cache_ = true;
         mr.cached_mesh_ = mesh;
@@ -359,11 +529,14 @@ namespace boza
         instance_buffers_.clear();
         gpu_cull_buffers_.clear();
         shadow_gpu_cull_buffers_.clear();
+        gpu_driven_batch_states_.clear();
         shadow_pipelines_.clear();
         shadow_camera_buffer_.reset();
         cluster_build_dispatchers_.clear();
         light_cull_dispatchers_.clear();
         ssao_dispatchers_.clear();
+        gpu_driven_forward_cull_dispatchers_.clear();
+        gpu_driven_shadow_cull_dispatchers_.clear();
         directional_shadow_map_layout_initialized_ = false;
         point_shadow_map_layout_initialized_ = false;
         spot_shadow_map_layout_initialized_ = false;
@@ -439,6 +612,7 @@ namespace boza
             set_layouts.push_back(static_cast<rhi::DescriptorSetLayout*>(layout_handle));
 
         std::vector<rhi::ShaderModule*> shaders{ vertex_shader.get() };
+
         auto pipeline_layout = create_pipeline_layout(
             api,
             {
@@ -474,7 +648,10 @@ namespace boza
             std::vector<TextureFormat>{},
             rhi::DepthFormat::D32F,
             rasterization,
-            depth_stencil);
+            depth_stencil,
+            {},
+            {},
+            rhi::PrimitiveTopology::TriangleList);
 
         if (!pipeline)
         {
@@ -651,6 +828,16 @@ namespace boza
         }
     }
 
+    bool ensure_generic_gpu_cull_capacity(GpuCullBufferState& state, const std::size_t candidate_count)
+    {
+        return ensure_gpu_cull_capacity(state, candidate_count);
+    }
+
+    bool ensure_generic_shadow_gpu_cull_capacity(ShadowCullBufferState& state, const std::size_t candidate_count)
+    {
+        return ensure_shadow_gpu_cull_capacity(state, candidate_count);
+    }
+
     bool supports_gpu_culled_instancing(const PushConstantRangeRuntime& range) noexcept
     {
         return range.instancing_supported &&
@@ -683,6 +870,86 @@ namespace boza
         auto it = per_mesh.find(mesh);
         if (it == per_mesh.end()) return nullptr;
         return &it->second;
+    }
+
+    GpuDrivenBatchState* get_gpu_driven_batch_state(const std::uint64_t entity_id)
+    {
+        if (entity_id == 0) return nullptr;
+
+        auto [it, inserted] = gpu_driven_batch_states_.try_emplace(entity_id, GpuDrivenBatchState{});
+        if (!inserted && it == gpu_driven_batch_states_.end()) return nullptr;
+        return &it->second;
+    }
+
+    bool ensure_gpu_driven_batch_capacity(
+        GpuDrivenBatchState& state,
+        const std::size_t required_visible_bytes)
+    {
+        if (!ensure_gpu_cull_buffer_capacity(
+            state.params_buffer,
+            state.params_capacity_bytes,
+            sizeof(GpuCullParams),
+            BufferUsage::Storage,
+            sizeof(GpuCullParams))) return false;
+
+        if (!ensure_gpu_cull_buffer_capacity(
+            state.visible_buffer,
+            state.visible_capacity_bytes,
+            required_visible_bytes,
+            BufferUsage::Storage,
+            initial_instance_buffer_bytes_)) return false;
+
+        if (!ensure_gpu_cull_buffer_capacity(
+            state.indirect_buffer,
+            state.indirect_capacity_bytes,
+            sizeof(GpuIndexedDrawCommand),
+            BufferUsage::StorageIndirect,
+            sizeof(GpuIndexedDrawCommand))) return false;
+
+        return state.params_buffer && state.visible_buffer && state.indirect_buffer;
+    }
+
+    bool dispatch_gpu_driven_cull(
+        const Buffer& candidates,
+        const std::uint32_t candidate_count,
+        GpuMesh& gpu_mesh,
+        Buffer& params_buffer,
+        Buffer& visible_buffer,
+        Buffer& indirect_buffer,
+        const std::array<glm::vec4, 6>& frustum_planes,
+        ComputeDispatcher& dispatcher)
+    {
+        if (candidate_count == 0u) return false;
+
+        const GpuCullParams params{
+            .frustum_planes = frustum_planes,
+            .counts = glm::uvec4{
+                candidate_count,
+                gpu_mesh.index_count,
+                1u,
+                0u
+            }
+        };
+
+        const GpuIndexedDrawCommand indirect_command{
+            .index_count = gpu_mesh.index_count,
+            .instance_count = 0u,
+            .first_index = 0u,
+            .vertex_offset = 0,
+            .first_instance = 0u
+        };
+
+        params_buffer.upload(params);
+        indirect_buffer.upload(indirect_command);
+
+        dispatcher
+            .set("cull_params", params_buffer)
+            .set("cull_candidates", candidates)
+            .set("culled_instances", visible_buffer)
+            .set("indirect_draw", indirect_buffer)
+            .dispatch_on_current_command_buffer(candidate_count);
+
+        return !dispatcher.failed();
     }
 
     MaterialRenderInfo build_material_render_info(Material* material)

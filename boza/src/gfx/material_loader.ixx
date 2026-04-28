@@ -38,8 +38,6 @@ export namespace boza::gfx
     {
         std::string      name;
         std::string      vertex_shader;
-        std::string      tess_control_shader;
-        std::string      tess_evaluation_shader;
         std::string      fragment_shader;
         LoadStrategy     load_strategy{ LoadStrategy::GameLoad };
         MaterialSettings settings{};

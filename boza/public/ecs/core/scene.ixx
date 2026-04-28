@@ -11,8 +11,8 @@ import :tags;
 namespace boza
 {
     class App;
+    struct RenderingSystem;
     namespace app { class GameLoop; }
-    namespace gfx { class RenderingSystem; }
 }
 
 namespace boza
@@ -95,7 +95,7 @@ namespace boza
         friend class App;
         friend class app::GameLoop;
 
-        friend class gfx::RenderingSystem;
+        friend struct RenderingSystem;
 
         friend class SystemRegistry;
 

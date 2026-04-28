@@ -39,6 +39,8 @@ export namespace boza
                 const bool should_evaluate = transform.dirty_ || parent_world_changed;
                 if (should_evaluate) transform.evaluate_world_transform();
 
+                if (should_evaluate) go.add_component<tags::RenderTransformDirty>();
+
                 transform.dirty_ = false;
 
                 go.remove_component<tags::TransformDirty>();

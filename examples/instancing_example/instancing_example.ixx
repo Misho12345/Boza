@@ -83,7 +83,7 @@ private:
         Material& grass_shadow_proxy = Material::create(
             "grass_shadow_proxy",
             {
-                .vertex_shader = "instancing_example/grass_sway",
+                .vertex_shader = "instancing_example/grass_shadow_proxy",
                 .fragment_shader = "default",
                 .cull_mode = CullMode::None
             });
@@ -92,57 +92,13 @@ private:
         grass_shadow_proxy["material.albedo_color"] = glm::vec4{ 0.0f, 0.0f, 0.0f, 1.0f };
         grass_shadow_proxy["material.properties"] = glm::vec4{ 0.0f };
         grass_shadow_proxy["material.detail"] = glm::vec4{ 0.0f, SurfaceMappingUv, 0.0f, 1.0f };
-        grass_shadow_proxy["grassSettings.sway_direction"] = glm::normalize(glm::vec2{ 0.8f, 1.0f });
-        grass_shadow_proxy["grassSettings.sway_strength"] = 1.0f;
         grass_shadow_proxy.set_cpu_cull_enabled(false);
         grass_shadow_proxy.set_shadow_only(true);
     }
 
     static void create_shadow_marker_mesh()
     {
-        Mesh::create(
-            "shadow_marker",
-            std::vector<Vertex>
-            {
-                { { -0.5f, -0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } },
-                { { 0.5f, -0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f } },
-                { { 0.5f, 0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f } },
-                { { -0.5f, 0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f } },
-
-                { { 0.5f, -0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 0.0f, 0.0f } },
-                { { -0.5f, -0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 1.0f, 0.0f } },
-                { { -0.5f, 0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 1.0f, 1.0f } },
-                { { 0.5f, 0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 0.0f, 1.0f } },
-
-                { { -0.5f, 0.5f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
-                { { 0.5f, 0.5f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
-                { { 0.5f, 0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f } },
-                { { -0.5f, 0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } },
-
-                { { -0.5f, -0.5f, -0.5f }, { 0.0f, -1.0f, 0.0f }, { 0.0f, 0.0f } },
-                { { 0.5f, -0.5f, -0.5f }, { 0.0f, -1.0f, 0.0f }, { 1.0f, 0.0f } },
-                { { 0.5f, -0.5f, 0.5f }, { 0.0f, -1.0f, 0.0f }, { 1.0f, 1.0f } },
-                { { -0.5f, -0.5f, 0.5f }, { 0.0f, -1.0f, 0.0f }, { 0.0f, 1.0f } },
-
-                { { 0.5f, -0.5f, 0.5f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
-                { { 0.5f, -0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f } },
-                { { 0.5f, 0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f } },
-                { { 0.5f, 0.5f, 0.5f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f } },
-
-                { { -0.5f, -0.5f, -0.5f }, { -1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
-                { { -0.5f, -0.5f, 0.5f }, { -1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f } },
-                { { -0.5f, 0.5f, 0.5f }, { -1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f } },
-                { { -0.5f, 0.5f, -0.5f }, { -1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f } },
-            },
-            std::vector<std::uint32_t>
-            {
-                0, 2, 1, 0, 3, 2,
-                4, 6, 5, 4, 7, 6,
-                8, 10, 9, 8, 11, 10,
-                12, 14, 13, 12, 15, 14,
-                16, 18, 17, 16, 19, 18,
-                20, 22, 21, 20, 23, 22
-            });
+        Mesh::create_obj("shadow_marker", "primitives/cube.obj");
     }
 
     static void setup_camera()
@@ -173,8 +129,6 @@ private:
         auto& renderer         = terrain.add_component<MeshRenderer>();
         renderer.mesh_name     = "terrain";
         renderer.material_name = "terrain";
-
-        terrain.add_component<ShadowCaster>();
     }
 
     static void setup_lights()
@@ -216,132 +170,90 @@ private:
             renderer.material_name = "shadow_marker";
 
             marker.add_component<ShadowCaster>();
+
         }
     }
 
     static void setup_grass_field()
     {
-        const auto  field = GameObject::create("GrassField");
-        const auto shadow_field = GameObject::create("GrassShadowField");
-
-        const Texture& terrain_height_map = Texture::get("height_map");
-        auto data = terrain_height_map.read_back();
-        Texture::destroy("height_map");
-
-        constexpr float half_extent = terrain_extent * 0.5f;
-
-        constexpr int   patches_per_row = 10;
-        constexpr float patch_radius    = 50.0f;
-
-        std::vector<glm::vec2> patch_centers;
-
-        constexpr float grid_extent = half_extent - patch_radius;
-        constexpr float spacing     = (2.0f * grid_extent) / static_cast<float>(patches_per_row - 1);
-
-        for (int row = 0; row < patches_per_row; ++row)
+        struct GrassCullCandidate
         {
-            for (int col = 0; col < patches_per_row; ++col)
-            {
-                const float base_x = -grid_extent + col * spacing;
-                const float base_z = -grid_extent + row * spacing;
+            glm::mat4 model{ 1.0f };
+            glm::vec4 sphere{ 0.0f };
+        };
 
-                const float offset_x = Random::range(-spacing * 0.15f, spacing * 0.15f);
-                const float offset_z = Random::range(-spacing * 0.15f, spacing * 0.15f);
+        constexpr std::uint32_t patches_per_row = 10u;
+        constexpr std::uint32_t shadow_blade_count = 2'048u;
+        constexpr float patch_radius = 50.0f;
+        constexpr float terrain_height_scale = 45.0f;
 
-                patch_centers.emplace_back(base_x + offset_x, base_z + offset_z);
-            }
+        const Texture& height_map = Texture::get("height_map");
+
+        GameObject grass_field = GameObject::create("GrassField");
+        GameObject grass_shadow_field = GameObject::create("GrassShadowField");
+        grass_shadow_field.add_component<tags::ShadowOnly>();
+
+        auto& renderer = grass_field.add_component<MeshRenderer>();
+        renderer.mesh_name = "grass_blade";
+        renderer.material_name = "grass";
+
+        auto& shadow_renderer = grass_shadow_field.add_component<MeshRenderer>();
+        shadow_renderer.mesh_name = "grass_blade";
+        shadow_renderer.material_name = "grass_shadow_proxy";
+
+        auto& gpu_instances = grass_field.add_component<GpuDrivenInstances>();
+        gpu_instances.candidate_count = grass_blade_count;
+        gpu_instances.casts_shadows = false;
+        gpu_instances.candidate_buffer = std::make_shared<Buffer>(
+            static_cast<std::size_t>(grass_blade_count) * sizeof(GrassCullCandidate),
+            BufferUsage::Storage,
+            ResourceAccessMode::Static);
+
+        auto& shadow_instances = grass_shadow_field.add_component<GpuDrivenInstances>();
+        shadow_instances.candidate_count = shadow_blade_count;
+        shadow_instances.candidate_buffer = std::make_shared<Buffer>(
+            static_cast<std::size_t>(shadow_blade_count) * sizeof(GrassCullCandidate),
+            BufferUsage::Storage,
+            ResourceAccessMode::Static);
+
+        const std::uint32_t grass_seed = Random::number(std::numeric_limits<std::uint32_t>::max());
+
+        ComputeDispatcher grass_generator{ "instancing_example/grass_instances" };
+        grass_generator
+            .set("cull_candidates", *gpu_instances.candidate_buffer)
+            .set("height_map", height_map, Sampler::get("boza_default_sampler"))
+            .set("pc.instance_count", grass_blade_count)
+            .set("pc.patches_per_row", patches_per_row)
+            .set("pc.seed", grass_seed)
+            .set("pc.terrain_extent", terrain_extent)
+            .set("pc.patch_radius", patch_radius)
+            .set("pc.height_scale", terrain_height_scale)
+            .dispatch(grass_blade_count)
+            .wait();
+
+        if (grass_generator.failed())
+        {
+            Log::error("Failed to generate GPU-driven grass instance data");
+            return;
         }
 
-        const int num_patches = static_cast<int>(patch_centers.size());
+        ComputeDispatcher shadow_grass_generator{ "instancing_example/grass_instances" };
+        shadow_grass_generator
+            .set("cull_candidates", *shadow_instances.candidate_buffer)
+            .set("height_map", height_map, Sampler::get("boza_default_sampler"))
+            .set("pc.instance_count", shadow_blade_count)
+            .set("pc.patches_per_row", patches_per_row)
+            .set("pc.seed", grass_seed ^ 0x9e3779b9u)
+            .set("pc.terrain_extent", terrain_extent)
+            .set("pc.patch_radius", patch_radius)
+            .set("pc.height_scale", terrain_height_scale)
+            .dispatch(shadow_blade_count)
+            .wait();
 
-        constexpr int shadow_proxies_per_patch = 0;
-
-        for (int patch_index = 0; patch_index < num_patches; ++patch_index)
+        if (shadow_grass_generator.failed())
         {
-            const glm::vec2 center = patch_centers[patch_index];
-
-            for (int proxy_index = 0; proxy_index < shadow_proxies_per_patch; ++proxy_index)
-            {
-                const float angle = Random::range(0.0f, glm::two_pi<float>());
-                const float distance = Random::range(0.0f, patch_radius * 0.72f) * std::sqrt(Random::range(0.0f, 1.0f));
-
-                float x = center.x + distance * std::cos(angle);
-                float z = center.y + distance * std::sin(angle);
-
-                x = glm::clamp(x, -half_extent, half_extent);
-                z = glm::clamp(z, -half_extent, half_extent);
-
-                const float y = sample_terrain_height(data, x, z);
-
-                GameObject proxy = GameObject::create(
-                    "GrassShadowProxy_" + std::to_string(patch_index) + "_" + std::to_string(proxy_index),
-                    shadow_field);
-                proxy.add_component<tags::ShadowOnly>();
-
-                auto& transform = proxy.get_component<Transform>();
-                transform.local_position = glm::vec3{ x, y, z };
-
-                const float yaw = Random::range(0.0f, glm::two_pi<float>());
-                const glm::quat yaw_rotation = glm::angleAxis(yaw, glm::vec3{ 0.0f, 1.0f, 0.0f });
-                const float tilt = Random::range(-0.08f, 0.08f);
-                const glm::quat tilt_rotation = glm::angleAxis(tilt, normalize(glm::vec3{ 1.0f, 0.0f, 1.0f }));
-                transform.local_rotation = normalize(yaw_rotation * tilt_rotation);
-
-                const float width_scale = Random::range(1.75f, 3.05f);
-                const float height_scale = Random::range(1.8f, 3.4f);
-                transform.local_scale = glm::vec3{ width_scale, height_scale, width_scale };
-
-                auto& renderer = proxy.add_component<MeshRenderer>();
-                renderer.mesh_name = "grass_blade";
-                renderer.material_name = "grass_shadow_proxy";
-
-                auto& caster = proxy.add_component<ShadowCaster>();
-                caster.extent_scale = 1.0f;
-                caster.min_extent = 0.03f;
-            }
-        }
-
-        for (std::uint32_t i = 0; i < grass_blade_count; ++i)
-        {
-            const glm::vec2& center = patch_centers[Random::range(0, num_patches - 1)];
-
-            const float angle    = Random::range(0.0f, glm::two_pi<float>());
-            const float distance = Random::range(0.0f, patch_radius) * std::sqrt(Random::range(0.0f, 1.0f));
-
-            float x = center.x + distance * std::cos(angle);
-            float z = center.y + distance * std::sin(angle);
-
-            x = glm::clamp(x, -half_extent, half_extent);
-            z = glm::clamp(z, -half_extent, half_extent);
-
-            const float y = sample_terrain_height(data, x, z);
-
-            const std::string blade_name = "GrassBlade_" + std::to_string(i);
-            GameObject        blade      = GameObject::create(blade_name, field);
-
-            auto& transform          = blade.get_component<Transform>();
-            transform.local_position = glm::vec3{ x, y, z };
-
-            const float     yaw          = Random::range(0.0f, glm::two_pi<float>());
-            const glm::quat yaw_rotation = glm::angleAxis(yaw, glm::vec3{ 0.0f, 1.0f, 0.0f });
-
-            const float     tilt          = Random::range(-0.08f, 0.08f);
-            const glm::quat tilt_rotation = glm::angleAxis(tilt, normalize(glm::vec3{ 1.0f, 0.0f, 1.0f }));
-
-            transform.local_rotation = normalize(yaw_rotation * tilt_rotation);
-
-            const float width_scale  = Random::range(1.85f, 3.35f);
-            const float height_scale = Random::range(1.9f, 3.8f);
-            transform.local_scale    = glm::vec3{ width_scale, height_scale, width_scale };
-
-            auto& renderer         = blade.add_component<MeshRenderer>();
-            renderer.mesh_name     = "grass_blade";
-            renderer.material_name = "grass";
-
-            auto& caster = blade.add_component<ShadowCaster>();
-            caster.extent_scale = 0.65f;
-            caster.min_extent = 0.02f;
-
+            Log::error("Failed to generate GPU-driven grass shadow data");
+            return;
         }
     }
 

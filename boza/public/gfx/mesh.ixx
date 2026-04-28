@@ -31,6 +31,10 @@ export namespace boza
             std::vector<Vertex>        vertices,
             std::vector<std::uint32_t> indices);
 
+        static Mesh& create_obj(
+            std::string_view name,
+            std::string_view path);
+
         static Mesh& replace(
             std::string_view           name,
             std::vector<Vertex>        vertices,

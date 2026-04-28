@@ -11,6 +11,7 @@ export import :sampler;
 export import :rendering_system;
 
 export import :mesh_renderer;
+export import :gpu_driven_instances;
 export import :camera;
 export import :light;
 

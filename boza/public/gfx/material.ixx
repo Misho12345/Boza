@@ -39,8 +39,6 @@ export namespace boza
     struct MaterialSettings
     {
         std::string vertex_shader;
-        std::string tess_control_shader;
-        std::string tess_evaluation_shader;
         std::string fragment_shader;
         CompareOp   depth_compare_op{ CompareOp::Less };
         bool        depth_test_enable{ true };
@@ -55,10 +53,8 @@ export namespace boza
             std::size_t h{ 0 };
 
             h ^= std::hash<std::string>{}(vertex_shader);
-            h ^= std::hash<std::string>{}(tess_control_shader) << 1;
-            h ^= std::hash<std::string>{}(tess_evaluation_shader) << 2;
-            h ^= std::hash<std::string>{}(fragment_shader) << 3;
-            h ^= std::hash<std::uint8_t>{}(static_cast<std::uint8_t>(depth_compare_op)) << 4;
+            h ^= std::hash<std::string>{}(fragment_shader) << 1;
+            h ^= std::hash<std::uint8_t>{}(static_cast<std::uint8_t>(depth_compare_op)) << 2;
             h ^= std::hash<bool>{}(depth_test_enable) << 10;
             h ^= std::hash<bool>{}(depth_write_enable) << 11;
             h ^= std::hash<std::uint8_t>{}(static_cast<std::uint8_t>(cull_mode)) << 12;

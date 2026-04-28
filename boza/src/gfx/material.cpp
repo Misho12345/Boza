@@ -46,11 +46,6 @@ namespace boza
 
     void Material::cleanup()
     {
-        uniform_buffers_.clear();
-        bound_buffer_handles_.clear();
-        bound_texture_handles_.clear();
-        bound_sampler_handles_.clear();
-
         if (descriptor_pool_ && (!descriptor_sets_.empty() || !descriptor_sets_per_frame_.empty()))
         {
             std::vector<rhi::DescriptorSet*> sets_to_free;
@@ -88,6 +83,11 @@ namespace boza
 
         descriptor_sets_.clear();
         descriptor_sets_per_frame_.clear();
+
+        uniform_buffers_.clear();
+        bound_buffer_handles_.clear();
+        bound_texture_handles_.clear();
+        bound_sampler_handles_.clear();
 
         reflection_.reset();
     }

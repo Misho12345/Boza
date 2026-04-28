@@ -119,7 +119,7 @@ private:
         floor_transform.local_scale = glm::vec3{ 90.0f, 1.0f, 90.0f };
 
         auto& floor_renderer = floor.add_component<MeshRenderer>();
-        floor_renderer.mesh_name = "clustered_lights/plane";
+        floor_renderer.mesh_name = "plane";
         floor_renderer.material_name = "clustered_lights/floor";
 
         constexpr std::uint32_t rows = 13;
@@ -137,7 +137,7 @@ private:
                 transform.local_scale = glm::vec3{ 0.9f, height, 0.9f };
 
                 auto& renderer = pillar.add_component<MeshRenderer>();
-                renderer.mesh_name = "clustered_lights/cube";
+                renderer.mesh_name = "cube";
                 renderer.material_name = "clustered_lights/pillar";
                 pillar.add_component<ShadowCaster>();
 
@@ -200,7 +200,7 @@ private:
                 point.shadow_strength = 0.70f;
 
                 auto& renderer = light_obj.add_component<MeshRenderer>();
-                renderer.mesh_name = "clustered_lights/cube";
+                renderer.mesh_name = "cube";
                 renderer.material_name = std::format("clustered_lights/light_{}", index % palette_.size());
             }
         }
@@ -208,51 +208,7 @@ private:
 
     static void create_meshes()
     {
-        Mesh::create(
-            "clustered_lights/plane",
-            std::vector<Vertex>{
-                { { -0.5f, 0.0f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
-                { { 0.5f, 0.0f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
-                { { 0.5f, 0.0f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f } },
-                { { -0.5f, 0.0f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } }
-            },
-            std::vector<std::uint32_t>{ 0, 1, 2, 0, 2, 3 });
-
-        Mesh::create(
-            "clustered_lights/cube",
-            std::vector<Vertex>{
-                { { -0.5f, -0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } },
-                { { 0.5f, -0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f } },
-                { { 0.5f, 0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f } },
-                { { -0.5f, 0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f } },
-                { { 0.5f, -0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 0.0f, 0.0f } },
-                { { -0.5f, -0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 1.0f, 0.0f } },
-                { { -0.5f, 0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 1.0f, 1.0f } },
-                { { 0.5f, 0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 0.0f, 1.0f } },
-                { { -0.5f, 0.5f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
-                { { 0.5f, 0.5f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
-                { { 0.5f, 0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f } },
-                { { -0.5f, 0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } },
-                { { -0.5f, -0.5f, -0.5f }, { 0.0f, -1.0f, 0.0f }, { 0.0f, 0.0f } },
-                { { 0.5f, -0.5f, -0.5f }, { 0.0f, -1.0f, 0.0f }, { 1.0f, 0.0f } },
-                { { 0.5f, -0.5f, 0.5f }, { 0.0f, -1.0f, 0.0f }, { 1.0f, 1.0f } },
-                { { -0.5f, -0.5f, 0.5f }, { 0.0f, -1.0f, 0.0f }, { 0.0f, 1.0f } },
-                { { 0.5f, -0.5f, 0.5f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
-                { { 0.5f, -0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f } },
-                { { 0.5f, 0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f } },
-                { { 0.5f, 0.5f, 0.5f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f } },
-                { { -0.5f, -0.5f, -0.5f }, { -1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
-                { { -0.5f, -0.5f, 0.5f }, { -1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f } },
-                { { -0.5f, 0.5f, 0.5f }, { -1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f } },
-                { { -0.5f, 0.5f, -0.5f }, { -1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f } }
-            },
-            std::vector<std::uint32_t>{
-                0, 2, 1, 0, 3, 2,
-                4, 6, 5, 4, 7, 6,
-                8, 10, 9, 8, 11, 10,
-                12, 14, 13, 12, 15, 14,
-                16, 18, 17, 16, 19, 18,
-                20, 22, 21, 20, 23, 22
-            });
+        Mesh::create_obj("plane", "primitives/plane.obj");
+        Mesh::create_obj("cube", "primitives/cube.obj");
     }
 };

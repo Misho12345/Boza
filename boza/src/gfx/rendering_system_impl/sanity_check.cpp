@@ -130,6 +130,8 @@ namespace boza
 
     void RenderingSystem::prune_invalid_entities(MeshBucket& bucket)
     {
+        bool removed_any = false;
+
         for (auto elem_it = bucket.elements.begin(); elem_it != bucket.elements.end();)
         {
             if (elem_it->entity.valid())
@@ -142,6 +144,13 @@ namespace boza
                 *elem_it = std::move(bucket.elements.back());
 
             bucket.elements.pop_back();
+            removed_any = true;
+        }
+
+        if (removed_any)
+        {
+            bucket.candidates_dirty = true;
+            bucket.shadow_candidates_dirty = true;
         }
     }
 

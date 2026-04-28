@@ -17,110 +17,12 @@ namespace shooting_example
 
     void create_cube_mesh()
     {
-        Mesh::create(
-            "shooting_example/cube",
-            std::vector<Vertex>
-            {
-                { { -0.5f, -0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } },
-                { { 0.5f, -0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f } },
-                { { 0.5f, 0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f } },
-                { { -0.5f, 0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f } },
-
-                { { 0.5f, -0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 0.0f, 0.0f } },
-                { { -0.5f, -0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 1.0f, 0.0f } },
-                { { -0.5f, 0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 1.0f, 1.0f } },
-                { { 0.5f, 0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 0.0f, 1.0f } },
-
-                { { -0.5f, 0.5f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
-                { { 0.5f, 0.5f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
-                { { 0.5f, 0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f } },
-                { { -0.5f, 0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } },
-
-                { { -0.5f, -0.5f, -0.5f }, { 0.0f, -1.0f, 0.0f }, { 0.0f, 0.0f } },
-                { { 0.5f, -0.5f, -0.5f }, { 0.0f, -1.0f, 0.0f }, { 1.0f, 0.0f } },
-                { { 0.5f, -0.5f, 0.5f }, { 0.0f, -1.0f, 0.0f }, { 1.0f, 1.0f } },
-                { { -0.5f, -0.5f, 0.5f }, { 0.0f, -1.0f, 0.0f }, { 0.0f, 1.0f } },
-
-                { { 0.5f, -0.5f, 0.5f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
-                { { 0.5f, -0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f } },
-                { { 0.5f, 0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f } },
-                { { 0.5f, 0.5f, 0.5f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f } },
-
-                { { -0.5f, -0.5f, -0.5f }, { -1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
-                { { -0.5f, -0.5f, 0.5f }, { -1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f } },
-                { { -0.5f, 0.5f, 0.5f }, { -1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f } },
-                { { -0.5f, 0.5f, -0.5f }, { -1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f } },
-            },
-            std::vector<std::uint32_t>
-            {
-                0, 2, 1, 0, 3, 2,
-                4, 6, 5, 4, 7, 6,
-                8, 10, 9, 8, 11, 10,
-                12, 14, 13, 12, 15, 14,
-                16, 18, 17, 16, 19, 18,
-                20, 22, 21, 20, 23, 22
-            });
-    }
-
-    void create_sphere_mesh()
-    {
-        constexpr int latitude_segments  = 10;
-        constexpr int longitude_segments = 14;
-        constexpr float radius           = 0.5f;
-
-        std::vector<Vertex> vertices;
-        std::vector<std::uint32_t> indices;
-
-        vertices.reserve((latitude_segments + 1) * (longitude_segments + 1));
-        indices.reserve(latitude_segments * longitude_segments * 6);
-
-        for (int lat = 0; lat <= latitude_segments; ++lat)
-        {
-            const float v   = static_cast<float>(lat) / static_cast<float>(latitude_segments);
-            const float phi = v * glm::pi<float>();
-
-            for (int lon = 0; lon <= longitude_segments; ++lon)
-            {
-                const float u     = static_cast<float>(lon) / static_cast<float>(longitude_segments);
-                const float theta = u * glm::two_pi<float>();
-
-                glm::vec3 normal{
-                    std::sin(phi) * std::cos(theta),
-                    std::cos(phi),
-                    std::sin(phi) * std::sin(theta)
-                };
-
-                vertices.push_back({
-                    .position  = normal * radius,
-                    .normal    = normalize(normal),
-                    .tex_coord = glm::vec2{ u, v }
-                });
-            }
-        }
-
-        for (int lat = 0; lat < latitude_segments; ++lat)
-        {
-            for (int lon = 0; lon < longitude_segments; ++lon)
-            {
-                const std::uint32_t row0 = static_cast<std::uint32_t>(lat * (longitude_segments + 1));
-                const std::uint32_t row1 = static_cast<std::uint32_t>((lat + 1) * (longitude_segments + 1));
-
-                const std::uint32_t i0 = row0 + lon;
-                const std::uint32_t i1 = i0 + 1;
-                const std::uint32_t i2 = row1 + lon;
-                const std::uint32_t i3 = i2 + 1;
-
-                indices.insert(indices.end(), { i0, i2, i1, i1, i2, i3 });
-            }
-        }
-
-        Mesh::create("shooting_example/sphere", std::move(vertices), std::move(indices));
+        Mesh::create_obj("cube", "primitives/cube.obj");
     }
 
     void create_meshes()
     {
         create_cube_mesh();
-        create_sphere_mesh();
     }
 
     void create_materials()
@@ -162,7 +64,7 @@ namespace shooting_example
         transform.local_rotation = rotation;
 
         auto& renderer     = box.add_component<MeshRenderer>();
-        renderer.mesh_name = "shooting_example/cube";
+        renderer.mesh_name = "cube";
         renderer.material_name = material_name;
 
         if (casts_shadow) box.add_component<ShadowCaster>();
@@ -270,11 +172,10 @@ namespace shooting_example
         }
 
         auto& renderer = enemy_go.add_component<MeshRenderer>();
-        renderer.mesh_name = "shooting_example/cube";
+        renderer.mesh_name = "cube";
         renderer.material  = material;
 
         enemy_go.add_component<ShadowCaster>();
-
         enemy_go.add_component<BoxCollider>();
 
         auto& enemy          = enemy_go.add_component<Enemy>();
@@ -298,7 +199,7 @@ namespace shooting_example
         world.skybox = GameObject::create("Skybox", Scene::persistent());
 
         auto& renderer = world.skybox.add_component<MeshRenderer>();
-        renderer.mesh_name     = "shooting_example/cube";
+        renderer.mesh_name     = "cube";
         renderer.material_name = "skybox";
     }
 

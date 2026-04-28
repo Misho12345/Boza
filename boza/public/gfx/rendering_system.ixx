@@ -40,12 +40,23 @@ namespace boza
     {
         GameObject entity{};
         bool visible{ false };
+        bool casts_shadows{ false };
+        bool candidate_valid{ false };
+        glm::mat4 model{ 1.0f };
+        glm::vec4 sphere{ 0.0f };
     };
 
     struct MeshBucket
     {
         std::vector<RenderElement> elements{};
         std::uint32_t num_visible{ 0 };
+        std::shared_ptr<Buffer> candidate_buffer{};
+        std::shared_ptr<Buffer> shadow_candidate_buffer{};
+        std::uint32_t candidate_count{ 0 };
+        std::uint32_t shadow_candidate_count{ 0 };
+        std::uint64_t mesh_revision{ 0 };
+        bool candidates_dirty{ true };
+        bool shadow_candidates_dirty{ true };
     };
 
     struct MaterialRenderGroup
@@ -95,6 +106,16 @@ namespace boza
         struct BeginFrame : EngineRenderStage<BeginFrame, RunAfter<ProcessInvalidated>>
         {
             static void execute();
+        };
+
+        struct ProcessTransformChanged : EngineRenderStage<ProcessTransformChanged,
+            RunAfter<ProcessInvalidated>,
+            RunBefore<BeginFrame>,
+            With<MeshRenderer>,
+            With<tags::RenderTransformDirty>>
+        {
+            static SystemStageConfig config() { return { .include_disabled = true }; }
+            static void execute(GameObject go, MeshRenderer& mr);
         };
 
         struct CameraUboUpdate : EngineRenderStage<CameraUboUpdate,

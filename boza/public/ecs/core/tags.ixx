@@ -6,5 +6,6 @@ namespace boza::tags
     struct Scene {};
     struct DisabledSelf {};
     struct TransformDirty {};
+    export struct RenderTransformDirty {};
     struct PendingDestruction {};
 }

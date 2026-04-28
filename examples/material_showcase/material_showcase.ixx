@@ -274,111 +274,16 @@ private:
 
     static void create_cube_mesh()
     {
-        Mesh::create(
-            "cube",
-            std::vector<Vertex>
-            {
-                { { -0.5f, -0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 0.0f } },
-                { { 0.5f, -0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 0.0f } },
-                { { 0.5f, 0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 1.0f, 1.0f } },
-                { { -0.5f, 0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f } },
-
-                { { 0.5f, -0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 0.0f, 0.0f } },
-                { { -0.5f, -0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 1.0f, 0.0f } },
-                { { -0.5f, 0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 1.0f, 1.0f } },
-                { { 0.5f, 0.5f, -0.5f }, { 0.0f, 0.0f, -1.0f }, { 0.0f, 1.0f } },
-
-                { { -0.5f, 0.5f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
-                { { 0.5f, 0.5f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
-                { { 0.5f, 0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f } },
-                { { -0.5f, 0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } },
-
-                { { -0.5f, -0.5f, -0.5f }, { 0.0f, -1.0f, 0.0f }, { 0.0f, 0.0f } },
-                { { 0.5f, -0.5f, -0.5f }, { 0.0f, -1.0f, 0.0f }, { 1.0f, 0.0f } },
-                { { 0.5f, -0.5f, 0.5f }, { 0.0f, -1.0f, 0.0f }, { 1.0f, 1.0f } },
-                { { -0.5f, -0.5f, 0.5f }, { 0.0f, -1.0f, 0.0f }, { 0.0f, 1.0f } },
-
-                { { 0.5f, -0.5f, 0.5f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
-                { { 0.5f, -0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f } },
-                { { 0.5f, 0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f } },
-                { { 0.5f, 0.5f, 0.5f }, { 1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f } },
-
-                { { -0.5f, -0.5f, -0.5f }, { -1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
-                { { -0.5f, -0.5f, 0.5f }, { -1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f } },
-                { { -0.5f, 0.5f, 0.5f }, { -1.0f, 0.0f, 0.0f }, { 1.0f, 1.0f } },
-                { { -0.5f, 0.5f, -0.5f }, { -1.0f, 0.0f, 0.0f }, { 0.0f, 1.0f } },
-            },
-            std::vector<std::uint32_t>
-            {
-                0, 2, 1, 0, 3, 2, 4, 6, 5, 4, 7, 6,
-                8, 10, 9, 8, 11, 10, 12, 14, 13, 12, 15, 14,
-                16, 18, 17, 16, 19, 18, 20, 22, 21, 20, 23, 22
-            });
+        Mesh::create_obj("cube", "primitives/cube.obj");
     }
 
     static void create_plane_mesh()
     {
-        Mesh::create(
-            "plane",
-            {
-                { { -0.5f, 0.0f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
-                { { 0.5f, 0.0f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 0.0f } },
-                { { 0.5f, 0.0f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 1.0f, 1.0f } },
-                { { -0.5f, 0.0f, 0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } },
-            },
-            { 0, 1, 2, 0, 2, 3 });
+        Mesh::create_obj("plane", "primitives/plane.obj");
     }
 
     static void create_pyramid_mesh()
     {
-        const glm::vec3 apex{ 0.0f, 1.0f, 0.0f };
-        const glm::vec3 bl{ -0.5f, 0.0f, 0.5f };
-        const glm::vec3 br{ 0.5f, 0.0f, 0.5f };
-        const glm::vec3 tr{ 0.5f, 0.0f, -0.5f };
-        const glm::vec3 tl{ -0.5f, 0.0f, -0.5f };
-
-        auto face_normal = [](const glm::vec3& a, const glm::vec3& b, const glm::vec3& c)
-        {
-            return glm::normalize(glm::cross(c - a, b - a));
-        };
-
-        const glm::vec3 n_front = face_normal(bl, apex, br);
-        const glm::vec3 n_right = face_normal(br, apex, tr);
-        const glm::vec3 n_back  = face_normal(tr, apex, tl);
-        const glm::vec3 n_left  = face_normal(tl, apex, bl);
-        const glm::vec3 n_bottom{ 0.0f, -1.0f, 0.0f };
-
-        Mesh::create(
-            "pyramid",
-            {
-                { bl, n_front, { 0.0f, 0.0f } },
-                { apex, n_front, { 0.5f, 1.0f } },
-                { br, n_front, { 1.0f, 0.0f } },
-
-                { br, n_right, { 0.0f, 0.0f } },
-                { apex, n_right, { 0.5f, 1.0f } },
-                { tr, n_right, { 1.0f, 0.0f } },
-
-                { tr, n_back, { 0.0f, 0.0f } },
-                { apex, n_back, { 0.5f, 1.0f } },
-                { tl, n_back, { 1.0f, 0.0f } },
-
-                { tl, n_left, { 0.0f, 0.0f } },
-                { apex, n_left, { 0.5f, 1.0f } },
-                { bl, n_left, { 1.0f, 0.0f } },
-
-                { bl, n_bottom, { 0.0f, 0.0f } },
-                { tl, n_bottom, { 0.0f, 1.0f } },
-                { tr, n_bottom, { 1.0f, 1.0f } },
-                { br, n_bottom, { 1.0f, 0.0f } },
-            },
-            {
-                0, 1, 2,
-                3, 4, 5,
-                6, 7, 8,
-                9, 10, 11,
-                12, 13, 14,
-                12, 14, 15
-            });
+        Mesh::create_obj("pyramid", "primitives/pyramid.obj");
     }
 };

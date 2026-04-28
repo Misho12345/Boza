@@ -4,7 +4,7 @@ import std;
 import boza;
 using namespace boza;
 
-constexpr std::uint32_t grass_blade_count = 50'000;
+constexpr std::uint32_t grass_blade_count = 100'000;
 constexpr float         terrain_extent    = 400.0f;
 
 
@@ -87,6 +87,8 @@ export bool create_terrain_mesh()
         Log::error("Compute dispatch for terrain normal generation failed");
         return false;
     }
+
+    const_cast<Texture&>(height_map).transition_layout(TextureLayout::General, TextureLayout::ShaderReadOnly);
 
     std::vector<Vertex> vertices_data(vertex_count);
     std::vector<std::uint32_t> indices_data(index_count);
