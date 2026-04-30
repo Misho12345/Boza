@@ -3,6 +3,7 @@ export module boza.ecs:transform_system;
 import :system_stage;
 import :component_list;
 import :tags;
+import :transform;
 import :game_object;
 
 export namespace boza
@@ -44,10 +45,10 @@ export namespace boza
                 transform.dirty_ = false;
 
                 go.remove_component<tags::TransformDirty>();
-                go.for_each_child([should_evaluate](GameObject child)
+                for (const GameObject child : go.children())
                 {
                     update_subtree(child, should_evaluate);
-                });
+                }
             }
         };
     };

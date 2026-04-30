@@ -1,6 +1,7 @@
-module boza.gfx.sampler_loader;
+module boza.gfx;
 
-import boza.gfx;
+import :sampler_loader;
+
 import boza.detail;
 import boza.core;
 

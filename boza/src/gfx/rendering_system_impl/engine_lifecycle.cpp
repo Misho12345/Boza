@@ -5,19 +5,27 @@ import :rendering_system_common;
 
 import boza.core;
 import boza.rhi;
-import boza.rhi.render_context;
-import boza.gfx.material_loader;
-import boza.gfx.texture_loader;
-import boza.gfx.sampler_loader;
+import :buffer;
+import :compute_dispatcher;
+import :material_loader;
+import :texture_loader;
+import :sampler_loader;
 import boza.app.game_settings;
 
 namespace boza
 {
-    std::unique_ptr<rhi::Instance>       RenderingSystem::instance_{ nullptr };
-    std::unique_ptr<rhi::Device>         RenderingSystem::device_{ nullptr };
-    std::unique_ptr<rhi::Swapchain>      RenderingSystem::swapchain_{ nullptr };
-    std::unique_ptr<rhi::DescriptorPool> RenderingSystem::descriptor_pool_{ nullptr };
-    std::unique_ptr<rhi::ResourceCache>  RenderingSystem::resource_cache_{ nullptr };
+    std::unique_ptr<rhi::Instance>       instance_{ nullptr };
+    std::unique_ptr<rhi::Device>         device_{ nullptr };
+    std::unique_ptr<rhi::Swapchain>      swapchain_{ nullptr };
+    std::unique_ptr<rhi::DescriptorPool> descriptor_pool_{ nullptr };
+    std::unique_ptr<rhi::ResourceCache>  resource_cache_{ nullptr };
+
+    std::unique_ptr<Buffer> shadow_camera_buffer_{};
+    std::vector<std::unique_ptr<ComputeDispatcher>> cluster_build_dispatchers_{};
+    std::vector<std::unique_ptr<ComputeDispatcher>> light_cull_dispatchers_{};
+    std::vector<std::unique_ptr<ComputeDispatcher>> ssao_dispatchers_{};
+    std::vector<std::unique_ptr<ComputeDispatcher>> gpu_driven_forward_cull_dispatchers_{};
+    std::vector<std::unique_ptr<ComputeDispatcher>> gpu_driven_shadow_cull_dispatchers_{};
 
     void RenderingSystem::EngineBegin::execute()
     {
@@ -54,9 +62,6 @@ namespace boza
         assert_render_thread();
 
         gpu_meshes_.clear();
-        render_cache_.clear();
-        unresolved_.clear();
-        pipeline_materials_.clear();
         valid_meshes_.clear();
         invalid_meshes_.clear();
         valid_materials_.clear();

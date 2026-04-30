@@ -4,7 +4,7 @@ import :buffer;
 
 import boza.core;
 import boza.rhi;
-import boza.rhi.render_context;
+import boza.rhi;
 
 namespace boza
 {

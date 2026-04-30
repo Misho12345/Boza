@@ -79,7 +79,6 @@ private:
             light_mat["albedo_map"] = Texture::get_or_load("default.png");
             light_mat["material.albedo_color"] = glm::vec4{ palette_[i] * 2.2f, 1.0f };
             light_mat["material.properties"] = glm::vec4{ 0.0f };
-            light_mat.set_cpu_cull_enabled(false);
         }
     }
 

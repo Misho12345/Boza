@@ -1,12 +1,15 @@
-export module boza.gfx.material_loader;
+export module boza.gfx:material_loader;
 
 import std;
 import boza.common;
 import boza.core;
-import boza.gfx;
 import boza.rhi;
 import boza.detail;
-import boza.gfx.resource_registry;
+import :material;
+import :texture;
+import :sampler;
+import :light;
+import :resource_registry;
 
 export namespace boza::gfx
 {
@@ -41,7 +44,6 @@ export namespace boza::gfx
         std::string      fragment_shader;
         LoadStrategy     load_strategy{ LoadStrategy::GameLoad };
         MaterialSettings settings{};
-        bool             cpu_cull_enabled{ true };
 
         flat_map<std::string, TextureInfo> textures;
         flat_map<std::string, flat_map<std::string, PropertyValue>> ubos;

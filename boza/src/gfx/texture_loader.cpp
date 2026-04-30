@@ -1,12 +1,11 @@
-module boza.gfx.texture_loader;
+module boza.gfx;
 
 import boza.core;
-import boza.gfx;
+import :texture_loader;
 
 import boza.detail;
 
 import boza.rhi;
-import boza.rhi.render_context;
 
 namespace boza::gfx
 {

@@ -132,10 +132,6 @@ export namespace boza
         [[nodiscard]] std::size_t        descriptor_set_count() const;
         [[nodiscard]] const std::string& name() const { return name_; }
 
-        [[nodiscard]]
-        bool cpu_cull_enabled() const { return cpu_cull_enabled_; }
-        void set_cpu_cull_enabled(const bool enabled) { cpu_cull_enabled_ = enabled; }
-
         [[nodiscard]] bool shadow_only() const { return shadow_only_; }
         void set_shadow_only(const bool enabled) { shadow_only_ = enabled; }
 
@@ -171,7 +167,6 @@ export namespace boza
         flat_map<std::string, Sampler*> default_samplers_;
 
         void* descriptor_pool_{ nullptr };
-        bool  cpu_cull_enabled_{ true };
         bool  shadow_only_{ false };
 
         [[nodiscard]] void* rhi_pipeline_layout_handle() const { return pipeline_layout_; }

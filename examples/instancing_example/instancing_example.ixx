@@ -64,8 +64,6 @@ private:
         grass["grassSettings.sway_direction"] = glm::normalize(glm::vec2{ 0.8f, 1.0f });
         grass["grassSettings.sway_strength"]  = 1.0f;
 
-        grass.set_cpu_cull_enabled(false);
-
         Material& shadow_marker = Material::create(
             "shadow_marker",
             {
@@ -92,7 +90,6 @@ private:
         grass_shadow_proxy["material.albedo_color"] = glm::vec4{ 0.0f, 0.0f, 0.0f, 1.0f };
         grass_shadow_proxy["material.properties"] = glm::vec4{ 0.0f };
         grass_shadow_proxy["material.detail"] = glm::vec4{ 0.0f, SurfaceMappingUv, 0.0f, 1.0f };
-        grass_shadow_proxy.set_cpu_cull_enabled(false);
         grass_shadow_proxy.set_shadow_only(true);
     }
 

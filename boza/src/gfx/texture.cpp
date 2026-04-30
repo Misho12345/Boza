@@ -9,9 +9,9 @@ import boza.core;
 import boza.detail;
 
 import boza.rhi;
-import boza.rhi.render_context;
+import boza.rhi;
 
-import boza.gfx.texture_loader;
+import :texture_loader;
 
 namespace boza
 {

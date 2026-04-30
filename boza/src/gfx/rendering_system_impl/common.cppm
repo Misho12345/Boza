@@ -78,45 +78,6 @@ namespace boza
         std::uint32_t first_instance{ 0 };
     };
 
-    struct GpuCullBufferState
-    {
-        std::unique_ptr<Buffer> params_buffer{};
-        std::unique_ptr<Buffer> candidate_buffer{};
-        std::unique_ptr<Buffer> culled_instance_buffer{};
-        std::unique_ptr<Buffer> indirect_buffer{};
-        std::vector<std::unique_ptr<ComputeDispatcher>> dispatchers{};
-        std::vector<GameObject> cached_entities{};
-        std::vector<GpuCullInstance> cached_candidates{};
-
-        std::size_t params_capacity_bytes{ 0 };
-        std::size_t candidate_capacity_bytes{ 0 };
-        std::size_t culled_capacity_bytes{ 0 };
-        std::size_t indirect_capacity_bytes{ 0 };
-
-        void* bound_culled_handle{ nullptr };
-        void* uploaded_candidate_handle{ nullptr };
-    };
-
-    struct ShadowCullBufferState
-    {
-        std::unique_ptr<Buffer> params_buffer{};
-        std::unique_ptr<Buffer> candidate_buffer{};
-        std::unique_ptr<Buffer> culled_instance_buffer{};
-        std::unique_ptr<Buffer> indirect_buffer{};
-        std::vector<std::unique_ptr<ComputeDispatcher>> dispatchers{};
-        std::vector<GameObject> cached_entities{};
-        std::vector<GpuCullInstance> cached_candidates{};
-        std::uint64_t cache_frame_{ std::numeric_limits<std::uint64_t>::max() };
-
-        std::size_t params_capacity_bytes{ 0 };
-        std::size_t candidate_capacity_bytes{ 0 };
-        std::size_t culled_capacity_bytes{ 0 };
-        std::size_t indirect_capacity_bytes{ 0 };
-
-        void* bound_culled_handle{ nullptr };
-        void* uploaded_candidate_handle{ nullptr };
-    };
-
     struct GpuDrivenBatchState
     {
         std::unique_ptr<Buffer> params_buffer{};
@@ -171,12 +132,10 @@ namespace boza
 
     flat_map<Material*, MaterialRenderInfo> material_render_infos_{};
     flat_map<Material*, flat_map<std::string, InstanceBufferState>> instance_buffers_{};
-    flat_map<Material*, flat_map<Mesh*, GpuCullBufferState>> gpu_cull_buffers_{};
-    flat_map<Material*, flat_map<Mesh*, ShadowCullBufferState>> shadow_gpu_cull_buffers_{};
     flat_map<Material*, ShadowPipelineState> shadow_pipelines_{};
     flat_map<std::uint64_t, GpuDrivenBatchState> gpu_driven_batch_states_{};
 
-    std::unique_ptr<Buffer> shadow_camera_buffer_{};
+    extern std::unique_ptr<Buffer> shadow_camera_buffer_;
     bool directional_shadow_map_layout_initialized_{ false };
     bool point_shadow_map_layout_initialized_{ false };
     bool spot_shadow_map_layout_initialized_{ false };
@@ -184,12 +143,18 @@ namespace boza
     std::vector<std::vector<ShadowDrawBatch>> point_shadow_draws_{};
     std::vector<std::vector<ShadowDrawBatch>> spot_shadow_draws_{};
 
-    std::vector<std::unique_ptr<ComputeDispatcher>> cluster_build_dispatchers_{};
-    std::vector<std::unique_ptr<ComputeDispatcher>> light_cull_dispatchers_{};
-    std::vector<std::unique_ptr<ComputeDispatcher>> ssao_dispatchers_{};
-    std::vector<std::unique_ptr<ComputeDispatcher>> gpu_driven_forward_cull_dispatchers_{};
-    std::vector<std::unique_ptr<ComputeDispatcher>> gpu_driven_shadow_cull_dispatchers_{};
+    extern std::vector<std::unique_ptr<ComputeDispatcher>> cluster_build_dispatchers_;
+    extern std::vector<std::unique_ptr<ComputeDispatcher>> light_cull_dispatchers_;
+    extern std::vector<std::unique_ptr<ComputeDispatcher>> ssao_dispatchers_;
+    extern std::vector<std::unique_ptr<ComputeDispatcher>> gpu_driven_forward_cull_dispatchers_;
+    extern std::vector<std::unique_ptr<ComputeDispatcher>> gpu_driven_shadow_cull_dispatchers_;
     std::array<glm::vec4, 6> gpu_cull_frustum_planes_{};
+
+    extern std::unique_ptr<rhi::Instance> instance_;
+    extern std::unique_ptr<rhi::Device> device_;
+    extern std::unique_ptr<rhi::Swapchain> swapchain_;
+    extern std::unique_ptr<rhi::DescriptorPool> descriptor_pool_;
+    extern std::unique_ptr<rhi::ResourceCache> resource_cache_;
 
     std::vector<std::uint8_t> push_constant_scratch_{};
     std::vector<std::uint8_t> instance_payload_scratch_{};
@@ -200,8 +165,8 @@ namespace boza
     constexpr std::size_t initial_gpu_cull_buffer_bytes_ = 65'536 * sizeof(GpuCullInstance);
     constexpr std::uint32_t shadow_dispatcher_pass_count_ = 3u;
     constexpr std::uint32_t max_shadow_dispatcher_layers_ = 32u;
-    constexpr bool gpu_indirect_instancing_enabled_ = false;
-    constexpr bool gpu_shadow_instancing_enabled_ = false;
+    constexpr bool gpu_indirect_instancing_enabled_ = true;
+    constexpr bool gpu_shadow_instancing_enabled_ = true;
     constexpr std::string_view model_field_name_ = "model";
     constexpr std::string_view instancing_field_name_ = "use_instancing";
     constexpr std::string_view shadow_view_projection_field_name_ = "shadow_view_projection";
@@ -220,19 +185,6 @@ namespace boza
         const ShadowCaster& caster,
         const Mesh* mesh,
         ShadowCasterGeometry& geometry);
-    bool refresh_render_element_candidate(
-        RenderElement& element,
-        Mesh* mesh,
-        Material* material);
-    bool ensure_mesh_bucket_candidate_buffers(
-        MeshBucket& bucket,
-        std::size_t forward_candidate_count,
-        std::size_t shadow_candidate_count);
-    bool upload_mesh_bucket_candidates(
-        MeshBucket& bucket,
-        Mesh* mesh,
-        Material* material);
-
     void reset_render_caches();
     void clear_shadow_cull_results();
 
@@ -251,31 +203,8 @@ namespace boza
         const glm::mat4* shadow_view_projection = nullptr,
         bool shadow_mode = false);
 
-    bool upload_instance_payload(
-        Material* material,
-        const MeshBucket& bucket,
-        const PushConstantRangeRuntime& range);
-
-    bool upload_instance_payload_from_models(
-        Material* material,
-        std::span<const glm::mat4> models,
-        const PushConstantRangeRuntime& range);
-
-    bool prepare_gpu_culled_instance_payload(
-        Material* material,
-        Mesh* mesh,
-        const MeshBucket& bucket,
-        const PushConstantRangeRuntime& range,
-        GpuMesh* gpu_mesh,
-        Buffer& output_buffer,
-        std::uint32_t first_instance);
-
     [[nodiscard]] bool supports_gpu_culled_instancing(const PushConstantRangeRuntime& range) noexcept;
 
-    [[nodiscard]] GpuCullBufferState* get_gpu_cull_buffer_state(Material* material, Mesh* mesh);
-    [[nodiscard]] ShadowCullBufferState* get_shadow_gpu_cull_buffer_state(Material* material, Mesh* mesh);
-    bool ensure_generic_gpu_cull_capacity(GpuCullBufferState& state, std::size_t candidate_count);
-    bool ensure_generic_shadow_gpu_cull_capacity(ShadowCullBufferState& state, std::size_t candidate_count);
     [[nodiscard]] GpuDrivenBatchState* get_gpu_driven_batch_state(std::uint64_t entity_id);
     void collect_gpu_driven_batches(std::vector<GpuDrivenBatchView>& batches);
     bool ensure_gpu_driven_batch_capacity(
@@ -290,18 +219,6 @@ namespace boza
         Buffer& indirect_buffer,
         const std::array<glm::vec4, 6>& frustum_planes,
         ComputeDispatcher& dispatcher);
-    bool prepare_gpu_shadow_culled_instance_payload(
-        Material* material,
-        Mesh* mesh,
-        const MeshBucket& bucket,
-        const PushConstantRangeRuntime& range,
-        GpuMesh* gpu_mesh,
-        std::uint32_t layer_index,
-        std::uint32_t dispatcher_pass_index,
-        const std::array<glm::vec4, 6>& frustum_planes,
-        Buffer& output_buffer,
-        std::uint32_t first_instance);
-
     void ensure_fallback_ssbo_bound(Material& material, const MaterialRenderInfo* info);
 
     bool validate_instancing(
@@ -316,20 +233,6 @@ namespace boza
 
     InstanceBufferState* get_instance_buffer(Material* material, const std::string& name);
     bool ensure_buffer_capacity(InstanceBufferState& state, std::size_t required);
-
-    std::size_t gather_matrices_fast(
-        const MeshBucket& bucket,
-        std::vector<std::uint8_t>& payload);
-
-    std::size_t gather_instance_data(
-        const MeshBucket& bucket,
-        const std::span<const std::uint8_t>& push_staging,
-        std::size_t data_base_offset,
-        std::size_t base_copy_size,
-        bool can_write_model,
-        std::size_t model_offset_in_data,
-        const PushConstantRangeRuntime& range,
-        std::vector<std::uint8_t>& payload);
 
     bool upload_to_instance_buffer(
         Material* material,

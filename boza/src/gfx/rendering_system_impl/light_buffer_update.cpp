@@ -6,7 +6,7 @@ import boza.common;
 import :rendering_system;
 import :rendering_system_common;
 
-import boza.gfx.material_loader;
+import :material_loader;
 
 namespace boza
 {

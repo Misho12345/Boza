@@ -4,8 +4,8 @@ import :rendering_system;
 import :rendering_system_common;
 
 import boza.core;
-import boza.rhi.render_context;
-import boza.gfx.material_loader;
+import boza.rhi;
+import :material_loader;
 
 namespace boza
 {

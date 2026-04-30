@@ -1,4 +1,6 @@
-module boza.rhi.render_context;
+module boza.rhi;
+
+import :render_context;
 
 import boza.core;
 import boza.gfx.common;

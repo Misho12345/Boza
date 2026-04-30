@@ -44,7 +44,6 @@ namespace shooting_example
         tracer["albedo_map"] = Texture::get_or_load("default.png");
         tracer["material.albedo_color"] = glm::vec4{ 1.0f, 0.18f, 0.05f, 1.0f };
         tracer["material.properties"] = glm::vec4{ 0.0f };
-        tracer.set_cpu_cull_enabled(false);
     }
 
     GameObject create_box(

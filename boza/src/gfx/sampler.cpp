@@ -5,9 +5,9 @@ import :sampler;
 import boza.core;
 
 import boza.rhi;
-import boza.rhi.render_context;
+import boza.rhi;
 
-import boza.gfx.sampler_loader;
+import :sampler_loader;
 
 namespace boza
 {

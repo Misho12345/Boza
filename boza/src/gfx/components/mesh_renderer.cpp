@@ -9,9 +9,8 @@ namespace boza
         Mesh* resolved_mesh = Mesh::try_get(name);
         if (name == mesh_name_ && mesh_ == resolved_mesh) return;
 
-        mesh_name_  = name;
-        mesh_       = resolved_mesh;
-        dirty_mesh_ = true;
+        mesh_name_ = name;
+        mesh_ = resolved_mesh;
         if (game_object_.valid())
             game_object_.add_component<tags::MeshChanged>();
     }
@@ -21,27 +20,24 @@ namespace boza
         Material* resolved_material = Material::try_get(name);
         if (name == material_name_ && material_ == resolved_material) return;
 
-        material_name_  = name;
-        material_       = resolved_material;
-        dirty_material_ = true;
+        material_name_ = name;
+        material_ = resolved_material;
         if (game_object_.valid())
             game_object_.add_component<tags::MaterialChanged>();
     }
 
     void MeshRenderer::set_mesh(Mesh& new_mesh)
     {
-        mesh_       = &new_mesh;
-        mesh_name_  = new_mesh.name();
-        dirty_mesh_ = true;
+        mesh_ = &new_mesh;
+        mesh_name_ = new_mesh.name();
         if (game_object_.valid())
             game_object_.add_component<tags::MeshChanged>();
     }
 
     void MeshRenderer::set_material(Material& new_material)
     {
-        material_       = &new_material;
-        material_name_  = new_material.name();
-        dirty_material_ = true;
+        material_ = &new_material;
+        material_name_ = new_material.name();
         if (game_object_.valid())
             game_object_.add_component<tags::MaterialChanged>();
     }

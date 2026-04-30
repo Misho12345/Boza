@@ -1,11 +1,11 @@
-export module boza.gfx.texture_loader;
+export module boza.gfx:texture_loader;
 
 import std;
 import boza.common;
 import boza.core;
-import boza.gfx;
 import boza.gfx.common;
-import boza.gfx.resource_registry;
+import :texture;
+import :resource_registry;
 
 export namespace boza::gfx
 {

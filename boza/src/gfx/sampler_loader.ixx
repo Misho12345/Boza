@@ -1,10 +1,10 @@
-export module boza.gfx.sampler_loader;
+export module boza.gfx:sampler_loader;
 
 import std;
 import boza.common;
 import boza.core;
-import boza.gfx;
-import boza.gfx.resource_registry;
+import :sampler;
+import :resource_registry;
 
 export namespace boza::gfx
 {

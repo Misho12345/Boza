@@ -1,4 +1,4 @@
-export module boza.gfx.resource_registry;
+export module boza.gfx:resource_registry;
 
 import std;
 import boza.common;

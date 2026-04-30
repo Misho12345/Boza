@@ -6,7 +6,7 @@ import :buffer;
 import :sampler;
 
 import boza.rhi;
-import boza.rhi.render_context;
+import boza.rhi;
 
 import boza.core;
 

@@ -15,7 +15,6 @@ namespace boza::tags
 {
     struct MeshChanged {};
     struct MaterialChanged {};
-    struct RenderCacheInvalidated {};
     export struct ShadowOnly {};
 }
 
@@ -67,14 +66,6 @@ namespace boza
 
         mutable Mesh* mesh_{ nullptr };
         mutable Material* material_{ nullptr };
-
-        mutable Mesh* cached_mesh_{ nullptr };
-        mutable Material* cached_material_{ nullptr };
-
-        mutable bool dirty_mesh_{ true };
-        mutable bool dirty_material_{ true };
-        mutable bool in_render_cache_{ false };
-        mutable bool in_unresolved_cache_{ false };
 
         GameObject game_object_{};
 

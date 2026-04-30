@@ -15,11 +15,6 @@ import :key_state;
 
 namespace boza
 {
-    namespace platform
-    {
-        class Window;
-    }
-
     export class BOZA_API Input final
     {
     public:
@@ -28,9 +23,7 @@ namespace boza
         static bool is_pressed(Key key);
         static bool is_held(Key key);
 
-    private:
         static void reset_cursor_tracking();
-        friend class platform::Window;
     };
 
     export struct BOZA_API InputSystem

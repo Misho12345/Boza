@@ -1,11 +1,10 @@
-module boza.gfx.material_loader;
+module boza.gfx;
 
 import boza.rhi;
-import boza.rhi.render_context;
+import :material_loader;
 
-import boza.gfx;
-import boza.gfx.texture_loader;
-import boza.gfx.sampler_loader;
+import :texture_loader;
+import :sampler_loader;
 
 import boza.detail;
 
@@ -611,7 +610,6 @@ namespace boza::gfx
 
                 if (inserted && material && material->pipeline_)
                 {
-                    material->set_cpu_cull_enabled(def.cpu_cull_enabled);
                     bind_engine_resources(material);
                     setup(material, def);
                 }
@@ -719,8 +717,6 @@ namespace boza::gfx
                 else if (face == "cw" || face == "clockwise") def.settings.front_face = FrontFace::Clockwise;
             }
 
-            if (s.contains("cpu_cull") && s["cpu_cull"].is_boolean())
-                def.cpu_cull_enabled = s["cpu_cull"].get<bool>();
         }
 
         if (j.contains("textures") && j["textures"].is_object())
@@ -993,7 +989,6 @@ namespace boza::gfx
 
             if (inserted && material && material->pipeline_)
             {
-                material->set_cpu_cull_enabled(def.cpu_cull_enabled);
                 bind_engine_resources(material);
                 setup(material, def);
                 return material;

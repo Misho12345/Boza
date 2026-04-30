@@ -8,10 +8,10 @@ import :sampler;
 import boza.core;
 
 import boza.rhi;
-import boza.rhi.render_context;
+import boza.rhi;
 
-import boza.gfx.material_loader;
-import boza.gfx.sampler_loader;
+import :material_loader;
+import :sampler_loader;
 
 namespace boza
 {
@@ -110,7 +110,6 @@ namespace boza
           bound_sampler_handles_{ std::move(other.bound_sampler_handles_) },
           default_samplers_{ std::move(other.default_samplers_) },
           descriptor_pool_{ std::exchange(other.descriptor_pool_, nullptr) },
-          cpu_cull_enabled_{ std::exchange(other.cpu_cull_enabled_, true) },
           shadow_only_{ std::exchange(other.shadow_only_, false) } {}
 
     Material& Material::operator=(Material&& other) noexcept
@@ -136,7 +135,6 @@ namespace boza
         bound_sampler_handles_ = std::move(other.bound_sampler_handles_);
         default_samplers_ = std::move(other.default_samplers_);
         descriptor_pool_ = std::exchange(other.descriptor_pool_, nullptr);
-        cpu_cull_enabled_ = std::exchange(other.cpu_cull_enabled_, true);
         shadow_only_ = std::exchange(other.shadow_only_, false);
 
         return *this;

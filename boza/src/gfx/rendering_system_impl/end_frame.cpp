@@ -10,8 +10,7 @@ import :texture;
 import <flecs.h>;
 import boza.core;
 import boza.rhi;
-import boza.rhi.render_context;
-import boza.gfx.material_loader;
+import :material_loader;
 
 namespace boza
 {
@@ -27,62 +26,6 @@ namespace boza
         });
 
         material.update_buffer("cameraUBO", *shadow_camera_buffer_);
-    }
-
-    void RenderingSystem::collect_shadow_models(
-        const Mesh& mesh,
-        const MeshBucket& bucket,
-        const FrustumState& shadow_frustum)
-    {
-        shadow_instance_models_.clear();
-        shadow_instance_models_.reserve(bucket.elements.size());
-
-        for (const RenderElement& elem : bucket.elements)
-        {
-            if (!elem.entity.valid() || !elem.entity.active) continue;
-            const auto* caster = std::as_const(elem.entity).try_get_component<ShadowCaster>();
-            if (!caster) continue;
-
-            const auto* transform = std::as_const(elem.entity).try_get_component<Transform>();
-            if (!transform) continue;
-
-            ShadowCasterGeometry geometry{};
-            if (!build_shadow_caster_geometry(*transform, *caster, &mesh, geometry)) continue;
-            if (!shadow_frustum.sphere_visible(geometry.center, geometry.sphere.w)) continue;
-
-            shadow_instance_models_.push_back(transform->world_matrix());
-        }
-    }
-
-    void RenderingSystem::render_shadow_bucket(
-        rhi::CommandBuffer* cmd,
-        Material* material,
-        const Mesh& mesh,
-        const std::span<const glm::mat4> models,
-        void* render_info_opaque,
-        const glm::mat4& light_view_projection,
-        const bool shadow_mode)
-    {
-        auto* render_info = static_cast<MaterialRenderInfo*>(render_info_opaque);
-        if (models.empty()) return;
-
-        auto* gpu_mesh = get_or_create_gpu_mesh(const_cast<Mesh*>(&mesh));
-        if (!gpu_mesh) return;
-
-        auto* vertex_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(gpu_mesh->vertex_buffer));
-        auto* index_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(gpu_mesh->index_buffer));
-        if (!vertex_buffer_rhi || !index_buffer_rhi) return;
-
-        cmd->bind_vertex_buffer(vertex_buffer_rhi);
-        cmd->bind_index_buffer(index_buffer_rhi);
-
-        MaterialAccess::bind_descriptor_sets(*material);
-
-        for (const glm::mat4& model_matrix : models)
-        {
-            push_ranges(cmd, *material, render_info, &model_matrix, false, &light_view_projection, shadow_mode);
-            cmd->draw_indexed(gpu_mesh->index_count);
-        }
     }
 
     void RenderingSystem::execute_shadow_caster_cull_pass()
@@ -126,48 +69,6 @@ namespace boza
             frame_depth_texture->height,
             1.0f,
             true);
-
-        for (auto& [material, mat_group] : render_cache_)
-        {
-            if (!material || material->shadow_only()) continue;
-
-            const MaterialSettings& material_settings = MaterialAccess::settings(*material);
-            if (material_settings.cull_mode == CullMode::None) continue;
-
-            if (!ensure_shadow_pipeline(material)) continue;
-
-            MaterialRenderInfo* render_info = get_or_build_render_info(material);
-
-            auto shadow_pipeline_it = shadow_pipelines_.find(material);
-            if (shadow_pipeline_it == shadow_pipelines_.end()) continue;
-
-            cmd->bind_graphics_pipeline(shadow_pipeline_it->second.pipeline.get());
-
-            for (auto& [mesh, bucket] : mat_group.mesh_buckets)
-            {
-                shadow_instance_models_.clear();
-                shadow_instance_models_.reserve(bucket.num_visible);
-
-                for (const RenderElement& elem : bucket.elements)
-                {
-                    if (!elem.visible) continue;
-
-                    const auto* transform = std::as_const(elem.entity).try_get_component<Transform>();
-                    if (!transform) continue;
-
-                    shadow_instance_models_.push_back(transform->world_matrix());
-                }
-
-                render_shadow_bucket(
-                    cmd,
-                    material,
-                    *mesh,
-                    std::span<const glm::mat4>{ shadow_instance_models_.data(), shadow_instance_models_.size() },
-                    render_info,
-                    glm::identity<glm::mat4>(),
-                    false);
-            }
-        }
 
         cmd->end_rendering();
         cmd->image_barrier(
@@ -228,49 +129,6 @@ namespace boza
 
             bool has_gpu_shadow_work = false;
 
-            for (auto& [material, mat_group] : render_cache_)
-            {
-                if (!material || !ensure_shadow_pipeline(material)) continue;
-
-                MaterialRenderInfo* render_info = get_or_build_render_info(material);
-                const bool supports_shadow_instancing =
-                    gpu_shadow_instancing_enabled_ &&
-                    render_info &&
-                    render_info->instancing_range_index.has_value() &&
-                    *render_info->instancing_range_index < render_info->ranges.size() &&
-                    supports_gpu_culled_instancing(render_info->ranges[*render_info->instancing_range_index]);
-
-                if (!supports_shadow_instancing) continue;
-
-                for (auto& [mesh, bucket] : mat_group.mesh_buckets)
-                {
-                    if (bucket.elements.size() < instancing_threshold_) continue;
-
-                    if (!upload_mesh_bucket_candidates(bucket, mesh, material)) continue;
-                    if (!bucket.shadow_candidate_buffer || bucket.shadow_candidate_count == 0u) continue;
-
-                    auto* gpu_mesh = get_or_create_gpu_mesh(mesh);
-                    if (!gpu_mesh) continue;
-
-                    ShadowCullBufferState* state = get_shadow_gpu_cull_buffer_state(material, mesh);
-                    if (!state) continue;
-
-                    if (!ensure_generic_shadow_gpu_cull_capacity(*state, bucket.shadow_candidate_count)) continue;
-                    if (!state->params_buffer || !state->culled_instance_buffer || !state->indirect_buffer) continue;
-
-                    has_gpu_shadow_work =
-                        dispatch_gpu_driven_cull(
-                            *bucket.shadow_candidate_buffer,
-                            bucket.shadow_candidate_count,
-                            *gpu_mesh,
-                            *state->params_buffer,
-                            *state->culled_instance_buffer,
-                            *state->indirect_buffer,
-                            shadow_frustum_planes,
-                            *gpu_driven_shadow_dispatcher) || has_gpu_shadow_work;
-                }
-            }
-
             if (gpu_driven_shadow_dispatcher && !gpu_driven_shadow_dispatcher->failed())
             {
                 Scene::world().each(
@@ -325,32 +183,6 @@ namespace boza
                 cmd->compute_to_draw_barrier();
 
             cmd->begin_depth_rendering_layer(shadow_texture, layer, shadow_width, shadow_height, 1.0f);
-
-            for (auto& [material, mat_group] : render_cache_)
-            {
-                if (!material || !ensure_shadow_pipeline(material)) continue;
-
-                MaterialRenderInfo* render_info = get_or_build_render_info(material);
-                auto shadow_pipeline_it = shadow_pipelines_.find(material);
-                if (shadow_pipeline_it == shadow_pipelines_.end()) continue;
-
-                cmd->bind_graphics_pipeline(shadow_pipeline_it->second.pipeline.get());
-
-                for (auto& [mesh, bucket] : mat_group.mesh_buckets)
-                {
-                    collect_shadow_models(*mesh, bucket, shadow_frustum);
-                    render_shadow_bucket(
-                        cmd,
-                        material,
-                        *mesh,
-                        std::span<const glm::mat4>{ shadow_instance_models_.data(), shadow_instance_models_.size() },
-                        render_info,
-                        light_view_projection,
-                        true);
-
-                    shadow_draws += static_cast<std::uint32_t>(shadow_instance_models_.size());
-                }
-            }
 
             Scene::world().each(
                 [&](const flecs::entity entity, MeshRenderer& mr, GpuDrivenInstances& gpu_instances)
@@ -500,23 +332,7 @@ namespace boza
 
     void RenderingSystem::prepare_frame_material_bindings()
     {
-        if (pipeline_materials_dirty_)
-        {
-            rebuild_pipeline_materials();
-            pipeline_materials_dirty_ = false;
-        }
-
         auto& material_loader = gfx::MaterialLoader::instance();
-
-        for (auto& [material, mat_group] : render_cache_)
-        {
-            if (!material || mat_group.num_visible == 0) continue;
-
-            MaterialRenderInfo* render_info = get_or_build_render_info(material);
-            ensure_fallback_ssbo_bound(*material, render_info);
-            material_loader.bind_engine_resources(material);
-            bind_frame_render_resources(*material);
-        }
 
         Scene::world().each(
             [&](const flecs::entity entity, MeshRenderer& mr, GpuDrivenInstances&)
@@ -536,48 +352,6 @@ namespace boza
     void RenderingSystem::execute_gpu_instance_culling_pass()
     {
         if (!gpu_indirect_instancing_enabled_ || !frustum_.valid) return;
-
-        for (auto& [material, mat_group] : render_cache_)
-        {
-            MaterialRenderInfo* render_info = get_or_build_render_info(material);
-            if (!render_info || !render_info->instancing_range_index.has_value()) continue;
-
-            const std::size_t range_index = *render_info->instancing_range_index;
-            if (range_index >= render_info->ranges.size()) continue;
-
-            const PushConstantRangeRuntime& range = render_info->ranges[range_index];
-            if (!supports_gpu_culled_instancing(range)) continue;
-
-            for (auto& [mesh, bucket] : mat_group.mesh_buckets)
-            {
-                if (bucket.num_visible < instancing_threshold_) continue;
-
-                if (!upload_mesh_bucket_candidates(bucket, mesh, material)) continue;
-                if (!bucket.candidate_buffer || bucket.candidate_count == 0u) continue;
-
-                GpuMesh* gpu_mesh = get_or_create_gpu_mesh(mesh);
-                if (!gpu_mesh) continue;
-
-                GpuCullBufferState* state = get_gpu_cull_buffer_state(material, mesh);
-                if (!state) continue;
-
-                if (!ensure_generic_gpu_cull_capacity(*state, bucket.candidate_count)) continue;
-                if (!state->params_buffer || !state->culled_instance_buffer || !state->indirect_buffer) continue;
-
-                ComputeDispatcher* dispatcher = get_frame_dispatcher(state->dispatchers, "gpu_frustum_cull");
-                if (!dispatcher || dispatcher->failed()) continue;
-
-                (void)dispatch_gpu_driven_cull(
-                    *bucket.candidate_buffer,
-                    bucket.candidate_count,
-                    *gpu_mesh,
-                    *state->params_buffer,
-                    *state->culled_instance_buffer,
-                    *state->indirect_buffer,
-                    gpu_cull_frustum_planes_,
-                    *dispatcher);
-            }
-        }
 
         ComputeDispatcher* gpu_driven_forward_dispatcher = get_frame_dispatcher(
             gpu_driven_forward_cull_dispatchers_,
@@ -787,68 +561,18 @@ namespace boza
             return;
         }
 
-        submit_draws(false);
+        submit_gpu_driven_draws();
 
         if (!swapchain->end_render_pass(image_index))
             Log::error("Failed to end swapchain render pass for clustered_forward");
     }
 
-    void RenderingSystem::submit_draws(const bool bind_frame_resources)
+    void RenderingSystem::submit_gpu_driven_draws()
     {
         assert_render_thread();
 
         auto* cmd = rhi::RenderContext::current_command_buffer();
         if (!cmd) return;
-
-        static std::uint32_t submit_log_frame = 0;
-        const bool log_submit_frame = submit_log_frame < 4 || submit_log_frame % 5000 == 0;
-        if (log_submit_frame)
-        {
-            Log::debug(
-                "submit_draws frame {}: pipelines={} gpu_indirect_instancing_enabled={}",
-                submit_log_frame,
-                pipeline_materials_.size(),
-                gpu_indirect_instancing_enabled_);
-        }
-
-        constexpr std::size_t max_instance_index = std::numeric_limits<std::uint32_t>::max();
-
-        for (auto& [pipeline_ptr, materials] : pipeline_materials_)
-        {
-            cmd->bind_graphics_pipeline(pipeline_ptr);
-
-            for (Material* material : materials)
-            {
-                if (material->shadow_only()) continue;
-
-                auto mat_it = render_cache_.find(material);
-                if (mat_it == render_cache_.end()) continue;
-
-                const MaterialRenderGroup& mat_group = mat_it->second;
-                if (mat_group.num_visible == 0) continue;
-
-                if (log_submit_frame)
-                {
-                    Log::debug(
-                        "submit_draws material='{}' visible={} mesh_buckets={}",
-                        material->name(),
-                        mat_group.num_visible,
-                        mat_group.mesh_buckets.size());
-                }
-
-                MaterialRenderInfo* render_info = get_or_build_render_info(material);
-
-                if (bind_frame_resources)
-                {
-                    ensure_fallback_ssbo_bound(*material, render_info);
-                    gfx::MaterialLoader::instance().bind_engine_resources(material);
-                    bind_frame_render_resources(*material);
-                }
-                MaterialAccess::bind_descriptor_sets(*material);
-
-                draw_material_meshes(cmd, material, mat_group, render_info, max_instance_index);
-            }
-        }
 
         Scene::world().each(
             [&](const flecs::entity entity, MeshRenderer& mr, GpuDrivenInstances& gpu_instances)
@@ -897,222 +621,6 @@ namespace boza
                 1,
                 sizeof(GpuIndexedDrawCommand));
         });
-
-        ++submit_log_frame;
-    }
-
-    void RenderingSystem::draw_material_meshes(
-        rhi::CommandBuffer* cmd,
-        Material* material,
-        const MaterialRenderGroup& mat_group,
-        void* render_info_opaque,
-        const std::size_t max_instance_index)
-    {
-        auto* render_info = static_cast<MaterialRenderInfo*>(render_info_opaque);
-
-        const PushConstantRangeRuntime* direct_instancing_range = nullptr;
-        bool supports_direct_instancing = false;
-        if (render_info && render_info->instancing_range_index.has_value())
-        {
-            const std::size_t range_index = *render_info->instancing_range_index;
-            if (range_index < render_info->ranges.size())
-            {
-                const PushConstantRangeRuntime& range = render_info->ranges[range_index];
-                supports_direct_instancing =
-                    !gpu_indirect_instancing_enabled_ &&
-                    range.has_model_field &&
-                    range.model_offset_in_range >= range.data_offset_in_range &&
-                    range.model_offset_in_range == range.data_offset_in_range &&
-                    range.data_size == sizeof(glm::mat4) &&
-                    range.instancing_stride == sizeof(glm::mat4);
-                if (supports_direct_instancing)
-                    direct_instancing_range = &range;
-            }
-        }
-
-        struct InstancedDrawPlan final
-        {
-            Mesh* mesh_ptr{ nullptr };
-            GpuMesh* gpu_mesh{ nullptr };
-            std::uint32_t first_instance{ 0 };
-            std::uint32_t instance_count{ 0 };
-        };
-
-        std::vector<InstancedDrawPlan> instanced_plans{};
-        std::vector<glm::mat4> instanced_models{};
-        flat_set<Mesh*> instanced_meshes{};
-
-        if (supports_direct_instancing && direct_instancing_range)
-        {
-            for (auto& [mesh_ptr, bucket] : mat_group.mesh_buckets)
-            {
-                if (bucket.num_visible < instancing_threshold_ || bucket.num_visible > max_instance_index) continue;
-
-                auto* gpu_mesh = get_or_create_gpu_mesh(mesh_ptr);
-                if (!gpu_mesh) continue;
-
-                const std::uint32_t first_instance = static_cast<std::uint32_t>(instanced_models.size());
-
-                for (const auto& elem : bucket.elements)
-                {
-                    if (!elem.visible) continue;
-
-                    const auto* transform = std::as_const(elem.entity).try_get_component<Transform>();
-                    if (!transform) continue;
-
-                    instanced_models.push_back(transform->world_matrix());
-                }
-
-                const std::uint32_t instance_count = static_cast<std::uint32_t>(instanced_models.size()) - first_instance;
-                if (instance_count == 0) continue;
-
-                instanced_plans.push_back(InstancedDrawPlan{
-                    .mesh_ptr = mesh_ptr,
-                    .gpu_mesh = gpu_mesh,
-                    .first_instance = first_instance,
-                    .instance_count = instance_count
-                });
-                instanced_meshes.insert(mesh_ptr);
-            }
-
-            if (!instanced_plans.empty() &&
-                upload_instance_payload_from_models(material, instanced_models, *direct_instancing_range))
-            {
-                MaterialAccess::bind_descriptor_sets(*material);
-
-                for (const InstancedDrawPlan& plan : instanced_plans)
-                {
-                    auto* vertex_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(plan.gpu_mesh->vertex_buffer));
-                    auto* index_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(plan.gpu_mesh->index_buffer));
-                    if (!vertex_buffer_rhi || !index_buffer_rhi) continue;
-
-                    cmd->bind_vertex_buffer(vertex_buffer_rhi);
-                    cmd->bind_index_buffer(index_buffer_rhi);
-                    push_ranges(cmd, *material, render_info, nullptr, true, nullptr, false);
-                    cmd->draw_indexed(
-                        plan.gpu_mesh->index_count,
-                        plan.instance_count,
-                        0,
-                        0,
-                        plan.first_instance);
-                }
-            }
-            else
-            {
-                instanced_meshes.clear();
-            }
-        }
-
-        for (auto& [mesh_ptr, bucket] : mat_group.mesh_buckets)
-        {
-            if (bucket.num_visible == 0) continue;
-            if (instanced_meshes.contains(mesh_ptr)) continue;
-
-            auto* gpu_mesh = get_or_create_gpu_mesh(mesh_ptr);
-            if (!gpu_mesh) continue;
-
-            auto* vertex_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(gpu_mesh->vertex_buffer));
-            auto* index_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(gpu_mesh->index_buffer));
-            if (!vertex_buffer_rhi || !index_buffer_rhi) continue;
-
-            cmd->bind_vertex_buffer(vertex_buffer_rhi);
-            cmd->bind_index_buffer(index_buffer_rhi);
-
-            const bool should_instance =
-                render_info &&
-                render_info->instancing_range_index.has_value() &&
-                bucket.num_visible >= instancing_threshold_ &&
-                bucket.num_visible <= max_instance_index;
-
-            static std::uint32_t draw_log_count = 0;
-            if (draw_log_count < 24 && (should_instance || bucket.elements.size() >= instancing_threshold_))
-            {
-                Log::debug(
-                    "draw bucket: material='{}' mesh='{}' total={} visible={} should_instance={}",
-                    material->name(),
-                    mesh_ptr->name(),
-                    bucket.elements.size(),
-                    bucket.num_visible,
-                    should_instance);
-                ++draw_log_count;
-            }
-
-            if (should_instance && try_instanced_draw(cmd, material, mesh_ptr, bucket, render_info, gpu_mesh))
-                continue;
-
-            draw_elements_individually(cmd, material, bucket, render_info, gpu_mesh);
-        }
-    }
-
-    bool RenderingSystem::try_instanced_draw(
-        rhi::CommandBuffer* cmd,
-        Material* material,
-        Mesh* mesh,
-        const MeshBucket& bucket,
-        void* render_info_opaque,
-        GpuMesh* gpu_mesh)
-    {
-        (void)bucket;
-        (void)gpu_mesh;
-
-        auto* render_info = static_cast<MaterialRenderInfo*>(render_info_opaque);
-        const std::size_t range_index = *render_info->instancing_range_index;
-        if (range_index >= render_info->ranges.size())
-            return false;
-
-        const PushConstantRangeRuntime& range = render_info->ranges[range_index];
-
-        if (gpu_indirect_instancing_enabled_ &&
-            frustum_.valid &&
-            supports_gpu_culled_instancing(range))
-        {
-            GpuCullBufferState* state = get_gpu_cull_buffer_state(material, mesh);
-            if (!state || !state->culled_instance_buffer || !state->indirect_buffer) return false;
-
-            auto* indirect_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(*state->indirect_buffer));
-            if (!indirect_buffer_rhi) return false;
-
-            const auto visible_handle = BufferAccess::handle(*state->culled_instance_buffer);
-            if (state->bound_culled_handle != visible_handle)
-            {
-                material->update_buffer(range.instancing_ssbo_name, *state->culled_instance_buffer);
-                state->bound_culled_handle = visible_handle;
-            }
-
-            push_ranges(cmd, *material, render_info, nullptr, true, nullptr, false);
-            cmd->draw_indexed_indirect(
-                indirect_buffer_rhi,
-                0,
-                1,
-                sizeof(GpuIndexedDrawCommand));
-
-            return true;
-        }
-
-        return false;
-
-    }
-
-    void RenderingSystem::draw_elements_individually(
-        rhi::CommandBuffer* cmd,
-        Material* material,
-        const MeshBucket& bucket,
-        void* render_info_opaque,
-        GpuMesh* gpu_mesh)
-    {
-        auto* render_info = static_cast<MaterialRenderInfo*>(render_info_opaque);
-        for (const auto& elem : bucket.elements)
-        {
-            if (!elem.visible) continue;
-
-            const auto* transform = std::as_const(elem.entity).try_get_component<Transform>();
-            if (!transform) continue;
-
-            const glm::mat4 model_matrix = transform->world_matrix();
-
-            push_ranges(cmd, *material, render_info, &model_matrix, false, nullptr, false);
-            cmd->draw_indexed(gpu_mesh->index_count);
-        }
     }
 
     void RenderingSystem::EndFrame::execute()

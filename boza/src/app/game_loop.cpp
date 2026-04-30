@@ -7,7 +7,7 @@ import :game_loop;
 import boza.ecs;
 import boza.core;
 import boza.app.game_settings;
-import boza.rhi.render_context;
+import boza.rhi;
 
 namespace boza::app
 {

@@ -10,7 +10,7 @@ import boza.platform;
 
 import boza.detail;
 
-import boza.rhi.render_context;
+import boza.rhi;
 
 import :game_loop;
 

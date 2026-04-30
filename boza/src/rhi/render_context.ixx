@@ -1,7 +1,9 @@
-export module boza.rhi.render_context;
+export module boza.rhi:render_context;
 
 import std;
-import boza.rhi;
+import boza.rhi.api;
+import boza.rhi.objects;
+import :resource_cache;
 import boza.platform;
 
 export namespace boza::rhi

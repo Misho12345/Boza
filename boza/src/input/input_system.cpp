@@ -8,7 +8,7 @@ import :input_system;
 import :input_capture;
 
 import boza.app;
-import boza.rhi.render_context;
+import boza.rhi;
 
 namespace boza
 {

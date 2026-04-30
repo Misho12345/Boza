@@ -1,8 +1,10 @@
 export module boza.core:assert;
 
+#ifdef _DEBUG
 import std;
 import boza.common;
 import :log;
+#endif
 
 namespace boza
 {
