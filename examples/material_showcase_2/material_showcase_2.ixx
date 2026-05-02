@@ -960,6 +960,24 @@ namespace
     }
 }
 
+struct FPSLoggerSystem : UpdateStage<FPSLoggerSystem>
+{
+    static void execute()
+    {
+        static float         time_passed{ 0.0f };
+        static std::uint32_t frame_count{ 0 };
+        constexpr float      log_interval{ 1.0f };
+        ++frame_count;
+        time_passed += Time::delta_time();
+        if (time_passed >= log_interval)
+        {
+            Log::info("{:.2f} FPS", static_cast<float>(frame_count) / time_passed);
+            time_passed = 0.0f;
+            frame_count = 0;
+        }
+    }
+};
+
 export class MaterialShowcase2 : public App
 {
 public:

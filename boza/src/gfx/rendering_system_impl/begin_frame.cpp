@@ -28,6 +28,7 @@ namespace boza
         }
 
         rhi::RenderContext::set_current_command_buffer(swapchain_->current_command_buffer());
+        collect_retired_buffers();
         gfx::MaterialLoader::instance().log_cluster_cull_feedback();
         gfx::MaterialLoader::instance().update_time_ubo(Time::time(), Time::delta_time());
 

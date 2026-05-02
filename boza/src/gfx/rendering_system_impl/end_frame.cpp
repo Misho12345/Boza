@@ -28,6 +28,39 @@ namespace boza
         material.update_buffer("cameraUBO", *shadow_camera_buffer_);
     }
 
+    namespace
+    {
+        struct StaticMeshBatch final
+        {
+            Material* material{ nullptr };
+            Mesh* mesh{ nullptr };
+            std::vector<glm::mat4> models{};
+        };
+
+        StaticMeshBatch& get_or_add_batch(
+            std::vector<StaticMeshBatch>& batches,
+            Material* material,
+            Mesh* mesh)
+        {
+            if (auto it = std::ranges::find_if(
+                batches,
+                [material, mesh](const StaticMeshBatch& batch)
+                {
+                    return batch.material == material && batch.mesh == mesh;
+                }); it != batches.end())
+            {
+                return *it;
+            }
+
+            batches.push_back(StaticMeshBatch{
+                .material = material,
+                .mesh = mesh
+            });
+
+            return batches.back();
+        }
+    }
+
     void RenderingSystem::execute_shadow_caster_cull_pass()
     {
         clear_shadow_cull_results();
@@ -184,6 +217,143 @@ namespace boza
 
             cmd->begin_depth_rendering_layer(shadow_texture, layer, shadow_width, shadow_height, 1.0f);
 
+            std::vector<StaticMeshBatch> standard_shadow_batches{};
+            flat_map<Material*, std::vector<StaticMeshBatch*>> shadow_batches_by_material{};
+
+            Scene::world().each(
+                [&](const flecs::entity entity, const Transform& transform, const ShadowCaster& caster, MeshRenderer& mr)
+            {
+                if (!entity.is_valid() || !entity.enabled()) return;
+                if (entity.has<GpuDrivenInstances>()) return;
+
+                Material* material = mr.material;
+                Mesh* mesh = mr.mesh;
+
+                if (!material || !mesh) return;
+                if (!ensure_shadow_pipeline(material)) return;
+
+                ShadowCasterGeometry geometry{};
+                if (!build_shadow_caster_geometry(transform, caster, mesh, geometry)) return;
+                if (!shadow_frustum.sphere_visible(geometry.center, geometry.sphere.w)) return;
+
+                get_or_add_batch(standard_shadow_batches, material, mesh)
+                    .models.push_back(transform.world_matrix());
+            });
+
+            for (auto& batch : standard_shadow_batches)
+                shadow_batches_by_material[batch.material].push_back(&batch);
+
+            for (auto& [material, batch_list] : shadow_batches_by_material)
+            {
+                if (!material || batch_list.empty()) continue;
+
+                MaterialRenderInfo* render_info = get_or_build_render_info(material);
+                auto shadow_pipeline_it = shadow_pipelines_.find(material);
+                if (shadow_pipeline_it == shadow_pipelines_.end()) continue;
+
+                const PushConstantRangeRuntime* instancing_range = nullptr;
+                if (render_info && render_info->instancing_range_index.has_value())
+                {
+                    const std::size_t range_index = *render_info->instancing_range_index;
+                    if (range_index < render_info->ranges.size())
+                    {
+                        const PushConstantRangeRuntime& candidate = render_info->ranges[range_index];
+                        if (candidate.instancing_supported &&
+                            candidate.has_model_field &&
+                            candidate.model_offset_in_range >= candidate.data_offset_in_range &&
+                            candidate.model_offset_in_range + sizeof(glm::mat4) <=
+                                candidate.data_offset_in_range + candidate.data_size)
+                        {
+                            instancing_range = &candidate;
+                        }
+                    }
+                }
+
+                struct InstancedDrawPlan final
+                {
+                    GpuMesh* gpu_mesh{ nullptr };
+                    std::uint32_t first_instance{ 0 };
+                    std::uint32_t instance_count{ 0 };
+                    Mesh* mesh{ nullptr };
+                };
+
+                std::vector<InstancedDrawPlan> instanced_plans{};
+                std::vector<glm::mat4> instanced_models{};
+                flat_set<Mesh*> instanced_meshes{};
+
+                if (instancing_range)
+                {
+                    for (StaticMeshBatch* batch : batch_list)
+                    {
+                        if (!batch || !batch->mesh || batch->models.size() < instancing_threshold_) continue;
+                        if (batch->models.size() > std::numeric_limits<std::uint32_t>::max()) continue;
+
+                        GpuMesh* gpu_mesh = get_or_create_gpu_mesh(batch->mesh);
+                        if (!gpu_mesh) continue;
+
+                        const std::uint32_t first_instance = static_cast<std::uint32_t>(instanced_models.size());
+                        instanced_models.insert(instanced_models.end(), batch->models.begin(), batch->models.end());
+
+                        instanced_plans.push_back(InstancedDrawPlan{
+                            .gpu_mesh = gpu_mesh,
+                            .first_instance = first_instance,
+                            .instance_count = static_cast<std::uint32_t>(batch->models.size()),
+                            .mesh = batch->mesh
+                        });
+                        instanced_meshes.insert(batch->mesh);
+                    }
+                }
+
+                cmd->bind_graphics_pipeline(shadow_pipeline_it->second.pipeline.get());
+
+                bool drew_instanced_batches = false;
+                if (!instanced_plans.empty() &&
+                    upload_instance_payload_from_models(material, std::span<const glm::mat4>{ instanced_models }, *instancing_range))
+                {
+                    MaterialAccess::bind_descriptor_sets(*material);
+
+                    for (const InstancedDrawPlan& plan : instanced_plans)
+                    {
+                        auto* vertex_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(plan.gpu_mesh->vertex_buffer));
+                        auto* index_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(plan.gpu_mesh->index_buffer));
+                        if (!vertex_buffer_rhi || !index_buffer_rhi) continue;
+
+                        cmd->bind_vertex_buffer(vertex_buffer_rhi);
+                        cmd->bind_index_buffer(index_buffer_rhi);
+                        push_ranges(cmd, *material, render_info, nullptr, true, &light_view_projection, true);
+                        cmd->draw_indexed(plan.gpu_mesh->index_count, plan.instance_count, 0, 0, plan.first_instance);
+                        shadow_draws += plan.instance_count;
+                    }
+
+                    drew_instanced_batches = true;
+                }
+
+                MaterialAccess::bind_descriptor_sets(*material);
+
+                for (StaticMeshBatch* batch : batch_list)
+                {
+                    if (!batch || !batch->mesh || batch->models.empty()) continue;
+                    if (drew_instanced_batches && instanced_meshes.contains(batch->mesh)) continue;
+
+                    GpuMesh* gpu_mesh = get_or_create_gpu_mesh(batch->mesh);
+                    if (!gpu_mesh) continue;
+
+                    auto* vertex_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(gpu_mesh->vertex_buffer));
+                    auto* index_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(gpu_mesh->index_buffer));
+                    if (!vertex_buffer_rhi || !index_buffer_rhi) continue;
+
+                    cmd->bind_vertex_buffer(vertex_buffer_rhi);
+                    cmd->bind_index_buffer(index_buffer_rhi);
+
+                    for (const glm::mat4& model_matrix : batch->models)
+                    {
+                        push_ranges(cmd, *material, render_info, &model_matrix, false, &light_view_projection, true);
+                        cmd->draw_indexed(gpu_mesh->index_count);
+                        ++shadow_draws;
+                    }
+                }
+            }
+
             Scene::world().each(
                 [&](const flecs::entity entity, MeshRenderer& mr, GpuDrivenInstances& gpu_instances)
             {
@@ -335,7 +505,7 @@ namespace boza
         auto& material_loader = gfx::MaterialLoader::instance();
 
         Scene::world().each(
-            [&](const flecs::entity entity, MeshRenderer& mr, GpuDrivenInstances&)
+            [&](const flecs::entity entity, MeshRenderer& mr)
         {
             if (!entity.is_valid() || !entity.enabled()) return;
 
@@ -559,6 +729,153 @@ namespace boza
         {
             Log::error("Failed to begin swapchain render pass for clustered_forward");
             return;
+        }
+
+        std::vector<StaticMeshBatch> standard_forward_batches{};
+        flat_map<Material*, std::vector<StaticMeshBatch*>> forward_batches_by_material{};
+
+        Scene::world().each(
+            [&](const flecs::entity entity, const Transform& transform, MeshRenderer& mr)
+        {
+            if (!entity.is_valid() || !entity.enabled()) return;
+            if (entity.has<tags::ShadowOnly>() || entity.has<GpuDrivenInstances>()) return;
+
+            Material* material = mr.material;
+            Mesh* mesh = mr.mesh;
+
+            if (!material || !mesh || material->shadow_only()) return;
+
+            const glm::mat4 model_matrix = transform.world_matrix();
+
+            if (frustum_.valid)
+            {
+                const BoundingSphere& mesh_bounds = mesh->bounds;
+                const glm::vec3 world_center =
+                    glm::vec3(model_matrix * glm::vec4{ mesh_bounds.center, 1.0f });
+
+                const float scale_x = glm::length(glm::vec3{ model_matrix[0] });
+                const float scale_y = glm::length(glm::vec3{ model_matrix[1] });
+                const float scale_z = glm::length(glm::vec3{ model_matrix[2] });
+
+                const float world_radius = mesh_bounds.radius * std::max({ scale_x, scale_y, scale_z });
+                if (!frustum_.sphere_visible(world_center, world_radius)) return;
+            }
+
+            get_or_add_batch(standard_forward_batches, material, mesh)
+                .models.push_back(model_matrix);
+        });
+
+        for (auto& batch : standard_forward_batches)
+            forward_batches_by_material[batch.material].push_back(&batch);
+
+        for (auto& [material, batch_list] : forward_batches_by_material)
+        {
+            if (!material || batch_list.empty()) continue;
+
+            MaterialRenderInfo* render_info = get_or_build_render_info(material);
+
+            const PushConstantRangeRuntime* instancing_range = nullptr;
+            if (render_info && render_info->instancing_range_index.has_value())
+            {
+                const std::size_t range_index = *render_info->instancing_range_index;
+                if (range_index < render_info->ranges.size())
+                {
+                    const PushConstantRangeRuntime& candidate = render_info->ranges[range_index];
+                    if (candidate.instancing_supported &&
+                        candidate.has_model_field &&
+                        candidate.model_offset_in_range >= candidate.data_offset_in_range &&
+                        candidate.model_offset_in_range + sizeof(glm::mat4) <=
+                            candidate.data_offset_in_range + candidate.data_size)
+                    {
+                        instancing_range = &candidate;
+                    }
+                }
+            }
+
+            struct InstancedDrawPlan final
+            {
+                GpuMesh* gpu_mesh{ nullptr };
+                std::uint32_t first_instance{ 0 };
+                std::uint32_t instance_count{ 0 };
+                Mesh* mesh{ nullptr };
+            };
+
+            std::vector<InstancedDrawPlan> instanced_plans{};
+            std::vector<glm::mat4> instanced_models{};
+            flat_set<Mesh*> instanced_meshes{};
+
+            if (instancing_range)
+            {
+                for (StaticMeshBatch* batch : batch_list)
+                {
+                    if (!batch || !batch->mesh || batch->models.size() < instancing_threshold_) continue;
+                    if (batch->models.size() > std::numeric_limits<std::uint32_t>::max()) continue;
+
+                    GpuMesh* gpu_mesh = get_or_create_gpu_mesh(batch->mesh);
+                    if (!gpu_mesh) continue;
+
+                    const std::uint32_t first_instance = static_cast<std::uint32_t>(instanced_models.size());
+                    instanced_models.insert(instanced_models.end(), batch->models.begin(), batch->models.end());
+
+                    instanced_plans.push_back(InstancedDrawPlan{
+                        .gpu_mesh = gpu_mesh,
+                        .first_instance = first_instance,
+                        .instance_count = static_cast<std::uint32_t>(batch->models.size()),
+                        .mesh = batch->mesh
+                    });
+                    instanced_meshes.insert(batch->mesh);
+                }
+            }
+
+            auto* pipeline = static_cast<rhi::GraphicsPipeline*>(MaterialAccess::pipeline(*material));
+            if (!pipeline) continue;
+
+            cmd->bind_graphics_pipeline(pipeline);
+
+            bool drew_instanced_batches = false;
+            if (!instanced_plans.empty() &&
+                upload_instance_payload_from_models(material, std::span<const glm::mat4>{ instanced_models }, *instancing_range))
+            {
+                MaterialAccess::bind_descriptor_sets(*material);
+
+                for (const InstancedDrawPlan& plan : instanced_plans)
+                {
+                    auto* vertex_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(plan.gpu_mesh->vertex_buffer));
+                    auto* index_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(plan.gpu_mesh->index_buffer));
+                    if (!vertex_buffer_rhi || !index_buffer_rhi) continue;
+
+                    cmd->bind_vertex_buffer(vertex_buffer_rhi);
+                    cmd->bind_index_buffer(index_buffer_rhi);
+                    push_ranges(cmd, *material, render_info, nullptr, true, nullptr, false);
+                    cmd->draw_indexed(plan.gpu_mesh->index_count, plan.instance_count, 0, 0, plan.first_instance);
+                }
+
+                drew_instanced_batches = true;
+            }
+
+            MaterialAccess::bind_descriptor_sets(*material);
+
+            for (StaticMeshBatch* batch : batch_list)
+            {
+                if (!batch || !batch->mesh || batch->models.empty()) continue;
+                if (drew_instanced_batches && instanced_meshes.contains(batch->mesh)) continue;
+
+                GpuMesh* gpu_mesh = get_or_create_gpu_mesh(batch->mesh);
+                if (!gpu_mesh) continue;
+
+                auto* vertex_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(gpu_mesh->vertex_buffer));
+                auto* index_buffer_rhi = static_cast<rhi::Buffer*>(BufferAccess::handle(gpu_mesh->index_buffer));
+                if (!vertex_buffer_rhi || !index_buffer_rhi) continue;
+
+                cmd->bind_vertex_buffer(vertex_buffer_rhi);
+                cmd->bind_index_buffer(index_buffer_rhi);
+
+                for (const glm::mat4& model_matrix : batch->models)
+                {
+                    push_ranges(cmd, *material, render_info, &model_matrix, false, nullptr, false);
+                    cmd->draw_indexed(gpu_mesh->index_count);
+                }
+            }
         }
 
         submit_gpu_driven_draws();

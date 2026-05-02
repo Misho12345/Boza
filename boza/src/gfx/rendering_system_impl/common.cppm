@@ -100,6 +100,12 @@ namespace boza
         GpuDrivenInstances* instances{ nullptr };
     };
 
+    struct RetiredBuffer
+    {
+        std::uint64_t release_frame{ 0 };
+        std::unique_ptr<Buffer> buffer{};
+    };
+
     struct DirectionalShadowPushConstants
     {
         glm::mat4 light_view_projection{ 1.0f };
@@ -134,6 +140,7 @@ namespace boza
     flat_map<Material*, flat_map<std::string, InstanceBufferState>> instance_buffers_{};
     flat_map<Material*, ShadowPipelineState> shadow_pipelines_{};
     flat_map<std::uint64_t, GpuDrivenBatchState> gpu_driven_batch_states_{};
+    std::vector<RetiredBuffer> retired_buffers_{};
 
     extern std::unique_ptr<Buffer> shadow_camera_buffer_;
     bool directional_shadow_map_layout_initialized_{ false };
@@ -187,6 +194,8 @@ namespace boza
         ShadowCasterGeometry& geometry);
     void reset_render_caches();
     void clear_shadow_cull_results();
+    void retire_buffer(std::unique_ptr<Buffer>&& buffer);
+    void collect_retired_buffers();
 
     bool ensure_shadow_camera_buffer();
     bool ensure_shadow_pipeline(Material* material);
@@ -238,6 +247,11 @@ namespace boza
         Material* material,
         const std::string& ssbo_name,
         std::size_t actual_payload_size);
+
+    bool upload_instance_payload_from_models(
+        Material* material,
+        std::span<const glm::mat4> models,
+        const PushConstantRangeRuntime& range);
 
     const PushConstantRangeRuntime* select_fallback_range(
         Material& material,

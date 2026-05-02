@@ -150,20 +150,41 @@ float directional_shadow_factor(vec3 world_pos, vec3 normal, vec3 light_dir, flo
     float normal_offset = lightingUBO.shadow_params.x * (0.2 + 0.8 * (1.0 - normal_term));
     float depth_bias = lightingUBO.shadow_params.y * (1.0 + (1.0 - normal_term));
 
-    vec4 light_clip = lightingUBO.directional_shadow_view_projections[cascade_index] *
-        vec4(world_pos + normal * normal_offset, 1.0);
+    vec4 shadow_world_pos = vec4(world_pos + normal * normal_offset, 1.0);
+    float visibility = 1.0;
+    bool found_valid_cascade = false;
 
-    if (abs(light_clip.w) <= 1e-5) return 1.0;
+    for (int idx = 0; idx < 4; ++idx) {
+        vec4 light_clip = lightingUBO.directional_shadow_view_projections[idx] * shadow_world_pos;
+        if (abs(light_clip.w) <= 1e-5) continue;
 
-    vec3 shadow_coord = light_clip.xyz / light_clip.w;
-    if (shadow_coord.x < -1.0 || shadow_coord.x > 1.0 ||
-        shadow_coord.y < -1.0 || shadow_coord.y > 1.0 ||
-        shadow_coord.z < 0.0 || shadow_coord.z > 1.0) {
-        return 1.0;
+        vec3 shadow_coord = light_clip.xyz / light_clip.w;
+        if (shadow_coord.x < -1.0 || shadow_coord.x > 1.0 ||
+            shadow_coord.y < -1.0 || shadow_coord.y > 1.0 ||
+            shadow_coord.z < 0.0 || shadow_coord.z > 1.0) {
+            continue;
+        }
+
+        vec2 uv = shadow_coord.xy * 0.5 + 0.5;
+        float cascade_visibility = sample_shadow_map_array(
+            directional_shadow_map,
+            uv,
+            float(idx),
+            shadow_coord.z - depth_bias,
+            strength);
+
+        if (!found_valid_cascade)
+        {
+            visibility = cascade_visibility;
+            found_valid_cascade = true;
+        }
+        else
+        {
+            visibility = min(visibility, cascade_visibility);
+        }
     }
 
-    vec2 uv = shadow_coord.xy * 0.5 + 0.5;
-    return sample_shadow_map_array(directional_shadow_map, uv, float(cascade_index), shadow_coord.z - depth_bias, strength);
+    return found_valid_cascade ? visibility : 1.0;
 }
 
 uint point_shadow_face(vec3 from_light)

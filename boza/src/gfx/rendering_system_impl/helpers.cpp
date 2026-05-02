@@ -139,6 +139,28 @@ namespace boza
         return std::max(rhi::RenderContext::frames_in_flight(), 1u);
     }
 
+    void retire_buffer(std::unique_ptr<Buffer>&& buffer)
+    {
+        if (!buffer) return;
+
+        retired_buffers_.push_back(RetiredBuffer{
+            .release_frame = Time::frame_count() + std::max<std::uint64_t>(active_frame_slot_count(), 1u) + 1u,
+            .buffer = std::move(buffer)
+        });
+    }
+
+    void collect_retired_buffers()
+    {
+        const std::uint64_t current_frame = Time::frame_count();
+
+        std::erase_if(
+            retired_buffers_,
+            [current_frame](const RetiredBuffer& retired)
+            {
+                return retired.release_frame <= current_frame;
+            });
+    }
+
     ComputeDispatcher* get_frame_dispatcher(
         std::vector<std::unique_ptr<ComputeDispatcher>>& dispatchers,
         const std::string_view shader_name)
@@ -259,6 +281,7 @@ namespace boza
         material_render_infos_.clear();
         instance_buffers_.clear();
         gpu_driven_batch_states_.clear();
+        retired_buffers_.clear();
         shadow_pipelines_.clear();
         shadow_camera_buffer_.reset();
         cluster_build_dispatchers_.clear();
@@ -444,6 +467,7 @@ namespace boza
             return false;
         }
 
+        retire_buffer(std::move(state.buffer));
         state.buffer = std::move(new_buffer);
         state.capacity_bytes = new_capacity;
         return true;
@@ -479,6 +503,7 @@ namespace boza
                 return false;
             }
 
+            retire_buffer(std::move(buffer));
             buffer = std::move(new_buffer);
             capacity_bytes = new_capacity;
             return true;
@@ -1025,6 +1050,63 @@ namespace boza
         }
 
         return true;
+    }
+
+    bool upload_instance_payload_from_models(
+        Material* material,
+        const std::span<const glm::mat4> models,
+        const PushConstantRangeRuntime& range)
+    {
+        if (!material || models.empty()) return false;
+
+        if (!range.instancing_supported ||
+            !range.has_data_member ||
+            range.data_size == 0 ||
+            range.instancing_stride == 0 ||
+            range.instancing_stride < range.data_size)
+            return false;
+
+        const std::size_t payload_size = models.size() * static_cast<std::size_t>(range.instancing_stride);
+        if (payload_size == 0) return false;
+
+        instance_payload_scratch_.resize(payload_size);
+
+        const std::span<const std::uint8_t> push_staging = MaterialAccess::push_constant_staging(*material);
+
+        const std::size_t data_base_offset =
+            static_cast<std::size_t>(range.offset) +
+            static_cast<std::size_t>(range.data_offset_in_range);
+
+        std::size_t base_copy_size = 0;
+        if (data_base_offset < push_staging.size())
+            base_copy_size = std::min<std::size_t>(range.data_size, push_staging.size() - data_base_offset);
+
+        std::size_t model_offset_in_data = 0;
+        bool can_write_model = false;
+        if (range.has_model_field && range.model_offset_in_range >= range.data_offset_in_range)
+        {
+            model_offset_in_data = range.model_offset_in_range - range.data_offset_in_range;
+            can_write_model = model_offset_in_data + sizeof(glm::mat4) <= range.data_size;
+        }
+
+        if (!can_write_model) return false;
+
+        const bool matrix_only_payload =
+            model_offset_in_data == 0 &&
+            range.data_size == sizeof(glm::mat4) &&
+            range.instancing_stride == sizeof(glm::mat4);
+
+        for (std::size_t i = 0; i < models.size(); ++i)
+        {
+            std::uint8_t* dst = instance_payload_scratch_.data() + i * static_cast<std::size_t>(range.instancing_stride);
+
+            if (base_copy_size > 0 && !matrix_only_payload)
+                std::memcpy(dst, push_staging.data() + data_base_offset, base_copy_size);
+
+            std::memcpy(dst + model_offset_in_data, &models[i], sizeof(glm::mat4));
+        }
+
+        return upload_to_instance_buffer(material, range.instancing_ssbo_name, payload_size);
     }
 
     const PushConstantRangeRuntime* select_fallback_range(

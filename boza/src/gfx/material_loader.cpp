@@ -109,6 +109,7 @@ namespace boza::gfx
         {
             light_direction = safe_direction(light_direction);
             const auto corners = build_camera_slice_corners(view, projection, near_clip, far_clip);
+            const glm::vec3 caster_extrusion = -light_direction * light_distance;
 
             glm::vec3 up{ 0.0f, 1.0f, 0.0f };
             if (std::abs(glm::dot(up, light_direction)) > 0.92f) up = glm::vec3{ 0.0f, 0.0f, 1.0f };
@@ -130,21 +131,30 @@ namespace boza::gfx
                 const glm::vec3 light_space = glm::vec3{ light_view * glm::vec4{ corner, 1.0f } };
                 light_min = glm::min(light_min, light_space);
                 light_max = glm::max(light_max, light_space);
+
+                // Include blocker space outside the visible receiver slice so shadows stay present
+                // when the caster slips just off-camera but still projects into the view.
+                const glm::vec3 extruded_light_space = glm::vec3{ light_view * glm::vec4{ corner + caster_extrusion, 1.0f } };
+                light_min = glm::min(light_min, extruded_light_space);
+                light_max = glm::max(light_max, extruded_light_space);
             }
 
             const glm::vec3 slice_center_light_space = glm::vec3{ light_view * glm::vec4{ slice_center, 1.0f } };
             const glm::vec2 half_extent = glm::max(
                 glm::vec2{ (light_max.x - light_min.x) * 0.5f, (light_max.y - light_min.y) * 0.5f },
                 glm::vec2{ 8.0f });
-            const float square_half_extent = std::max(half_extent.x, half_extent.y);
+            const float slice_radius = std::max(half_extent.x, half_extent.y);
+            const float xy_padding = std::max(18.0f, slice_radius * 0.22f);
+            const float square_half_extent = slice_radius + xy_padding;
             const float texel_size = (square_half_extent * 2.0f) / static_cast<float>(std::max(shadow_map_size, 1u));
             const glm::vec2 snapped_center =
                 glm::round(glm::vec2{ slice_center_light_space } / std::max(texel_size, 1e-5f)) * texel_size;
             const glm::vec2 snapped_min = snapped_center - glm::vec2{ square_half_extent };
             const glm::vec2 snapped_max = snapped_center + glm::vec2{ square_half_extent };
 
-            const float near_plane = light_min.z - 64.0f;
-            const float far_plane = std::max(light_max.z + 64.0f, near_plane + 1.0f);
+            const float depth_padding = std::max(128.0f, light_distance * 0.55f);
+            const float near_plane = light_min.z - depth_padding;
+            const float far_plane = std::max(light_max.z + depth_padding, near_plane + 1.0f);
 
             const glm::mat4 light_projection = glm::ortho(
                 snapped_min.x,
