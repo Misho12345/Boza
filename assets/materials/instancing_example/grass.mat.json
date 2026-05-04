@@ -1,0 +1,25 @@
+{
+  "vertex_shader": "instancing_example/grass_sway",
+  "fragment_shader": "instancing_example/grass",
+  "load_strategy": "on_demand",
+  "settings": {
+    "cull_mode": "none"
+  },
+  "textures": {
+    "albedo_map": {
+      "texture": "default.png",
+      "sampler": "default"
+    }
+  },
+  "params": {
+    "material": {
+      "albedo_color": [0.12, 0.32, 0.1, 1.0],
+      "properties": [0.0, 0.92, 0.0, 0.0],
+      "detail": [0.0, 0.0, 0.0, 1.0]
+    },
+    "grassSettings": {
+      "sway_direction": [0.624695, 0.780869],
+      "sway_strength": 1.0
+    }
+  }
+}

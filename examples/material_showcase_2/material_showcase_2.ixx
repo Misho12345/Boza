@@ -7,34 +7,6 @@ using namespace boza;
 
 namespace
 {
-    enum class SurfaceMapping : std::uint8_t
-    {
-        Uv,
-        Triplanar,
-        WorldBox,
-    };
-
-    constexpr float surface_mapping_value(const SurfaceMapping mapping)
-    {
-        switch (mapping)
-        {
-        case SurfaceMapping::Triplanar: return 1.0f;
-        case SurfaceMapping::WorldBox: return 2.0f;
-        case SurfaceMapping::Uv:
-        default:
-            return 0.0f;
-        }
-    }
-
-    struct SurfaceControls final
-    {
-        float metallic_bias{ 0.0f };
-        float roughness_scale{ 1.0f };
-        float uv_scale{ 1.0f };
-        SurfaceMapping mapping{ SurfaceMapping::Uv };
-        CullMode cull_mode{ CullMode::Back };
-    };
-
     struct Showcase2CameraController
     {
         float move_speed{ 42.0f };
@@ -211,94 +183,6 @@ namespace
         }
 
         Mesh::create("material_showcase2/terrain", std::move(vertices), std::move(indices));
-    }
-
-    void create_surface_material(
-        const std::string& material_name,
-        const std::string& folder,
-        const std::string& roughness_map,
-        const SurfaceControls& controls = {},
-        const std::string& metallic_map = "")
-    {
-        Material& material = Material::create(material_name, {
-            .vertex_shader = "default",
-            .fragment_shader = "default",
-            .cull_mode = controls.cull_mode
-        });
-
-        material["albedo_map"] = Texture::get_or_load(folder + "/diff.jpg");
-        material["normal_map"] = Texture::get_or_load(folder + "/nor_gl.exr");
-        material["roughness_map"] = Texture::get_or_load(roughness_map);
-
-        if (!metallic_map.empty())
-            material["metallic_map"] = Texture::get_or_load(metallic_map);
-
-        material["material.albedo_color"] = glm::vec4{ 1.0f };
-        material["material.properties"] = glm::vec4{
-            controls.metallic_bias,
-            controls.roughness_scale,
-            controls.uv_scale,
-            0.0f };
-        material["material.detail"] = glm::vec4{
-            0.0f,
-            surface_mapping_value(controls.mapping),
-            0.0f,
-            0.0f };
-    }
-
-    void create_materials()
-    {
-        create_surface_material("material_showcase2/brick_floor", "brick_floor", "brick_floor/rough.jpg", {
-            .roughness_scale = 0.9f,
-            .uv_scale = 0.38f,
-            .mapping = SurfaceMapping::WorldBox });
-        create_surface_material("material_showcase2/castle_brick", "castle_brick_02_red", "castle_brick_02_red/rough.jpg", {
-            .roughness_scale = 0.95f,
-            .uv_scale = 0.34f,
-            .mapping = SurfaceMapping::WorldBox });
-        create_surface_material("material_showcase2/damaged_plaster", "damaged_plaster", "damaged_plaster/rough.exr", {
-            .roughness_scale = 0.85f,
-            .uv_scale = 0.28f,
-            .mapping = SurfaceMapping::WorldBox });
-        create_surface_material("material_showcase2/herringbone_parquet", "herringbone_parquet", "herringbone_parquet/rough.exr", {
-            .roughness_scale = 0.65f,
-            .uv_scale = 0.42f,
-            .mapping = SurfaceMapping::WorldBox });
-        create_surface_material("material_showcase2/interior_tiles", "interior_tiles", "interior_tiles/rough.exr", {
-            .roughness_scale = 0.55f,
-            .uv_scale = 0.34f,
-            .mapping = SurfaceMapping::WorldBox });
-        create_surface_material("material_showcase2/plaster_stone", "plaster_stone_wall_02", "plaster_stone_wall_02/rough.exr", {
-            .roughness_scale = 0.9f,
-            .uv_scale = 0.26f,
-            .mapping = SurfaceMapping::WorldBox });
-        create_surface_material("material_showcase2/rocky_terrain", "rocky_terrain_02", "rocky_terrain_02/rough.exr", {
-            .roughness_scale = 1.0f,
-            .uv_scale = 0.1f,
-            .mapping = SurfaceMapping::Triplanar });
-        create_surface_material("material_showcase2/rusty_metal_03", "rusty_metal_03", "rusty_metal_03/rough.exr", {
-            .metallic_bias = 0.55f,
-            .roughness_scale = 0.7f,
-            .uv_scale = 0.34f,
-            .mapping = SurfaceMapping::WorldBox });
-        create_surface_material(
-            "material_showcase2/rusty_metal_04",
-            "rusty_metal_04",
-            "rusty_metal_04/rough.exr",
-            {
-                .roughness_scale = 0.65f,
-                .uv_scale = 0.34f,
-                .mapping = SurfaceMapping::WorldBox },
-            "rusty_metal_04/metal.exr");
-        create_surface_material("material_showcase2/rusty_metal_grid", "rusty_metal_grid", "rusty_metal_grid/rough.exr", {
-            .metallic_bias = 0.85f,
-            .roughness_scale = 0.55f,
-            .uv_scale = 0.44f,
-            .mapping = SurfaceMapping::WorldBox });
-        create_surface_material("material_showcase2/dirt", "dirt", "dirt/rough.exr", {
-            .roughness_scale = 1.0f,
-            .uv_scale = 0.11f,
-            .mapping = SurfaceMapping::Triplanar });
     }
 
     [[nodiscard]] glm::vec3 resolved_mesh_piece_scale(
@@ -988,7 +872,6 @@ public:
         create_slope_mesh();
         create_icosphere_mesh();
         create_terrain_mesh();
-        create_materials();
 
         Scene::main = Scene::create("MaterialShowcase2");
 

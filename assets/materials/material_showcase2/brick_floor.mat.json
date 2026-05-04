@@ -1,0 +1,17 @@
+{
+  "vertex_shader": "default",
+  "fragment_shader": "default",
+  "load_strategy": "on_demand",
+  "textures": {
+    "albedo_map": { "texture": "brick_floor/diff.jpg", "sampler": "default" },
+    "normal_map": { "texture": "brick_floor/nor_gl.exr", "sampler": "default" },
+    "roughness_map": { "texture": "brick_floor/rough.jpg", "sampler": "default" }
+  },
+  "params": {
+    "material": {
+      "albedo_color": [1.0, 1.0, 1.0, 1.0],
+      "properties": [0.0, 0.9, 0.38, 0.0],
+      "detail": [0.0, 2.0, 0.0, 0.0]
+    }
+  }
+}

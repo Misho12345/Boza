@@ -1,0 +1,17 @@
+{
+  "vertex_shader": "default",
+  "fragment_shader": "default",
+  "load_strategy": "on_demand",
+  "textures": {
+    "albedo_map": { "texture": "herringbone_parquet/diff.jpg", "sampler": "default" },
+    "normal_map": { "texture": "herringbone_parquet/nor_gl.exr", "sampler": "default" },
+    "roughness_map": { "texture": "herringbone_parquet/rough.exr", "sampler": "default" }
+  },
+  "params": {
+    "material": {
+      "albedo_color": [1.0, 1.0, 1.0, 1.0],
+      "properties": [0.0, 0.65, 0.42, 0.0],
+      "detail": [0.0, 2.0, 0.0, 0.0]
+    }
+  }
+}

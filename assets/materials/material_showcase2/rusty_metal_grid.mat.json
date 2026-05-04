@@ -1,0 +1,17 @@
+{
+  "vertex_shader": "default",
+  "fragment_shader": "default",
+  "load_strategy": "on_demand",
+  "textures": {
+    "albedo_map": { "texture": "rusty_metal_grid/diff.jpg", "sampler": "default" },
+    "normal_map": { "texture": "rusty_metal_grid/nor_gl.exr", "sampler": "default" },
+    "roughness_map": { "texture": "rusty_metal_grid/rough.exr", "sampler": "default" }
+  },
+  "params": {
+    "material": {
+      "albedo_color": [1.0, 1.0, 1.0, 1.0],
+      "properties": [0.85, 0.55, 0.44, 0.0],
+      "detail": [0.0, 2.0, 0.0, 0.0]
+    }
+  }
+}

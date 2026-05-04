@@ -1,0 +1,22 @@
+{
+  "vertex_shader": "instancing_example/grass_shadow_proxy",
+  "fragment_shader": "default",
+  "load_strategy": "on_demand",
+  "shadow_only": true,
+  "settings": {
+    "cull_mode": "none"
+  },
+  "textures": {
+    "albedo_map": {
+      "texture": "default.png",
+      "sampler": "default"
+    }
+  },
+  "params": {
+    "material": {
+      "albedo_color": [0.0, 0.0, 0.0, 1.0],
+      "properties": [0.0, 0.0, 0.0, 0.0],
+      "detail": [0.0, 0.0, 0.0, 1.0]
+    }
+  }
+}

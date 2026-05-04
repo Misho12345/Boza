@@ -1,0 +1,17 @@
+{
+  "vertex_shader": "default",
+  "fragment_shader": "default",
+  "load_strategy": "on_demand",
+  "textures": {
+    "albedo_map": { "texture": "rocky_terrain_02/diff.jpg", "sampler": "default" },
+    "normal_map": { "texture": "rocky_terrain_02/nor_gl.exr", "sampler": "default" },
+    "roughness_map": { "texture": "rocky_terrain_02/rough.exr", "sampler": "default" }
+  },
+  "params": {
+    "material": {
+      "albedo_color": [1.0, 1.0, 1.0, 1.0],
+      "properties": [0.0, 1.0, 0.1, 0.0],
+      "detail": [0.0, 1.0, 0.0, 0.0]
+    }
+  }
+}

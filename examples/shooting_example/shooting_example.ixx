@@ -25,27 +25,6 @@ namespace shooting_example
         create_cube_mesh();
     }
 
-    void create_materials()
-    {
-        (void)create_tint_material("shooting_example/floor", glm::vec4{ 0.18f, 0.38f, 0.16f, 1.0f });
-        (void)create_tint_material("shooting_example/wall", glm::vec4{ 0.40f, 0.45f, 0.58f, 1.0f });
-        (void)create_tint_material("shooting_example/gun_body", glm::vec4{ 0.16f, 0.16f, 0.18f, 1.0f });
-        (void)create_tint_material("shooting_example/gun_trim", glm::vec4{ 0.50f, 0.42f, 0.22f, 1.0f });
-        (void)create_tint_material("shooting_example/bullet", glm::vec4{ 1.0f, 0.1f, 0.1f, 1.0f }, CullMode::None);
-
-        Material& tracer = Material::create(
-            "shooting_example/tracer",
-            {
-                .vertex_shader   = "material_showcase/unlit",
-                .fragment_shader = "material_showcase/unlit",
-                .cull_mode       = CullMode::None
-            });
-
-        tracer["albedo_map"] = Texture::get_or_load("default.png");
-        tracer["material.albedo_color"] = glm::vec4{ 1.0f, 0.18f, 0.05f, 1.0f };
-        tracer["material.properties"] = glm::vec4{ 0.0f };
-    }
-
     GameObject create_box(
         const std::string_view name,
         const GameObject&      parent,
@@ -319,7 +298,6 @@ public:
         shooting_example::world = {};
 
         shooting_example::create_meshes();
-        shooting_example::create_materials();
 
         Scene::main = Scene::create("ShootingExample");
 

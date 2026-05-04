@@ -1,0 +1,10 @@
+{
+  "vertex_shader": "shooting_example/color",
+  "fragment_shader": "shooting_example/color",
+  "load_strategy": "on_demand",
+  "params": {
+    "pc": {
+      "tint": [0.5, 0.42, 0.22, 1.0]
+    }
+  }
+}

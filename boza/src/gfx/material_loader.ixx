@@ -43,6 +43,7 @@ export namespace boza::gfx
         std::string      vertex_shader;
         std::string      fragment_shader;
         LoadStrategy     load_strategy{ LoadStrategy::GameLoad };
+        bool             shadow_only{ false };
         MaterialSettings settings{};
 
         flat_map<std::string, TextureInfo> textures;
@@ -315,4 +316,3 @@ export namespace boza::gfx
         friend class Material;
     };
 }
-

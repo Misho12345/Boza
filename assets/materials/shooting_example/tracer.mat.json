@@ -1,0 +1,20 @@
+{
+  "vertex_shader": "material_showcase/unlit",
+  "fragment_shader": "material_showcase/unlit",
+  "load_strategy": "on_demand",
+  "settings": {
+    "cull_mode": "none"
+  },
+  "textures": {
+    "albedo_map": {
+      "texture": "default.png",
+      "sampler": "default"
+    }
+  },
+  "params": {
+    "material": {
+      "albedo_color": [1.0, 0.18, 0.05, 1.0],
+      "properties": [0.0, 0.0, 0.0, 0.0]
+    }
+  }
+}

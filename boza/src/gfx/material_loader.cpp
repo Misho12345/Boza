@@ -688,6 +688,9 @@ namespace boza::gfx
             }
         }
 
+        if (j.contains("shadow_only") && j["shadow_only"].is_boolean())
+            def.shadow_only = j["shadow_only"].get<bool>();
+
         if (j.contains("settings") && j["settings"].is_object())
         {
             const auto& s = j["settings"];
@@ -881,6 +884,8 @@ namespace boza::gfx
     {
         if (!TextureLoader::instance().initialized()) return;
         if (!SamplerLoader::instance().initialized()) return;
+
+        material->set_shadow_only(def.shadow_only);
 
         for (const auto& [prop_name, tex_info] : def.textures)
         {

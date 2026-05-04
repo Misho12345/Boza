@@ -1,0 +1,13 @@
+{
+  "vertex_shader": "shooting_example/color",
+  "fragment_shader": "shooting_example/color",
+  "load_strategy": "on_demand",
+  "settings": {
+    "cull_mode": "none"
+  },
+  "params": {
+    "pc": {
+      "tint": [1.0, 0.1, 0.1, 1.0]
+    }
+  }
+}

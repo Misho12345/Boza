@@ -14,8 +14,6 @@ public:
         create_grass_blade_mesh();
         create_shadow_marker_mesh();
 
-        create_materials();
-
         Scene::main = Scene::create("InstancingExample");
 
         setup_camera();
@@ -29,70 +27,6 @@ public:
     }
 
 private:
-    static void create_materials()
-    {
-        constexpr float SurfaceMappingUv = 0.0f;
-        constexpr float SurfaceMappingTriplanar = 1.0f;
-        constexpr float SurfaceMappingWorldBox = 2.0f;
-
-        Material& terrain = Material::create(
-            "terrain",
-            {
-                .vertex_shader   = "default",
-                .fragment_shader = "default"
-            });
-
-        terrain["albedo_map"] = Texture::get_or_load("rocky_terrain_02/diff.jpg");
-        terrain["normal_map"] = Texture::get_or_load("rocky_terrain_02/nor_gl.exr");
-        terrain["roughness_map"] = Texture::get_or_load("rocky_terrain_02/rough.exr");
-        terrain["material.albedo_color"] = glm::vec4{ 1.0f };
-        terrain["material.properties"] = glm::vec4{ 0.0f, 1.0f, 0.08f, 0.0f };
-        terrain["material.detail"] = glm::vec4{ 0.0f, SurfaceMappingTriplanar, 0.0f, 1.0f };
-
-        Material& grass = Material::create(
-            "grass",
-            {
-                .vertex_shader   = "instancing_example/grass_sway",
-                .fragment_shader = "instancing_example/grass",
-                .cull_mode       = CullMode::None
-            });
-
-        grass["albedo_map"]                   = Texture::get_or_load("default.png");
-        grass["material.albedo_color"]        = glm::vec4{ 0.12f, 0.32f, 0.1f, 1.0f };
-        grass["material.properties"]          = glm::vec4{ 0.0f, 0.92f, 0.0f, 0.0f };
-        grass["material.detail"]              = glm::vec4{ 0.0f, SurfaceMappingUv, 0.0f, 1.0f };
-        grass["grassSettings.sway_direction"] = glm::normalize(glm::vec2{ 0.8f, 1.0f });
-        grass["grassSettings.sway_strength"]  = 1.0f;
-
-        Material& shadow_marker = Material::create(
-            "shadow_marker",
-            {
-                .vertex_shader   = "default",
-                .fragment_shader = "default"
-            });
-
-        shadow_marker["albedo_map"] = Texture::get_or_load("plaster_stone_wall_02/diff.jpg");
-        shadow_marker["normal_map"] = Texture::get_or_load("plaster_stone_wall_02/nor_gl.exr");
-        shadow_marker["roughness_map"] = Texture::get_or_load("plaster_stone_wall_02/rough.exr");
-        shadow_marker["material.albedo_color"] = glm::vec4{ 1.0f };
-        shadow_marker["material.properties"] = glm::vec4{ 0.0f, 0.92f, 0.24f, 0.0f };
-        shadow_marker["material.detail"] = glm::vec4{ 0.0f, SurfaceMappingWorldBox, 0.0f, 1.0f };
-
-        Material& grass_shadow_proxy = Material::create(
-            "grass_shadow_proxy",
-            {
-                .vertex_shader = "instancing_example/grass_shadow_proxy",
-                .fragment_shader = "default",
-                .cull_mode = CullMode::None
-            });
-
-        grass_shadow_proxy["albedo_map"] = Texture::get_or_load("default.png");
-        grass_shadow_proxy["material.albedo_color"] = glm::vec4{ 0.0f, 0.0f, 0.0f, 1.0f };
-        grass_shadow_proxy["material.properties"] = glm::vec4{ 0.0f };
-        grass_shadow_proxy["material.detail"] = glm::vec4{ 0.0f, SurfaceMappingUv, 0.0f, 1.0f };
-        grass_shadow_proxy.set_shadow_only(true);
-    }
-
     static void create_shadow_marker_mesh()
     {
         Mesh::create_obj("shadow_marker", "primitives/cube.obj");
@@ -125,7 +59,7 @@ private:
 
         auto& renderer         = terrain.add_component<MeshRenderer>();
         renderer.mesh_name     = "terrain";
-        renderer.material_name = "terrain";
+        renderer.material_name = "instancing_example/terrain";
     }
 
     static void setup_lights()
@@ -164,7 +98,7 @@ private:
 
             auto& renderer = marker.add_component<MeshRenderer>();
             renderer.mesh_name = "shadow_marker";
-            renderer.material_name = "shadow_marker";
+            renderer.material_name = "instancing_example/shadow_marker";
 
             marker.add_component<ShadowCaster>();
 
@@ -192,11 +126,11 @@ private:
 
         auto& renderer = grass_field.add_component<MeshRenderer>();
         renderer.mesh_name = "grass_blade";
-        renderer.material_name = "grass";
+        renderer.material_name = "instancing_example/grass";
 
         auto& shadow_renderer = grass_shadow_field.add_component<MeshRenderer>();
         shadow_renderer.mesh_name = "grass_blade";
-        shadow_renderer.material_name = "grass_shadow_proxy";
+        shadow_renderer.material_name = "instancing_example/grass_shadow_proxy";
 
         auto& gpu_instances = grass_field.add_component<GpuDrivenInstances>();
         gpu_instances.candidate_count = grass_blade_count;
