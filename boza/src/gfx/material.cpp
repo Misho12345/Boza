@@ -169,11 +169,6 @@ namespace boza
         gfx::MaterialLoader::instance().destroy(name);
     }
 
-    PropertyBinder Material::operator[](const std::string_view name)
-    {
-        return PropertyBinder(this, std::string(name));
-    }
-
     void Material::bind() const
     {
         if (!pipeline_)

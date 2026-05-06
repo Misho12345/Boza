@@ -568,52 +568,54 @@ namespace shooting_example
         With<PlayerController>,
         With<const PlayerTag>>
     {
-        static void execute(Transform& transform, PlayerController& controller)
-        {
-            glm::vec3 position = transform.local_position;
-
-            if (world.enemies_root.valid())
-            {
-                world.enemies_root.for_each_child([&](GameObject enemy_go)
-                {
-                    if (!enemy_go.valid() || !enemy_go.active) return;
-
-                    const auto* enemy_transform = std::as_const(enemy_go).try_get_component<Transform>();
-                    const auto* collider        = std::as_const(enemy_go).try_get_component<BoxCollider>();
-                    auto* enemy                = enemy_go.try_get_component<Enemy>();
-                    const auto* dead_tag        = std::as_const(enemy_go).try_get_component<DeadEnemyTag>();
-                    if (!enemy_transform || !collider || !enemy || !dead_tag || dead_tag->active) return;
-
-                    const auto push = sphere_push_out(position, controller.radius + 0.12f, *enemy_transform, *collider);
-                    if (!push.has_value()) return;
-
-                    glm::vec3 planar_push = *push;
-                    planar_push.y = 0.0f;
-
-                    if (glm::length2(planar_push) <= 1e-6f) return;
-
-                    position += planar_push;
-
-                    if (controller.enemy_bump_cooldown > 0.0f || enemy->bump_cooldown > 0.0f) return;
-
-                    const glm::vec3 bump_direction = normalize(planar_push);
-
-                    position += bump_direction * 0.65f;
-                    controller.current_velocity = glm::vec3{ 0.0f };
-                    controller.bump_velocity += bump_direction * 20.0f;
-                    controller.vertical_velocity = std::max(controller.vertical_velocity, 20.0f);
-                    controller.grounded = false;
-                    controller.enemy_bump_cooldown = 0.45f;
-
-                    enemy->bump_cooldown = 0.8f;
-                    enemy->knockback_velocity -= bump_direction * 5.5f;
-                });
-            }
-
-            resolve_sphere_against_walls(position, controller.radius, world.walls_root);
-            transform.local_position = position;
-        }
+        static inline void execute(Transform& transform, PlayerController& controller);
     };
+
+    inline void PlayerEnemyCollisionSystem::execute(Transform& transform, PlayerController& controller)
+    {
+        glm::vec3 position = transform.local_position;
+
+        if (world.enemies_root.valid())
+        {
+            world.enemies_root.for_each_child([&](GameObject enemy_go)
+            {
+                if (!enemy_go.valid() || !enemy_go.active) return;
+
+                const auto* enemy_transform = std::as_const(enemy_go).try_get_component<Transform>();
+                const auto* collider        = std::as_const(enemy_go).try_get_component<BoxCollider>();
+                auto* enemy                = enemy_go.try_get_component<Enemy>();
+                const auto* dead_tag        = std::as_const(enemy_go).try_get_component<DeadEnemyTag>();
+                if (!enemy_transform || !collider || !enemy || !dead_tag || dead_tag->active) return;
+
+                const auto push = sphere_push_out(position, controller.radius + 0.12f, *enemy_transform, *collider);
+                if (!push.has_value()) return;
+
+                glm::vec3 planar_push = *push;
+                planar_push.y = 0.0f;
+
+                if (glm::length2(planar_push) <= 1e-6f) return;
+
+                position += planar_push;
+
+                if (controller.enemy_bump_cooldown > 0.0f || enemy->bump_cooldown > 0.0f) return;
+
+                const glm::vec3 bump_direction = normalize(planar_push);
+
+                position += bump_direction * 0.65f;
+                controller.current_velocity = glm::vec3{ 0.0f };
+                controller.bump_velocity += bump_direction * 20.0f;
+                controller.vertical_velocity = std::max(controller.vertical_velocity, 20.0f);
+                controller.grounded = false;
+                controller.enemy_bump_cooldown = 0.45f;
+
+                enemy->bump_cooldown = 0.8f;
+                enemy->knockback_velocity -= bump_direction * 5.5f;
+            });
+        }
+
+        resolve_sphere_against_walls(position, controller.radius, world.walls_root);
+        transform.local_position = position;
+    }
 
 
     export struct EnemyDeathSystem : UpdateStage<EnemyDeathSystem,

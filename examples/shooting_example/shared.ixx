@@ -40,7 +40,7 @@ export namespace shooting_example
         bool logged_fire_issue{ false };
     };
 
-    inline WorldState world{};
+    WorldState world{};
 
     inline Material& create_tint_material(
         const std::string_view name,

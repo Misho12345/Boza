@@ -107,7 +107,7 @@ export namespace boza
         Material(Material&&) noexcept;
         Material& operator=(Material&&) noexcept;
 
-        PropertyBinder operator[](std::string_view name);
+        inline PropertyBinder operator[](std::string_view name) { return PropertyBinder(this, std::string(name)); }
 
         void bind() const;
 
